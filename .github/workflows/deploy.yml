@@ -1,0 +1,28 @@
+name: PyPI
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'setup.py'
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: Set up Python
+        uses: actions/setup-python@v1
+        with:
+          python-version: '3.x'
+      - name: Install dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install setuptools wheel twine
+      - name: Build and publish
+        env:
+          TWINE_USERNAME: enzobnl
+          TWINE_PASSWORD: ${{ secrets.pypipassword }}
+        run: |
+          python setup.py sdist bdist_wheel
+          twine upload dist/*
