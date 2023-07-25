@@ -154,11 +154,9 @@ class TestPipe(unittest.TestCase):
             [int, ValueError, int],
         )
 
-    def test_log(self):
-        list(
-            Pipe(range(8))
-            .map(lambda elem: ("_" if elem % 2 else "") + str(elem))
-            .map(int)
-            .catch()
-            .log()
+    def test_superintend(self):
+        Pipe("123").map(int).superintend()
+        self.assertRaises(
+            RuntimeError,
+            lambda: Pipe("12-3").map(int).superintend(),
         )
