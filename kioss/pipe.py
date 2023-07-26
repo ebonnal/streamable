@@ -87,7 +87,7 @@ class Pipe(Iterator[T]):
 
             return Pipe[R](iter(iterable()))
 
-    def flatten(self: "Pipe[Iterable[R]]") -> "Pipe[R]":
+    def flatten(self: "Pipe[List[R]]") -> "Pipe[R]":
         """
         Flatten the elements of the Pipe, which are assumed to be iterables, creating a new Pipe with individual elements.
 
@@ -224,7 +224,7 @@ class Pipe(Iterator[T]):
 
 
 class _FlatteningPipe(Pipe[R]):
-    def __init__(self, iterator: Iterator[Iterable[R]]) -> None:
+    def __init__(self, iterator: Iterator[List[R]]) -> None:
         super().__init__(iterator)
         self.current_iterator_elem = iter(super().__next__())
 

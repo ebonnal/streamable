@@ -15,7 +15,7 @@ from kioss import Pipe
 words_count: int = (
     Pipe(open("...", "r"))
     .map(str.split)
-    .explode()
+    .flatten()
     .map(lambda _: 1)
     .reduce(int.__add__, initial=0)
 )
