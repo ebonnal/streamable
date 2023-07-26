@@ -15,6 +15,7 @@ from kioss import Pipe
 words_count: int = (
     Pipe(open("...", "r"))
     .map(str.split)
+    .map(iter)
     .flatten()
     .map(lambda _: 1)
     .reduce(int.__add__, initial=0)
@@ -26,7 +27,7 @@ words_count: int = (
     - `.merge` several pipes to form a new one that yields elements using multiple threads
     - `.chain` several pipes to form a new one that yields elements of one pipe after the previous one is exhausted.
     - `.map` over pipe's elements uing multiple threads
-    - `.flatten` a pipeline that yields iterable elements to make it separately yield each object contained in the element
+    - `.flatten` a pipe, whose elements are assumed to be iterators, creating a new pipe with individual elements
     - `.filter` a pipe
     - `.batch` pipe's elements and yield them as lists of a given max size or spanning over a given max period.
 - manage
