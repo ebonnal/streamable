@@ -328,30 +328,43 @@ class _BatchingPipe(Pipe[List[T]]):
 
 
 class _ConcurrentlyMergingPipe(Pipe[T]):
-    MAX_QUEUE_SIZE = 64
     MIN_SLEEP_TIME_MS = 0.005
+    MAX_NUM_WAITING_ELEMS_PER_THREAD = 16
 
     def __init__(self, iterators: List[Iterator[T]]) -> None:
         super().__init__(
-            iter(_ConcurrentlyMergingPipe._concurrently_merging_iterable(iterators))
+            iter(
+                _ConcurrentlyMergingPipe._concurrently_merging_iterable(
+                    iterators,
+                    max_queue_size=_ConcurrentlyMergingPipe.MAX_NUM_WAITING_ELEMS_PER_THREAD
+                    * len(iterators),
+                )
+            )
         )
 
     @staticmethod
-    def _pull_in_queue(iterator: Iterator[T], queue: Queue) -> None:
+    def _pull_in_queue(
+        iterator: Iterator[T], queue: Queue, max_queue_size: int
+    ) -> None:
         for elem in iterator:
             backoffed_sleep_time = _ConcurrentlyMergingPipe.MIN_SLEEP_TIME_MS
-            while queue.qsize() > _ConcurrentlyMergingPipe.MAX_QUEUE_SIZE:
+            while queue.qsize() > max_queue_size:
                 time.sleep(backoffed_sleep_time)
                 backoffed_sleep_time *= 2
             queue.put(elem)
 
     @staticmethod
-    def _concurrently_merging_iterable(iterators: List[Iterator[T]]) -> Iterator[T]:
+    def _concurrently_merging_iterable(
+        iterators: List[Iterator[T]], max_queue_size: int
+    ) -> Iterator[T]:
         queue = Queue()
         with ThreadPoolExecutor(max_workers=len(iterators)) as executor:
             futures = [
                 executor.submit(
-                    _ConcurrentlyMergingPipe._pull_in_queue, iterator, queue
+                    _ConcurrentlyMergingPipe._pull_in_queue,
+                    iterator,
+                    queue,
+                    max_queue_size,
                 )
                 for iterator in iterators
             ]
