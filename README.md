@@ -14,7 +14,7 @@ import re
 from kioss import Pipe
 import requests
 
-# detects emails in text and raises if any of them is unreachable
+# detects emails domains in text and raises if any of them is unreachable
 
 
 # A Pipe can be created from any iterator/iterable,
