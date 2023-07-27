@@ -1,4 +1,4 @@
-from typing import Callable, TypeVar
+from typing import Callable, Iterable, Iterator, TypeVar, Union
 
 T = TypeVar("T")
 R = TypeVar("R")
@@ -10,3 +10,8 @@ def sidify(func: Callable[[T], R]) -> Callable[[T], T]:
         return arg
 
     return wrap
+
+
+def iterate(it: Union[Iterator[T], Iterable[T]]) -> None:
+    for _ in it:
+        pass

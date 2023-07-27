@@ -1,3 +1,4 @@
+import atexit
 import itertools
 import logging
 import time
@@ -78,14 +79,7 @@ class Pipe(Iterator[T]):
         if num_threads <= 1:
             return Pipe[R](map(func, self))
         else:
-
-            def iterable():
-                executor = ThreadPoolExecutor(max_workers=num_threads)
-                # non consumed map results block the worker that produced them, hence it makes it compatible with self.slow()
-                yield from executor.map(func, self)
-                executor.shutdown()
-
-            return Pipe[R](iter(iterable()))
+            return _ConcurrentlyMappingPipe[R](func, self, num_threads)
 
     def flatten(self: "Pipe[Iterator[R]]") -> "Pipe[R]":
         """
@@ -328,48 +322,72 @@ class _BatchingPipe(Pipe[List[T]]):
 
 
 class _ConcurrentlyMergingPipe(Pipe[T]):
-    MIN_SLEEP_TIME_MS = 0.005
-    MAX_NUM_WAITING_ELEMS_PER_THREAD = 16
+    MAX_NUM_WAITING_ELEMS_PER_THREAD = 8
 
     def __init__(self, iterators: List[Iterator[T]]) -> None:
         super().__init__(
             iter(
-                _ConcurrentlyMergingPipe._concurrently_merging_iterable(
+                self._concurrently_merging_iterable(
                     iterators,
-                    max_queue_size=_ConcurrentlyMergingPipe.MAX_NUM_WAITING_ELEMS_PER_THREAD
-                    * len(iterators),
+                    Queue(self.MAX_NUM_WAITING_ELEMS_PER_THREAD * len(iterators)),
                 )
             )
         )
 
     @staticmethod
-    def _pull_in_queue(
-        iterator: Iterator[T], queue: Queue, max_queue_size: int
-    ) -> None:
-        for elem in iterator:
-            backoffed_sleep_time = _ConcurrentlyMergingPipe.MIN_SLEEP_TIME_MS
-            while queue.qsize() > max_queue_size:
-                time.sleep(backoffed_sleep_time)
-                backoffed_sleep_time *= 2
-            queue.put(elem)
-
-    @staticmethod
     def _concurrently_merging_iterable(
-        iterators: List[Iterator[T]], max_queue_size: int
+        iterators: List[Iterator[T]], queue: Queue[T]
     ) -> Iterator[T]:
-        queue = Queue()
         with ThreadPoolExecutor(max_workers=len(iterators)) as executor:
             futures = [
                 executor.submit(
-                    _ConcurrentlyMergingPipe._pull_in_queue,
-                    iterator,
-                    queue,
-                    max_queue_size,
+                    lambda: util.iterate(map(queue.put, iterator)),
                 )
                 for iterator in iterators
             ]
             while not queue.empty() or not all((future.done() for future in futures)):
+                yield queue.get()
+
+
+class _ConcurrentlyMappingPipe(Pipe[R]):
+    MAX_NUM_WAITING_ELEMS_PER_THREAD = 16
+
+    def __init__(
+        self, func: Callable[[T], R], iterator: Iterator[T], num_threads: int
+    ) -> None:
+        super().__init__(
+            iter(
+                self._concurrently_mapping_iterable(
+                    func,
+                    iterator,
+                    num_threads=num_threads,
+                    max_queue_size=self.MAX_NUM_WAITING_ELEMS_PER_THREAD * num_threads,
+                )
+            )
+        )
+
+    @staticmethod
+    def _concurrently_mapping_iterable(
+        func: Callable[[T], R], iterator: Iterator[T], num_threads, max_queue_size: int
+    ) -> Iterator[T]:
+        input_queue: Queue[T] = Queue(maxsize=max_queue_size)
+        output_queue: Queue[R] = Queue(maxsize=max_queue_size)
+
+        with ThreadPoolExecutor(max_workers=num_threads + 1) as executor:
+            input_feeder_future = executor.submit(
+                lambda: util.iterate(map(input_queue.put, iterator))
+            )
+
+            def mapper_job():
+                while not input_feeder_future.done() or not input_queue.empty():
+                    try:
+                        output_queue.put(func(input_queue.get(timeout=0.1)))
+                    except Empty:
+                        pass
+
+            futures = [executor.submit(mapper_job) for _ in range(num_threads)]
+            while not all((future.done() for future in futures)) or not output_queue.empty():
                 try:
-                    yield queue.get(block=False)
+                    yield output_queue.get(timeout=0.1)
                 except Empty:
-                    time.sleep(0.05)
+                    pass
