@@ -23,7 +23,7 @@ import requests
 # we use a local file for this example:
 with open("/path/to/file.text", "r") as text_file:
     if unreachable_domain_samples := (
-        #this pipe will read the text file line by line
+        # this pipe will read the text file line by line
         Pipe(text_file)
         # split each map on spaces to get iterator on words
         .map(str.split)
