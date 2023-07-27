@@ -216,7 +216,7 @@ class Pipe(Iterator[T]):
         """
         if errors := (
             self.catch(Exception, ignore=False)
-            .log()
+            .log(objects_description="ultimate elements")
             .filter(lambda elem: isinstance(elem, Exception))
             .map(repr)
             .collect(limit=n_error_samples)
