@@ -31,59 +31,60 @@ with open("/path/to/file.text", "r") as text_file:
         # flatten the pipe to make it yield individual words
         .flatten()
         # log the advancement of this step
-        .log(objects_description="parsed words")
+        .log("parsed words")
 
         # parse the word to get the email domain in it if any
         .map(lambda word: re.search(r"@([a-zA-Z0-9.-]+)", word).group(1))
         # catch exception produced by non-email words and ignore them
         .catch(AttributeError, ignore=True)
         # log the advancement of this step
-        .log(objects_description="parsed email domains")
+        .log("parsed email domains")
 
         # batch the words into chucks of 500 words at most and not spanning over more than a 1 minute
-        .batch(max_size=500, time_window_seconds=60)
+        .batch(size=500, secs=60)
         # deduplicate the email domains inside the batch
         .map(set)
         .map(iter)
         # flatten back to yield individual domains from a batch
         .flatten()
         # log the advancement of this step
-        .log(objects_description="parsed email domains deduplicated by batch")
+        .log("parsed email domains deduplicated by batch")
 
         # construct url from email domain
         .map(lambda email_domain: f"https://{email_domain}")
         # sent GET requests to urls, using 2 threads for better I/O
-        .map(requests.get, n_threads=2)
+        .map(requests.get, n_workers=2)
         # limit requests to roughly 20 requests sent by second to avoid spam
         .slow(freq=20)
         # catch request errors without ignoring them this time:
         # it means that the pipeline will yield the exception object encountered instead of raising it
         .catch(requests.RequestException, ignore=False)
         # log the advancement of this step
-        .log(objects_description="domain responses")
+        .log("domain responses")
 
         # get only errors, i.e. non-200 status codes or request exceptions (yielded by upstream because ignore=False)
         .filter(lambda reponse: isinstance(reponse, requests.RequestException) or reponse.status_code != 200)
         # iterate over the entire pipe but only store the 32 first errors
-        .collect(limit=32) 
+        .collect(n_samples=32) 
     ):
         raise RuntimeError(f"Encountered unreachable domains, samples: {unreachable_domain_samples}")
 ```
 
 ## Features
-- mutate
-    - `.mix` several pipes to form a new one that yields elements concurrently as they arrive, using multiple threads.
-    - `.chain` several pipes to form a new one that yields elements of one pipe after the previous one is exhausted.
-    - `.map` over pipe's elements and yield the results as they arrive, using multiple threads.
+- define:
+    - `Pipe`'s constructor takes an `Iterator[T]` or `Iterable[T]` object as data source, and the constructed pipe object is itself an `Iterator[T]` on which you can call any function working with iterators: `set`, `functools.reduce`, etc...
+    - `.map` over pipe's elements and yield the results as they arrive, optionally using multiple threads.
     - `.flatten` a pipe, whose elements are assumed to be iterators, creating a new pipe with individual elements.
     - `.filter` a pipe.
+    - `.do` side effects on a pipe, optionally using multiple threads or processes.
+    - `.chain` several pipes to form a new one that yields elements of one pipe after the previous one is exhausted.
+    - `.mix` several pipes to form a new one that yields elements concurrently as they arrive, using multiple threads.
     - `.batch` pipe's elements and yield them as lists of a given max size or spanning over a given max period.
-- control
+- control:
+    - `.slow` a pipe to limit the iteration's speed over it.
     - `.log` a pipe's iteration status.
     - `.catch` a pipe's exceptions of a specific class and return them instead of raising.
-    - `.slow` a pipe to limit the iteration's speed over it.
-- consume
+- consume:
     - `.collect` a pipe into a list having an optional max size.
-    - `.reduce` a pipe to a result using a binary function.
     - `.superintend` a pipe: iterate over it entirely while catching exceptions + logging the iteration process + collecting and raising error samples.
   

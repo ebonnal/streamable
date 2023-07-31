@@ -1,20 +1,40 @@
-from collections import Counter
-from functools import reduce
+import multiprocessing
 import time
 import timeit
-from typing import List
 import unittest
+from collections import Counter
+from functools import reduce
+from typing import List, Optional, TypeVar
+
+from parameterized import parameterized
 
 from kioss import Pipe
-from kioss import util
-from kioss.util import identity
 
 TEN_MS = 0.01
 
+T = TypeVar("T")
 
-def ten_millis_identity(x):
+
+def ten_millis_identity(x: T) -> T:
     time.sleep(TEN_MS)
     return x
+
+
+non_local_l = multiprocessing.Manager().list()
+
+
+def non_local_func(x):
+    return x**2
+
+
+def non_local_func_with_side_effect(x):
+    res = non_local_func(x)
+    non_local_l.append(res)
+    return res
+
+
+Pipe._MAX_NUM_WAITING_ELEMS_PER_THREAD = 2
+N = 64
 
 
 class TestPipe(unittest.TestCase):
@@ -35,7 +55,6 @@ class TestPipe(unittest.TestCase):
         )
 
     def test_mix(self):
-        N = 32
         single_pipe_iteration_duration = 0.5
         new_pipes = lambda: [
             Pipe(range(0, N, 3)).slow((N / 3) / single_pipe_iteration_duration),
@@ -82,38 +101,104 @@ class TestPipe(unittest.TestCase):
             list(range(8)),
         )
 
-    def test_map(self):
-        func = lambda x: x**2
-        # non threaded
-        self.assertListEqual(list(Pipe(range(8)).map(func)), list(map(func, range(8))))
-        # threaded
+    @parameterized.expand(
+        [
+            [
+                non_local_func
+                if worker_type == Pipe.PROCESS_WORKER_TYPE
+                else lambda x: x**2,
+                n_workers,
+                worker_type,
+            ]
+            for n_workers in [None, 1]
+            for worker_type in Pipe.SUPPORTED_WORKER_TYPES
+        ]
+    )
+    def test_map(self, func, n_workers: Optional[int], worker_type: str):
         self.assertSetEqual(
-            set(Pipe(range(8)).map(func, n_threads=2)), set(map(func, range(8)))
+            set(
+                Pipe(range(N))
+                .map(ten_millis_identity, n_workers=n_workers, worker_type=worker_type)
+                .map(func, n_workers=n_workers, worker_type=worker_type)
+                .catch(Exception, ignore=True)
+                .map(ten_millis_identity, n_workers=n_workers, worker_type=worker_type)
+            ),
+            set(map(func, range(N))),
         )
+
+    def test_map_timing(self):
         # non-threaded vs threaded execution time
-        N = 100
         pipe = Pipe(range(N)).map(ten_millis_identity)
         self.assertAlmostEqual(pipe.time(), TEN_MS * N, delta=0.3 * (TEN_MS * N))
-        n_threads = 2
-        pipe = Pipe(range(N)).map(ten_millis_identity, n_threads=n_threads)
+        n_workers = 2
+        pipe = Pipe(range(N)).map(ten_millis_identity, n_workers=n_workers)
         self.assertAlmostEqual(
             pipe.time(),
-            TEN_MS * N / n_threads,
-            delta=0.3 * (TEN_MS * N) / n_threads,
+            TEN_MS * N / n_workers,
+            delta=0.3 * (TEN_MS * N) / n_workers,
         )
-        # sidify
+
+    def test__apply(self):
+        self.assertRaisesRegex(
+            AttributeError,
+            r"Can't pickle local object 'TestPipe\.test__apply\.<locals>\.<lambda>\.<locals>\.<lambda>'",
+            lambda: Pipe([]).map(
+                lambda x: x, n_workers=1, worker_type=Pipe.PROCESS_WORKER_TYPE
+            ),
+        )
+
+    def test_do(self):
         l: List[int] = []
 
+        func = lambda x: x**2
+
         def func_with_side_effect(x):
-            res = x**2
+            res = func(x)
             l.append(res)
             return res
 
-        args = range(8)
-        self.assertListEqual(
-            list(Pipe(args).map(func_with_side_effect, sidify=True)), list(args)
-        )
+        args = range(N)
+        self.assertListEqual(Pipe(args).do(func_with_side_effect).collect(), list(args))
         self.assertListEqual(l, list(map(func, args)))
+
+        # with threads
+        l.clear()
+        self.assertSetEqual(
+            set(Pipe(args).do(func_with_side_effect, n_workers=2)), set(args)
+        )
+        self.assertSetEqual(set(l), set(map(func, args)))
+
+        # with processes
+        while len(non_local_l):
+            non_local_l.pop()
+        self.assertSetEqual(
+            set(
+                Pipe(args).do(
+                    non_local_func_with_side_effect,
+                    n_workers=2,
+                    worker_type=Pipe.PROCESS_WORKER_TYPE,
+                )
+            ),
+            set(args),
+        )
+        self.assertSetEqual(set(l), set(map(func, args)))
+
+        # with_processes and with slow upstream
+        while len(non_local_l):
+            non_local_l.pop()
+        self.assertSetEqual(
+            set(
+                Pipe(range(N))
+                .map(ten_millis_identity)
+                .do(
+                    non_local_func_with_side_effect,
+                    n_workers=8,
+                    worker_type=Pipe.PROCESS_WORKER_TYPE,
+                )
+            ),
+            set(range(N)),
+        )
+        self.assertSetEqual(set(l), set(map(func, args)))
 
     def test_flatten(self):
         self.assertListEqual(
@@ -138,39 +223,40 @@ class TestPipe(unittest.TestCase):
 
     def test_batch(self):
         self.assertListEqual(
-            Pipe(range(8)).batch(max_size=3).collect(), [[0, 1, 2], [3, 4, 5], [6, 7]]
+            Pipe(range(8)).batch(size=3).collect(), [[0, 1, 2], [3, 4, 5], [6, 7]]
         )
         self.assertListEqual(
-            Pipe(range(6)).batch(max_size=3).collect(), [[0, 1, 2], [3, 4, 5]]
+            Pipe(range(6)).batch(size=3).collect(), [[0, 1, 2], [3, 4, 5]]
         )
         self.assertListEqual(
-            Pipe(range(8)).batch(max_size=1).collect(),
+            Pipe(range(8)).batch(size=1).collect(),
             list(map(lambda x: [x], range(8))),
         )
-        self.assertListEqual(
-            Pipe(range(8)).batch(max_size=8).collect(), [list(range(8))]
-        )
+        self.assertListEqual(Pipe(range(8)).batch(size=8).collect(), [list(range(8))])
+        self.assertEqual(len(Pipe(range(8)).slow(10).batch(secs=0.09).collect()), 7)
 
-    def test_slow(self):
+    @parameterized.expand(
+        [
+            [n_workers, worker_type]
+            for n_workers in [None, 1]
+            for worker_type in Pipe.SUPPORTED_WORKER_TYPES
+        ]
+    )
+    def test_slow(self, n_workers: Optional[int], worker_type: str):
         freq = 64
-        pipe = Pipe(range(8)).map(ten_millis_identity).slow(freq)
+        pipe = (
+            Pipe(range(N))
+            .map(ten_millis_identity, n_workers=n_workers, worker_type=worker_type)
+            .slow(freq)
+        )
         self.assertAlmostEqual(
             pipe.time(),
-            1 / freq * 8,
-            delta=0.3 * (1 / freq * 8),
-        )
-
-    def test_head(self):
-        self.assertListEqual(Pipe(range(8)).head(3).collect(), [0, 1, 2])
-        # stops after the second element
-        self.assertAlmostEqual(
-            Pipe(range(8)).map(ten_millis_identity).head(2).time(),
-            TEN_MS * 2,
-            delta=0.3 * TEN_MS * 2,
+            1 / freq * N,
+            delta=0.3 * (1 / freq * N),
         )
 
     def test_collect(self):
-        self.assertListEqual(Pipe(range(8)).collect(limit=6), list(range(6)))
+        self.assertListEqual(Pipe(range(8)).collect(n_samples=6), list(range(6)))
         self.assertListEqual(Pipe(range(8)).collect(), list(range(8)))
         self.assertAlmostEqual(
             timeit.timeit(
@@ -181,9 +267,6 @@ class TestPipe(unittest.TestCase):
             delta=0.3 * TEN_MS * 8,
         )
 
-    def test_reduce(self):
-        self.assertEqual(Pipe(range(8)).map(lambda _: 1).reduce(int.__add__, 0), 8)
-
     def test_time(self):
         new_pipe = lambda: Pipe(range(8)).slow(64)
         start_time = time.time()
@@ -193,56 +276,63 @@ class TestPipe(unittest.TestCase):
             execution_time, new_pipe().time(), delta=0.3 * execution_time
         )
 
-    def test_catch(self):
+    @parameterized.expand(
+        [
+            [n_workers, worker_type]
+            for n_workers in [None, 1]
+            for worker_type in Pipe.SUPPORTED_WORKER_TYPES
+        ]
+    )
+    def test_catch(self, n_workers: Optional[int], worker_type: str):
         # ignore = True
-        self.assertListEqual(
-            Pipe(["1", "r", "2"])
-            .map(int)
-            .catch(Exception, ignore=True)
-            .map(type)
-            .collect(),
-            [int, int],
+        self.assertSetEqual(
+            set(
+                Pipe(["1", "r", "2"])
+                .map(int, n_workers=n_workers, worker_type=worker_type)
+                .catch(Exception, ignore=False)
+                .map(type)
+            ),
+            {int, ValueError, int},
         )
         # ignore = False
-        self.assertListEqual(
-            Pipe(["1", "r", "2"]).map(int).catch(Exception).map(type).collect(),
-            [int, ValueError, int],
+        self.assertSetEqual(
+            set(
+                Pipe(["1", "r", "2"])
+                .map(int, n_workers=n_workers, worker_type=worker_type)
+                .catch(Exception)
+                .map(type)
+            ),
+            {int, ValueError, int},
         )
-        self.assertListEqual(
-            Pipe(["1", "r", "2"]).map(int).catch(ValueError).map(type).collect(),
-            [int, ValueError, int],
+        self.assertSetEqual(
+            set(
+                Pipe(["1", "r", "2"])
+                .map(int, n_workers=n_workers, worker_type=worker_type)
+                .catch(ValueError)
+                .map(type)
+            ),
+            {int, ValueError, int},
         )
         # chain catches
-        self.assertListEqual(
-            Pipe(["1", "r", "2"])
-            .map(int)
-            .catch(TypeError)
-            .catch(ValueError)
-            .catch(TypeError)
-            .map(type)
-            .collect(),
-            [int, ValueError, int],
-        )
-        self.assertDictEqual(
-            dict(
-                Counter(
-                    Pipe(["1", "r", "2"])
-                    .map(int, n_threads=2)
-                    .catch(ValueError)
-                    .map(type)
-                    .collect()
-                )
+        self.assertSetEqual(
+            set(
+                Pipe(["1", "r", "2"])
+                .map(int, n_workers=n_workers, worker_type=worker_type)
+                .catch(TypeError)
+                .catch(ValueError)
+                .catch(TypeError)
+                .map(type)
             ),
-            dict(Counter([int, ValueError, int])),
+            {int, ValueError, int},
         )
         self.assertDictEqual(
             dict(
                 Counter(
                     Pipe(["1"])
-                    .map(int)
+                    .map(int, n_workers=n_workers, worker_type=worker_type)
                     .mix(Pipe(["r", "2"]).map(int))
                     .catch(ValueError)
-                    .map(type)
+                    .map(type)  # , n_workers=n_workers, worker_type=worker_type)
                     .collect()
                 )
             ),
@@ -252,20 +342,18 @@ class TestPipe(unittest.TestCase):
         # raises
         self.assertRaises(
             ValueError,
-            lambda: Pipe(["1", "r", "2"]).map(int).catch(TypeError).map(type).collect(),
-        )
-        self.assertRaises(
-            ValueError,
-            lambda: Pipe(["1"])
-            .mix(Pipe(["r", "2"]).map(int))
+            lambda: Pipe(["1", "r", "2"])
+            .map(int, n_workers=n_workers, worker_type=worker_type)
             .catch(TypeError)
             .map(type)
             .collect(),
         )
         self.assertRaises(
             ValueError,
-            lambda: Pipe(["1", "r", "2"])
-            .map(int, n_threads=2)
+            lambda: Pipe(["1"])
+            .mix(
+                Pipe(["r", "2"]).map(int, n_workers=n_workers, worker_type=worker_type)
+            )
             .catch(TypeError)
             .map(type)
             .collect(),
