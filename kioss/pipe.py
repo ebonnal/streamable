@@ -46,6 +46,13 @@ class Pipe(Iterator[T]):
     def __init__(self, source: Union[Iterable[T], Iterator[T]] = []) -> None:  # timeout
         self.iterator: Iterator[T] = iter(source)
         self._exit_asked: Optional[Event] = None
+        self._upstream: List[Pipe[T]] = []
+        if isinstance(source, Pipe):
+            self._upstream.append(source)
+
+    def _with_upstream(self, *pipes: "Pipe[T]") -> "Pipe[T]":
+        self._upstream.extend(pipes)
+        return self
 
     def __next__(self) -> T:
         return next(self.iterator)
@@ -62,8 +69,8 @@ class Pipe(Iterator[T]):
     def __exit__(self, exc_type, exc_value, traceback) -> bool:
         if self._exit_asked is not None:
             self._exit_asked.set()
-        if isinstance(self.iterator, Pipe):
-            return self.iterator.__exit__(exc_type, exc_value, traceback)
+        for upstream_pipe in self._upstream:
+            upstream_pipe.__exit__(exc_type, exc_value, traceback)
         return False
 
     THREAD_WORKER_TYPE = "thread"
@@ -71,9 +78,16 @@ class Pipe(Iterator[T]):
 
     SUPPORTED_WORKER_TYPES = [THREAD_WORKER_TYPE, PROCESS_WORKER_TYPE]
 
-    _MAX_NUM_WAITING_ELEMS_PER_THREAD = 16
+    _MAX_NUM_WAITING_ELEMS_PER_WORKER = 16
 
     _MANAGER: Optional[multiprocessing.Manager] = None
+
+    @staticmethod
+    def _validate_worker_type(worker_type: str) -> None:
+        if worker_type not in Pipe.SUPPORTED_WORKER_TYPES:
+            raise ValueError(
+                f"'{worker_type}' worker_type is not supported, must be one of: {Pipe.SUPPORTED_WORKER_TYPES}"
+            )
 
     def _map_or_do(
         self,
@@ -82,11 +96,7 @@ class Pipe(Iterator[T]):
         worker_type: str,
         sidify: bool,
     ) -> "Pipe[Union[R, T]]":
-        if worker_type not in self.SUPPORTED_WORKER_TYPES:
-            raise ValueError(
-                f"'{worker_type}' worker_type is not supported, must be one of: {self.SUPPORTED_WORKER_TYPES}"
-            )
-
+        self._validate_worker_type(worker_type)
         if n_workers is None or n_workers <= 0:
             if sidify:
                 func = util.sidify(func)
@@ -105,18 +115,21 @@ class Pipe(Iterator[T]):
             executor_class: Type[Executor] = ThreadPoolExecutor
 
         return _RasingPipe[T](
-            iter(
-                _multi_yielding_iterable(
-                    func,
-                    self,
-                    executor_class=executor_class,
-                    queue_class=queue_class,
-                    n_workers=n_workers,
-                    max_queue_size=self._MAX_NUM_WAITING_ELEMS_PER_THREAD * n_workers,
-                    sidify=sidify,
-                    exit_asked=self._exit_asked,
+            Pipe[T](
+                iter(
+                    _multi_yielding_iterable(
+                        func,
+                        self,
+                        executor_class=executor_class,
+                        queue_class=queue_class,
+                        n_workers=n_workers,
+                        max_queue_size=self._MAX_NUM_WAITING_ELEMS_PER_WORKER
+                        * n_workers,
+                        sidify=sidify,
+                        exit_asked=self._exit_asked,
+                    )
                 )
-            )
+            )._with_upstream(self)
         )
 
     def map(
@@ -167,17 +180,52 @@ class Pipe(Iterator[T]):
         """
         return Pipe[T](itertools.chain(self, *others))
 
-    def mix(self, *others: "Pipe[T]") -> "Pipe[T]":
+    def mix(
+        self, *others: "Pipe[T]", worker_type: str = THREAD_WORKER_TYPE
+    ) -> "Pipe[T]":
         """
         Mix this Pipe with other Pipes using one thread per pipe, returning a new Pipe instance concurrently yielding elements from self and others in any order.
 
         Args:
             *others ([Pipe[T]]): One or more additional Pipe instances to mix with this Pipe.
+            worker_type (str, optional): Must be Pipe.THREAD_WORKER_TYPE (default) or Pipe.PROCESS_WORKER_TYPE.
 
         Returns:
             Pipe[T]: A new Pipe instance concurrently yielding elements from self and others in any order.
         """
-        return _RasingPipe[R](_ConcurrentlyMergingPipe[T]([self, *others]))
+        for other in others:
+            if not isinstance(other, Pipe):
+                raise TypeError(
+                    f"Positional arguments of Pipe.mix must be of type Pipe, but got '{type(other)}'"
+                )
+        if not all((isinstance(other, Pipe) for other in others)):
+            raise TypeError("")
+        self._validate_worker_type(worker_type)
+        if worker_type == Pipe.PROCESS_WORKER_TYPE:
+            if Pipe._MANAGER is None:
+                Pipe._MANAGER = multiprocessing.Manager()
+            self._exit_asked = Pipe._MANAGER.Event()
+            queue_class: Type[Queue] = Pipe._MANAGER.Queue
+            executor_class: Type[Executor] = ProcessPoolExecutor
+        else:
+            self._exit_asked = multiprocessing.Event()
+            queue_class: Type[Queue] = Queue
+            executor_class: Type[Executor] = ThreadPoolExecutor
+
+        return _RasingPipe[R](
+            Pipe[T](
+                iter(
+                    _concurrently_merging_iterable(
+                        iterators=[self, *others],
+                        executor_class=executor_class,
+                        queue_class=queue_class,
+                        exit_asked=self._exit_asked,
+                        max_queue_size=self._MAX_NUM_WAITING_ELEMS_PER_WORKER
+                        * (len(others) + 1),
+                    )
+                )
+            )._with_upstream(self, *others)
+        )
 
     def flatten(self: "Pipe[Iterator[R]]") -> "Pipe[R]":
         """
@@ -459,40 +507,42 @@ class _BatchingPipe(Pipe[List[T]]):
             raise
 
 
-class _ConcurrentlyMergingPipe(Pipe[T]):
-    MAX_NUM_WAITING_ELEMS_PER_THREAD = 16
+def _puller(iterator: Iterator[T], queue: Queue, exit_asked: Event):
+    while not exit_asked.is_set():
+        try:
+            elem = next(iterator)
+        except StopIteration:
+            break
+        except Exception as e:
+            elem = _CatchedError(e)
+        while not exit_asked.is_set():
+            try:
+                queue.put(elem, timeout=0.1)
+                break
+            except Full:
+                continue
 
-    def __init__(self, iterators: List[Iterator[T]]) -> None:
-        super().__init__(
-            self._concurrently_merging_iterable(
-                iterators,
-                Queue(self.MAX_NUM_WAITING_ELEMS_PER_THREAD * len(iterators)),
-            )
-        )
 
-    @staticmethod
-    def _concurrently_merging_iterable(
-        iterators: List[Iterator[T]], queue: Queue
-    ) -> Iterator[T]:
-        with ThreadPoolExecutor(max_workers=len(iterators)) as executor:
-
-            def pull_job(iterator: Iterator[T]):
-                while True:
-                    try:
-                        queue.put(next(iterator))
-                    except StopIteration:
-                        break
-                    except Exception as e:
-                        queue.put(_CatchedError(e))
-
-            futures = [executor.submit(pull_job, iterator) for iterator in iterators]
-            backoff_secs = 0.005
-            while not queue.empty() or not all((future.done() for future in futures)):
-                try:
-                    yield queue.get(timeout=backoff_secs)
-                    backoff_secs = 0.005
-                except Empty:
-                    backoff_secs *= 2
+def _concurrently_merging_iterable(
+    iterators: List[Iterator[T]],
+    executor_class: Type[Executor],
+    queue_class: Type[Queue],
+    exit_asked: Event,
+    max_queue_size: int,
+) -> Iterator[T]:
+    with executor_class(max_workers=len(iterators)) as executor:
+        queue: Queue = queue_class(maxsize=max_queue_size)
+        futures = [
+            executor.submit(_puller, iterator, queue, exit_asked)
+            for iterator in iterators
+        ]
+        while not exit_asked.is_set() and (
+            not queue.empty() or not all((future.done() for future in futures))
+        ):
+            try:
+                yield queue.get(timeout=0.1)
+            except Empty:
+                pass
 
 
 def _mapper(
@@ -573,16 +623,14 @@ def _multi_yielding_iterable(
             futures.append(
                 executor.submit(_feeder, input_queue, iterator, exit_asked, sentinel)
             )
-            backoff_secs = 0.005
             while not exit_asked.is_set() and (
                 not all((future.done() for future in futures))
                 or not output_queue.empty()
             ):
                 try:
-                    yield output_queue.get(timeout=backoff_secs)
-                    backoff_secs = 0.005
+                    yield output_queue.get(timeout=0.1)
                 except Empty:
-                    backoff_secs *= 2
+                    pass
     # yield worker errors not linked to an element processing
     for future in futures:
         try:
