@@ -4,13 +4,23 @@ import multiprocessing
 import pickle
 import time
 import timeit
-from concurrent.futures import (Executor, ProcessPoolExecutor,
-                                ThreadPoolExecutor)
+from concurrent.futures import Executor, ProcessPoolExecutor, ThreadPoolExecutor
 from datetime import datetime
 from multiprocessing.synchronize import Event
 from queue import Empty, Full, Queue
-from typing import (Any, Callable, Generic, Iterable, Iterator, List, Optional,
-                    Tuple, Type, TypeVar, Union)
+from typing import (
+    Any,
+    Callable,
+    Generic,
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+)
 
 import kioss.util as util
 
