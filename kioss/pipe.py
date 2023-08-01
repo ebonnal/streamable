@@ -340,6 +340,7 @@ class _LoggingPipe(Pipe[T]):
         self.last_log_at_yields_count = 0
         self.start_time = time.time()
         self._is_exhausted = False
+        logging.info("Iteration over '%s' will be logged.", self.what)
 
     def _log(self) -> None:
         logging.info(
