@@ -45,7 +45,7 @@ class Pipe(Iterator[T]):
 
     def __init__(self, source: Union[Iterable[T], Iterator[T]] = []) -> None:  # timeout
         self.iterator: Iterator[T] = iter(source)
-        self._exit_asked: Event = multiprocessing.Event()
+        self._exit_asked: Event = self._MANAGER.Event()
 
     def __next__(self) -> T:
         return next(self.iterator)
@@ -68,9 +68,11 @@ class Pipe(Iterator[T]):
     THREAD_WORKER_TYPE = "thread"
     PROCESS_WORKER_TYPE = "process"
 
-    SUPPORTED_WORKER_TYPES = [THREAD_WORKER_TYPE]
+    SUPPORTED_WORKER_TYPES = [THREAD_WORKER_TYPE, PROCESS_WORKER_TYPE]
 
     _MAX_NUM_WAITING_ELEMS_PER_THREAD = 16
+
+    _MANAGER = multiprocessing.Manager()
 
     def _map_or_do(
         self,
@@ -99,7 +101,7 @@ class Pipe(Iterator[T]):
                     else ProcessPoolExecutor,
                     queue_class=Queue
                     if worker_type == self.THREAD_WORKER_TYPE
-                    else multiprocessing.Queue,
+                    else self._MANAGER.Queue,
                     n_workers=n_workers,
                     max_queue_size=self._MAX_NUM_WAITING_ELEMS_PER_THREAD * n_workers,
                     sidify=sidify,

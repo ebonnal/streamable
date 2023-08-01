@@ -138,14 +138,14 @@ class TestPipe(unittest.TestCase):
             delta=0.3 * (TEN_MS * N) / n_workers,
         )
 
-    # def test_map_or_do(self):
-    #     self.assertRaisesRegex(
-    #         AttributeError,
-    #         r"Can't pickle local object 'TestPipe\.test__apply\.<locals>\.<lambda>\.<locals>\.<lambda>'",
-    #         lambda: Pipe([]).map(
-    #             lambda x: x, n_workers=1, worker_type=Pipe.THREAD_WORKER_TYPE
-    #         ),
-    #     )
+    def test__apply(self):
+        self.assertRaisesRegex(
+            AttributeError,
+            r"Can't pickle local object 'TestPipe\.test__apply\.<locals>\.<lambda>\.<locals>\.<lambda>'",
+            lambda: Pipe([]).map(
+                lambda x: x, n_workers=1, worker_type=Pipe.PROCESS_WORKER_TYPE
+            ),
+        )
 
     def test_do(self):
         l: List[int] = []
@@ -176,7 +176,7 @@ class TestPipe(unittest.TestCase):
                 Pipe(args).do(
                     non_local_func_with_side_effect,
                     n_workers=2,
-                    worker_type=Pipe.THREAD_WORKER_TYPE,
+                    worker_type=Pipe.PROCESS_WORKER_TYPE,
                 )
             ),
             set(args),
@@ -193,7 +193,7 @@ class TestPipe(unittest.TestCase):
                 .do(
                     non_local_func_with_side_effect,
                     n_workers=8,
-                    worker_type=Pipe.THREAD_WORKER_TYPE,
+                    worker_type=Pipe.PROCESS_WORKER_TYPE,
                 )
             ),
             set(range(N)),
