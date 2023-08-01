@@ -1,3 +1,4 @@
+import itertools
 import multiprocessing
 import time
 import timeit
@@ -8,7 +9,7 @@ from typing import List, Optional, TypeVar
 
 from parameterized import parameterized
 
-from kioss import Pipe
+from kioss import Pipe, util
 
 TEN_MS = 0.01
 
@@ -33,7 +34,7 @@ def non_local_func_with_side_effect(x):
     return res
 
 
-Pipe._MAX_NUM_WAITING_ELEMS_PER_THREAD = 2
+Pipe._MAX_NUM_WAITING_ELEMS_PER_WORKER = 2
 N = 64
 
 
@@ -54,8 +55,12 @@ class TestPipe(unittest.TestCase):
             list(range(8)),
         )
 
-    def test_mix(self):
+    @parameterized.expand(
+        [[worker_type] for worker_type in Pipe.SUPPORTED_WORKER_TYPES]
+    )
+    def test_mix(self, worker_type: str):
         single_pipe_iteration_duration = 0.5
+        queue_get_timeout = 0.1
         new_pipes = lambda: [
             Pipe(range(0, N, 3)).slow((N / 3) / single_pipe_iteration_duration),
             Pipe(range(1, N, 3)).slow((N / 3) / single_pipe_iteration_duration),
@@ -64,26 +69,33 @@ class TestPipe(unittest.TestCase):
         self.assertAlmostEqual(
             timeit.timeit(
                 lambda: self.assertSetEqual(
-                    set(Pipe[int]().mix(*new_pipes())),
+                    set(Pipe[int]().mix(*new_pipes(), worker_type=worker_type)),
                     set(range(N)),
                 ),
                 number=1,
             ),
             single_pipe_iteration_duration,
-            delta=0.3 * single_pipe_iteration_duration,
+            delta=0.3 * single_pipe_iteration_duration + queue_get_timeout,
         )
         # same perf if chaining mix methods or if mixing in a single one
         pipes = new_pipes()
         self.assertSetEqual(
-            set(Pipe().mix(*new_pipes())),
+            set(Pipe().mix(*new_pipes(), worker_type=worker_type)),
             set(reduce(Pipe.mix, pipes[1:], Pipe(pipes[0]))),
         )
         pipes = new_pipes()
         self.assertAlmostEqual(
-            Pipe().mix(*new_pipes()).time(),
+            Pipe().mix(*new_pipes(), worker_type=worker_type).time(),
             reduce(Pipe.mix, pipes[1:], Pipe(pipes[0])).time(),
-            delta=0.05 * Pipe().mix(*new_pipes()).time(),
+            delta=0.05 * Pipe().mix(*new_pipes(), worker_type=worker_type).time()
+            + queue_get_timeout,
         )
+        # partial iteration after mix
+        with Pipe().mix(*new_pipes(), worker_type=worker_type) as pipe:
+            self.assertEqual(next(pipe), 0)
+
+        # only Pipes should be passed
+        self.assertRaises(TypeError, lambda: Pipe().mix(range(10)))
 
     def test_add(self):
         self.assertListEqual(
@@ -397,3 +409,35 @@ class TestPipe(unittest.TestCase):
             RuntimeError,
             lambda: Pipe("12-3").map(int).superintend(),
         )
+
+    @parameterized.expand(
+        [[worker_type] for worker_type in Pipe.SUPPORTED_WORKER_TYPES]
+    )
+    def test_partial_iteration(self, worker_type: str):
+        with Pipe([0] * N).slow(50).mix(
+            Pipe([0] * N)
+            .slow(50)
+            .map(util.identity, worker_type=worker_type, n_workers=2)
+            .slow(50),
+            worker_type=worker_type,
+        ).map(util.identity, worker_type=worker_type, n_workers=2).slow(50).map(
+            util.identity, worker_type=worker_type, n_workers=2
+        ).slow(
+            50
+        ) as pipe:
+            first_elem = next(pipe)
+        self.assertEqual(first_elem, 0)
+        n = 10
+        with Pipe([0] * N).slow(50).mix(
+            Pipe([0] * N)
+            .slow(50)
+            .map(util.identity, worker_type=worker_type, n_workers=2)
+            .slow(50),
+            worker_type=worker_type,
+        ).map(util.identity, worker_type=worker_type, n_workers=2).slow(50).map(
+            util.identity, worker_type=worker_type, n_workers=2
+        ).slow(
+            50
+        ) as pipe:
+            samples = list(itertools.islice(pipe, n))
+        self.assertListEqual(samples, [0] * n)
