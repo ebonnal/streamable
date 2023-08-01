@@ -356,7 +356,7 @@ class _LoggingPipe(Pipe[T]):
         try:
             elem = super().__next__()
         except StopIteration:
-            if self.yields_count % 2:
+            if self.yields_count != self.last_log_at_yields_count:
                 self._log()
             raise
 
@@ -364,9 +364,12 @@ class _LoggingPipe(Pipe[T]):
         if isinstance(elem, Exception):
             self.errors_count += 1
 
-        if self.yields_count >= 2 * self.last_log_at_yields_count:
+        if (
+            self.yields_count == 1
+            or self.yields_count == 2 * self.last_log_at_yields_count
+        ):
             self._log()
-            self.last_log_at_yields_count = self.yields_count + self.errors_count
+            self.last_log_at_yields_count = self.yields_count
 
         return elem
 
@@ -417,6 +420,7 @@ class _BatchingPipe(Pipe[List[T]]):
     - the time elapsed between the first next() call on input iterator and last received elements is grater than secs
     - the next element reception thrown an exception (it is stored in self.to_be_raised and will be raised during the next call to self.__next__)
     """
+
     def __init__(self, iterator: Iterator[T], size: int, secs: float) -> None:
         super().__init__(iterator)
         self.size = size
@@ -444,8 +448,6 @@ class _BatchingPipe(Pipe[List[T]]):
                 self.to_be_raised = e
                 return batch
             raise
-
-
 
 
 class _ConcurrentlyMergingPipe(Pipe[T]):
