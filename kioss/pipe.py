@@ -411,12 +411,23 @@ class _RasingPipe(Pipe[T]):
 
 
 class _BatchingPipe(Pipe[List[T]]):
+    """
+    Batch an input iterator and yields its elements packed in a list when one of the following is True:
+    - len(batch) == size
+    - the time elapsed between the first next() call on input iterator and last received elements is grater than secs
+    - the next element reception thrown an exception (it is stored in self.to_be_raised and will be raised during the next call to self.__next__)
+    """
     def __init__(self, iterator: Iterator[T], size: int, secs: float) -> None:
         super().__init__(iterator)
         self.size = size
         self.secs = secs
+        self.to_be_raised: Exception = None
 
     def __next__(self) -> List[T]:
+        if self.to_be_raised:
+            e = self.to_be_raised
+            self.to_be_raised = None
+            raise e
         start_time = time.time()
         batch = None
         try:
@@ -427,8 +438,14 @@ class _BatchingPipe(Pipe[List[T]]):
         except StopIteration:
             if batch:
                 return batch
-            else:
-                raise
+            raise
+        except Exception as e:
+            if batch:
+                self.to_be_raised = e
+                return batch
+            raise
+
+
 
 
 class _ConcurrentlyMergingPipe(Pipe[T]):
