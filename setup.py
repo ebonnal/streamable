@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='kioss',
-    version='0.2.7',
+    version='0.2.8',
     packages=['kioss'],
     url='http://github.com/bonnal-enzo/kioss',
     license='Apache 2.',

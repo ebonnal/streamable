@@ -236,16 +236,35 @@ class TestPipe(unittest.TestCase):
         self.assertEqual(len(Pipe(range(8)).slow(10).batch(secs=0.09).collect()), 7)
         # assert batch gracefully yields if next elem throw exception
         self.assertListEqual(
-            Pipe("01234-56789").map(int).batch(2).catch(ValueError, ignore=True).collect(),
-            [[0, 1], [2, 3], [4], [5, 6], [7, 8], [9]]
+            Pipe("01234-56789")
+            .map(int)
+            .batch(2)
+            .catch(ValueError, ignore=True)
+            .collect(),
+            [[0, 1], [2, 3], [4], [5, 6], [7, 8], [9]],
         )
         self.assertListEqual(
-            Pipe("0123-56789").map(int).batch(2).catch(ValueError, ignore=True).collect(),
-            [[0, 1], [2, 3], [5, 6], [7, 8], [9]]
+            Pipe("0123-56789")
+            .map(int)
+            .batch(2)
+            .catch(ValueError, ignore=True)
+            .collect(),
+            [[0, 1], [2, 3], [5, 6], [7, 8], [9]],
         )
         self.assertListEqual(
-            Pipe("0123-56789").map(int).batch(2).catch(ValueError, ignore=False).map(lambda potential_error: [potential_error] if isinstance(potential_error, Exception) else potential_error).flatten().map(type).collect(),
-            [int, int, int, int, ValueError, int, int, int, int, int]
+            Pipe("0123-56789")
+            .map(int)
+            .batch(2)
+            .catch(ValueError, ignore=False)
+            .map(
+                lambda potential_error: [potential_error]
+                if isinstance(potential_error, Exception)
+                else potential_error
+            )
+            .flatten()
+            .map(type)
+            .collect(),
+            [int, int, int, int, ValueError, int, int, int, int, int],
         )
 
     @parameterized.expand(
