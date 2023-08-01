@@ -339,6 +339,7 @@ class _LoggingPipe(Pipe[T]):
         self.errors_count = 0
         self.last_log_at_yields_count = 0
         self.start_time = time.time()
+        self._is_exhausted = False
 
     def _log(self) -> None:
         logging.info(
@@ -353,9 +354,12 @@ class _LoggingPipe(Pipe[T]):
         )
 
     def __next__(self) -> T:
+        if self._is_exhausted:
+            raise StopIteration
         try:
             elem = super().__next__()
         except StopIteration:
+            self._is_exhausted = True
             if self.yields_count != self.last_log_at_yields_count:
                 self._log()
             raise
@@ -425,12 +429,15 @@ class _BatchingPipe(Pipe[List[T]]):
         super().__init__(iterator)
         self.size = size
         self.secs = secs
-        self.to_be_raised: Exception = None
+        self._to_be_raised: Exception = None
+        self._is_exhausted = False
 
     def __next__(self) -> List[T]:
-        if self.to_be_raised:
-            e = self.to_be_raised
-            self.to_be_raised = None
+        if self._is_exhausted:
+            raise StopIteration
+        if self._to_be_raised:
+            e = self._to_be_raised
+            self._to_be_raised = None
             raise e
         start_time = time.time()
         batch = None
@@ -440,12 +447,13 @@ class _BatchingPipe(Pipe[List[T]]):
                 batch.append(super().__next__())
             return batch
         except StopIteration:
+            self._is_exhausted = True
             if batch:
                 return batch
             raise
         except Exception as e:
             if batch:
-                self.to_be_raised = e
+                self._to_be_raised = e
                 return batch
             raise
 
