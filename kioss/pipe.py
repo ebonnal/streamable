@@ -45,7 +45,7 @@ class Pipe(Iterator[T]):
 
     def __init__(self, source: Union[Iterable[T], Iterator[T]] = []) -> None:  # timeout
         self.iterator: Iterator[T] = iter(source)
-        self._exit_asked: Event = self._MANAGER.Event()
+        self._exit_asked: Optional[Event] = None
 
     def __next__(self) -> T:
         return next(self.iterator)
@@ -60,7 +60,8 @@ class Pipe(Iterator[T]):
         return self
 
     def __exit__(self, exc_type, exc_value, traceback) -> bool:
-        self._exit_asked.set()
+        if self._exit_asked is not None:
+            self._exit_asked.set()
         if isinstance(self.iterator, Pipe):
             return self.iterator.__exit__(exc_type, exc_value, traceback)
         return False
@@ -72,7 +73,7 @@ class Pipe(Iterator[T]):
 
     _MAX_NUM_WAITING_ELEMS_PER_THREAD = 16
 
-    _MANAGER = multiprocessing.Manager()
+    _MANAGER: Optional[multiprocessing.Manager] = None
 
     def _map_or_do(
         self,
@@ -85,23 +86,31 @@ class Pipe(Iterator[T]):
             raise ValueError(
                 f"'{worker_type}' worker_type is not supported, must be one of: {self.SUPPORTED_WORKER_TYPES}"
             )
+
         if n_workers is None or n_workers <= 0:
             if sidify:
                 func = util.sidify(func)
             return Pipe[T](map(func, self))
+
         if worker_type == Pipe.PROCESS_WORKER_TYPE:
             pickle.dumps(func)
+            if Pipe._MANAGER is None:
+                Pipe._MANAGER = multiprocessing.Manager()
+            self._exit_asked = Pipe._MANAGER.Event()
+            queue_class: Type[Queue] = Pipe._MANAGER.Queue
+            executor_class: Type[Executor] = ProcessPoolExecutor
+        else:
+            self._exit_asked = multiprocessing.Event()
+            queue_class: Type[Queue] = Queue
+            executor_class: Type[Executor] = ThreadPoolExecutor
+
         return _RasingPipe[T](
             iter(
                 _multi_yielding_iterable(
                     func,
                     self,
-                    executor_class=ThreadPoolExecutor
-                    if worker_type == self.THREAD_WORKER_TYPE
-                    else ProcessPoolExecutor,
-                    queue_class=Queue
-                    if worker_type == self.THREAD_WORKER_TYPE
-                    else self._MANAGER.Queue,
+                    executor_class=executor_class,
+                    queue_class=queue_class,
                     n_workers=n_workers,
                     max_queue_size=self._MAX_NUM_WAITING_ELEMS_PER_THREAD * n_workers,
                     sidify=sidify,
