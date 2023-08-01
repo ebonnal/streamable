@@ -520,7 +520,7 @@ def _mapper(
             try:
                 output_queue.put(to_output, timeout=0.1)
                 break
-            except Empty:
+            except Full:
                 pass
 
 
