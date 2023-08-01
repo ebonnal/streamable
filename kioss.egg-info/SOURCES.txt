@@ -1,0 +1,12 @@
+LICENSE
+README.md
+setup.py
+kioss/__init__.py
+kioss/pipe.py
+kioss/util.py
+kioss.egg-info/PKG-INFO
+kioss.egg-info/SOURCES.txt
+kioss.egg-info/dependency_links.txt
+kioss.egg-info/top_level.txt
+test/test_pipe.py
+test/test_util.py
