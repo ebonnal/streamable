@@ -131,11 +131,14 @@ class TestPipe(unittest.TestCase):
             set(
                 Pipe(range(N))
                 .map(ten_millis_identity, n_workers=n_workers, worker_type=worker_type)
+                .map(lambda x: x if 1 / x is not None else None)
                 .map(func, n_workers=n_workers, worker_type=worker_type)
-                .catch(Exception, ignore=True)
+                .catch(
+                    ZeroDivisionError, ignore=True
+                )  # check that the ZeroDivisionError is bypass the call to func
                 .map(ten_millis_identity, n_workers=n_workers, worker_type=worker_type)
             ),
-            set(map(func, range(N))),
+            set(map(func, range(1, N))),
         )
 
     def test_map_timing(self):
@@ -404,10 +407,22 @@ class TestPipe(unittest.TestCase):
         )
 
     def test_superintend(self):
-        Pipe("123").map(int).superintend()
+        Pipe("123").map(int).log("custom named elements").superintend()
         self.assertRaises(
-            RuntimeError,
+            ValueError,
             lambda: Pipe("12-3").map(int).superintend(),
+        )
+
+    def test_log(self):
+        self.assertListEqual(
+            Pipe("123")
+            .log("chars")
+            .map(int)
+            .log("ints")
+            .batch(2)
+            .log("ints_pairs")
+            .collect(),
+            [[1, 2], [3]],
         )
 
     @parameterized.expand(
