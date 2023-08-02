@@ -115,22 +115,19 @@ class Pipe(Iterator[T]):
             executor_class: Type[Executor] = ThreadPoolExecutor
 
         return _RasingPipe[T](
-            Pipe[T](
-                iter(
-                    _multi_yielding_iterable(
-                        func,
-                        self,
-                        executor_class=executor_class,
-                        queue_class=queue_class,
-                        n_workers=n_workers,
-                        max_queue_size=self._MAX_NUM_WAITING_ELEMS_PER_WORKER
-                        * n_workers,
-                        sidify=sidify,
-                        exit_asked=self._exit_asked,
-                    )
+            iter(
+                _multi_yielding_iterable(
+                    func,
+                    self,
+                    executor_class=executor_class,
+                    queue_class=queue_class,
+                    n_workers=n_workers,
+                    max_queue_size=self._MAX_NUM_WAITING_ELEMS_PER_WORKER * n_workers,
+                    sidify=sidify,
+                    exit_asked=self._exit_asked,
                 )
-            )._with_upstream(self)
-        )
+            )
+        )._with_upstream(self)
 
     def map(
         self,
@@ -213,19 +210,17 @@ class Pipe(Iterator[T]):
             executor_class: Type[Executor] = ThreadPoolExecutor
 
         return _RasingPipe[R](
-            Pipe[T](
-                iter(
-                    _concurrently_merging_iterable(
-                        iterators=[self, *others],
-                        executor_class=executor_class,
-                        queue_class=queue_class,
-                        exit_asked=self._exit_asked,
-                        max_queue_size=self._MAX_NUM_WAITING_ELEMS_PER_WORKER
-                        * (len(others) + 1),
-                    )
+            iter(
+                _concurrently_merging_iterable(
+                    iterators=[self, *others],
+                    executor_class=executor_class,
+                    queue_class=queue_class,
+                    exit_asked=self._exit_asked,
+                    max_queue_size=self._MAX_NUM_WAITING_ELEMS_PER_WORKER
+                    * (len(others) + 1),
                 )
-            )._with_upstream(self, *others)
-        )
+            )
+        )._with_upstream(self, *others)
 
     def flatten(self: "Pipe[Iterator[R]]") -> "Pipe[R]":
         """
@@ -333,14 +328,21 @@ class Pipe(Iterator[T]):
         Raises:
             RuntimeError: If any exception is catched during iteration.
         """
+        if not isinstance(self, _LoggingPipe):
+            pipe = self.log("ultimate elements")
+        else:
+            pipe = self
         if errors := (
-            self.catch(Exception, ignore=False)
-            .log("ultimate elements")
+            pipe.catch(Exception, ignore=False)
             .filter(lambda elem: isinstance(elem, Exception))
-            .map(repr)
             .collect(n_samples=n_error_samples)
         ):
-            raise RuntimeError(errors)
+            logging.error(
+                "%s error samples: %s\nWill now raise the first of them:",
+                n_error_samples,
+                list(map(repr, errors)),
+            )
+            raise errors[0]
 
 
 class _FlatteningPipe(Pipe[R]):
@@ -385,7 +387,7 @@ class _LoggingPipe(Pipe[T]):
         self.what = what
         self.yields_count = 0
         self.errors_count = 0
-        self.last_log_at_yields_count = 0
+        self.last_log_at_yields_count = None
         self.start_time = time.time()
         self._is_exhausted = False
         logging.info("Iteration over '%s' will be logged.", self.what)
@@ -405,6 +407,7 @@ class _LoggingPipe(Pipe[T]):
     def __next__(self) -> T:
         if self._is_exhausted:
             raise StopIteration
+        to_be_raised: Optional[Exception] = None
         try:
             elem = super().__next__()
         except StopIteration:
@@ -412,18 +415,19 @@ class _LoggingPipe(Pipe[T]):
             if self.yields_count != self.last_log_at_yields_count:
                 self._log()
             raise
-
-        self.yields_count += 1
-        if isinstance(elem, Exception):
+        except Exception as e:
+            to_be_raised = e
             self.errors_count += 1
 
+        self.yields_count += 1
         if (
-            self.yields_count == 1
+            self.last_log_at_yields_count is None
             or self.yields_count == 2 * self.last_log_at_yields_count
         ):
             self._log()
             self.last_log_at_yields_count = self.yields_count
-
+        if to_be_raised:
+            raise to_be_raised
         return elem
 
 
@@ -504,7 +508,7 @@ class _BatchingPipe(Pipe[List[T]]):
             if batch:
                 self._to_be_raised = e
                 return batch
-            raise
+            raise e
 
 
 def _puller(iterator: Iterator[T], queue: Queue, exit_asked: Event):
@@ -562,7 +566,7 @@ def _mapper(
         except Empty:
             continue
         try:
-            res = func(elem)
+            res = elem if isinstance(elem, _CatchedError) else func(elem)
             to_output = elem if sidify else res
         except Exception as e:
             to_output = _CatchedError(e)
