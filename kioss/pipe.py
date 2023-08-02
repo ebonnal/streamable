@@ -78,7 +78,7 @@ class Pipe(Iterator[T]):
 
     SUPPORTED_WORKER_TYPES = [THREAD_WORKER_TYPE, PROCESS_WORKER_TYPE]
 
-    _MAX_NUM_WAITING_ELEMS_PER_WORKER = 16
+    _MAX_NUM_WAITING_ELEMS_PER_WORKER = 8
 
     _MANAGER: Optional[multiprocessing.Manager] = None
 
@@ -98,9 +98,10 @@ class Pipe(Iterator[T]):
     ) -> "Pipe[Union[R, T]]":
         self._validate_worker_type(worker_type)
         if n_workers is None or n_workers <= 0:
+            func = util.map_exception(func, source=StopIteration, target=RuntimeError)
             if sidify:
                 func = util.sidify(func)
-            return Pipe[T](map(func, self))
+            return Pipe[T](map(func, self))._with_upstream(self)
 
         if worker_type == Pipe.PROCESS_WORKER_TYPE:
             pickle.dumps(func)
@@ -175,7 +176,7 @@ class Pipe(Iterator[T]):
         Returns:
             Pipe[T]: A new Pipe instance with elements from this Pipe followed by elements from other Pipes.
         """
-        return Pipe[T](itertools.chain(self, *others))
+        return Pipe[T](itertools.chain(self, *others))._with_upstream(self, *others)
 
     def mix(
         self, *others: "Pipe[T]", worker_type: str = THREAD_WORKER_TYPE
@@ -241,7 +242,7 @@ class Pipe(Iterator[T]):
         Returns:
             Pipe[T]: A new Pipe instance with elements that satisfy the predicate.
         """
-        return Pipe[T](filter(predicate, self))
+        return Pipe[T](filter(predicate, self))._with_upstream(self)
 
     def batch(self, size: int = 100, secs: float = float("inf")) -> "Pipe[List[T]]":
         """
@@ -266,7 +267,7 @@ class Pipe(Iterator[T]):
         Returns:
             Pipe[T]: A new Pipe instance with elements iterated at the specified frequency.
         """
-        return Pipe[T](_SlowingPipe(self, freq))
+        return _SlowingPipe[T](self, freq)
 
     def catch(self, *classes: Type[Exception], ignore=False) -> "Pipe[T]":
         """
@@ -568,6 +569,11 @@ def _mapper(
         try:
             res = elem if isinstance(elem, _CatchedError) else func(elem)
             to_output = elem if sidify else res
+        except StopIteration as e:
+            # raising a stop iteration would completely mess downstream iteration
+            remapped_exception = RuntimeError()
+            _CatchedError.__cause__ = e
+            to_output = _CatchedError(remapped_exception)
         except Exception as e:
             to_output = _CatchedError(e)
         while not exit_asked.is_set():
