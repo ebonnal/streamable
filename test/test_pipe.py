@@ -140,6 +140,15 @@ class TestPipe(unittest.TestCase):
             ),
             set(map(func, range(1, N))),
         )
+        self.assertSetEqual(
+            set(
+                Pipe([[1], [], [3]])
+                .map(iter)
+                .map(next, n_workers=n_workers, worker_type=worker_type)
+                .catch(RuntimeError, ignore=True)
+            ),
+            {1, 3},
+        )
 
     def test_map_timing(self):
         # non-threaded vs threaded execution time
