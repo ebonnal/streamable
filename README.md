@@ -3,6 +3,8 @@
 
 [![Actions Status](https://github.com/bonnal-enzo/kioss/workflows/test/badge.svg)](https://github.com/bonnal-enzo/kioss/actions) [![Actions Status](https://github.com/bonnal-enzo/kioss/workflows/PyPI/badge.svg)](https://github.com/bonnal-enzo/kioss/actions)
 
+Write concise and expressive definitions of ETL and Reverse ETL pipelines. This library has been specifically designed to be convenient for handling data integration from and to APIs, with features such as multithreading, rate limiting, batching, and exception handling.
+
 ## Install
 
 `pip install kioss`
@@ -31,14 +33,14 @@ with open("/path/to/file.text", "r") as text_file:
         # flatten the pipe to make it yield individual words
         .flatten()
         # log the advancement of this step
-        .log("parsed words")
+        .log(what="parsed words")
 
         # parse the word to get the email domain in it if any
         .map(lambda word: re.search(r"@([a-zA-Z0-9.-]+)", word).group(1))
         # catch exception produced by non-email words and ignore them
         .catch(AttributeError, ignore=True)
         # log the advancement of this step
-        .log("parsed email domains")
+        .log(what="parsed email domains")
 
         # batch the words into chucks of 500 words at most and not spanning over more than a 1 minute
         .batch(size=500, secs=60)
@@ -48,7 +50,7 @@ with open("/path/to/file.text", "r") as text_file:
         # flatten back to yield individual domains from a batch
         .flatten()
         # log the advancement of this step
-        .log("parsed email domains deduplicated by batch")
+        .log(what="parsed email domains deduplicated by batch")
 
         # construct url from email domain
         .map(lambda email_domain: f"https://{email_domain}")
@@ -57,11 +59,11 @@ with open("/path/to/file.text", "r") as text_file:
         # limit requests to roughly 20 requests sent by second to avoid spam
         .slow(freq=20)
         # catch request errors without ignoring them this time:
+        # log the advancement of this step
+        .log(what="requests to domain")
+
         # it means that the pipeline will yield the exception object encountered instead of raising it
         .catch(requests.RequestException, ignore=False)
-        # log the advancement of this step
-        .log("domain responses")
-
         # get only errors, i.e. non-200 status codes or request exceptions (yielded by upstream because ignore=False)
         .filter(lambda reponse: isinstance(reponse, requests.RequestException) or reponse.status_code != 200)
         # iterate over the entire pipe but only store the 32 first errors
@@ -72,7 +74,7 @@ with open("/path/to/file.text", "r") as text_file:
 
 ## Features
 - define:
-    - `Pipe`'s constructor takes an `Iterator[T]` or `Iterable[T]` object as data source, and the constructed pipe object is itself an `Iterator[T]` on which you can call any function working with iterators: `set`, `functools.reduce`, etc...
+    - The `.__init__` of the `Pipe` class takes as argument an instance of `Iterator[T]` or `Iterable[T]` used as the source of elements.
     - `.map` over pipe's elements and yield the results as they arrive, optionally using multiple threads.
     - `.flatten` a pipe, whose elements are assumed to be iterators, creating a new pipe with individual elements.
     - `.filter` a pipe.
@@ -87,4 +89,10 @@ with open("/path/to/file.text", "r") as text_file:
 - consume:
     - `.collect` a pipe into a list having an optional max size.
     - `.superintend` a pipe: iterate over it entirely while catching exceptions + logging the iteration process + collecting and raising error samples.
+
+Note that the `Pipe` class itself extends `Iterator[T]`, hence you can pass a pipe to any function supporting iterators:
+- `set(pipe)`
+- `functools.reduce(func, pipe, initial)`
+- `itertools.islice(pipe, n_samples)`
+- ...
   
