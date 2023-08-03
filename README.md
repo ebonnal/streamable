@@ -75,21 +75,21 @@ with open("/path/to/file.text", "r") as text_file:
 ## Features
 - define:
     - The `.__init__` of the `Pipe` class takes as argument an instance of `Iterator[T]` or `Iterable[T]` used as the source of elements.
-    - `.map` over pipe's elements and yield the results as they arrive, optionally using multiple threads.
+    - `.map` a function over a pipe, optionally using multiple threads or processes.
     - `.flatten` a pipe, whose elements are assumed to be iterators, creating a new pipe with individual elements.
-    - `.filter` a pipe.
+    - `.filter` a pipe using a predicate function.
     - `.do` side effects on a pipe, optionally using multiple threads or processes.
     - `.chain` several pipes to form a new one that yields elements of one pipe after the previous one is exhausted.
     - `.mix` several pipes to form a new one that yields elements concurrently as they arrive, using multiple threads.
-    - `.batch` pipe's elements and yield them as lists of a given max size or spanning over a given max period.
+    - `.batch` pipe's elements and yield them as lists of a given size or spanning over a given duration.
 - control:
-    - `.slow` a pipe to limit the iteration's speed over it.
-    - `.log` a pipe's iteration status.
-    - `.catch` a pipe's exceptions of a specific class and return them instead of raising.
+    - `.slow` a pipe to limit the rate of the iteration over it.
+    - `.log` a pipe to get an idea of the status of the iteration.
+    - `.catch` pipe's exceptions.
 - consume:
     - `.collect` a pipe into a list having an optional max size.
     - `.superintend` a pipe: iterate over it entirely while catching exceptions + logging the iteration process + collecting and raising error samples.
-
+-----
 Note that the `Pipe` class itself extends `Iterator[T]`, hence you can pass a pipe to any function supporting iterators:
 - `set(pipe)`
 - `functools.reduce(func, pipe, initial)`
