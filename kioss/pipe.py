@@ -321,7 +321,7 @@ class Pipe(Iterator[T]):
         return timeit.timeit(iterate, number=1)
 
     def superintend(
-        self, n_samples: int = float("inf"), n_error_samples: int = 8
+        self, n_samples: int = 0, n_error_samples: int = 8
     ) -> List[T]:
         """
         Superintend the Pipe: iterate over the pipe until it is exhausted and raise a RuntimeError if any exceptions occur during iteration.
