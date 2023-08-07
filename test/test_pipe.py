@@ -421,7 +421,7 @@ class TestPipe(unittest.TestCase):
             ValueError,
             lambda: Pipe("12-3").map(int).superintend(),
         )
-        self.assertListEqual(Pipe("123").map(int).superintend(n_samples=3), [1, 2, 3])
+        self.assertListEqual(Pipe("123").map(int).superintend(n_samples=2), [1, 2])
 
     def test_log(self):
         self.assertListEqual(
