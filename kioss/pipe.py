@@ -142,7 +142,7 @@ class Pipe(Iterator[T]):
         Args:
             func (Callable[[T], R]): The function to be applied to each element.
             n_workers (int, optional): The number of threads (or processes is worker_type='process') for concurrent func execution (default is 0, meaning single-threaded).
-            worker_type (str, optional): Must be Pipe.THREAD_WORKER_TYPE (default) or Pipe.PROCESS_WORKER_TYPE.
+            worker_type (str, optional): Must be Pipe.THREAD_WORKER_TYPE or Pipe.PROCESS_WORKER_TYPE (default is THREAD_WORKER_TYPE)..
         Returns:
             Pipe[R]: A new Pipe instance with elements resulting from applying the function to each element.
         """
@@ -160,7 +160,7 @@ class Pipe(Iterator[T]):
         Args:
             func (Callable[[T], R]): The function to be applied to each element.
             n_workers (int, optional): The number of threads (or processes is worker_type='process') for concurrent func execution (default is 0, meaning single-threaded).
-            worker_type (str, optional): Must be Pipe.THREAD_WORKER_TYPE (default) or Pipe.PROCESS_WORKER_TYPE.
+            worker_type (str, optional): Must be Pipe.THREAD_WORKER_TYPE or Pipe.PROCESS_WORKER_TYPE (default is THREAD_WORKER_TYPE)..
         Returns:
             Pipe[T]: A new Pipe instance with elements resulting from applying the function to each element.
         """
@@ -186,7 +186,7 @@ class Pipe(Iterator[T]):
 
         Args:
             *others ([Pipe[T]]): One or more additional Pipe instances to mix with this Pipe.
-            worker_type (str, optional): Must be Pipe.THREAD_WORKER_TYPE (default) or Pipe.PROCESS_WORKER_TYPE.
+            worker_type (str, optional): Must be Pipe.THREAD_WORKER_TYPE or Pipe.PROCESS_WORKER_TYPE (default is THREAD_WORKER_TYPE).
 
         Returns:
             Pipe[T]: A new Pipe instance concurrently yielding elements from self and others in any order.
@@ -302,7 +302,7 @@ class Pipe(Iterator[T]):
             n_samples (int, optional): The maximum number of elements to collect in the list (default is infinity).
 
         Returns:
-            List[T]: A list containing the elements of the Pipe.
+            List[T]: A list containing the elements of the Pipe truncate to the first `n_samples` ones.
         """
         return [elem for i, elem in enumerate(self) if i < n_samples]
 
@@ -320,12 +320,17 @@ class Pipe(Iterator[T]):
 
         return timeit.timeit(iterate, number=1)
 
-    def superintend(self, n_error_samples: int = 8) -> None:
+    def superintend(
+        self, n_samples: int = float("inf"), n_error_samples: int = 8
+    ) -> List[T]:
         """
         Superintend the Pipe: iterate over the pipe until it is exhausted and raise a RuntimeError if any exceptions occur during iteration.
 
         Args:
-            n_error_samples (int, optional): The maximum number of error samples to include in the RuntimeError message (default is 8).
+            n_samples (int, optional): The maximum number of elements to collect in the list (default is infinity).
+            n_error_samples (int, optional): The maximum number of error samples to log (default is 8).
+        Returns:
+            List[T]: A list containing the elements of the Pipe truncate to the first `n_samples` ones.
         Raises:
             RuntimeError: If any exception is catched during iteration.
         """
@@ -333,17 +338,26 @@ class Pipe(Iterator[T]):
             pipe = self.log("ultimate elements")
         else:
             pipe = self
-        if errors := (
+        error_samples: List[Exception] = []
+        samples = (
             pipe.catch(Exception, ignore=False)
-            .filter(lambda elem: isinstance(elem, Exception))
-            .collect(n_samples=n_error_samples)
-        ):
+            .do(
+                lambda elem: error_samples.append(elem)
+                if isinstance(elem, Exception) and len(error_samples) < n_error_samples
+                else None
+            )
+            .filter(lambda elem: not isinstance(elem, Exception))
+            .collect(n_samples=n_samples)
+        )
+        if len(error_samples):
             logging.error(
                 "%s error samples: %s\nWill now raise the first of them:",
                 n_error_samples,
-                list(map(repr, errors)),
+                list(map(repr, error_samples)),
             )
-            raise errors[0]
+            raise error_samples[0]
+
+        return samples
 
 
 class _FlatteningPipe(Pipe[R]):
