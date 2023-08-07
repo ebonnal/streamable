@@ -91,7 +91,8 @@ class TestPipe(unittest.TestCase):
             + queue_get_timeout,
         )
         # partial iteration after mix
-        with Pipe().mix(*new_pipes(), worker_type=worker_type) as pipe:
+        zeros = lambda: Pipe([0] * N)
+        with Pipe(zeros()).mix(zeros(), zeros(), worker_type=worker_type) as pipe:
             self.assertEqual(next(pipe), 0)
 
         # only Pipes should be passed
@@ -421,6 +422,7 @@ class TestPipe(unittest.TestCase):
             ValueError,
             lambda: Pipe("12-3").map(int).superintend(),
         )
+        self.assertListEqual(Pipe("123").map(int).superintend(), [1, 2, 3])
 
     def test_log(self):
         self.assertListEqual(
