@@ -417,12 +417,11 @@ class TestPipe(unittest.TestCase):
         )
 
     def test_superintend(self):
-        Pipe("123").map(int).log("custom named elements").superintend()
         self.assertRaises(
             ValueError,
             lambda: Pipe("12-3").map(int).superintend(),
         )
-        self.assertListEqual(Pipe("123").map(int).superintend(), [1, 2, 3])
+        self.assertListEqual(Pipe("123").map(int).superintend(n_samples=3), [1, 2, 3])
 
     def test_log(self):
         self.assertListEqual(
