@@ -35,12 +35,12 @@ def identity(obj: T) -> T:
 
 
 class QueueIterator(Iterator[T]):
-    INITIAL_BACKOFF_SECS = 0.005
+    INITIAL_BACKOFF_period = 0.005
 
     def __init__(self, queue: Queue, sentinel: Any) -> None:
         self.queue = queue
         self.sentinel = sentinel
-        self.backoff = QueueIterator.INITIAL_BACKOFF_SECS
+        self.backoff = QueueIterator.INITIAL_BACKOFF_period
 
     def __iter__(self) -> Iterator[T]:
         return self
@@ -48,7 +48,7 @@ class QueueIterator(Iterator[T]):
     def __next__(self) -> T:
         try:
             elem = self.queue.get(timeout=self.backoff)
-            self.backoff = self.INITIAL_BACKOFF_SECS
+            self.backoff = self.INITIAL_BACKOFF_period
         except Empty:
             self.backoff *= 2
             return next(self)
