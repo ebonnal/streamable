@@ -244,18 +244,18 @@ class Pipe(Iterator[T]):
         """
         return Pipe[T](filter(predicate, self))._with_upstream(self)
 
-    def batch(self, size: int = 100, secs: float = float("inf")) -> "Pipe[List[T]]":
+    def batch(self, size: int = 100, period: float = float("inf")) -> "Pipe[List[T]]":
         """
         Batch elements of the Pipe into lists of a specified size or within a specified time window.
 
         Args:
             size (int, optional): The maximum number of elements per batch (default is 100).
-            secs (float, optional): The maximum number of seconds to wait before yielding a batch (default is infinity).
+            period (float, optional): The maximum number of seconds to wait before yielding a batch (default is infinity).
 
         Returns:
             Pipe[List[T]]: A new Pipe instance with lists containing batches of elements.
         """
-        return _BatchingPipe[T](self, size, secs)
+        return _BatchingPipe[T](self, size, period)
 
     def slow(self, freq: float) -> "Pipe[T]":
         """
@@ -487,14 +487,14 @@ class _BatchingPipe(Pipe[List[T]]):
     """
     Batch an input iterator and yields its elements packed in a list when one of the following is True:
     - len(batch) == size
-    - the time elapsed between the first next() call on input iterator and last received elements is grater than secs
+    - the time elapsed between the first next() call on input iterator and last received elements is grater than period
     - the next element reception thrown an exception (it is stored in self.to_be_raised and will be raised during the next call to self.__next__)
     """
 
-    def __init__(self, iterator: Iterator[T], size: int, secs: float) -> None:
+    def __init__(self, iterator: Iterator[T], size: int, period: float) -> None:
         super().__init__(iterator)
         self.size = size
-        self.secs = secs
+        self.period = period
         self._to_be_raised: Exception = None
         self._is_exhausted = False
 
@@ -509,7 +509,7 @@ class _BatchingPipe(Pipe[List[T]]):
         batch = None
         try:
             batch = [super().__next__()]
-            while len(batch) < self.size and (time.time() - start_time) < self.secs:
+            while len(batch) < self.size and (time.time() - start_time) < self.period:
                 batch.append(super().__next__())
             return batch
         except StopIteration:

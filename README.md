@@ -43,7 +43,7 @@ with open("/path/to/file.text", "r") as text_file:
         .log(what="parsed email domains")
 
         # batch the words into chucks of 500 words at most and not spanning over more than a 1 minute
-        .batch(size=500, secs=60)
+        .batch(size=500, period=60)
         # deduplicate the email domains inside the batch
         .map(set)
         .map(iter)

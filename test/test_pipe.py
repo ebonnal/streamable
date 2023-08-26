@@ -258,7 +258,7 @@ class TestPipe(unittest.TestCase):
             list(map(lambda x: [x], range(8))),
         )
         self.assertListEqual(Pipe(range(8)).batch(size=8).collect(), [list(range(8))])
-        self.assertEqual(len(Pipe(range(8)).slow(10).batch(secs=0.09).collect()), 7)
+        self.assertEqual(len(Pipe(range(8)).slow(10).batch(period=0.09).collect()), 7)
         # assert batch gracefully yields if next elem throw exception
         self.assertListEqual(
             Pipe("01234-56789")
