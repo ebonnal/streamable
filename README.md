@@ -9,7 +9,7 @@ Write concise and expressive definitions of ETL and Reverse ETL pipelines. This 
 
 `pip install kioss`
 
-## Example:
+## Example
 
 ```python
 from typing import Iterator
@@ -22,12 +22,12 @@ from kioss.pipe import Pipe
 # Let's say we have a bucket
 bucket: storage.Bucket = ...
 # and an Iterator of object paths
-tweet_object_paths: Iterator[str] = ...
+object_paths: Iterator[str] = ...
 
-# Each file contains a tweet and we want to POST their hashtags to an API
+# Each file contains a message sent on a social network and we want to POST their hashtags to an API
 (
-    # instanciate a Pipe with object paths iterator as data source
-    Pipe(tweet_object_paths)
+    # instanciate a Pipe with object paths as data source
+    Pipe(object_paths)
     .log(what="object paths")
     # get the blob corresponding to this object path in the given bucket
     .map(bucket.get_blob)
@@ -53,16 +53,16 @@ tweet_object_paths: Iterator[str] = ...
     .map(
         lambda hashtags: requests.post(
             "https://foo.bar",
-            headers = {'Content-Type': 'application/json'}
+            headers={'Content-Type': 'application/json'},
             auth=("foo", "bar"),
-            json={"hashtags": hashtags}
+            json={"hashtags": hashtags},
         ),
         n_workers=4,
     )
     # raise for each response having status code 4XX or 5XX.
     .do(requests.Response.raise_for_status)
     .log(what="hashtags batch integrations")
-    # launch the iteration and log its advancement + raise a summary of the potential exception once the pipe is exhausted.
+    # launch the iteration and log its advancement + raise a summary of the raised exceptions if any once the pipe is exhausted.
     .superintend()
 )
 ```
