@@ -250,7 +250,7 @@ class Pipe(Iterator[T]):
 
         Args:
             size (int, optional): The maximum number of elements per batch (default is 100).
-            secs (float, optional): The maximum time window for batching elements (default is infinity).
+            secs (float, optional): The maximum number of seconds to wait before yielding a batch (default is infinity).
 
         Returns:
             Pipe[List[T]]: A new Pipe instance with lists containing batches of elements.
