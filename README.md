@@ -9,67 +9,62 @@ Write concise and expressive definitions of ETL and Reverse ETL pipelines. This 
 
 `pip install kioss`
 
-## Toy use case:
+## Example:
 
 ```python
-import re
-from kioss import Pipe
+from typing import Iterator
+from google.cloud import storage
 import requests
 
-# detects emails domains in text and raises if any of them is unreachable
+from kioss.pipe import Pipe
 
 
-# A Pipe can be created from any iterator/iterable,
-# it is designed to easily process on the fly the data elements
-# from large files, APIs or databases without requiring large memory or disk.
-# we use a local file for this example:
-with open("/path/to/file.text", "r") as text_file:
-    if unreachable_domain_samples := (
-        # this pipe will read the text file line by line
-        Pipe(text_file)
-        # split each map on spaces to get iterator on words
-        .map(str.split)
-        .map(iter)
-        # flatten the pipe to make it yield individual words
-        .flatten()
-        # log the advancement of this step
-        .log(what="parsed words")
+# Let's say we have a bucket
+bucket: storage.Bucket = ...
+# and an Iterator of object paths
+tweet_object_paths: Iterator[str] = ...
 
-        # parse the word to get the email domain in it if any
-        .map(lambda word: re.search(r"@([a-zA-Z0-9.-]+)", word).group(1))
-        # catch exception produced by non-email words and ignore them
-        .catch(AttributeError, ignore=True)
-        # log the advancement of this step
-        .log(what="parsed email domains")
-
-        # batch the words into chucks of 500 words at most and not spanning over more than a 1 minute
-        .batch(size=500, period=60)
-        # deduplicate the email domains inside the batch
-        .map(set)
-        .map(iter)
-        # flatten back to yield individual domains from a batch
-        .flatten()
-        # log the advancement of this step
-        .log(what="parsed email domains deduplicated by batch")
-
-        # construct url from email domain
-        .map(lambda email_domain: f"https://{email_domain}")
-        # sent GET requests to urls, using 2 threads for better I/O
-        .map(requests.get, n_workers=2)
-        # limit requests to roughly 20 requests sent by second to avoid spam
-        .slow(freq=20)
-        # catch request errors without ignoring them this time:
-        # log the advancement of this step
-        .log(what="requests to domain")
-
-        # it means that the pipeline will yield the exception object encountered instead of raising it
-        .catch(requests.RequestException, ignore=False)
-        # get only errors, i.e. non-200 status codes or request exceptions (yielded by upstream because ignore=False)
-        .filter(lambda reponse: isinstance(reponse, requests.RequestException) or reponse.status_code != 200)
-        # iterate over the entire pipe but only store the 32 first errors
-        .collect(n_samples=32) 
-    ):
-        raise RuntimeError(f"Encountered unreachable domains, samples: {unreachable_domain_samples}")
+# Each file contains a tweet and we want to POST their hashtags to an API
+(
+    # instanciate a Pipe with object paths iterator as data source
+    Pipe(tweet_object_paths)
+    .log(what="object paths")
+    # get the blob corresponding to this object path in the given bucket
+    .map(bucket.get_blob)
+    .log(what="blobs")
+    # read the bytes of the blob and decode them to str
+    .map(storage.Blob.download_as_string)
+    .map(bytes.decode)
+    # split the tweet on whitespaces.
+    .map(str.split)
+    # flatten the pipe to yield individual words
+    .map(iter)
+    .flatten()
+    .log(what="words")
+    # keep the word only if it is a hashtag
+    .filter(lambda word: word.startswith("#"))
+    # remove the '#'
+    .map(lambda hashtag: hashtag[1:])
+    .log(what="hashtags")
+    # send these hashtags to an API endpoint, by batches of 100, using 4 threads,
+    # while ensuring that the API will be called at most 30 times per second.
+    .batch(size=100)
+    .slow(freq=30)
+    .map(
+        lambda hashtags: requests.post(
+            "https://foo.bar",
+            headers = {'Content-Type': 'application/json'}
+            auth=("foo", "bar"),
+            json={"hashtags": hashtags}
+        ),
+        n_workers=4,
+    )
+    # raise for each response having status code 4XX or 5XX.
+    .do(requests.Response.raise_for_status)
+    .log(what="hashtags batch integrations")
+    # launch the iteration and log its advancement + raise a summary of the potential exception once the pipe is exhausted.
+    .superintend()
+)
 ```
 
 ## Features
@@ -78,7 +73,7 @@ with open("/path/to/file.text", "r") as text_file:
     - `.map` a function over a pipe, optionally using multiple threads or processes.
     - `.flatten` a pipe, whose elements are assumed to be iterators, creating a new pipe with individual elements.
     - `.filter` a pipe using a predicate function.
-    - `.do` side effects on a pipe, optionally using multiple threads or processes.
+    - `.do` side effects on a pipe, i.e. apply a function ignoring its returned value, optionally using multiple threads or processes.
     - `.chain` several pipes to form a new one that yields elements of one pipe after the previous one is exhausted.
     - `.mix` several pipes to form a new one that yields elements concurrently as they arrive, using multiple threads.
     - `.batch` pipe's elements and yield them as lists of a given size or spanning over a given duration.
