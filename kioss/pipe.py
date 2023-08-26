@@ -349,7 +349,7 @@ class Pipe(Iterator[T]):
         )
         if len(error_samples):
             logging.error(
-                "%s error samples: %s\nWill now raise the first of them:",
+                "first %s error samples: %s\nWill now raise the first of them:",
                 n_error_samples,
                 list(map(repr, error_samples)),
             )
@@ -403,11 +403,11 @@ class _LoggingPipe(Pipe[T]):
         self.last_log_at_yields_count = None
         self.start_time = time.time()
         self._is_exhausted = False
-        logging.info("Iteration over '%s' will be logged.", self.what)
+        logging.info("iteration over '%s' will be logged.", self.what)
 
     def _log(self) -> None:
         logging.info(
-            "%s `%s` have been yielded in elapsed time '%s', with %s errors produced.",
+            "%s `%s` have been yielded in elapsed time '%s' with %s errors produced",
             self.yields_count,
             self.what,
             str(
