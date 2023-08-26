@@ -24,7 +24,8 @@ bucket: storage.Bucket = ...
 # and an Iterator of object paths
 object_paths: Iterator[str] = ...
 
-# Each file contains a message sent on a social network and we want to POST their hashtags to an API
+# Each file contains a message sent on a social network
+# and we want to POST their hashtags to an API
 (
     # instanciate a Pipe with object paths as data source
     Pipe(object_paths)
@@ -62,7 +63,8 @@ object_paths: Iterator[str] = ...
     # raise for each response having status code 4XX or 5XX.
     .do(requests.Response.raise_for_status)
     .log(what="hashtags batch integrations")
-    # launch the iteration and log its advancement + raise a summary of the raised exceptions if any once the pipe is exhausted.
+    # launch the iteration and log its advancement
+    # and raise a summary of the raised exceptions if any once the pipe is exhausted.
     .superintend()
 )
 ```
