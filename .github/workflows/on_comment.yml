@@ -1,20 +1,34 @@
-name: test
-
+name: on_comment
 on:
-  issue_comment:                                     
-    types: [created]
-
+  issue_comment:
+    types:
+      - created
 jobs:
-  job01:
-    if: contains(github.event.comment.html_url, '/pull/')    # check if the comments come from pull request, exclude those from issue.
-    runs-on: [ubuntu-latest]
+  comment:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.issue.pull_request }}
     steps:
-    - name: say hello
-      if: contains(github.event.comment.body, '/support')   # check the comment if it contains the keywords
-      run: |
-        echo say hello
-    - name: test
-      if: contains(github.event.comment.body, '/test')  # check the comment if it contains the keywords
-      run: |
-        echo test
+
+      - name: Checkout code from PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
       
+      - name: Run unit tests
+        run: |
+          # Add commands here to run your unit tests.
+          # For example, if you're using Python unittest, you can do something like this:
+          ls
+          echo foo
+          cat README.md
+      
+      - uses: actions/github-script@v6
+        if: contains(github.event.comment.body, '/test')
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+                body: '👋 foo [![Actions Status](https://github.com/bonnal-enzo/kioss/workflows/on_comment/badge.svg)](https://github.com/bonnal-enzo/kioss/actions)'
+              })
