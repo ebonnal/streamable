@@ -86,8 +86,8 @@ object_paths: Iterator[str] = ...
 - consume:
     - `.collect` a pipe into a list having an optional max size.
     - `.superintend` a pipe: iterate over it entirely while catching exceptions + logging the iteration process + collecting and raising error samples.
------
-Note that the `Pipe` class itself extends `Iterator[T]`, hence you can pass a pipe to any function supporting iterators:
+------
+Note that the `Pipe` class itself extends `Iterator[T]`, hence you can pass an instance to any function supporting iterators:
 - `set(pipe)`
 - `functools.reduce(func, pipe, initial)`
 - `itertools.islice(pipe, n_samples)`
