@@ -43,7 +43,7 @@ class Pipe(Iterator[T]):
         iterator (Iterator[T]): The iterator containing elements for the pipeline.
     """
 
-    def __init__(self, source: Union[Iterable[T], Iterator[T]] = []) -> None:  # timeout
+    def __init__(self, source: Union[Iterable[T], Iterator[T]] = []) -> None:
         self.iterator: Iterator[T] = iter(source)
         self._exit_asked: Optional[Event] = None
         self._upstream: List[Pipe[T]] = []
