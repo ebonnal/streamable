@@ -57,7 +57,7 @@ class Pipe(Iterator[T]):
     def __next__(self) -> T:
         return next(self.iterator)
 
-    def __iter__(self) -> T:
+    def __iter__(self) -> Iterator[T]:
         return self
 
     def __add__(self, other: "Pipe[T]") -> "Pipe[T]":
