@@ -240,6 +240,8 @@ class TestPipe(unittest.TestCase):
             ),
             55,
         )
+        # test recursion issue
+        Pipe([iter([]) for _ in range(2000)]).flatten().collect()
 
     def test_filter(self):
         self.assertListEqual(list(Pipe(range(8)).filter(lambda x: x % 2)), [1, 3, 5, 7])

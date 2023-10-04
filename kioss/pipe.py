@@ -367,8 +367,12 @@ class _FlatteningPipe(Pipe[R]):
         try:
             return next(self.current_iterator_elem)
         except StopIteration:
-            self.current_iterator_elem = iter(super().__next__())
-            return next(self)
+            while True:
+                self.current_iterator_elem = iter(super().__next__())
+                try:
+                    return next(self.current_iterator_elem)
+                except StopIteration:
+                    pass
 
 
 class _CatchingPipe(Pipe[T]):
