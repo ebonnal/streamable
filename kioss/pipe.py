@@ -159,7 +159,7 @@ class Pipe(Iterator[T]):
 
         Args:
             func (Callable[[T], R]): The function to be applied to each element.
-            n_workers (int, optional): The number of threads (or processes is worker_type='process') for concurrent func execution (default is 0, meaning single-threaded).
+            n_workers (int, optional): The number of threads (or processes if worker_type='process') for concurrent func execution (default is None, meaning single-threaded).
             worker_type (str, optional): Must be Pipe.THREAD_WORKER_TYPE or Pipe.PROCESS_WORKER_TYPE (default is THREAD_WORKER_TYPE)..
         Returns:
             Pipe[T]: A new Pipe instance with elements resulting from applying the function to each element.
