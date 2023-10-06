@@ -47,12 +47,12 @@ class TestPipe(unittest.TestCase):
         self.assertListEqual(Pipe(iter(range(8))).collect(), list(range(8)))
 
     def test_chain(self):
+        # test that the order is preserved
         self.assertListEqual(
-            list(
-                Pipe(range(2))
-                .chain(Pipe(range(2, 4)), Pipe(range(4, 6)))
-                .chain(Pipe(range(6, 8)))
-            ),
+            Pipe(range(2))
+            .chain(Pipe(range(2, 4)), Pipe(range(4, 6)))
+            .chain(Pipe(range(6, 8)))
+            .collect(),
             list(range(8)),
         )
 
