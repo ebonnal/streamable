@@ -32,4 +32,4 @@ jobs:
     - name: unittest
       run: |
         python -m pip install -r requirements.txt
-        python -m black --check kioss/* test/*
+        python -m black --check kioss/* tests/*
