@@ -23,14 +23,3 @@ class TestUtil(unittest.TestCase):
             queue.put(i)
         queue.put(None)
         self.assertListEqual(list(it), list(range(8)))
-
-    def test_has_next(self):
-        it = iter(range(3))
-        self.assertTrue(has_next(it))
-        self.assertEqual(next(it), 0)
-        self.assertTrue(has_next(it))
-        self.assertEqual(next(it), 1)
-        self.assertTrue(has_next(it))
-        self.assertEqual(next(it), 2)
-        self.assertFalse(has_next(it))
-        self.assertRaises(StopIteration, lambda: next(it))

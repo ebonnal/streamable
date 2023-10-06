@@ -16,25 +16,26 @@ TEN_MS = 0.01
 T = TypeVar("T")
 
 
-def ten_millis_identity(x: T) -> T:
+# simulates an I/0 bound function
+def ten_ms_identity(x: T) -> T:
     time.sleep(TEN_MS)
     return x
 
 
-non_local_l = multiprocessing.Manager().list()
+# Top-level objects to avoid pickle issues when multiprocessing
+toplevel_list = multiprocessing.Manager().list()
 
 
-def non_local_func(x):
+def toplevel_square(x: int) -> int:
     return x**2
 
 
-def non_local_func_with_side_effect(x):
-    res = non_local_func(x)
-    non_local_l.append(res)
-    return res
+def top_level_append_square_in(x: int) -> int:
+    res = toplevel_square(x)
+    toplevel_list.append(res)
 
 
-Pipe._MAX_NUM_WAITING_ELEMS_PER_WORKER = 2
+# size of the test collections
 N = 64
 
 
@@ -43,7 +44,7 @@ class TestPipe(unittest.TestCase):
         # from iterable
         self.assertListEqual(Pipe(range(8)).collect(), list(range(8)))
         # from iterator
-        self.assertListEqual(Pipe(range(8)).collect(), list(range(8)))
+        self.assertListEqual(Pipe(iter(range(8))).collect(), list(range(8)))
 
     def test_chain(self):
         self.assertListEqual(
@@ -59,6 +60,7 @@ class TestPipe(unittest.TestCase):
         [[worker_type] for worker_type in Pipe.SUPPORTED_WORKER_TYPES]
     )
     def test_mix(self, worker_type: str):
+        # test concurrency
         single_pipe_iteration_duration = 0.5
         queue_get_timeout = 0.1
         new_pipes = lambda: [
@@ -117,7 +119,7 @@ class TestPipe(unittest.TestCase):
     @parameterized.expand(
         [
             [
-                non_local_func
+                toplevel_square
                 if worker_type == Pipe.PROCESS_WORKER_TYPE
                 else lambda x: x**2,
                 n_workers,
@@ -131,13 +133,13 @@ class TestPipe(unittest.TestCase):
         self.assertSetEqual(
             set(
                 Pipe(range(N))
-                .map(ten_millis_identity, n_workers=n_workers, worker_type=worker_type)
+                .map(ten_ms_identity, n_workers=n_workers, worker_type=worker_type)
                 .map(lambda x: x if 1 / x is not None else None)
                 .map(func, n_workers=n_workers, worker_type=worker_type)
                 .catch(
                     ZeroDivisionError, ignore=True
                 )  # check that the ZeroDivisionError is bypass the call to func
-                .map(ten_millis_identity, n_workers=n_workers, worker_type=worker_type)
+                .map(ten_ms_identity, n_workers=n_workers, worker_type=worker_type)
             ),
             set(map(func, range(1, N))),
         )
@@ -153,10 +155,10 @@ class TestPipe(unittest.TestCase):
 
     def test_map_timing(self):
         # non-threaded vs threaded execution time
-        pipe = Pipe(range(N)).map(ten_millis_identity)
+        pipe = Pipe(range(N)).map(ten_ms_identity)
         self.assertAlmostEqual(pipe.time(), TEN_MS * N, delta=0.3 * (TEN_MS * N))
         n_workers = 2
-        pipe = Pipe(range(N)).map(ten_millis_identity, n_workers=n_workers)
+        pipe = Pipe(range(N)).map(ten_ms_identity, n_workers=n_workers)
         self.assertAlmostEqual(
             pipe.time(),
             TEN_MS * N / n_workers,
@@ -194,12 +196,12 @@ class TestPipe(unittest.TestCase):
         self.assertSetEqual(set(l), set(map(func, args)))
 
         # with processes
-        while len(non_local_l):
-            non_local_l.pop()
+        while len(toplevel_list):
+            toplevel_list.pop()
         self.assertSetEqual(
             set(
                 Pipe(args).do(
-                    non_local_func_with_side_effect,
+                    top_level_append_square_in,
                     n_workers=2,
                     worker_type=Pipe.PROCESS_WORKER_TYPE,
                 )
@@ -209,14 +211,14 @@ class TestPipe(unittest.TestCase):
         self.assertSetEqual(set(l), set(map(func, args)))
 
         # with_processes and with slow upstream
-        while len(non_local_l):
-            non_local_l.pop()
+        while len(toplevel_list):
+            toplevel_list.pop()
         self.assertSetEqual(
             set(
                 Pipe(range(N))
-                .map(ten_millis_identity)
+                .map(ten_ms_identity)
                 .do(
-                    non_local_func_with_side_effect,
+                    top_level_append_square_in,
                     n_workers=8,
                     worker_type=Pipe.PROCESS_WORKER_TYPE,
                 )
@@ -305,7 +307,7 @@ class TestPipe(unittest.TestCase):
         freq = 64
         pipe = (
             Pipe(range(N))
-            .map(ten_millis_identity, n_workers=n_workers, worker_type=worker_type)
+            .map(ten_ms_identity, n_workers=n_workers, worker_type=worker_type)
             .slow(freq)
         )
         self.assertAlmostEqual(
@@ -319,7 +321,7 @@ class TestPipe(unittest.TestCase):
         self.assertListEqual(Pipe(range(8)).collect(), list(range(8)))
         self.assertAlmostEqual(
             timeit.timeit(
-                lambda: Pipe(range(8)).map(ten_millis_identity).collect(0),
+                lambda: Pipe(range(8)).map(ten_ms_identity).collect(0),
                 number=1,
             ),
             TEN_MS * 8,
