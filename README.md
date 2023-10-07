@@ -73,11 +73,10 @@ object_paths: Iterator[str] = ...
 - define:
     - The `.__init__` of the `Pipe` class takes as argument an instance of `Iterator[T]` or `Iterable[T]` used as the source of elements.
     - `.map` a function over a pipe, optionally using multiple threads or processes.
-    - `.flatten` a pipe, whose elements are assumed to be iterators, creating a new pipe with individual elements.
+    - `.flatten` a pipe, whose elements are assumed to be iterators, creating a new pipe with individual elements, optionally using multiple threads or processes.
     - `.filter` a pipe using a predicate function.
     - `.do` side effects on a pipe, i.e. apply a function ignoring its returned value, optionally using multiple threads or processes.
     - `.chain` several pipes to form a new one that yields elements of one pipe after the previous one is exhausted.
-    - `.mix` several pipes to form a new one that yields elements concurrently as they arrive, using multiple threads.
     - `.batch` pipe's elements and yield them as lists of a given size or spanning over a given duration.
 - control:
     - `.slow` a pipe to limit the rate of the iteration over it.

@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import itertools
 import logging
 import multiprocessing
@@ -82,26 +83,36 @@ class Pipe(Iterator[T]):
 
     _MANAGER: Optional[multiprocessing.Manager] = None
 
-    @staticmethod
-    def _validate_worker_type(worker_type: str) -> None:
-        if worker_type not in Pipe.SUPPORTED_WORKER_TYPES:
-            raise ValueError(
-                f"'{worker_type}' worker_type is not supported, must be one of: {Pipe.SUPPORTED_WORKER_TYPES}"
-            )
-
-    def _map_or_do(
-        self,
+    def _map(
+        self: "Pipe[Union[Iterator[T], T]]",
         func: Callable[[T], R],
         n_workers: Optional[int],
         worker_type: str,
         sidify: bool,
+        flatten: bool,
     ) -> "Pipe[Union[R, T]]":
-        self._validate_worker_type(worker_type)
+        if flatten and (func is not None or sidify is not None):
+            raise ValueError(
+                "_map cannot be called with flatten=True and non None func or sidify"
+            )
+        if sidify and flatten is not None:
+            raise ValueError(
+                "_map cannot be called with sidify=True and non None flatten"
+            )
+        if worker_type not in Pipe.SUPPORTED_WORKER_TYPES:
+            raise ValueError(
+                f"'{worker_type}' worker_type is not supported, must be one of: {Pipe.SUPPORTED_WORKER_TYPES}"
+            )
         if n_workers is None or n_workers <= 0:
-            func = util.map_exception(func, source=StopIteration, target=RuntimeError)
-            if sidify:
-                func = util.sidify(func)
-            return Pipe[T](map(func, self))._with_upstream(self)
+            if flatten:
+                return _FlatteningPipe[R](self)
+            else:
+                func = util.map_exception(
+                    func, source=StopIteration, target=RuntimeError
+                )
+                if sidify:
+                    func = util.sidify(func)
+                return Pipe[T](map(func, self))._with_upstream(self)
 
         if worker_type == Pipe.PROCESS_WORKER_TYPE:
             pickle.dumps(func)
@@ -125,6 +136,7 @@ class Pipe(Iterator[T]):
                     n_workers=n_workers,
                     max_queue_size=self._MAX_NUM_WAITING_ELEMS_PER_WORKER * n_workers,
                     sidify=sidify,
+                    flatten=flatten,
                     exit_asked=self._exit_asked,
                 )
             )
@@ -142,11 +154,11 @@ class Pipe(Iterator[T]):
         Args:
             func (Callable[[T], R]): The function to be applied to each element.
             n_workers (int, optional): The number of threads (or processes is worker_type='process') for concurrent func execution (default is 0, meaning single-threaded).
-            worker_type (str, optional): Must be Pipe.THREAD_WORKER_TYPE or Pipe.PROCESS_WORKER_TYPE (default is THREAD_WORKER_TYPE)..
+            worker_type (str, optional): Must be Pipe.THREAD_WORKER_TYPE or Pipe.PROCESS_WORKER_TYPE (default is THREAD_WORKER_TYPE).
         Returns:
             Pipe[R]: A new Pipe instance with elements resulting from applying the function to each element.
         """
-        return self._map_or_do(func, n_workers, worker_type, sidify=False)
+        return self._map(func, n_workers, worker_type, sidify=False, flatten=None)
 
     def do(
         self,
@@ -160,11 +172,26 @@ class Pipe(Iterator[T]):
         Args:
             func (Callable[[T], R]): The function to be applied to each element.
             n_workers (int, optional): The number of threads (or processes if worker_type='process') for concurrent func execution (default is None, meaning single-threaded).
-            worker_type (str, optional): Must be Pipe.THREAD_WORKER_TYPE or Pipe.PROCESS_WORKER_TYPE (default is THREAD_WORKER_TYPE)..
+            worker_type (str, optional): Must be Pipe.THREAD_WORKER_TYPE or Pipe.PROCESS_WORKER_TYPE (default is THREAD_WORKER_TYPE).
         Returns:
             Pipe[T]: A new Pipe instance with elements resulting from applying the function to each element.
         """
-        return self._map_or_do(func, n_workers, worker_type, sidify=True)
+        return self._map(func, n_workers, worker_type, sidify=True, flatten=None)
+
+    def flatten(
+        self: "Pipe[Iterator[R]]",
+        n_workers: Optional[int] = None,
+        worker_type: str = THREAD_WORKER_TYPE,
+    ) -> "Pipe[R]":
+        """
+        Flatten the elements of the Pipe, which are assumed to be iterators, creating a new Pipe with individual elements.
+
+        Returns:
+            Pipe[R]: A new Pipe instance with individual elements obtained by flattening the original elements.
+            n_workers (int, optional): The number of threads (or processes if worker_type='process') for concurrent flattening execution (default is None, meaning single-threaded).
+            worker_type (str, optional): Must be Pipe.THREAD_WORKER_TYPE or Pipe.PROCESS_WORKER_TYPE (default is THREAD_WORKER_TYPE).
+        """
+        return self._map(None, n_workers, worker_type, sidify=None, flatten=True)
 
     def chain(self, *others: Tuple["Pipe[T]"]) -> "Pipe[T]":
         """
@@ -177,60 +204,6 @@ class Pipe(Iterator[T]):
             Pipe[T]: A new Pipe instance with elements from this Pipe followed by elements from other Pipes.
         """
         return Pipe[T](itertools.chain(self, *others))._with_upstream(self, *others)
-
-    def mix(
-        self, *others: "Pipe[T]", worker_type: str = THREAD_WORKER_TYPE
-    ) -> "Pipe[T]":
-        """
-        Mix this Pipe with other Pipes using one thread per pipe, returning a new Pipe instance concurrently yielding elements from self and others in any order.
-
-        Args:
-            *others ([Pipe[T]]): One or more additional Pipe instances to mix with this Pipe.
-            worker_type (str, optional): Must be Pipe.THREAD_WORKER_TYPE or Pipe.PROCESS_WORKER_TYPE (default is THREAD_WORKER_TYPE).
-
-        Returns:
-            Pipe[T]: A new Pipe instance concurrently yielding elements from self and others in any order.
-        """
-        for other in others:
-            if not isinstance(other, Pipe):
-                raise TypeError(
-                    f"Positional arguments of Pipe.mix must be of type Pipe, but got '{type(other)}'"
-                )
-        if not all((isinstance(other, Pipe) for other in others)):
-            raise TypeError("")
-        self._validate_worker_type(worker_type)
-        if worker_type == Pipe.PROCESS_WORKER_TYPE:
-            if Pipe._MANAGER is None:
-                Pipe._MANAGER = multiprocessing.Manager()
-            self._exit_asked = Pipe._MANAGER.Event()
-            queue_class: Type[Queue] = Pipe._MANAGER.Queue
-            executor_class: Type[Executor] = ProcessPoolExecutor
-        else:
-            self._exit_asked = multiprocessing.Event()
-            queue_class: Type[Queue] = Queue
-            executor_class: Type[Executor] = ThreadPoolExecutor
-
-        return _RasingPipe[R](
-            iter(
-                _concurrently_merging_iterable(
-                    iterators=[self, *others],
-                    executor_class=executor_class,
-                    queue_class=queue_class,
-                    exit_asked=self._exit_asked,
-                    max_queue_size=self._MAX_NUM_WAITING_ELEMS_PER_WORKER
-                    * (len(others) + 1),
-                )
-            )
-        )._with_upstream(self, *others)
-
-    def flatten(self: "Pipe[Iterator[R]]") -> "Pipe[R]":
-        """
-        Flatten the elements of the Pipe, which are assumed to be iterators, creating a new Pipe with individual elements.
-
-        Returns:
-            Pipe[R]: A new Pipe instance with individual elements obtained by flattening the original elements.
-        """
-        return _FlatteningPipe[R](self)
 
     def filter(self, predicate: Callable[[T], bool]) -> "Pipe[T]":
         """
@@ -333,7 +306,7 @@ class Pipe(Iterator[T]):
             RuntimeError: If any exception is catched during iteration.
         """
         if not isinstance(self, _LoggingPipe):
-            pipe = self.log("ultimate elements")
+            pipe = self.log("output elements")
         else:
             pipe = self
         error_samples: List[Exception] = []
@@ -358,23 +331,6 @@ class Pipe(Iterator[T]):
         return samples
 
 
-class _FlatteningPipe(Pipe[R]):
-    def __init__(self, iterator: Iterator[Iterator[R]]) -> None:
-        super().__init__(iterator)
-        self.current_iterator_elem = iter(super().__next__())
-
-    def __next__(self) -> R:
-        try:
-            return next(self.current_iterator_elem)
-        except StopIteration:
-            while True:
-                self.current_iterator_elem = iter(super().__next__())
-                try:
-                    return next(self.current_iterator_elem)
-                except StopIteration:
-                    pass
-
-
 class _CatchingPipe(Pipe[T]):
     def __init__(
         self, iterator: Iterator[T], classes: Tuple[Type[Exception]], ignore: bool
@@ -395,6 +351,27 @@ class _CatchingPipe(Pipe[T]):
                 return next(self)
             else:
                 return e
+
+
+class _FlatteningPipe(Pipe[R]):
+    def __init__(self, iterator: Iterator[Iterator[R]]) -> None:
+        super().__init__(iterator)
+        self.initiated = False
+        self.current_iterator_elem = None
+
+    def __next__(self) -> R:
+        if not self.initiated:
+            self.current_iterator_elem = iter(super().__next__())
+            self.initiated = True
+        try:
+            return next(self.current_iterator_elem)
+        except StopIteration:
+            while True:
+                self.current_iterator_elem = iter(super().__next__())
+                try:
+                    return next(self.current_iterator_elem)
+                except StopIteration:
+                    pass
 
 
 class _LoggingPipe(Pipe[T]):
@@ -528,42 +505,38 @@ class _BatchingPipe(Pipe[List[T]]):
             raise e
 
 
-def _puller(iterator: Iterator[T], queue: Queue, exit_asked: Event):
+_uuid = "ad0a24ef-ad56-4597-a43e-d02e1d4fc5da"
+_NOTHING = f"__kioss__nothing_{_uuid}"
+_SENTINEL = f"__kioss__sentinel_{_uuid}"
+
+
+def _pull(
+    input_queue: Queue,
+    exit_asked: Event,
+) -> Any:
+    elem = _NOTHING
     while not exit_asked.is_set():
         try:
-            elem = next(iterator)
-        except StopIteration:
+            elem = input_queue.get(timeout=0.1)
+            if elem == _SENTINEL:
+                input_queue.put(_SENTINEL)
             break
-        except Exception as e:
-            elem = _CatchedError(e)
-        while not exit_asked.is_set():
-            try:
-                queue.put(elem, timeout=0.1)
-                break
-            except Full:
-                continue
+        except Empty:
+            continue
+    return elem
 
 
-def _concurrently_merging_iterable(
-    iterators: List[Iterator[T]],
-    executor_class: Type[Executor],
-    queue_class: Type[Queue],
+def _put(
+    to_output: Any,
+    output_queue: Queue,
     exit_asked: Event,
-    max_queue_size: int,
-) -> Iterator[T]:
-    with executor_class(max_workers=len(iterators)) as executor:
-        queue: Queue = queue_class(maxsize=max_queue_size)
-        futures = [
-            executor.submit(_puller, iterator, queue, exit_asked)
-            for iterator in iterators
-        ]
-        while not exit_asked.is_set() and (
-            not queue.empty() or not all((future.done() for future in futures))
-        ):
-            try:
-                yield queue.get(timeout=0.1)
-            except Empty:
-                pass
+) -> None:
+    while not exit_asked.is_set():
+        try:
+            output_queue.put(to_output, timeout=0.1)
+            break
+        except Full:
+            pass
 
 
 def _mapper(
@@ -572,83 +545,101 @@ def _mapper(
     output_queue: Queue,
     sidify: bool,
     exit_asked: Event,
-    sentinel: Any,
 ) -> None:
     while not exit_asked.is_set():
-        try:
-            elem = input_queue.get(timeout=0.1)
-            if elem == sentinel:
-                input_queue.put(sentinel)
-                break
-        except Empty:
-            continue
-        try:
-            res = elem if isinstance(elem, _CatchedError) else func(elem)
-            to_output = elem if sidify else res
-        except StopIteration as e:
-            # raising a stop iteration would completely mess downstream iteration
-            remapped_exception = RuntimeError()
-            _CatchedError.__cause__ = e
-            to_output = _CatchedError(remapped_exception)
-        except Exception as e:
-            to_output = _CatchedError(e)
-        while not exit_asked.is_set():
+        elem = _pull(input_queue, exit_asked)
+        if elem == _NOTHING or elem == _SENTINEL:
+            break
+        if isinstance(elem, _CatchedError):
+            _put(elem, output_queue, exit_asked)
+        else:
             try:
-                output_queue.put(to_output, timeout=0.1)
-                break
-            except Full:
-                pass
+                res = func(elem)
+                to_output = elem if sidify else res
+            except StopIteration as e:
+                # raising a stop iteration would completely mess downstream iteration
+                remapped_exception = RuntimeError()
+                remapped_exception.__cause__ = e
+                to_output = _CatchedError(remapped_exception)
+            except Exception as e:
+                to_output = _CatchedError(e)
+            _put(to_output, output_queue, exit_asked)
 
 
-def _feeder(
-    input_queue: Queue, iterator: Iterator[T], exit_asked: Event, sentinel: Any
-):
+def _flat_mapper(
+    input_queue: Queue,
+    output_queue: Queue,
+    exit_asked: Event,
+) -> None:
     while not exit_asked.is_set():
-        try:
-            elem = next(iterator)
-        except StopIteration:
+        elem = _pull(input_queue, exit_asked)
+        if elem == _NOTHING or elem == _SENTINEL:
+            break
+        if isinstance(elem, _CatchedError):
+            _put(elem, output_queue, exit_asked)
+        else:
+            iterator = None
             while not exit_asked.is_set():
                 try:
-                    input_queue.put(sentinel, timeout=0.1)
+                    if iterator is None:
+                        iterator = iter(elem)
+                except StopIteration as e:
+                    # raising a stop iteration would completely mess downstream iteration
+                    remapped_exception = RuntimeError()
+                    remapped_exception.__cause__ = e
+                    _put(_CatchedError(remapped_exception), output_queue, exit_asked)
                     break
-                except Full:
-                    pass
+                except Exception as e:
+                    _put(_CatchedError(e), output_queue, exit_asked)
+                    break
+                try:
+                    to_output = next(iterator)
+                except StopIteration as e:
+                    break
+                except Exception as e:
+                    to_output = _CatchedError(e)
+                _put(to_output, output_queue, exit_asked)
+
+
+def _feeder(input_queue: Queue, pipe: Iterator[T], exit_asked: Event):
+    while not exit_asked.is_set():
+        try:
+            elem = next(pipe)
+            if isinstance(elem, Pipe):
+                pipe._with_upstream(elem)
+        except StopIteration:
+            _put(_SENTINEL, input_queue, exit_asked)
             break
         except Exception as e:
             elem = _CatchedError(e)
-        while not exit_asked.is_set():
-            try:
-                input_queue.put(elem, timeout=0.1)
-                break
-            except Full:
-                pass
+        _put(elem, input_queue, exit_asked)
 
 
 def _multi_yielding_iterable(
     func: Callable[[T], R],
-    iterator: Iterator[T],
+    pipe: Pipe[T],
     executor_class: Type[Executor],
     queue_class: Type[Queue],
     n_workers: int,
     max_queue_size: int,
     sidify: bool,
+    flatten: bool,
     exit_asked: Event,
 ) -> Iterator[Union[T, R]]:
     input_queue: Queue = queue_class(maxsize=max_queue_size)
     output_queue: Queue = queue_class(maxsize=max_queue_size)
 
     with executor_class(max_workers=n_workers) as executor:
-        sentinel = f"__kioss__{time.time()}"
         futures = [
-            executor.submit(
-                _mapper, func, input_queue, output_queue, sidify, exit_asked, sentinel
+            executor.submit(_flat_mapper, input_queue, output_queue, exit_asked)
+            if flatten
+            else executor.submit(
+                _mapper, func, input_queue, output_queue, sidify, exit_asked
             )
             for _ in range(n_workers)
         ]
         with ThreadPoolExecutor(max_workers=1) as executor:
-            futures.append(
-                executor.submit(_feeder, input_queue, iterator, exit_asked, sentinel)
-            )
+            futures.append(executor.submit(_feeder, input_queue, pipe, exit_asked))
             while not exit_asked.is_set() and (
                 not all((future.done() for future in futures))
                 or not output_queue.empty()
@@ -663,3 +654,7 @@ def _multi_yielding_iterable(
             future.result()
         except Exception as e:
             yield _CatchedError(e)
+
+
+def f(x):
+    return x**2
