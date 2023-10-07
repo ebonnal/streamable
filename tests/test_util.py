@@ -1,7 +1,7 @@
 import unittest
 from queue import Queue
 
-from kioss.util import QueueIterator, sidify, has_next
+from kioss.util import QueueIterator, sidify
 
 
 class TestUtil(unittest.TestCase):

@@ -6,7 +6,6 @@ import uuid
 T = TypeVar("T")
 R = TypeVar("R")
 
-UNIQUE_VALUE = "__kioss__util__" + str(uuid.uuid4())
 
 def sidify(func: Callable[[T], Any]) -> Callable[[T], T]:
     def wrap(arg):
@@ -36,12 +35,6 @@ def iterate(it: Union[Iterator[T], Iterable[T]]) -> None:
 def identity(obj: T) -> T:
     return obj
 
-
-def has_next(iterator: Iterator[T]) -> Iterator[T]:
-    elem = next(iterator, UNIQUE_VALUE)
-    if elem == UNIQUE_VALUE:
-        return False
-    return itertools.chain([elem], iterator)
 
 class QueueIterator(Iterator[T]):
     INITIAL_BACKOFF_period = 0.005
