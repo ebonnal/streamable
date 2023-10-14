@@ -193,12 +193,12 @@ class Pipe(Iterator[T]):
         """
         return self._map(None, n_workers, worker_type, sidify=None, flatten=True)
 
-    def chain(self, *others: Tuple["Pipe[T]"]) -> "Pipe[T]":
+    def chain(self, *others: "Pipe[T]") -> "Pipe[T]":
         """
         Create a new Pipe by chaining the elements of this Pipe with the elements from other Pipes. The elements of a given Pipe are yielded after its predecessor Pipe is exhausted.
 
         Args:
-            *others ([Pipe[T]]): One or more additional Pipe instances to chain with this Pipe.
+            *others (Pipe[T]): One or more additional Pipe instances to chain with this Pipe.
 
         Returns:
             Pipe[T]: A new Pipe instance with elements from this Pipe followed by elements from other Pipes.
