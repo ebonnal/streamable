@@ -381,7 +381,6 @@ class _LoggingPipe(Pipe[T]):
         self.errors_count = 0
         self.last_log_at_yields_count = None
         self.start_time = time.time()
-        self._is_exhausted = False
         logging.info("iteration over '%s' will be logged.", self.what)
 
     def _log(self) -> None:
@@ -397,15 +396,13 @@ class _LoggingPipe(Pipe[T]):
         )
 
     def __next__(self) -> T:
-        if self._is_exhausted:
-            raise StopIteration
         to_be_raised: Optional[Exception] = None
         try:
             elem = super().__next__()
         except StopIteration:
-            self._is_exhausted = True
             if self.yields_count != self.last_log_at_yields_count:
                 self._log()
+                self.last_log_at_yields_count = self.yields_count
             raise
         except Exception as e:
             to_be_raised = e
