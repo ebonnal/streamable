@@ -648,7 +648,3 @@ def _multi_yielding_iterable(
             future.result()
         except Exception as e:
             yield _RasingPipe.CatchedError(e)
-
-
-def f(x):
-    return x**2
