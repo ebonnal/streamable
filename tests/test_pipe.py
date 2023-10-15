@@ -154,11 +154,11 @@ class TestPipe(unittest.TestCase):
                         map(int, "012-3-"),
                         3,
                         4,
-                        map(int, "-456"),
                         RaisesStopIterationWhenCalledForIter(),
+                        map(int, "-456"),
                     ],
                 )
-            ).flatten(n_workers=n_workers, worker_type=worker_type)
+            ).map(iter).flatten(n_workers=n_workers, worker_type=worker_type)
         )
         self.assertSetEqual(
             set(get_pipe().catch(Exception, ignore=False).map(type)),
