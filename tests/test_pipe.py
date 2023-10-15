@@ -70,6 +70,7 @@ class TestPipe(unittest.TestCase):
                 list(
                     Pipe(["Hello World", "Happy to be here :)"])
                     .map(str.split)
+                    .map(iter)
                     .flatten(n_workers=n_workers, worker_type=worker_type)
                 ),
                 ["Hello", "World", "Happy", "to", "be", "here", ":)"],
@@ -78,6 +79,7 @@ class TestPipe(unittest.TestCase):
             set(
                 Pipe(["Hello World", "Happy to be here :)"])
                 .map(str.split)
+                .map(iter)
                 .flatten(n_workers=n_workers, worker_type=worker_type)
             ),
             {"Hello", "World", "Happy", "to", "be", "here", ":)"},
@@ -85,8 +87,10 @@ class TestPipe(unittest.TestCase):
         self.assertEqual(
             sum(
                 Pipe([["1 2 3", "4 5 6"], ["7", "8 9 10"]])
+                .map(iter)
                 .flatten(n_workers=n_workers, worker_type=worker_type)
                 .map(str.split)
+                .map(iter)
                 .flatten(n_workers=n_workers, worker_type=worker_type)
                 .map(int)
             ),
