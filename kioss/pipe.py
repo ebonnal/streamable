@@ -444,19 +444,18 @@ class _SlowingPipe(Pipe[T]):
 E = TypeVar("E", bound=Exception)
 
 
-class _CatchedError(Generic[E]):
-    def __init__(self, exception: E) -> None:
-        super().__init__()
-        self.exception: E = exception
+
 
 
 class _RasingPipe(Pipe[T]):
-    def __init__(self, iterator: Iterator[T]) -> None:
-        super().__init__(iterator)
+    class CatchedError(Generic[E]):
+        def __init__(self, exception: E) -> None:
+            super().__init__()
+            self.exception: E = exception
 
     def __next__(self) -> T:
         next_elem = super().__next__()
-        if isinstance(next_elem, _CatchedError):
+        if isinstance(next_elem, _RasingPipe.CatchedError):
             raise next_elem.exception
         else:
             return next_elem
@@ -548,7 +547,7 @@ def _mapper(
         elem = _pull(input_queue, exit_asked)
         if elem == _NOTHING or elem == _SENTINEL:
             break
-        if isinstance(elem, _CatchedError):
+        if isinstance(elem, _RasingPipe.CatchedError):
             _put(elem, output_queue, exit_asked)
         else:
             try:
@@ -558,9 +557,9 @@ def _mapper(
                 # raising a stop iteration would completely mess downstream iteration
                 remapped_exception = RuntimeError()
                 remapped_exception.__cause__ = e
-                to_output = _CatchedError(remapped_exception)
+                to_output = _RasingPipe.CatchedError(remapped_exception)
             except Exception as e:
-                to_output = _CatchedError(e)
+                to_output = _RasingPipe.CatchedError(e)
             _put(to_output, output_queue, exit_asked)
 
 
@@ -573,7 +572,7 @@ def _flat_mapper(
         elem = _pull(input_queue, exit_asked)
         if elem == _NOTHING or elem == _SENTINEL:
             break
-        if isinstance(elem, _CatchedError):
+        if isinstance(elem, _RasingPipe.CatchedError):
             _put(elem, output_queue, exit_asked)
         else:
             iterator = None
@@ -585,17 +584,17 @@ def _flat_mapper(
                     # raising a stop iteration would completely mess downstream iteration
                     remapped_exception = RuntimeError()
                     remapped_exception.__cause__ = e
-                    _put(_CatchedError(remapped_exception), output_queue, exit_asked)
+                    _put(_RasingPipe.CatchedError(remapped_exception), output_queue, exit_asked)
                     break
                 except Exception as e:
-                    _put(_CatchedError(e), output_queue, exit_asked)
+                    _put(_RasingPipe.CatchedError(e), output_queue, exit_asked)
                     break
                 try:
                     to_output = next(iterator)
                 except StopIteration as e:
                     break
                 except Exception as e:
-                    to_output = _CatchedError(e)
+                    to_output = _RasingPipe.CatchedError(e)
                 _put(to_output, output_queue, exit_asked)
 
 
@@ -609,7 +608,7 @@ def _feeder(input_queue: Queue, pipe: Iterator[T], exit_asked: Event):
             _put(_SENTINEL, input_queue, exit_asked)
             break
         except Exception as e:
-            elem = _CatchedError(e)
+            elem = _RasingPipe.CatchedError(e)
         _put(elem, input_queue, exit_asked)
 
 
@@ -651,7 +650,7 @@ def _multi_yielding_iterable(
         try:
             future.result()
         except Exception as e:
-            yield _CatchedError(e)
+            yield _RasingPipe.CatchedError(e)
 
 
 def f(x):
