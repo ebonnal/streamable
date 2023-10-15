@@ -29,10 +29,6 @@ T = TypeVar("T")
 R = TypeVar("R")
 
 
-class PipeDefinitionError(Exception):
-    pass
-
-
 class Pipe(Iterator[T]):
     """
     Pipe class that represents a data processing pipeline.
@@ -343,8 +339,6 @@ class _CatchingPipe(Pipe[T]):
         try:
             return super().__next__()
         except StopIteration:
-            raise
-        except PipeDefinitionError:
             raise
         except self.classes as e:
             if self.ignore:
