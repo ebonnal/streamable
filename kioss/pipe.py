@@ -356,18 +356,16 @@ class _CatchingPipe(Pipe[T]):
 class _FlatteningPipe(Pipe[R]):
     def __init__(self, iterator: Iterator[Iterator[R]]) -> None:
         super().__init__(iterator)
-        self.initiated = False
-        self.current_iterator_elem = None
+        self.current_iterator_elem = iter([])
 
     def __next__(self) -> R:
-        if not self.initiated:
-            self.current_iterator_elem = iter(super().__next__())
-            self.initiated = True
         try:
             return next(self.current_iterator_elem)
         except StopIteration:
             while True:
-                self.current_iterator_elem = iter(super().__next__())
+                self.current_iterator_elem = super().__next__()
+                if not isinstance(self.current_iterator_elem, Iterator):
+                    raise TypeError(f"Flattened elements must be iterators, but got {type(self.current_iterator_elem)}")
                 try:
                     return next(self.current_iterator_elem)
                 except StopIteration:

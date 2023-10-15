@@ -347,6 +347,7 @@ class TestPipe(unittest.TestCase):
                 if isinstance(potential_error, Exception)
                 else potential_error
             )
+            .map(iter)
             .flatten()
             .map(type)
             .collect(),
