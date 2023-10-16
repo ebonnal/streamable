@@ -1,1 +1,1 @@
-from kioss.pipe import Pipe
+from kioss._plan import SourcePipe as Pipe
