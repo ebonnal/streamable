@@ -5,6 +5,7 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from datetime import datetime
 from queue import Empty, Full, Queue
 from typing import (
+    Any,
     Callable,
     Iterable,
     Iterator,
@@ -54,7 +55,6 @@ class ThreadedMappingIterable(Iterable[R]):
         with ThreadPoolExecutor(max_workers=self.n_workers) as executor:
             while True:
                 try:
-
                     while not iterator_exhausted and executor._work_queue.qsize() < ThreadedMappingIterable._MAX_QUEUE_SIZE:
                         try:
                             elem = next(self.iterator)
@@ -74,6 +74,27 @@ class ThreadedMappingIterable(Iterable[R]):
                             break
                 except Exception as e:
                     yield ExceptionContainer(e)
+
+class A(Iterator[Callable[[], T]]):
+    _BUFFER_SIZE = 32
+    def __init__(self, iterator_iterator: Iterator[Iterator[T]]):
+        self.iterator_iterator = iterator_iterator
+        self.iterators_pool: "Queue[Iterator[T]]" = Queue()
+        # if not isinstance(elem, Iterator):
+        # raise TypeError(f"Elements to be flattened have to be, but got '{elem}' of type{type(elem)}")
+    def __next__(self):
+        it = self.iterators_pool.get()
+        self.iterators_pool
+        return it.__next__
+
+class ThreadedFlatteningIteratorWrapper(ThreadedMappingIteratorWrapper[T]):
+    def __init__(self, iterator: Iterator[Iterator[T]], n_workers: int):
+        super().__init__(
+            iter(A(iterator)),
+            func=next,
+            n_workers=n_workers,
+        )
+
 
 class FlatteningIteratorWrapper(IteratorWrapper[R]):
     def __init__(self, iterator: Iterator[Iterator[R]]) -> None:
