@@ -5,7 +5,7 @@ import multiprocessing
 import pickle
 import time
 import timeit
-from concurrent.futures import Executor, ProcessPoolExecutor, ThreadPoolExecutor
+from concurrent.futures import Executor, Future, ProcessPoolExecutor, ThreadPoolExecutor
 from datetime import datetime
 from multiprocessing.synchronize import Event
 from queue import Empty, Full, Queue
@@ -38,18 +38,11 @@ class Pipe(Iterator[T]):
         iterator (Iterator[T]): The iterator containing elements for the pipeline.
     """
 
-    def __init__(self, source: Callable[[], Union[Iterable[T], Iterator[T]]]) -> None:
-        if not isinstance(source, Callable):
-            raise TypeError(f"The pipe's source must be a callable returning either an iterator or an iterable, but found type(source)={type(source)}")
-        self.source = source
-        self.iteration_started = False
-        self.iterator: Iterator[T] = None
+    def __init__(self, source: Union[Iterable[T], Iterator[T]]) -> None:
+        self.iterator = iter(source)
 
     def __next__(self) -> T:
-        if not self.iteration_started:
-            self.iterator = self.source()
-            self.iteration_started = True
-        next(self.iterator)
+        return next(self.iterator)
 
     def __iter__(self) -> Iterator[T]:
         return self
@@ -57,56 +50,63 @@ class Pipe(Iterator[T]):
     def __add__(self, other: "Pipe[T]") -> "Pipe[T]":
         return self.chain(other)
 
-    _MAX_NUM_WAITING_ELEMS_PER_WORKER = 8
+
+    @staticmethod
+    def sanitize_n_threads(n_threads: int):
+        if not isinstance(n_threads, int):
+            raise TypeError(f"n_threads should be an int but got '{n_threads}' of type {type(n_threads)}.")
+        if n_threads < 1:
+            raise ValueError(f"n_threads should be greater or equal to 1, but got {n_threads}.")
 
     def map(
         self,
         func: Callable[[T], R],
-        n_workers: Optional[int] = None,
+        n_threads: int = 1,
     ) -> "Pipe[R]":
         """
         Apply a function to each element of the Pipe, creating a new Pipe with the mapped elements.
 
         Args:
             func (Callable[[T], R]): The function to be applied to each element.
-            n_workers (int, optional): The number of threads for concurrent func execution (default is 0, meaning single-threaded).
+            n_threads (int): The number of threads for concurrent execution (default is 1, meaning only the main thread is used).
         Returns:
             Pipe[R]: A new Pipe instance with elements resulting from applying the function to each element.
         """
-        return Pipe[T](
-            map(
-                util.map_exception(func, source=StopIteration, target=RuntimeError),
-                Pipe(lambda: self)
-            )
-        )
+        Pipe.sanitize_n_threads(n_threads)
+        func = util.map_exception(func, source=StopIteration, target=RuntimeError)
+        if n_threads == 1:
+            return Pipe[T](map(func, self))
+        else:
+            return _ThreadedMapperPipe(self, func, n_workers = n_threads - 1)
 
     def do(
         self,
         func: Callable[[T], Any],
-        n_workers: Optional[int] = None,
+        n_threads: int = 1,
     ) -> "Pipe[T]":
         """
         Run the func as side effect: the resulting Pipe forwards the upstream elements after func execution's end.
 
         Args:
             func (Callable[[T], R]): The function to be applied to each element.
-            n_workers (int, optional): The number of threads for concurrent func execution (default is None, meaning single-threaded).
+            n_threads (int): The number of threads for concurrent execution (default is 1, meaning only the main thread is used).
         Returns:
             Pipe[T]: A new Pipe instance with elements resulting from applying the function to each element.
         """
-        return self.map(util.sidify(func), n_workers)
+        return self.map(util.sidify(func), n_threads)
 
     def flatten(
         self: "Pipe[Iterator[R]]",
-        n_workers: Optional[int] = None,
+        n_threads: int = 1,
     ) -> "Pipe[R]":
         """
         Flatten the elements of the Pipe, which are assumed to be iterators, creating a new Pipe with individual elements.
 
         Returns:
             Pipe[R]: A new Pipe instance with individual elements obtained by flattening the original elements.
-            n_workers (int, optional): The number of threads for concurrent flattening execution (default is None, meaning single-threaded).
+            n_threads (int): The number of threads for concurrent execution (default is 1, meaning only the main thread is used).
         """
+        Pipe.sanitize_n_threads(n_threads)
         return _FlatteningPipe[R](self)
 
     def chain(self, *others: "Pipe[T]") -> "Pipe[T]":
@@ -119,7 +119,7 @@ class Pipe(Iterator[T]):
         Returns:
             Pipe[T]: A new Pipe instance with elements from this Pipe followed by elements from other Pipes.
         """
-        return Pipe[T](itertools.chain(Pipe(lambda: self), *others))
+        return Pipe[T](itertools.chain(self, *others))
 
     def filter(self, predicate: Callable[[T], bool]) -> "Pipe[T]":
         """
@@ -131,7 +131,7 @@ class Pipe(Iterator[T]):
         Returns:
             Pipe[T]: A new Pipe instance with elements that satisfy the predicate.
         """
-        return Pipe[T](filter(predicate, Pipe(lambda: self)))
+        return Pipe[T](filter(predicate, self))
 
     def batch(self, size: int = 100, period: float = float("inf")) -> "Pipe[List[T]]":
         """
@@ -144,7 +144,7 @@ class Pipe(Iterator[T]):
         Returns:
             Pipe[List[T]]: A new Pipe instance with lists containing batches of elements.
         """
-        return _BatchingPipe[T](Pipe(lambda: self), size, period)
+        return _BatchingPipe[T](self, size, period)
 
     def slow(self, freq: float) -> "Pipe[T]":
         """
@@ -156,7 +156,7 @@ class Pipe(Iterator[T]):
         Returns:
             Pipe[T]: A new Pipe instance with elements iterated at the specified frequency.
         """
-        return _SlowingPipe[T](Pipe(lambda: self), freq)
+        return _SlowingPipe[T](self, freq)
 
     def catch(self, *classes: Type[Exception], ignore=False) -> "Pipe[T]":
         """
@@ -194,20 +194,6 @@ class Pipe(Iterator[T]):
             List[T]: A list containing the elements of the Pipe truncate to the first `n_samples` ones.
         """
         return [elem for i, elem in enumerate(self) if i < n_samples]
-
-    def time(self) -> float:
-        """
-        Measure the time taken to iterate through all the elements in the Pipe.
-
-        Returns:
-            float: The time taken in seconds.
-        """
-
-        def iterate():
-            for _ in self:
-                pass
-
-        return timeit.timeit(iterate, number=1)
 
     def superintend(self, n_samples: int = 0, n_error_samples: int = 8) -> List[T]:
         """
@@ -266,6 +252,39 @@ class _CatchingPipe(Pipe[T]):
             else:
                 return e
 
+class _ThreadedMapperPipe(Pipe[R]):
+    _MAX_QUEUE_SIZE = 16
+    def __init__(self, iterator: Iterator[T], func: Callable[[T], R], n_workers: int):
+        self.n_workers = n_workers
+        self.iterator = iterator
+        self.func = func
+
+    def __iter__(self):
+        futures: "Queue[Future]" = Queue()
+        iterator_exhausted = False
+        n_yields = 0
+        n_iterated_elems = 0
+        with ThreadPoolExecutor(max_workers=self.n_workers) as executor:
+            while True:
+                while not iterator_exhausted and executor._work_queue.qsize() < _ThreadedMapperPipe._MAX_QUEUE_SIZE:
+                    try:
+                        elem = next(self.iterator)
+                        n_iterated_elems += 1
+                        futures.put(
+                            executor.submit(self.func, elem)
+                        )
+                    except StopIteration:
+                        iterator_exhausted = True
+                while True:
+                    if n_yields < n_iterated_elems:
+                        n_yields += 1
+                        logging.info(str((n_yields, "n_yields over", n_iterated_elems, "n_iterated_elems")))
+                        yield futures.get().result()
+                    if iterator_exhausted and n_iterated_elems == n_yields:
+                        return
+                    if not iterator_exhausted and executor._work_queue.qsize() < _ThreadedMapperPipe._MAX_QUEUE_SIZE//2:
+                        break
+                
 
 class _FlatteningPipe(Pipe[R]):
     def __init__(self, iterator: Iterator[Iterator[R]]) -> None:
