@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import logging
 import time
 from concurrent.futures import Future, ThreadPoolExecutor
@@ -5,6 +6,7 @@ from datetime import datetime
 from queue import Empty, Full, Queue
 from typing import (
     Callable,
+    Iterable,
     Iterator,
     List,
     Optional,
@@ -16,9 +18,29 @@ from typing import (
 T = TypeVar("T")
 R = TypeVar("R")
 
+class IteratorWrapper(Iterator[T]):
+    def __init__(self, iterator: Iterator[T]):
+        self.iterator = iterator
 
-class ThreadedMappingIterator(Iterator[R]):
-    _MAX_QUEUE_SIZE = 16
+    def __next__(self) -> T:
+        return next(self.iterator)
+
+@dataclass
+class ExceptionContainer(Exception):
+    exception: Exception
+
+class ThreadedMappingIteratorWrapper(IteratorWrapper[R]):
+    def __init__(self, iterator: Iterator[T], func: Callable[[T], R], n_workers: int):
+        super().__init__(iter(ThreadedMappingIterable(iterator, func, n_workers)))
+    
+    def __next__(self) -> R:
+        elem = super().__next__()
+        if isinstance(elem, ExceptionContainer):
+            raise elem.exception
+        return elem
+
+class ThreadedMappingIterable(Iterable[R]):
+    _MAX_QUEUE_SIZE = 32
     def __init__(self, iterator: Iterator[T], func: Callable[[T], R], n_workers: int):
         self.iterator = iterator
         self.func = func
@@ -31,29 +53,31 @@ class ThreadedMappingIterator(Iterator[R]):
         n_iterated_elems = 0
         with ThreadPoolExecutor(max_workers=self.n_workers) as executor:
             while True:
-                while not iterator_exhausted and executor._work_queue.qsize() < ThreadedMappingIterator._MAX_QUEUE_SIZE:
-                    try:
-                        elem = next(self.iterator)
-                        n_iterated_elems += 1
-                        futures.put(
-                            executor.submit(self.func, elem)
-                        )
-                    except StopIteration:
-                        iterator_exhausted = True
-                while True:
-                    if n_yields < n_iterated_elems:
-                        n_yields += 1
-                        logging.info(str((n_yields, "n_yields over", n_iterated_elems, "n_iterated_elems")))
-                        yield futures.get().result()
-                    if iterator_exhausted and n_iterated_elems == n_yields:
-                        return
-                    if not iterator_exhausted and executor._work_queue.qsize() < ThreadedMappingIterator._MAX_QUEUE_SIZE//2:
-                        break
-                
+                try:
 
-class FlatteningIterator(Iterator[R]):
+                    while not iterator_exhausted and executor._work_queue.qsize() < ThreadedMappingIterable._MAX_QUEUE_SIZE:
+                        try:
+                            elem = next(self.iterator)
+                            n_iterated_elems += 1
+                            futures.put(
+                                executor.submit(self.func, elem)
+                            )
+                        except StopIteration:
+                            iterator_exhausted = True
+                    while True:
+                        if n_yields < n_iterated_elems:
+                            n_yields += 1
+                            yield futures.get().result()
+                        if iterator_exhausted and n_iterated_elems == n_yields:
+                            return
+                        if not iterator_exhausted and executor._work_queue.qsize() < ThreadedMappingIterable._MAX_QUEUE_SIZE//2:
+                            break
+                except Exception as e:
+                    yield ExceptionContainer(e)
+
+class FlatteningIteratorWrapper(IteratorWrapper[R]):
     def __init__(self, iterator: Iterator[Iterator[R]]) -> None:
-        self.iterator = iterator
+        super().__init__(iterator)
         self.current_iterator_elem = iter([])
 
     def __next__(self) -> R:
@@ -69,9 +93,9 @@ class FlatteningIterator(Iterator[R]):
                 except StopIteration:
                     pass
 
-class LoggingIterator(Iterator[T]):
+class LoggingIteratorWrapper(IteratorWrapper[T]):
     def __init__(self, iterator: Iterator[T], what: str) -> None:
-        self.iterator = iterator
+        super().__init__(iterator)
         self.what = what
         self.yields_count = 0
         self.errors_count = 0
@@ -117,9 +141,9 @@ class LoggingIterator(Iterator[T]):
         return elem
 
 
-class SlowingIterator(Iterator[T]):
+class SlowingIteratorWrapper(IteratorWrapper[T]):
     def __init__(self, iterator: Iterator[T], freq: float) -> None:
-        self.iterator = iterator
+        super().__init__(iterator)
         self.freq = freq
         self.start = None
         self.yields_count = 0
@@ -135,7 +159,7 @@ class SlowingIterator(Iterator[T]):
             return next_elem
 
 
-class BatchingIterator(Iterator[List[T]]):
+class BatchingIteratorWrapper(IteratorWrapper[List[T]]):
     """
     Batch an input iterator and yields its elements packed in a list when one of the following is True:
     - len(batch) == size
@@ -144,7 +168,7 @@ class BatchingIterator(Iterator[List[T]]):
     """
 
     def __init__(self, iterator: Iterator[T], size: int, period: float) -> None:
-        self.iterator = iterator
+        super().__init__(iterator)
         self.size = size
         self.period = period
         self._to_be_raised: Exception = None
@@ -175,21 +199,21 @@ class BatchingIterator(Iterator[List[T]]):
                 return batch
             raise e
 
-class CatchingIterator(Iterator[T]):
+class CatchingIteratorWrapper(IteratorWrapper[T]):
     def __init__(
         self, iterator: Iterator[T], classes: Tuple[Type[Exception]], ignore: bool
     ) -> None:
-        self.iterator = iterator
+        super().__init__(iterator)
         self.classes = classes
         self.ignore = ignore
 
     def __next__(self) -> T:
         try:
-            return super().__next__()
+            return next(self.iterator)
         except StopIteration:
             raise
         except self.classes as e:
             if self.ignore:
-                return next(self)
+                return next(self) # TODO fix recursion issue
             else:
                 return e
