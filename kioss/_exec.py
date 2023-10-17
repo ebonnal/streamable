@@ -64,6 +64,8 @@ class ThreadedMappingIterable(Iterable[R]):
                         not iterator_exhausted
                         and executor._work_queue.qsize()
                         < ThreadedMappingIterable._MAX_QUEUE_SIZE
+                        and n_iterated_elems - n_yields
+                        < ThreadedMappingIterable._MAX_QUEUE_SIZE
                     ):
                         try:
                             elem = next(self.iterator)
