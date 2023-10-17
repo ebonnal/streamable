@@ -1,11 +1,10 @@
-from dataclasses import dataclass
 import logging
 import time
 from concurrent.futures import Future, ThreadPoolExecutor
+from dataclasses import dataclass
 from datetime import datetime
-from queue import Empty, Full, Queue
+from queue import Queue
 from typing import (
-    Any,
     Callable,
     Iterable,
     Iterator,
@@ -20,6 +19,7 @@ from typing import (
 T = TypeVar("T")
 R = TypeVar("R")
 
+
 class IteratorWrapper(Iterator[T]):
     def __init__(self, iterator: Iterator[T]):
         self.iterator = iterator
@@ -27,22 +27,26 @@ class IteratorWrapper(Iterator[T]):
     def __next__(self) -> T:
         return next(self.iterator)
 
+
 @dataclass
 class ExceptionContainer(Exception):
     exception: Exception
 
+
 class ThreadedMappingIteratorWrapper(IteratorWrapper[R]):
     def __init__(self, iterator: Iterator[T], func: Callable[[T], R], n_workers: int):
         super().__init__(iter(ThreadedMappingIterable(iterator, func, n_workers)))
-    
+
     def __next__(self) -> R:
         elem = super().__next__()
         if isinstance(elem, ExceptionContainer):
             raise elem.exception
         return elem
 
+
 class ThreadedMappingIterable(Iterable[R]):
     _MAX_QUEUE_SIZE = 32
+
     def __init__(self, iterator: Iterator[T], func: Callable[[T], R], n_workers: int):
         self.iterator = iterator
         self.func = func
@@ -56,13 +60,15 @@ class ThreadedMappingIterable(Iterable[R]):
         with ThreadPoolExecutor(max_workers=self.n_workers) as executor:
             while True:
                 try:
-                    while not iterator_exhausted and executor._work_queue.qsize() < ThreadedMappingIterable._MAX_QUEUE_SIZE:
+                    while (
+                        not iterator_exhausted
+                        and executor._work_queue.qsize()
+                        < ThreadedMappingIterable._MAX_QUEUE_SIZE
+                    ):
                         try:
                             elem = next(self.iterator)
                             n_iterated_elems += 1
-                            futures.put(
-                                executor.submit(self.func, elem)
-                            )
+                            futures.put(executor.submit(self.func, elem))
                         except StopIteration:
                             iterator_exhausted = True
                     while True:
@@ -71,14 +77,20 @@ class ThreadedMappingIterable(Iterable[R]):
                             yield futures.get().result()
                         if iterator_exhausted and n_iterated_elems == n_yields:
                             return
-                        if not iterator_exhausted and executor._work_queue.qsize() < ThreadedMappingIterable._MAX_QUEUE_SIZE//2:
+                        if (
+                            not iterator_exhausted
+                            and executor._work_queue.qsize()
+                            < ThreadedMappingIterable._MAX_QUEUE_SIZE // 2
+                        ):
                             break
                 except Exception as e:
                     yield ExceptionContainer(e)
 
+
 class ThreadedFlatteningIteratorWrapper(ThreadedMappingIteratorWrapper[T]):
     _SKIP = []
     _BUFFER_SIZE = 32
+
     class IteratorIteratorNextsShuffler(Iterator[Callable[[], T]]):
         def __init__(self, iterator_iterator: Iterator[Iterator[T]]):
             self.iterator_iterator = iterator_iterator
@@ -86,11 +98,17 @@ class ThreadedFlatteningIteratorWrapper(ThreadedMappingIteratorWrapper[T]):
             self.iterators_pool: Set[Iterator[T]] = set()
 
         def __next__(self):
-            while not self.iterator_iterator_exhausted and len(self.iterators_pool) < ThreadedFlatteningIteratorWrapper._BUFFER_SIZE:
+            while (
+                not self.iterator_iterator_exhausted
+                and len(self.iterators_pool)
+                < ThreadedFlatteningIteratorWrapper._BUFFER_SIZE
+            ):
                 try:
                     elem = next(self.iterator_iterator)
                     if not isinstance(elem, Iterator):
-                        raise TypeError(f"Elements to be flattened have to be, but got '{elem}' of type{type(elem)}")
+                        raise TypeError(
+                            f"Elements to be flattened have to be, but got '{elem}' of type{type(elem)}"
+                        )
                     self.iterators_pool.add(elem)
                 except StopIteration:
                     self.iterator_iterator_exhausted = True
@@ -98,7 +116,7 @@ class ThreadedFlatteningIteratorWrapper(ThreadedMappingIteratorWrapper[T]):
             try:
                 next_iterator_elem = self.iterators_pool.pop()
                 self.iterators_pool.add(next_iterator_elem)
-            except KeyError: # KeyError: 'pop from an empty set'
+            except KeyError:  # KeyError: 'pop from an empty set'
                 raise StopIteration()
 
             def f():
@@ -110,8 +128,9 @@ class ThreadedFlatteningIteratorWrapper(ThreadedMappingIteratorWrapper[T]):
                     except KeyError:
                         pass
                     return ThreadedFlatteningIteratorWrapper._SKIP
-                
+
                 return elem
+
             return f
 
     def __init__(self, iterator: Iterator[Iterator[T]], n_workers: int):
@@ -120,12 +139,12 @@ class ThreadedFlatteningIteratorWrapper(ThreadedMappingIteratorWrapper[T]):
             func=lambda f: f(),
             n_workers=n_workers,
         )
+
     def __next__(self) -> T:
         while True:
             elem = super().__next__()
             if elem != ThreadedFlatteningIteratorWrapper._SKIP:
                 return elem
-
 
 
 class FlatteningIteratorWrapper(IteratorWrapper[R]):
@@ -140,11 +159,14 @@ class FlatteningIteratorWrapper(IteratorWrapper[R]):
             while True:
                 self.current_iterator_elem = super().__next__()
                 if not isinstance(self.current_iterator_elem, Iterator):
-                    raise TypeError(f"Flattened elements must be iterators, but got {type(self.current_iterator_elem)}")
+                    raise TypeError(
+                        f"Flattened elements must be iterators, but got {type(self.current_iterator_elem)}"
+                    )
                 try:
                     return next(self.current_iterator_elem)
                 except StopIteration:
                     pass
+
 
 class LoggingIteratorWrapper(IteratorWrapper[T]):
     def __init__(self, iterator: Iterator[T], what: str) -> None:
@@ -252,6 +274,7 @@ class BatchingIteratorWrapper(IteratorWrapper[List[T]]):
                 return batch
             raise e
 
+
 class CatchingIteratorWrapper(IteratorWrapper[T]):
     def __init__(
         self, iterator: Iterator[T], classes: Tuple[Type[Exception]], ignore: bool
@@ -267,6 +290,6 @@ class CatchingIteratorWrapper(IteratorWrapper[T]):
             raise
         except self.classes as e:
             if self.ignore:
-                return next(self) # TODO fix recursion issue
+                return next(self)  # TODO fix recursion issue
             else:
                 return e

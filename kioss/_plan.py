@@ -1,31 +1,47 @@
-
-
-from abc import ABC, abstractmethod
 import itertools
 import logging
-from typing import Any, Callable, Generic, Iterable, Iterator, List, Optional, Tuple, Type, TypeVar, Union
-from kioss import _exec, util
-T = TypeVar('T')
-R = TypeVar('R')
+from abc import ABC, abstractmethod
+from typing import (
+    Any,
+    Callable,
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+)
+
+from kioss import _exec, _util
+
+T = TypeVar("T")
+R = TypeVar("R")
 Source = Callable[[], Iterator[T]]
+
 
 class APipe(Iterable[T], ABC):
     def __init__(self, upstream: "Optional[APipe[T]]" = None):
         self.upstream = upstream
-    
+
     @abstractmethod
     def __iter__(self) -> Iterator[T]:
         raise NotImplemented()
-    
+
     def __add__(self, other: "APipe[T]") -> "APipe[T]":
         return self.chain(other)
 
     @staticmethod
     def sanitize_n_threads(n_threads: int):
         if not isinstance(n_threads, int):
-            raise TypeError(f"n_threads should be an int but got '{n_threads}' of type {type(n_threads)}.")
+            raise TypeError(
+                f"n_threads should be an int but got '{n_threads}' of type {type(n_threads)}."
+            )
         if n_threads < 1:
-            raise ValueError(f"n_threads should be greater or equal to 1, but got {n_threads}.")
+            raise ValueError(
+                f"n_threads should be greater or equal to 1, but got {n_threads}."
+            )
 
     def map(
         self,
@@ -42,7 +58,7 @@ class APipe(Iterable[T], ABC):
             Pipe[R]: A new Pipe instance with elements resulting from applying the function to each element.
         """
         APipe.sanitize_n_threads(n_threads)
-        func = util.map_exception(func, source=StopIteration, target=RuntimeError)
+        func = _util.map_exception(func, source=StopIteration, target=RuntimeError)
         if n_threads == 1:
             return MapPipe[R](self, func)
         else:
@@ -62,7 +78,7 @@ class APipe(Iterable[T], ABC):
         Returns:
             Pipe[T]: A new Pipe instance with elements resulting from applying the function to each element.
         """
-        return self.map(util.sidify(func), n_threads)
+        return self.map(_util.sidify(func), n_threads)
 
     def flatten(
         self: "APipe[Iterator[R]]",
@@ -80,7 +96,7 @@ class APipe(Iterable[T], ABC):
             return FlattenPipe[R](self)
         else:
             return ThreadedFlattenPipe[R](self, n_threads)
-        return 
+        return
 
     def chain(self, *others: "APipe[T]") -> "APipe[T]":
         """
@@ -205,23 +221,28 @@ class APipe(Iterable[T], ABC):
 
         return samples
 
+
 class SourcePipe(APipe[T]):
     def __init__(self, source: Callable[[], Union[Iterable[T], Iterator[T]]]):
         super().__init__()
         if not isinstance(source, Callable):
-            raise TypeError(f"source must be a callable returning an iterator or iterable, but got source '{source}' of type {type(source)}")
+            raise TypeError(
+                f"source must be a callable returning an iterator or iterable, but got source '{source}' of type {type(source)}"
+            )
         self.source = source
-    
+
     def __iter__(self) -> Iterator[T]:
         return iter(self.source())
+
 
 class FilterPipe(APipe[T]):
     def __init__(self, upstream: APipe[T], predicate: Callable[[T], bool]):
         super().__init__(upstream)
         self.predicate = predicate
-    
+
     def __iter__(self) -> Iterator[T]:
         return filter(self.predicate, iter(self.upstream))
+
 
 class MapPipe(APipe[R]):
     def __init__(self, upstream: APipe[T], func: Callable[[T], R]):
@@ -231,6 +252,7 @@ class MapPipe(APipe[R]):
     def __iter__(self) -> Iterator[R]:
         return map(self.func, iter(self.upstream))
 
+
 class ThreadedMapPipe(APipe[R]):
     def __init__(self, upstream: APipe[T], func: Callable[[T], R], n_threads: int):
         super().__init__(upstream)
@@ -239,18 +261,18 @@ class ThreadedMapPipe(APipe[R]):
 
     def __iter__(self) -> Iterator[R]:
         return _exec.ThreadedMappingIteratorWrapper(
-            iter(self.upstream),
-            self.func,
-            n_workers=self.n_threads
+            iter(self.upstream), self.func, n_workers=self.n_threads
         )
 
+
 class LogPipe(APipe[T]):
-    def __init__(self, upstream: APipe[T], what: str = 'elements'):
+    def __init__(self, upstream: APipe[T], what: str = "elements"):
         super().__init__(upstream)
         self.what = what
 
     def __iter__(self) -> Iterator[T]:
         return _exec.LoggingIteratorWrapper(iter(self.upstream), self.what)
+
 
 class FlattenPipe(APipe[T]):
     def __init__(self, upstream: APipe[T]):
@@ -259,6 +281,7 @@ class FlattenPipe(APipe[T]):
     def __iter__(self) -> Iterator[T]:
         return _exec.FlatteningIteratorWrapper(iter(self.upstream))
 
+
 class ThreadedFlattenPipe(APipe[R]):
     def __init__(self, upstream: APipe[T], n_threads: int):
         super().__init__(upstream)
@@ -266,9 +289,9 @@ class ThreadedFlattenPipe(APipe[R]):
 
     def __iter__(self) -> Iterator[R]:
         return _exec.ThreadedFlatteningIteratorWrapper(
-            iter(self.upstream),
-            n_workers=self.n_threads
+            iter(self.upstream), n_workers=self.n_threads
         )
+
 
 class BatchPipe(APipe[T]):
     def __init__(self, upstream: APipe[T], size: int, period: float):
@@ -277,16 +300,24 @@ class BatchPipe(APipe[T]):
         self.period = period
 
     def __iter__(self) -> Iterator[T]:
-        return _exec.BatchingIteratorWrapper(iter(self.upstream), self.size, self.period)
+        return _exec.BatchingIteratorWrapper(
+            iter(self.upstream), self.size, self.period
+        )
+
 
 class CatchPipe(APipe[T]):
-    def __init__(self, upstream: APipe[T], classes: Tuple[Type[Exception]], ignore: bool):
+    def __init__(
+        self, upstream: APipe[T], classes: Tuple[Type[Exception]], ignore: bool
+    ):
         super().__init__(upstream)
         self.classes = classes
         self.ignore = ignore
 
     def __iter__(self) -> Iterator[T]:
-        return _exec.CatchingIteratorWrapper(iter(self.upstream), self.classes, self.ignore)
+        return _exec.CatchingIteratorWrapper(
+            iter(self.upstream), self.classes, self.ignore
+        )
+
 
 class ChainPipe(APipe[T]):
     def __init__(self, upstream: APipe[T], others: List[APipe]):
@@ -296,6 +327,7 @@ class ChainPipe(APipe[T]):
     def __iter__(self) -> Iterator[T]:
         return itertools.chain(iter(self.upstream), *list(map(iter, self.others)))
 
+
 class SlowPipe(APipe[T]):
     def __init__(self, upstream: APipe[T], freq: float):
         super().__init__(upstream)
@@ -303,4 +335,3 @@ class SlowPipe(APipe[T]):
 
     def __iter__(self) -> Iterator[T]:
         return _exec.SlowingIteratorWrapper(iter(self.upstream), self.freq)
-
