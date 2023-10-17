@@ -443,3 +443,28 @@ class TestPipe(unittest.TestCase):
         )
         samples = list(itertools.islice(pipe, n))
         self.assertListEqual(samples, [0] * n)
+
+    def test_invalid_source(self):
+        self.assertRaises(TypeError, lambda: Pipe(range(3)))
+
+    def test_invalid_flatten_upstream(self):
+        self.assertRaises(TypeError, Pipe(lambda: range(3)).flatten().collect)
+
+    def test_planning_and_execution_decoupling(self):
+        a = Pipe(lambda: iter(range(N)))
+        b = a.batch(size=N)
+        # test double execution
+        self.assertListEqual(
+            a.collect(),
+            list(range(N))
+        )
+        self.assertListEqual(
+            a.collect(),
+            list(range(N))
+        )
+        # test b not affected by a execution
+        self.assertListEqual(
+            b.collect(),
+            [list(range(N))]
+        )
+

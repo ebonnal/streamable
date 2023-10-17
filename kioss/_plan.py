@@ -208,6 +208,8 @@ class APipe(Iterable[T], ABC):
 class SourcePipe(APipe[T]):
     def __init__(self, source: Callable[[], Union[Iterable[T], Iterator[T]]]):
         super().__init__()
+        if not isinstance(source, Callable):
+            raise TypeError(f"source must be a callable returning an iterator or iterable, but got source '{source}' of type {type(source)}")
         self.source = source
     
     def __iter__(self) -> Iterator[T]:
