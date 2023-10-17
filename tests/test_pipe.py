@@ -48,7 +48,7 @@ class TestPipe(unittest.TestCase):
 
     @parameterized.expand([[1], [2], [3]])
     def test_flatten(self, n_threads: int):
-        if n_threads is None:
+        if n_threads == 1:
             # test ordering
             self.assertListEqual(
                 list(

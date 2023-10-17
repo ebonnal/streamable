@@ -76,7 +76,6 @@ class APipe(Iterable[T], ABC):
             n_threads (int): The number of threads for concurrent execution (default is 1, meaning only the main thread is used).
         """
         APipe.sanitize_n_threads(n_threads)
-        func = util.map_exception(func, source=StopIteration, target=RuntimeError)
         if n_threads == 1:
             return FlattenPipe[R](self)
         else:
@@ -264,10 +263,7 @@ class ThreadedFlattenPipe(APipe[R]):
         self.n_threads = n_threads
 
     def __iter__(self) -> Iterator[R]:
-        _exec.BatchingIteratorWrapper(
-            
-        )
-        return _exec.ThreadedMappingIteratorWrapper(
+        return _exec.ThreadedFlatteningIteratorWrapper(
             iter(self.upstream),
             n_workers=self.n_threads
         )

@@ -11,6 +11,7 @@ from typing import (
     Iterator,
     List,
     Optional,
+    Set,
     Tuple,
     Type,
     TypeVar,
@@ -75,25 +76,56 @@ class ThreadedMappingIterable(Iterable[R]):
                 except Exception as e:
                     yield ExceptionContainer(e)
 
-class A(Iterator[Callable[[], T]]):
-    _BUFFER_SIZE = 32
-    def __init__(self, iterator_iterator: Iterator[Iterator[T]]):
-        self.iterator_iterator = iterator_iterator
-        self.iterators_pool: "Queue[Iterator[T]]" = Queue()
-        # if not isinstance(elem, Iterator):
-        # raise TypeError(f"Elements to be flattened have to be, but got '{elem}' of type{type(elem)}")
-    def __next__(self):
-        it = self.iterators_pool.get()
-        self.iterators_pool
-        return it.__next__
-
 class ThreadedFlatteningIteratorWrapper(ThreadedMappingIteratorWrapper[T]):
+    _SKIP = []
+    _BUFFER_SIZE = 32
+    class IteratorIteratorNextsShuffler(Iterator[Callable[[], T]]):
+        def __init__(self, iterator_iterator: Iterator[Iterator[T]]):
+            self.iterator_iterator = iterator_iterator
+            self.iterator_iterator_exhausted = False
+            self.iterators_pool: Set[Iterator[T]] = set()
+
+        def __next__(self):
+            while not self.iterator_iterator_exhausted and len(self.iterators_pool) < ThreadedFlatteningIteratorWrapper._BUFFER_SIZE:
+                try:
+                    elem = next(self.iterator_iterator)
+                    if not isinstance(elem, Iterator):
+                        raise TypeError(f"Elements to be flattened have to be, but got '{elem}' of type{type(elem)}")
+                    self.iterators_pool.add(elem)
+                except StopIteration:
+                    self.iterator_iterator_exhausted = True
+
+            try:
+                next_iterator_elem = self.iterators_pool.pop()
+                self.iterators_pool.add(next_iterator_elem)
+            except KeyError: # KeyError: 'pop from an empty set'
+                raise StopIteration()
+
+            def f():
+                try:
+                    elem = next(next_iterator_elem)
+                except StopIteration:
+                    try:
+                        self.iterators_pool.remove(next_iterator_elem)
+                    except KeyError:
+                        pass
+                    return ThreadedFlatteningIteratorWrapper._SKIP
+                
+                return elem
+            return f
+
     def __init__(self, iterator: Iterator[Iterator[T]], n_workers: int):
         super().__init__(
-            iter(A(iterator)),
-            func=next,
+            ThreadedFlatteningIteratorWrapper.IteratorIteratorNextsShuffler(iterator),
+            func=lambda f: f(),
             n_workers=n_workers,
         )
+    def __next__(self) -> T:
+        while True:
+            elem = super().__next__()
+            if elem != ThreadedFlatteningIteratorWrapper._SKIP:
+                return elem
+
 
 
 class FlatteningIteratorWrapper(IteratorWrapper[R]):
