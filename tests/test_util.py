@@ -1,7 +1,7 @@
 import unittest
 from queue import Queue
 
-from kioss.util import QueueIterator, sidify
+from kioss._util import sidify
 
 
 class TestUtil(unittest.TestCase):
@@ -16,11 +16,3 @@ class TestUtil(unittest.TestCase):
             return x**2
 
         self.assertEqual(f(2), 2)
-
-    def test_queue_iterator(self):
-        queue = Queue()
-        it = QueueIterator(queue, None)
-        for i in range(8):
-            queue.put(i)
-        queue.put(None)
-        self.assertListEqual(list(it), list(range(8)))
