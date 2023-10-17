@@ -483,3 +483,13 @@ class TestPipe(unittest.TestCase):
         self.assertListEqual(a.collect(), list(range(N)))
         # test b not affected by a execution
         self.assertListEqual(b.collect(), [list(range(N))])
+
+    def test_generator_already_generating(self):
+        self.assertEqual(
+            Counter(
+                Pipe(
+                    lambda: [(ten_ms_identity(x) for x in range(N)) for _ in range(3)]
+                ).flatten(n_threads=2)
+            ),
+            Counter(list(range(N)) + list(range(N)) + list(range(N))),
+        )
