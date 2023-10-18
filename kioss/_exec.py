@@ -172,16 +172,24 @@ class FlatteningIteratorWrapper(IteratorWrapper[R]):
         super().__init__(iterator)
         self.current_iterator_elem = iter([])
 
+    @staticmethod
+    def _sanitize_input(expected_iterator_elem):
+        if not isinstance(expected_iterator_elem, Iterator):
+            raise TypeError(
+                f"Flattened elements must be iterators, but got {type(expected_iterator_elem)}"
+            )
+        return expected_iterator_elem
+
     def __next__(self) -> R:
         try:
-            return next(self.current_iterator_elem)
+            return next(
+                FlatteningIteratorWrapper._sanitize_input(self.current_iterator_elem)
+            )
         except StopIteration:
             while True:
-                self.current_iterator_elem = super().__next__()
-                if not isinstance(self.current_iterator_elem, Iterator):
-                    raise TypeError(
-                        f"Flattened elements must be iterators, but got {type(self.current_iterator_elem)}"
-                    )
+                self.current_iterator_elem = FlatteningIteratorWrapper._sanitize_input(
+                    super().__next__()
+                )
                 try:
                     return next(self.current_iterator_elem)
                 except StopIteration:

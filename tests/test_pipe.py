@@ -472,8 +472,16 @@ class TestPipe(unittest.TestCase):
     def test_invalid_source(self):
         self.assertRaises(TypeError, lambda: Pipe(range(3)))
 
-    def test_invalid_flatten_upstream(self):
-        self.assertRaises(TypeError, Pipe(lambda: range(3)).flatten().collect)
+    @parameterized.expand([[1], [2], [3]])
+    def test_invalid_flatten_upstream(self, n_threads: int):
+        self.assertEqual(
+            Pipe(lambda: range(3))
+            .flatten(n_threads=n_threads)
+            .catch(TypeError)  # important to check potential infinite recursion
+            .map(type)
+            .collect(),
+            [TypeError] * 3,
+        )
 
     def test_planning_and_execution_decoupling(self):
         a = Pipe(lambda: iter(range(N)))
