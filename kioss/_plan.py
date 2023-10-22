@@ -14,7 +14,7 @@ from typing import (
     Union,
 )
 
-from kioss import _exec, _util
+from kioss import _exec, _concurrent_exec, _util
 
 T = TypeVar("T")
 R = TypeVar("R")
@@ -96,7 +96,6 @@ class APipe(Iterable[T], ABC):
             return FlattenPipe[R](self)
         else:
             return ThreadedFlattenPipe[R](self, n_threads)
-        return
 
     def chain(self, *others: "APipe[T]") -> "APipe[T]":
         """
@@ -260,7 +259,7 @@ class ThreadedMapPipe(APipe[R]):
         self.n_threads = n_threads
 
     def __iter__(self) -> Iterator[R]:
-        return _exec.ThreadedMappingIteratorWrapper(
+        return _concurrent_exec.ThreadedMappingIteratorWrapper(
             iter(self.upstream), self.func, n_workers=self.n_threads
         )
 
@@ -288,7 +287,7 @@ class ThreadedFlattenPipe(APipe[R]):
         self.n_threads = n_threads
 
     def __iter__(self) -> Iterator[R]:
-        return _exec.ThreadedFlatteningIteratorWrapper(
+        return _concurrent_exec.ThreadedFlatteningIteratorWrapper(
             iter(self.upstream), n_workers=self.n_threads
         )
 
