@@ -102,7 +102,7 @@ class ThreadedFlatteningIteratorWrapper(ThreadedMappingIteratorWrapper[T]):
                         elem = next(self.iterator_iterator)
                         if not isinstance(elem, Iterator):
                             raise TypeError(
-                                f"Elements to be flattened have to be, but got '{elem}' of type{type(elem)}"
+                                f"Elements to be flattened have to be Iterators, but got '{elem}' of type{type(elem)}"
                             )
                         self.iterators_pool.add(elem)
                     except StopIteration:
