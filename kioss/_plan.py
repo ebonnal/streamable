@@ -241,12 +241,11 @@ class SourcePipe(APipe[T]):
         iterator = self.source()
         try:
             # duck-type checks that the object returned by the source is an iterator
-            iterator.__iter__
-            iterator.__next__
-        except AttributeError:
+            _util.duck_check_type_is_iterator(iterator)
+        except TypeError as e:
             raise TypeError(
                 f"source must be a callable returning an iterator (implements __iter__ and __next__ methods), but the object resulting from a call to source() was not an iterator: got '{iterator}' of type {type(iterator)}."
-            )
+            ) from e
         return iterator
 
 

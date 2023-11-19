@@ -13,6 +13,8 @@ from typing import (
 T = TypeVar("T")
 R = TypeVar("R")
 
+from kioss import _util
+
 
 class IteratorWrapper(Iterator[T]):
     def __init__(self, iterator: Iterator[T]):
@@ -29,22 +31,18 @@ class FlatteningIteratorWrapper(IteratorWrapper[R]):
 
     @staticmethod
     def _sanitize_input(expected_iterator_elem):
-        if not isinstance(expected_iterator_elem, Iterator):
-            raise TypeError(
-                f"Flattened elements must be iterators, but got {type(expected_iterator_elem)}"
-            )
+        _util.duck_check_type_is_iterator(expected_iterator_elem)
         return expected_iterator_elem
 
     def __next__(self) -> R:
         try:
-            return next(
-                FlatteningIteratorWrapper._sanitize_input(self.current_iterator_elem)
-            )
+            _util.duck_check_type_is_iterator(self.current_iterator_elem)
+            return next(self.current_iterator_elem)
         except StopIteration:
             while True:
-                self.current_iterator_elem = FlatteningIteratorWrapper._sanitize_input(
-                    super().__next__()
-                )
+                elem = super().__next__()
+                _util.duck_check_type_is_iterator(elem)
+                self.current_iterator_elem = elem
                 try:
                     return next(self.current_iterator_elem)
                 except StopIteration:
