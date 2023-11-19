@@ -80,9 +80,10 @@ christmas_comments_integration_pipe: Pipe[str] = (
     .log(what="christmas comments")
 
     # POST these comments in some endpoint using 2 threads
-    # by batch of 100 and at a maximum rate of 5 batches per second.
+    # by batch of maximum size 100 and with at least 1 batch every 10 seconds
+    # and at a maximum rate of 5 batches per second.
     # Also raise if the status code is not 200.
-    .batch(100)
+    .batch(size=100, period=10)
     .slow(freq=5)
     .map(
         lambda comment: requests.post(
