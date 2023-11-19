@@ -17,7 +17,6 @@ from kioss import _exec, _concurrent_exec, _util
 
 T = TypeVar("T")
 R = TypeVar("R")
-Source = Callable[[], Iterator[T]]
 
 
 class APipe(Iterable[T], ABC):
