@@ -3,106 +3,109 @@
 
 [![Actions Status](https://github.com/bonnal-enzo/kioss/workflows/test/badge.svg)](https://github.com/bonnal-enzo/kioss/actions) [![Actions Status](https://github.com/bonnal-enzo/kioss/workflows/PyPI/badge.svg)](https://github.com/bonnal-enzo/kioss/actions)
 
-Expressive `Iterator`-based library that has been designed to **ease the development of (reverse) ETL data pipelines**, with features such as *multithreading*, *rate limiting*, *batching*, and *exceptions handling*.
+Expressive `Iterator`-based library that has been designed to ***ease the development of (reverse) ETL data pipelines***, with features such as *multithreading*, *rate limiting*, *batching*, and *exceptions handling*.
 
-## Install
+## 1. Install
 
 `pip install kioss`
 
-## Interface
+## 2. Usage
 There is only 1 import:
 ```python
 from kioss import Pipe
-``` 
-Use this `Pipe` class as follow:
-1. **instanciate** it with a data source
-2. **plan** transformations and controlling operations on it
-3. **execute** it
----
-### 💾 Define the data source
-- `.__init__` a `Pipe` by providing a `Callable` returning an `Iterator[T]` or `Iterable[T]` as data source.
+```
 
-### ⚙️ Plan transformation operations
-- `.map` a function over a pipe (optional multithreading).
-- `.do` side effects on a pipe by calling an function over it while discarding the results (optional multithreading).
-- `.flatten` a pipe whose elements are themselves `Iterator`s (optional multithreading).
-- `.filter` a pipe using a predicate function.
-- `.chain` several pipes to form a new one that yields elements of one pipe after the previous one is exhausted.
-- `.batch` the elements of a pipe and yield them as `list`s of a specific maximum size and/or spanning over a specific period of time.
+A `Pipe` is an ***immutable*** `Iterable` that you instantiate with a function returning an `Iterator` (the data source).
 
-### 🎛️ Plan controlling operations
-- `.slow` a pipe, i.e. rate limit the iteration over it.
-- `.log` a pipe's iteration advancement (logarithmically, so no spam).
-- `.catch` a pipe's exceptions by deciding which specific subtype of `Exception` to catch and whether to ignore it or to yield it.
+You can then derive another `Pipe` from it by applying an operation on it.
 
-### 🎬 Execute the plan
-- `.collect` a pipe's elements into a list having an optional max size.
-- `.superintend` a pipe, i.e. iterate over it until it is exhausted, with logging and exceptions catching, ultimately returning the collected outputs or logging a sample of the encountered errors and raising if any.
+There are 2 types of operations:
 
-### ♻️ Inter-operate
-The `Pipe[T]` class extends `Iterable[T]`, hence you can pass a pipe to any function supporting iterables:
-- `set(pipe)`
+1. ⚙️ transformations
+    - `.map` a function over a pipe (optional multithreading).
+    - `.filter` a pipe using a predicate function.
+    - `.batch` the elements of a pipe and return them as `Iterator`s of a specific maximum size and/or spanning over a specific period of time.
+    - `.flatten` a pipe whose elements are themselves `Iterator`s (optional multithreading).
+    - `.chain` several pipes to form a new one that returns elements of one pipe after the previous one is exhausted.
+    - `.do` side effects on a pipe: Like `.map` but returns the input instead of the function's result (optional multithreading).
+
+2. 🎛️ controls
+    - `.slow` a pipe to a given frequency (i.e. rate limit the iteration over it).
+    - `.log` a pipe's iteration advancement (logarithmically, so no spam).
+    - `.catch` pipe's `Exception`s of a given type and decide whether to ignore them or to return them.
+
+Applying an operation on a pipe just returns another pipe, but ***to execute it you have to iterate over it***:
+- `for elem in pipe`
 - `functools.reduce(func, pipe, initial)`
-- `itertools.islice(pipe, n_samples)`
-- ...
+- `set(pipe)`
 
-----
-## Code snippet
-Extract social media messages from GCS and POST the hashtags they contain into a web API
+Alternatively you can use one of these methods:
+- `.collect` a pipe's elements into a list having an optional max size.
+- `.superintend` a pipe:
+    - iterates over it until it is exhausted,
+    - logs
+    - catches exceptions and if any raises a sample of them at the end of the iteration
+    - returns a sample of the output elements
+
+
+## 3. Example
+### Christmas comments translation and integration
 ```python
-from typing import Iterator
-from google.cloud import storage
-import requests
+import logging
+from operator import itemgetter
 
+import requests
+from google.cloud import bigquery, translate
 from kioss import Pipe
 
+# Define your pipeline's plan:
+christmas_comments_integration_pipe: Pipe[str] = (
+    # Read the comments made on your platform from your BigQuery datawarehouse
+    Pipe(bigquery.Client().query("SELECT text FROM fact.comment").result)
+    .map(itemgetter("text"))
+    .log(what="comments")
 
-# Let's say we have a bucket
-bucket: storage.Bucket = ...
-# and an Iterator of object paths
-object_paths: Iterator[str] = ...
-
-# Each file contains a message sent on a social network
-# and we want to POST their hashtags to an API
-(
-    # instanciate a Pipe with object paths as data source
-    Pipe(source=lambda: object_paths)
-    .log(what="object paths")
-    # get the blob corresponding to this object path in the given bucket
-    .map(bucket.get_blob)
-    .log(what="blobs")
-    # read the bytes of the blob and decode them to str
-    .map(storage.Blob.download_as_string)
-    .map(bytes.decode)
-    # split the tweet on whitespaces.
-    .map(str.split)
-    # flatten the pipe to yield individual words
+    # translate them in english concurrently using 4 threads
+    # by batch of 20 at a maximum rate of 50 batches per second
+    .batch(size=20)
+    .slow(freq=50)
+    .map(translate.Client("en").translate, n_threads=4)
     .map(iter)
     .flatten()
-    .log(what="words")
-    # keep the word only if it is a hashtag
-    .filter(lambda word: word.startswith("#"))
-    # remove the '#'
-    .map(lambda hashtag: hashtag[1:])
-    .log(what="hashtags")
-    # send these hashtags to an API endpoint, by batches of 100, using 4 threads,
-    # while ensuring that the API will be called at most 30 times per second.
-    .batch(size=100)
-    .slow(freq=30)
+    .map(itemgetter("translatedText"))
+    .log(what="comments translated in english")
+
+    # keep only the ones containing christmas
+    .filter(lambda comment: "christmas" in comment.lower())
+    .log(what="christmas comments")
+
+    # POST these comments in some endpoint using 2 threads
+    # by batch of 100 and at a maximum rate of 5 batches per second.
+    # Also raise if the status code is not 200.
+    .batch(100)
+    .slow(freq=5)
     .map(
-        lambda hashtags: requests.post(
-            "https://foo.bar",
-            headers={'Content-Type': 'application/json'},
+        lambda comment: requests.post(
+            "https://some.endpoint/comment",
+            json={"text": comment},
             auth=("foo", "bar"),
-            json={"hashtags": hashtags},
         ),
-        n_threads=4,
+        n_threads=2,
     )
-    # raise for each response having status code 4XX or 5XX.
     .do(requests.Response.raise_for_status)
-    .log(what="hashtags batch integrations")
-    # launch the iteration and log its advancement
-    # and raise a summary of the raised exceptions if any once the pipe is exhausted.
-    .superintend()
+    .map(requests.Response.text)
+    .log(what="integration response's texts")
+)
+
+# At this point you have just defined a pipeline plan but nothing else happened.
+# You can now execute the pipe by iterating over it like you whish,
+# but we will here use the handy `superintend` method that:
+# - iterates over the pipe until it is exhausted
+# - catches errors along the way and if any raises them after the iteration
+# - returns a sample of output elements
+
+logging.info(
+    "Some samples of the integration's responses: %s",
+    christmas_comments_integration_pipe.superintend(n_samples=5)
 )
 ```
