@@ -94,9 +94,15 @@ class TestPipe(unittest.TestCase):
         single_pipe_iteration_duration = 0.5
         queue_get_timeout = 0.1
         pipes = [
-            Pipe(range(0, N, 3).__iter__).slow((N / 3) / single_pipe_iteration_duration),
-            Pipe(range(1, N, 3).__iter__).slow((N / 3) / single_pipe_iteration_duration),
-            Pipe(range(2, N, 3).__iter__).slow((N / 3) / single_pipe_iteration_duration),
+            Pipe(range(0, N, 3).__iter__).slow(
+                (N / 3) / single_pipe_iteration_duration
+            ),
+            Pipe(range(1, N, 3).__iter__).slow(
+                (N / 3) / single_pipe_iteration_duration
+            ),
+            Pipe(range(2, N, 3).__iter__).slow(
+                (N / 3) / single_pipe_iteration_duration
+            ),
         ]
         self.assertAlmostEqual(
             timeit.timeit(
