@@ -11,7 +11,6 @@ from typing import (
     Tuple,
     Type,
     TypeVar,
-    Union,
 )
 
 from kioss import _exec, _concurrent_exec, _util
@@ -222,16 +221,25 @@ class APipe(Iterable[T], ABC):
 
 
 class SourcePipe(APipe[T]):
-    def __init__(self, source: Callable[[], Union[Iterable[T], Iterator[T]]]):
+    def __init__(self, source: Callable[[], Iterator[T]]):
         super().__init__()
         if not isinstance(source, Callable):
             raise TypeError(
-                f"source must be a callable returning an iterator or iterable, but got source '{source}' of type {type(source)}"
+                f"source must be a callable returning an iterator, but the provided source is not a callable: got source '{source}' of type {type(source)}."
             )
         self.source = source
 
     def __iter__(self) -> Iterator[T]:
-        return iter(self.source())
+        iterator = self.source()
+        try:
+            # duck-type checks that the object returned by the source is an iterator
+            iterator.__iter__
+            iterator.__next__
+        except AttributeError:
+            raise TypeError(
+                f"source must be a callable returning an iterator (implements __iter__ and __next__ methods), but the object resulting from a call to source() was not an iterator: got '{iterator}' of type {type(iterator)}."
+            )
+        return iterator
 
 
 class FilterPipe(APipe[T]):
