@@ -24,7 +24,7 @@ There are 2 types of operations:
 1. ⚙️ transformations
     - `.map` a function over a pipe (optional multithreading).
     - `.filter` a pipe using a predicate function.
-    - `.batch` the elements of a pipe and return them as `Iterator`s of a specific maximum size and/or spanning over a specific period of time.
+    - `.batch` the elements of a pipe and return them as `List`s of a specific maximum size and/or spanning over a specific period of time.
     - `.flatten` a pipe whose elements are themselves `Iterator`s (optional multithreading).
     - `.chain` several pipes to form a new one that returns elements of one pipe after the previous one is exhausted.
     - `.do` side effects on a pipe: Like `.map` but returns the input instead of the function's result (optional multithreading).
