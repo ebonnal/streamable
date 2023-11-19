@@ -221,6 +221,15 @@ class APipe(Iterable[T], ABC):
 
 class SourcePipe(APipe[T]):
     def __init__(self, source: Callable[[], Iterator[T]]):
+        """
+        Initialize a Pipe with a data source.
+
+        The source must be a callable that returns an iterator, i.e., an object implementing __iter__ and __next__ methods.
+        Each subsequent iteration over the pipe will use a fresh iterator obtained from `source()`.
+
+        Args:
+            source (Callable[[], Iterator[T]]): A factory function called to obtain a fresh data source iterator for each iteration.
+        """
         super().__init__()
         if not isinstance(source, Callable):
             raise TypeError(
