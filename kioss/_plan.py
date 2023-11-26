@@ -66,7 +66,7 @@ class APipe(Iterable[T], ABC):
         self,
         func: Callable[[T], Any],
         n_threads: int = 1,
-    ) -> "APipe[R]":
+    ) -> "APipe[T]":
         """
         Run the func as side effect: the resulting Pipe forwards the upstream elements after func execution's end.
 
