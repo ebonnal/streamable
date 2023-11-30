@@ -1,4 +1,3 @@
-import logging
 import time
 from datetime import datetime
 from typing import (
@@ -58,11 +57,10 @@ class LoggingIteratorWrapper(IteratorWrapper[T]):
         self.errors_count = 0
         self.last_log_at_yields_count = None
         self.start_time = time.time()
-        logging.getLogger().setLevel(logging.INFO)
-        logging.info("iteration over '%s' will be logged.", self.what)
+        _util.LOGGER.info("iteration over '%s' will be logged.", self.what)
 
     def _log(self) -> None:
-        logging.info(
+        _util.LOGGER.info(
             "%s `%s` have been yielded in elapsed time '%s' with %s errors produced",
             self.yields_count,
             self.what,

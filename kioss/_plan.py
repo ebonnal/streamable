@@ -1,5 +1,4 @@
 import itertools
-import logging
 from abc import ABC, abstractmethod
 from typing import (
     Any,
@@ -25,7 +24,7 @@ class APipe(Iterable[T], ABC):
 
     @abstractmethod
     def __iter__(self) -> Iterator[T]:
-        raise NotImplemented()
+        raise NotImplemented()  # TODO: Visitor pattern
 
     def __add__(self, other: "APipe[T]") -> "APipe[T]":
         return self.chain(other)
@@ -226,7 +225,7 @@ class APipe(Iterable[T], ABC):
             n_samples=n_samples
         )
         if errors_count > 0:
-            logging.error(
+            _util.LOGGER.error(
                 "first %s error samples: %s\nWill now raise the first of them:",
                 n_error_samples,
                 list(map(repr, error_samples)),

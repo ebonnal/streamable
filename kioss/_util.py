@@ -1,5 +1,15 @@
 from typing import Any, Callable, Iterable, Iterator, Type, TypeVar, Union
 
+import logging
+
+LOGGER = logging.getLogger("kioss")
+handler = logging.StreamHandler()
+formatter = logging.Formatter("%(asctime)s:%(name)s:%(levelname)s: %(message)s")
+handler.setFormatter(formatter)
+LOGGER.addHandler(handler)
+LOGGER.setLevel(logging.INFO)
+
+
 T = TypeVar("T")
 R = TypeVar("R")
 
