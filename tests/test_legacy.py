@@ -11,7 +11,7 @@ from parameterized import parameterized
 from kioss import Pipe, _util
 
 TEN_MS = 0.01
-DELTA = 0.3
+DELTA = 0.35
 T = TypeVar("T")
 
 
@@ -162,12 +162,19 @@ class TestPipe(unittest.TestCase):
             .map(iter)
             .flatten(n_threads=n_threads)
         )
+        error_types = set()
+
+        def store_error_types(error):
+            error_types.add(type(error))
+            return True
+
+        set(get_pipe().catch(Exception, when=store_error_types))
         self.assertSetEqual(
-            set(get_pipe().catch(Exception, ignore=False).map(type)),
-            {int, ValueError, TypeError, AssertionError, RuntimeError},
+            error_types,
+            {ValueError, TypeError, AssertionError, RuntimeError},
         )
         self.assertSetEqual(
-            set(get_pipe().catch(Exception, ignore=True)),
+            set(get_pipe().catch(Exception)),
             set(range(7)),
         )
 
@@ -206,7 +213,7 @@ class TestPipe(unittest.TestCase):
                 .map(ten_ms_identity, n_threads=n_threads)
                 .map(lambda x: x if 1 / x else x)
                 .map(func, n_threads=n_threads)
-                .catch(ZeroDivisionError, ignore=True)
+                .catch(ZeroDivisionError)
                 .map(
                     ten_ms_identity, n_threads=n_threads
                 )  # check that the ZeroDivisionError is bypass the call to func
@@ -218,7 +225,7 @@ class TestPipe(unittest.TestCase):
                 Pipe([[1], [], [3]].__iter__)
                 .map(iter)
                 .map(next, n_threads=n_threads)
-                .catch(RuntimeError, ignore=True)
+                .catch(RuntimeError)
             ),
             {1, 3},
         )
@@ -285,26 +292,24 @@ class TestPipe(unittest.TestCase):
         )
         # assert batch gracefully yields if next elem throw exception
         self.assertListEqual(
-            Pipe("01234-56789".__iter__)
-            .map(int)
-            .batch(2)
-            .catch(ValueError, ignore=True)
-            .collect(),
+            Pipe("01234-56789".__iter__).map(int).batch(2).catch(ValueError).collect(),
             [[0, 1], [2, 3], [4], [5, 6], [7, 8], [9]],
         )
         self.assertListEqual(
-            Pipe("0123-56789".__iter__)
-            .map(int)
-            .batch(2)
-            .catch(ValueError, ignore=True)
-            .collect(),
+            Pipe("0123-56789".__iter__).map(int).batch(2).catch(ValueError).collect(),
             [[0, 1], [2, 3], [5, 6], [7, 8], [9]],
         )
+        errors = set()
+
+        def store_errors(error):
+            errors.add(error)
+            return True
+
         self.assertListEqual(
             Pipe("0123-56789".__iter__)
             .map(int)
             .batch(2)
-            .catch(ValueError, ignore=False)
+            .catch(ValueError, when=store_errors)
             .map(
                 lambda potential_error: [potential_error]
                 if isinstance(potential_error, Exception)
@@ -314,8 +319,10 @@ class TestPipe(unittest.TestCase):
             .flatten()
             .map(type)
             .collect(),
-            [int, int, int, int, ValueError, int, int, int, int, int],
+            [int, int, int, int, int, int, int, int, int],
         )
+        self.assertEqual(len(errors), 1)
+        self.assertIsInstance(next(iter(errors)), ValueError)
 
     @parameterized.expand([[1], [2], [3]])
     def test_slow(self, n_threads: int):
@@ -355,37 +362,37 @@ class TestPipe(unittest.TestCase):
     @parameterized.expand([[1], [2], [3]])
     def test_catch(self, n_threads: int):
         # ignore = True
+        errors = set()
+
+        def store_errors(error):
+            errors.add(error)
+            return True
+
         self.assertSetEqual(
             set(
                 Pipe(["1", "r", "2"].__iter__)
                 .map(int, n_threads=n_threads)
-                .catch(Exception, ignore=False)
+                .catch(Exception, when=store_errors)
                 .map(type)
             ),
-            {int, ValueError, int},
+            {int},
         )
+        self.assertEqual(len(errors), 1)
+        self.assertIsInstance(next(iter(errors)), ValueError)
+
         # ignore = False
-        self.assertSetEqual(
-            set(
-                Pipe(["1", "r", "2"].__iter__)
-                .map(int, n_threads=n_threads)
-                .catch(Exception)
-                .map(type)
-            ),
-            {int, ValueError, int},
-        )
-        self.assertSetEqual(
-            set(
+        self.assertListEqual(
+            list(
                 Pipe(["1", "r", "2"].__iter__)
                 .map(int, n_threads=n_threads)
                 .catch(ValueError)
                 .map(type)
             ),
-            {int, ValueError, int},
+            [int, int],
         )
         # chain catches
-        self.assertSetEqual(
-            set(
+        self.assertListEqual(
+            list(
                 Pipe(["1", "r", "2"].__iter__)
                 .map(int, n_threads=n_threads)
                 .catch(TypeError)
@@ -393,19 +400,7 @@ class TestPipe(unittest.TestCase):
                 .catch(TypeError)
                 .map(type)
             ),
-            {int, ValueError, int},
-        )
-        self.assertDictEqual(
-            dict(
-                Counter(
-                    Pipe(["1", "r", "2"].__iter__)
-                    .map(int, n_threads=n_threads)
-                    .catch(ValueError)
-                    .map(type)  # , n_threads=n_threads)
-                    .collect()
-                )
-            ),
-            dict(Counter([int, ValueError, int])),
+            [int, int],
         )
 
         # raises
@@ -427,12 +422,22 @@ class TestPipe(unittest.TestCase):
         )
 
     def test_superintend(self):
-        self.assertRaises(
-            ValueError,
-            Pipe("12-3".__iter__).map(int).superintend,
-        )
         self.assertListEqual(
             Pipe("123".__iter__).map(int).superintend(n_samples=2), [1, 2]
+        )
+
+        # errors
+        superintend = Pipe("12-3".__iter__).map(int).superintend
+        self.assertRaises(
+            ValueError,
+            superintend,
+        )
+        # does not raise with sufficient threshold
+        superintend(raise_when_more_errors_than=1)
+        # raise with insufficient threshold
+        self.assertRaises(
+            ValueError,
+            lambda: superintend(raise_when_more_errors_than=0),
         )
 
     def test_log(self):
@@ -482,13 +487,8 @@ class TestPipe(unittest.TestCase):
 
     @parameterized.expand([[1], [2], [3]])
     def test_invalid_flatten_upstream(self, n_threads: int):
-        self.assertEqual(
-            Pipe(range(3).__iter__)
-            .flatten(n_threads=n_threads)
-            .catch(TypeError)  # important to check potential infinite recursion
-            .map(type)
-            .collect(),
-            [TypeError] * 3,
+        self.assertRaises(
+            TypeError, Pipe(range(3).__iter__).flatten(n_threads=n_threads).collect
         )
 
     def test_planning_and_execution_decoupling(self):

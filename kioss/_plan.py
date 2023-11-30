@@ -144,18 +144,22 @@ class APipe(Iterable[T], ABC):
         """
         return SlowPipe[T](self, freq)
 
-    def catch(self, *classes: Type[Exception], ignore=False) -> "APipe[T]":
+    def catch(
+        self,
+        *classes: Type[Exception],
+        when: Optional[Callable[[Exception], bool]] = None,
+    ) -> "APipe[T]":
         """
         Any error whose class is exception_class or a subclass of it will be catched and yielded.
 
         Args:
-            exception_class (Type[Exception]): The class of exceptions to catch
-            ingore (bool): If True then the encountered exception_class errors will be skipped.
+            classes (Type[Exception]): The class of exceptions to catch
+            when (Callable[[Exception], bool], optional): catches an exception whose type is in `classes` only if this predicate function is None or evaluates to True.
 
         Returns:
             Pipe[T]: A new Pipe instance with error handling capability.
         """
-        return CatchPipe[T](self, classes, ignore)
+        return CatchPipe[T](self, classes, when)
 
     def log(self, what: str = "elements") -> "APipe[T]":
         """
@@ -181,40 +185,54 @@ class APipe(Iterable[T], ABC):
         """
         return [elem for i, elem in enumerate(self) if i < n_samples]
 
-    def superintend(self, n_samples: int = 0, n_error_samples: int = 8) -> List[T]:
+    def superintend(
+        self,
+        n_samples: int = 0,
+        n_error_samples: int = 8,
+        raise_when_more_errors_than: int = 0,
+    ) -> List[T]:
         """
-        Superintend the Pipe: iterate over the pipe until it is exhausted and raise a RuntimeError if any exceptions occur during iteration.
+        Superintend the Pipe:
+        - iterates over it until it is exhausted,
+        - logs
+        - catches exceptions log a sample of them at the end of the iteration
+        - raises the first encountered error if more exception than `raise_when_more_errors_than` are catched during iteration.
+        - else returns a sample of the output elements
 
         Args:
             n_samples (int, optional): The maximum number of elements to collect in the list (default is infinity).
             n_error_samples (int, optional): The maximum number of error samples to log (default is 8).
+            raise_when_more_errors_than (int, optional): An error will be raised if the number of encountered errors is more than this threshold (default is 0).
         Returns:
             List[T]: A list containing the elements of the Pipe truncate to the first `n_samples` ones.
         Raises:
-            RuntimeError: If any exception is catched during iteration.
+            RuntimeError: If more exception than `raise_when_more_errors_than` are catched during iteration.
         """
         if not isinstance(self, LogPipe):
             plan = self.log("output elements")
         else:
             plan = self
         error_samples: List[Exception] = []
-        samples = (
-            plan.catch(Exception, ignore=False)
-            .do(
-                lambda elem: error_samples.append(elem)
-                if isinstance(elem, Exception) and len(error_samples) < n_error_samples
-                else None
-            )
-            .filter(lambda elem: not isinstance(elem, Exception))
-            .collect(n_samples=n_samples)
+        errors_count = 0
+
+        def register_error_sample(error):
+            nonlocal errors_count
+            errors_count += 1
+            if len(error_samples) < n_error_samples:
+                error_samples.append(error)
+            return True
+
+        samples = plan.catch(Exception, when=register_error_sample).collect(
+            n_samples=n_samples
         )
-        if len(error_samples):
+        if errors_count > 0:
             logging.error(
                 "first %s error samples: %s\nWill now raise the first of them:",
                 n_error_samples,
                 list(map(repr, error_samples)),
             )
-            raise error_samples[0]
+            if raise_when_more_errors_than < errors_count:
+                raise error_samples[0]
 
         return samples
 
@@ -321,15 +339,18 @@ class BatchPipe(APipe[T]):
 
 class CatchPipe(APipe[T]):
     def __init__(
-        self, upstream: APipe[T], classes: Tuple[Type[Exception]], ignore: bool
+        self,
+        upstream: APipe[T],
+        classes: Tuple[Type[Exception]],
+        when: Optional[Callable[[Exception], bool]],
     ):
         super().__init__(upstream)
         self.classes = classes
-        self.ignore = ignore
+        self.when = when
 
     def __iter__(self) -> Iterator[T]:
         return _exec.CatchingIteratorWrapper(
-            iter(self.upstream), self.classes, self.ignore
+            iter(self.upstream), self.classes, self.when
         )
 
 

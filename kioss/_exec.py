@@ -2,6 +2,7 @@ import logging
 import time
 from datetime import datetime
 from typing import (
+    Callable,
     Iterator,
     List,
     Optional,
@@ -158,19 +159,22 @@ class BatchingIteratorWrapper(IteratorWrapper[List[T]]):
 
 class CatchingIteratorWrapper(IteratorWrapper[T]):
     def __init__(
-        self, iterator: Iterator[T], classes: Tuple[Type[Exception]], ignore: bool
+        self,
+        iterator: Iterator[T],
+        classes: Tuple[Type[Exception]],
+        when: Optional[Callable[[Exception], bool]],
     ) -> None:
         super().__init__(iterator)
         self.classes = classes
-        self.ignore = ignore
+        self.when = when
 
     def __next__(self) -> T:
         try:
             return next(self.iterator)
         except StopIteration:
             raise
-        except self.classes as e:
-            if self.ignore:
+        except self.classes as exception:
+            if self.when is None or self.when(exception):
                 return next(self)  # TODO fix recursion issue
             else:
-                return e
+                raise exception
