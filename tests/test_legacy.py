@@ -433,11 +433,11 @@ class TestPipe(unittest.TestCase):
             superintend,
         )
         # does not raise with sufficient threshold
-        superintend(raise_when_more_errors_than=1)
+        superintend(raise_if_more_errors_than=1)
         # raise with insufficient threshold
         self.assertRaises(
             ValueError,
-            lambda: superintend(raise_when_more_errors_than=0),
+            lambda: superintend(raise_if_more_errors_than=0),
         )
 
     def test_log(self):

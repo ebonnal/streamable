@@ -189,24 +189,24 @@ class APipe(Iterable[T], ABC):
         self,
         n_samples: int = 0,
         n_error_samples: int = 8,
-        raise_when_more_errors_than: int = 0,
+        raise_if_more_errors_than: int = 0,
     ) -> List[T]:
         """
         Superintend the Pipe:
         - iterates over it until it is exhausted,
         - logs
         - catches exceptions log a sample of them at the end of the iteration
-        - raises the first encountered error if more exception than `raise_when_more_errors_than` are catched during iteration.
+        - raises the first encountered error if more exception than `raise_if_more_errors_than` are catched during iteration.
         - else returns a sample of the output elements
 
         Args:
             n_samples (int, optional): The maximum number of elements to collect in the list (default is infinity).
             n_error_samples (int, optional): The maximum number of error samples to log (default is 8).
-            raise_when_more_errors_than (int, optional): An error will be raised if the number of encountered errors is more than this threshold (default is 0).
+            raise_if_more_errors_than (int, optional): An error will be raised if the number of encountered errors is more than this threshold (default is 0).
         Returns:
             List[T]: A list containing the elements of the Pipe truncate to the first `n_samples` ones.
         Raises:
-            RuntimeError: If more exception than `raise_when_more_errors_than` are catched during iteration.
+            RuntimeError: If more exception than `raise_if_more_errors_than` are catched during iteration.
         """
         if not isinstance(self, LogPipe):
             plan = self.log("output elements")
@@ -231,7 +231,7 @@ class APipe(Iterable[T], ABC):
                 n_error_samples,
                 list(map(repr, error_samples)),
             )
-            if raise_when_more_errors_than < errors_count:
+            if raise_if_more_errors_than < errors_count:
                 raise error_samples[0]
 
         return samples
