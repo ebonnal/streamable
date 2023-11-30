@@ -372,6 +372,11 @@ class TestPipe(unittest.TestCase):
             set(
                 Pipe(["1", "r", "2"].__iter__)
                 .map(int, n_threads=n_threads)
+                .catch(
+                    Exception,
+                    when=lambda error: "invalid literal for int() with base 10:"
+                    not in str(error),
+                )
                 .catch(Exception, when=store_errors)
                 .map(type)
             ),
@@ -380,12 +385,24 @@ class TestPipe(unittest.TestCase):
         self.assertEqual(len(errors), 1)
         self.assertIsInstance(next(iter(errors)), ValueError)
 
-        # ignore = False
+        self.assertRaises(
+            ValueError,
+            (
+                Pipe(["1", "r", "2"].__iter__)
+                .map(int, n_threads=n_threads)
+                .catch(ValueError, when=lambda error: False)
+                .collect
+            ),
+        )
         self.assertListEqual(
             list(
                 Pipe(["1", "r", "2"].__iter__)
                 .map(int, n_threads=n_threads)
-                .catch(ValueError)
+                .catch(
+                    ValueError,
+                    when=lambda error: "invalid literal for int() with base 10:"
+                    in str(error),
+                )
                 .map(type)
             ),
             [int, int],

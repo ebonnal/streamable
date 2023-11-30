@@ -134,10 +134,10 @@ class APipe(Iterable[T], ABC):
 
     def slow(self, freq: float) -> "APipe[T]":
         """
-        Slow down the iteration of elements in the Pipe, creating a new Pipe with a specified frequency.
+        Slow down the iteration to a maximum frequency in Hz (max number of elements yielded per second).
 
         Args:
-            freq (float): The frequency (in milliseconds) at which elements are iterated.
+            freq (float): The maximum frequency in Hz of the iteration, i.e. how many elements will be yielded per second at most.
 
         Returns:
             Pipe[T]: A new Pipe instance with elements iterated at the specified frequency.
