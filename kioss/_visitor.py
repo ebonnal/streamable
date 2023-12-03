@@ -11,44 +11,45 @@ from kioss import _exec, _concurrent_exec, _util, _plan
 
 V = TypeVar("V")
 T = TypeVar("T")
+U = TypeVar("U")
 
 
 class APipeVisitor(Generic[V], ABC):
     @abstractmethod
     def visitSourcePipe(self, pipe: _plan.SourcePipe) -> V:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     @abstractmethod
     def visitMapPipe(self, pipe: _plan.MapPipe) -> V:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     @abstractmethod
     def visitFlattenPipe(self, pipe: _plan.FlattenPipe) -> V:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     @abstractmethod
     def visitChainPipe(self, pipe: _plan.ChainPipe) -> V:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     @abstractmethod
     def visitFilterPipe(self, pipe: _plan.FilterPipe) -> V:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     @abstractmethod
     def visitBatchPipe(self, pipe: _plan.BatchPipe) -> V:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     @abstractmethod
     def visitSlowPipe(self, pipe: _plan.SlowPipe) -> V:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     @abstractmethod
     def visitCatchPipe(self, pipe: _plan.CatchPipe) -> V:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     @abstractmethod
     def visitLogPipe(self, pipe: _plan.LogPipe) -> V:
-        raise NotImplemented()
+        raise NotImplementedError()
 
 class IteratorGeneratingPipeVisitor(APipeVisitor[Iterator[T]]):
 

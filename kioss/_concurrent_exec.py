@@ -3,12 +3,15 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from queue import Queue
 from typing import (
+    Any,
     Callable,
     Iterable,
     Iterator,
+    List,
     Optional,
     Set,
     TypeVar,
+    Union,
 )
 
 from kioss._exec import IteratorWrapper
@@ -18,22 +21,26 @@ R = TypeVar("R")
 
 
 @dataclass
-class ExceptionContainer(Exception):
+class _ExceptionContainer(Exception):
     exception: Exception
 
+class _Skip:
+    pass
 
 class ThreadedMappingIteratorWrapper(IteratorWrapper[R]):
-    def __init__(self, iterator: Iterator[T], func: Callable[[T], R], n_workers: int):
+    def __init__(self, iterator: Iterator[T], func: Callable[[T], Union[R, _Skip]], n_workers: int):
         super().__init__(iter(ThreadedMappingIterable(iterator, func, n_workers)))
 
     def __next__(self) -> R:
-        elem = super().__next__()
-        if isinstance(elem, ExceptionContainer):
-            raise elem.exception
-        return elem
+        while True:
+            elem = next(self.iterator)
+            if isinstance(elem, _ExceptionContainer):
+                raise elem.exception
+            if elem != ThreadedFlatteningIteratorWrapper._SKIP:
+                return elem
 
 
-class ThreadedMappingIterable(Iterable[R]):
+class ThreadedMappingIterable(Iterable[Union[R, _ExceptionContainer]]):
     _MAX_QUEUE_SIZE = 32
 
     def __init__(self, iterator: Iterator[T], func: Callable[[T], R], n_workers: int):
@@ -41,7 +48,7 @@ class ThreadedMappingIterable(Iterable[R]):
         self.func = func
         self.n_workers = n_workers
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Union[R, _ExceptionContainer]]:
         futures: "Queue[Future]" = Queue()
         iterator_exhausted = False
         n_yields = 0
@@ -75,22 +82,23 @@ class ThreadedMappingIterable(Iterable[R]):
                         ):
                             break
                 except Exception as e:
-                    yield ExceptionContainer(e)
+                    yield _ExceptionContainer(e)
 
 
-class ThreadedFlatteningIteratorWrapper(ThreadedMappingIteratorWrapper[T]):
-    _SKIP = []
+
+class ThreadedFlatteningIteratorWrapper(ThreadedMappingIteratorWrapper[Union[T, _Skip]]):
+    _SKIP: _Skip = _Skip()
     _BUFFER_SIZE = 32
     _INIT_RETRY_BACKFOFF = 0.0005
 
-    class IteratorIteratorNextsShuffler(Iterator[Callable[[], T]]):
+    class IteratorIteratorNextsShuffler(Iterator[Callable[[], Union[T, _Skip]]]):
         def __init__(self, iterator_iterator: Iterator[Iterator[T]]):
             self.iterator_iterator = iterator_iterator
             self.iterator_iterator_exhausted = False
             self.iterators_pool: Set[Iterator[T]] = set()
             self.iterators_being_iterated: Set[Iterator[T]] = set()
 
-        def __next__(self):
+        def __next__(self) -> Callable[[], Union[T, _Skip]]:
             backoff = ThreadedFlatteningIteratorWrapper._INIT_RETRY_BACKFOFF
             while True:
                 while (
@@ -122,7 +130,7 @@ class ThreadedFlatteningIteratorWrapper(ThreadedMappingIteratorWrapper[T]):
                     backoff *= 2
                     continue
 
-                def f():
+                def f() -> Union[T, _Skip]:
                     exhausted = False
                     to_be_raised: Optional[Exception] = None
                     try:
@@ -148,9 +156,3 @@ class ThreadedFlatteningIteratorWrapper(ThreadedMappingIteratorWrapper[T]):
             func=lambda f: f(),
             n_workers=n_workers,
         )
-
-    def __next__(self) -> T:
-        while True:
-            elem = super().__next__()
-            if elem != ThreadedFlatteningIteratorWrapper._SKIP:
-                return elem

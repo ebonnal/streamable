@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 import time
 from datetime import datetime
 from typing import (
@@ -16,18 +17,19 @@ R = TypeVar("R")
 from kioss import _util
 
 
-class IteratorWrapper(Iterator[T]):
-    def __init__(self, iterator: Iterator[T]):
+class IteratorWrapper(Iterator[T], ABC):
+    def __init__(self, iterator: Iterator):
         self.iterator = iterator
 
+    @abstractmethod
     def __next__(self) -> T:
-        return next(self.iterator)
+        raise NotImplementedError()
 
 
 class FlatteningIteratorWrapper(IteratorWrapper[R]):
     def __init__(self, iterator: Iterator[Iterator[R]]) -> None:
         super().__init__(iterator)
-        self.current_iterator_elem = iter([])
+        self.current_iterator_elem: Iterator[R] = iter([])
 
     @staticmethod
     def _sanitize_input(expected_iterator_elem):
@@ -40,7 +42,7 @@ class FlatteningIteratorWrapper(IteratorWrapper[R]):
             return next(self.current_iterator_elem)
         except StopIteration:
             while True:
-                elem = super().__next__()
+                elem = next(self.iterator)
                 _util.duck_check_type_is_iterator(elem)
                 self.current_iterator_elem = elem
                 try:
@@ -55,7 +57,7 @@ class LoggingIteratorWrapper(IteratorWrapper[T]):
         self.what = what
         self.yields_count = 0
         self.errors_count = 0
-        self.last_log_at_yields_count = None
+        self.last_log_at_yields_count: Optional[int] = None
         self.start_time = time.time()
         _util.LOGGER.info("iteration over '%s' will be logged.", self.what)
 
@@ -74,7 +76,7 @@ class LoggingIteratorWrapper(IteratorWrapper[T]):
     def __next__(self) -> T:
         to_be_raised: Optional[Exception] = None
         try:
-            elem = super().__next__()
+            elem = next(self.iterator)
         except StopIteration:
             if self.yields_count != self.last_log_at_yields_count:
                 self._log()
@@ -100,14 +102,14 @@ class SlowingIteratorWrapper(IteratorWrapper[T]):
     def __init__(self, iterator: Iterator[T], freq: float) -> None:
         super().__init__(iterator)
         self.freq = freq
-        self.start = None
+        self.start: Optional[float] = None
         self.yields_count = 0
 
     def __next__(self) -> T:
         if not self.start:
             self.start = time.time()
         while True:
-            next_elem = super().__next__()
+            next_elem = next(self.iterator)
             while self.yields_count > (time.time() - self.start) * self.freq:
                 time.sleep(0.001)
             self.yields_count += 1
@@ -126,7 +128,7 @@ class BatchingIteratorWrapper(IteratorWrapper[List[T]]):
         super().__init__(iterator)
         self.size = size
         self.period = period
-        self._to_be_raised: Exception = None
+        self._to_be_raised: Optional[Exception] = None
         self._is_exhausted = False
 
     def __next__(self) -> List[T]:
@@ -139,9 +141,9 @@ class BatchingIteratorWrapper(IteratorWrapper[List[T]]):
         start_time = time.time()
         batch = None
         try:
-            batch = [super().__next__()]
+            batch = [next(self.iterator)]
             while len(batch) < self.size and (time.time() - start_time) < self.period:
-                batch.append(super().__next__())
+                batch.append(next(self.iterator))
             return batch
         except StopIteration:
             self._is_exhausted = True
