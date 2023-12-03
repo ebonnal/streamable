@@ -181,11 +181,11 @@ class TestPipe(unittest.TestCase):
         # test rasing:
         self.assertRaises(
             ValueError,
-            Pipe([map(int, "12-3")].__iter__).flatten(n_threads=n_threads).collect,
+            Pipe([map(int, "12-3")].__iter__).flatten(n_threads=n_threads).collect, # type: ignore
         )
         self.assertRaises(
             ValueError,
-            Pipe(lambda: map(int, "-")).flatten(n_threads=n_threads).collect,
+            Pipe(lambda: map(int, "-")).flatten(n_threads=n_threads).collect,  # type: ignore
         )
 
     def test_add(self):
@@ -220,10 +220,11 @@ class TestPipe(unittest.TestCase):
             ),
             set(map(func, range(1, N))),
         )
+        l: List[List[int]] = [[1], [], [3]]
         self.assertSetEqual(
             set(
-                Pipe([[1], [], [3]].__iter__)
-                .map(iter)
+                Pipe(l.__iter__)
+                .map(lambda l: iter(l))
                 .map(next, n_threads=n_threads)
                 .catch(RuntimeError)
             ),
@@ -505,7 +506,7 @@ class TestPipe(unittest.TestCase):
     @parameterized.expand([[1], [2], [3]])
     def test_invalid_flatten_upstream(self, n_threads: int):
         self.assertRaises(
-            TypeError, Pipe(range(3).__iter__).flatten(n_threads=n_threads).collect
+            TypeError, Pipe(range(3).__iter__).flatten(n_threads=n_threads).collect # type: ignore
         )
 
     def test_planning_and_execution_decoupling(self):

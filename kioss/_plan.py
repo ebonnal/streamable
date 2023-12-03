@@ -2,6 +2,8 @@ from abc import ABC, abstractmethod
 from typing import (
     Any,
     Callable,
+    Collection,
+    Generic,
     Iterable,
     Iterator,
     List,
@@ -22,7 +24,7 @@ R = TypeVar("R")
 
 class APipe(Iterable[T], ABC):
     ITERATOR_GENERATING_VISITOR_CLASS: "Optional[Type[_visitor.IteratorGeneratingVisitor]]" = None
-    def __init__(self, upstream: "APipe[U]"):
+    def __init__(self, upstream: "APipe"):
         self.upstream = upstream
         if self.ITERATOR_GENERATING_VISITOR_CLASS is None:
             raise ValueError("ITERATOR_GENERATING_VISITOR_CLASS not instantiated")
@@ -238,6 +240,9 @@ class APipe(Iterable[T], ABC):
 
         return samples
 
+    @classmethod
+    def __rshift__(cls, source: Callable[[], Iterator[T]]) -> "SourcePipe[T]":
+        return SourcePipe(source)
 
 class SourcePipe(APipe[T]):
     def __init__(self, source: Callable[[], Iterator[T]]):

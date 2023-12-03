@@ -86,7 +86,7 @@ class ThreadedMappingIterable(Iterable[Union[R, _ExceptionContainer]]):
 
 
 
-class ThreadedFlatteningIteratorWrapper(ThreadedMappingIteratorWrapper[Union[T, _Skip]]):
+class ThreadedFlatteningIteratorWrapper(ThreadedMappingIteratorWrapper[T]):
     _SKIP: _Skip = _Skip()
     _BUFFER_SIZE = 32
     _INIT_RETRY_BACKFOFF = 0.0005
