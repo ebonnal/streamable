@@ -21,17 +21,13 @@ T = TypeVar("T")
 U = TypeVar("U")
 R = TypeVar("R")
 
+ITERATOR_GENERATING_VISITOR: "Optional[_visitor.IteratorGeneratingVisitor]" = None
 
 class APipe(Iterable[T], ABC):
-    ITERATOR_GENERATING_VISITOR_CLASS: "Optional[Type[_visitor.IteratorGeneratingVisitor]]" = None
-    def __init__(self, upstream: "APipe"):
-        self.upstream = upstream
-        if self.ITERATOR_GENERATING_VISITOR_CLASS is None:
-            raise ValueError("ITERATOR_GENERATING_VISITOR_CLASS not instantiated")
-        self.iterator_generating_visitor = self.ITERATOR_GENERATING_VISITOR_CLASS()
-
     def __iter__(self) -> Iterator[T]:
-        return self._accept(self.iterator_generating_visitor)
+        if ITERATOR_GENERATING_VISITOR is None:
+            raise ValueError("_plan.ITERATOR_GENERATING_VISITOR is None")
+        return self._accept(ITERATOR_GENERATING_VISITOR)
     
     @abstractmethod
     def _accept(self, visitor: "_visitor.AVisitor") -> Any:
@@ -187,7 +183,7 @@ class APipe(Iterable[T], ABC):
         Returns:
             List[T]: A list containing the elements of the Pipe truncate to the first `n_samples` ones.
         """
-        return [elem for i, elem in enumerate(self) if n_samples is None or i < n_samples]
+        return [elem for i, elem in enumerate(self) if (n_samples is None or i < n_samples)]
 
     def superintend(
         self,
@@ -264,7 +260,7 @@ class SourcePipe(APipe[T]):
 
 class FilterPipe(APipe[T]):
     def __init__(self, upstream: APipe[T], predicate: Callable[[T], bool]):
-        super().__init__(upstream)
+        self.upstream = upstream
         self.predicate = predicate
 
     def _accept(self, visitor: "_visitor.AVisitor") -> Any:
@@ -273,7 +269,7 @@ class FilterPipe(APipe[T]):
 
 class MapPipe(APipe[R]):
     def __init__(self, upstream: APipe[T], func: Callable[[T], R], n_threads: int):
-        super().__init__(upstream)
+        self.upstream = upstream
         self.func = func
         self.n_threads = n_threads
 
@@ -282,7 +278,7 @@ class MapPipe(APipe[R]):
 
 class LogPipe(APipe[T]):
     def __init__(self, upstream: APipe[T], what: str = "elements"):
-        super().__init__(upstream)
+        self.upstream = upstream
         self.what = what
 
     def _accept(self, visitor: "_visitor.AVisitor") -> Any:
@@ -291,7 +287,7 @@ class LogPipe(APipe[T]):
 
 class FlattenPipe(APipe[T]):
     def __init__(self, upstream: APipe[Iterator[T]], n_threads: int):
-        super().__init__(upstream)
+        self.upstream = upstream
         self.n_threads = n_threads
 
     def _accept(self, visitor: "_visitor.AVisitor") -> Any:
@@ -300,7 +296,7 @@ class FlattenPipe(APipe[T]):
 
 class BatchPipe(APipe[List[T]]):
     def __init__(self, upstream: APipe[T], size: int, period: float):
-        super().__init__(upstream)
+        self.upstream = upstream
         self.size = size
         self.period = period
 
@@ -314,7 +310,7 @@ class CatchPipe(APipe[T]):
         *classes: Type[Exception],
         when: Optional[Callable[[Exception], bool]] = None,
     ):
-        super().__init__(upstream)
+        self.upstream = upstream
         self.classes = classes
         self.when = when
 
@@ -324,7 +320,7 @@ class CatchPipe(APipe[T]):
 
 class ChainPipe(APipe[T]):
     def __init__(self, upstream: APipe[T], others: List[APipe]):
-        super().__init__(upstream)
+        self.upstream = upstream
         self.others = others
 
     def _accept(self, visitor: "_visitor.AVisitor") -> Any:
@@ -333,11 +329,11 @@ class ChainPipe(APipe[T]):
 
 class SlowPipe(APipe[T]):
     def __init__(self, upstream: APipe[T], freq: float):
-        super().__init__(upstream)
+        self.upstream = upstream
         self.freq = freq
 
     def _accept(self, visitor: "_visitor.AVisitor") -> Any:
         return visitor.visitSlowPipe(self)
 
-# a: Iterator[str] = SourcePipe(range(8).__iter__).do(lambda e:e).map(str).do(print)._accept(ITERATOR_GENERATING_VISITOR_CLASS())
+# a: Iterator[str] = SourcePipe(range(8).__iter__).do(lambda e:e).map(str).do(print)._accept(ITERATOR_GENERATING_VISITOR())
 # b: Iterator[str] = SourcePipe(range(8).__iter__).do(lambda e:e).map(str).do(print)._accept(_visitor.IteratorGeneratingVisitor())

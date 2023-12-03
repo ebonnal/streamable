@@ -1,16 +1,15 @@
 import itertools
 from abc import ABC, abstractmethod
 from typing import (
-    Generic,
+    Any,
     Iterator,
+    List,
     TypeVar,
 )
 
 from kioss import _exec, _concurrent_exec, _util, _plan
 
 T = TypeVar("T")
-U = TypeVar("U")
-
 
 class AVisitor(ABC):
     @abstractmethod
@@ -49,7 +48,7 @@ class AVisitor(ABC):
     def visitLogPipe(self, pipe: _plan.LogPipe) -> Any:
         raise NotImplementedError()
 
-class IteratorGeneratingVisitor(AVisitor[Iterator[T]]):
+class IteratorGeneratingVisitor(AVisitor):
 
     def visitSourcePipe(self, pipe: _plan.SourcePipe[T]) -> Iterator[T]:
         iterator = pipe.source()
@@ -79,14 +78,14 @@ class IteratorGeneratingVisitor(AVisitor[Iterator[T]]):
             )
 
     def visitChainPipe(self, pipe: _plan.ChainPipe[T]) -> Iterator[T]:
-        return itertools.chain(pipe.upstream._accept(self), *list(map(lambda pipe: pipe._accept, pipe.others)))
+        return itertools.chain(pipe.upstream._accept(self), *list(map(iter, pipe.others)))
 
     def visitFilterPipe(self, pipe: _plan.FilterPipe[T]) -> Iterator[T]:
         return filter(pipe.predicate, pipe.upstream._accept(self))
 
-    def visitBatchPipe(self, pipe: _plan.BatchPipe[U]) -> Iterator[T]:
+    def visitBatchPipe(self, pipe: _plan.BatchPipe[T]) -> Iterator[List[T]]:
         return _exec.BatchingIteratorWrapper(
-            pipe.upstream._accept(self), pipe.size, pipe.period
+            iter(pipe.upstream), pipe.size, pipe.period
         )
 
     def visitSlowPipe(self, pipe: _plan.SlowPipe[T]) -> Iterator[T]:
