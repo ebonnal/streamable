@@ -240,10 +240,6 @@ class APipe(Iterable[T], ABC):
 
         return samples
 
-    @classmethod
-    def __rshift__(cls, source: Callable[[], Iterator[T]]) -> "SourcePipe[T]":
-        return SourcePipe(source)
-
 class SourcePipe(APipe[T]):
     def __init__(self, source: Callable[[], Iterator[T]]):
         """
