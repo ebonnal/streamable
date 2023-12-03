@@ -14,19 +14,18 @@ from typing import (
 from kioss import _util, _visitor
 
 T = TypeVar("T")
+U = TypeVar("U")
 R = TypeVar("R")
 V = TypeVar("V")
 
 ITERATOR_GENERATING_VISITOR_CLASS = _visitor.IteratorGeneratingPipeVisitor
 
 class APipe(Iterable[T], ABC):
-
-    def __init__(self, upstream: "APipe[T]"):
+    def __init__(self, upstream: "APipe[U]"):
         self.upstream = upstream
-        self._iterator_generating_visitor: _visitor.APipeVisitor[Iterator[T]]= ITERATOR_GENERATING_VISITOR_CLASS()
 
     def __iter__(self) -> Iterator[T]:
-        return self._accept(self._iterator_generating_visitor)
+        return self._accept(ITERATOR_GENERATING_VISITOR_CLASS())
     
     @abstractmethod
     def _accept(self, visitor: _visitor.APipeVisitor[V]) -> V:
@@ -158,7 +157,7 @@ class APipe(Iterable[T], ABC):
         Returns:
             Pipe[T]: A new Pipe instance with error handling capability.
         """
-        return CatchPipe(self, classes, when)
+        return CatchPipe(self, *classes, when=when)
 
     def log(self, what: str = "elements") -> "APipe[T]":
         """
@@ -172,7 +171,7 @@ class APipe(Iterable[T], ABC):
         """
         return LogPipe(self, what)
 
-    def collect(self, n_samples: int = float("inf")) -> List[T]:
+    def collect(self, n_samples: Optional[int] = None) -> List[T]:
         """
         Convert the elements of the Pipe into a list. The entire pipe will be iterated, but only n_samples elements will be saved in the returned list.
 
@@ -182,7 +181,7 @@ class APipe(Iterable[T], ABC):
         Returns:
             List[T]: A list containing the elements of the Pipe truncate to the first `n_samples` ones.
         """
-        return [elem for i, elem in enumerate(self) if i < n_samples]
+        return [elem for i, elem in enumerate(self) if n_samples is None or i < n_samples]
 
     def superintend(
         self,
@@ -247,8 +246,7 @@ class SourcePipe(APipe[T]):
         Args:
             source (Callable[[], Iterator[T]]): A factory function called to obtain a fresh data source iterator for each iteration.
         """
-        super().__init__()
-        if not isinstance(source, Callable):
+        if not callable(source):
             raise TypeError(
                 f"source must be a callable returning an iterator, but the provided source is not a callable: got source '{source}' of type {type(source)}."
             )
@@ -302,14 +300,14 @@ class BatchPipe(APipe[List[T]]):
         self.period = period
 
     def _accept(self, visitor: _visitor.APipeVisitor[V]) -> V:
-        return visitor.visitFlattenPipe(self)
+        return visitor.visitBatchPipe(self)
 
 class CatchPipe(APipe[T]):
     def __init__(
         self,
         upstream: APipe[T],
-        classes: Tuple[Type[Exception]],
-        when: Optional[Callable[[Exception], bool]],
+        *classes: Type[Exception],
+        when: Optional[Callable[[Exception], bool]] = None,
     ):
         super().__init__(upstream)
         self.classes = classes
@@ -336,5 +334,5 @@ class SlowPipe(APipe[T]):
     def _accept(self, visitor: _visitor.APipeVisitor[V]) -> V:
         return visitor.visitSlowPipe(self)
 
-a = SourcePipe(range(8).__iter__).do(lambda e:e).map(str).do(print)._accept(APipe._ITERATOR_GENERATING_VISITOR_CLASS())
-b = SourcePipe(range(8).__iter__).do(lambda e:e).map(str).do(print)._accept(_visitor.IteratorGeneratingPipeVisitor())
+a: Iterator[str] = SourcePipe(range(8).__iter__).do(lambda e:e).map(str).do(print)._accept(ITERATOR_GENERATING_VISITOR_CLASS())
+b: Iterator[str] = SourcePipe(range(8).__iter__).do(lambda e:e).map(str).do(print)._accept(_visitor.IteratorGeneratingPipeVisitor())
