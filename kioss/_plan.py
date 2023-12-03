@@ -1,4 +1,3 @@
-import itertools
 from abc import ABC, abstractmethod
 from typing import (
     Any,
@@ -12,19 +11,26 @@ from typing import (
     TypeVar,
 )
 
-from kioss import _exec, _concurrent_exec, _util
+from kioss import _util, _visitor
 
 T = TypeVar("T")
 R = TypeVar("R")
+V = TypeVar("V")
 
 
 class APipe(Iterable[T], ABC):
+    _ITERATOR_GENERATING_VISITOR_CLASS: Type[_visitor.APipeVisitor[Iterator[T]]] = _visitor.IteratorGeneratingPipeVisitor
+
     def __init__(self, upstream: "Optional[APipe[T]]" = None):
         self.upstream = upstream
+        self.visitor = APipe._ITERATOR_GENERATING_VISITOR_CLASS()
 
-    @abstractmethod
     def __iter__(self) -> Iterator[T]:
-        raise NotImplemented()  # TODO: Visitor pattern
+        return self._accept(self.visitor)
+    
+    @abstractmethod
+    def _accept(self, visitor: _visitor.APipeVisitor[V]) -> V:
+        raise NotImplemented()
 
     def __add__(self, other: "APipe[T]") -> "APipe[T]":
         return self.chain(other)
@@ -56,10 +62,7 @@ class APipe(Iterable[T], ABC):
         """
         APipe.sanitize_n_threads(n_threads)
         func = _util.map_exception(func, source=StopIteration, target=RuntimeError)
-        if n_threads == 1:
-            return MapPipe[R](self, func)
-        else:
-            return ThreadedMapPipe[R](self, func, n_threads)
+        return MapPipe[R](self, func, n_threads)
 
     def do(
         self,
@@ -89,10 +92,7 @@ class APipe(Iterable[T], ABC):
             n_threads (int): The number of threads for concurrent execution (default is 1, meaning only the main thread is used).
         """
         APipe.sanitize_n_threads(n_threads)
-        if n_threads == 1:
-            return FlattenPipe[R](self)
-        else:
-            return ThreadedFlattenPipe[R](self, n_threads)
+        return FlattenPipe[R](self, n_threads)
 
     def chain(self, *others: "APipe[T]") -> "APipe[T]":
         """
@@ -253,17 +253,10 @@ class SourcePipe(APipe[T]):
                 f"source must be a callable returning an iterator, but the provided source is not a callable: got source '{source}' of type {type(source)}."
             )
         self.source = source
+    
+    def _accept(self, visitor: _visitor.APipeVisitor[V]) -> V:
+        return visitor.visitSourcePipe(self)
 
-    def __iter__(self) -> Iterator[T]:
-        iterator = self.source()
-        try:
-            # duck-type checks that the object returned by the source is an iterator
-            _util.duck_check_type_is_iterator(iterator)
-        except TypeError as e:
-            raise TypeError(
-                f"source must be a callable returning an iterator (implements __iter__ and __next__ methods), but the object resulting from a call to source() was not an iterator: got '{iterator}' of type {type(iterator)}."
-            ) from e
-        return iterator
 
 
 class FilterPipe(APipe[T]):
@@ -271,57 +264,35 @@ class FilterPipe(APipe[T]):
         super().__init__(upstream)
         self.predicate = predicate
 
-    def __iter__(self) -> Iterator[T]:
-        return filter(self.predicate, iter(self.upstream))
+    def _accept(self, visitor: _visitor.APipeVisitor[V]) -> V:
+        return visitor.visitFilterPipe(self)
 
 
 class MapPipe(APipe[R]):
-    def __init__(self, upstream: APipe[T], func: Callable[[T], R]):
-        super().__init__(upstream)
-        self.func = func
-
-    def __iter__(self) -> Iterator[R]:
-        return map(self.func, iter(self.upstream))
-
-
-class ThreadedMapPipe(APipe[R]):
     def __init__(self, upstream: APipe[T], func: Callable[[T], R], n_threads: int):
         super().__init__(upstream)
         self.func = func
         self.n_threads = n_threads
 
-    def __iter__(self) -> Iterator[R]:
-        return _concurrent_exec.ThreadedMappingIteratorWrapper(
-            iter(self.upstream), self.func, n_workers=self.n_threads
-        )
-
+    def _accept(self, visitor: _visitor.APipeVisitor[V]) -> V:
+        return visitor.visitMapPipe(self)
 
 class LogPipe(APipe[T]):
     def __init__(self, upstream: APipe[T], what: str = "elements"):
         super().__init__(upstream)
         self.what = what
 
-    def __iter__(self) -> Iterator[T]:
-        return _exec.LoggingIteratorWrapper(iter(self.upstream), self.what)
+    def _accept(self, visitor: _visitor.APipeVisitor[V]) -> V:
+        return visitor.visitLogPipe(self)
 
 
 class FlattenPipe(APipe[T]):
-    def __init__(self, upstream: APipe[T]):
-        super().__init__(upstream)
-
-    def __iter__(self) -> Iterator[T]:
-        return _exec.FlatteningIteratorWrapper(iter(self.upstream))
-
-
-class ThreadedFlattenPipe(APipe[R]):
     def __init__(self, upstream: APipe[T], n_threads: int):
         super().__init__(upstream)
         self.n_threads = n_threads
 
-    def __iter__(self) -> Iterator[R]:
-        return _concurrent_exec.ThreadedFlatteningIteratorWrapper(
-            iter(self.upstream), n_workers=self.n_threads
-        )
+    def _accept(self, visitor: _visitor.APipeVisitor[V]) -> V:
+        return visitor.visitFlattenPipe(self)
 
 
 class BatchPipe(APipe[T]):
@@ -330,11 +301,8 @@ class BatchPipe(APipe[T]):
         self.size = size
         self.period = period
 
-    def __iter__(self) -> Iterator[T]:
-        return _exec.BatchingIteratorWrapper(
-            iter(self.upstream), self.size, self.period
-        )
-
+    def _accept(self, visitor: _visitor.APipeVisitor[V]) -> V:
+        return visitor.visitFlattenPipe(self)
 
 class CatchPipe(APipe[T]):
     def __init__(
@@ -347,10 +315,8 @@ class CatchPipe(APipe[T]):
         self.classes = classes
         self.when = when
 
-    def __iter__(self) -> Iterator[T]:
-        return _exec.CatchingIteratorWrapper(
-            iter(self.upstream), self.classes, self.when
-        )
+    def _accept(self, visitor: _visitor.APipeVisitor[V]) -> V:
+        return visitor.visitCatchPipe(self)
 
 
 class ChainPipe(APipe[T]):
@@ -358,8 +324,8 @@ class ChainPipe(APipe[T]):
         super().__init__(upstream)
         self.others = others
 
-    def __iter__(self) -> Iterator[T]:
-        return itertools.chain(iter(self.upstream), *list(map(iter, self.others)))
+    def _accept(self, visitor: _visitor.APipeVisitor[V]) -> V:
+        return visitor.visitChainPipe(self)
 
 
 class SlowPipe(APipe[T]):
@@ -367,5 +333,7 @@ class SlowPipe(APipe[T]):
         super().__init__(upstream)
         self.freq = freq
 
-    def __iter__(self) -> Iterator[T]:
-        return _exec.SlowingIteratorWrapper(iter(self.upstream), self.freq)
+    def _accept(self, visitor: _visitor.APipeVisitor[V]) -> V:
+        return visitor.visitSlowPipe(self)
+
+a = SourcePipe(range(8).__iter__).do(lambda e:e).map(str).do(print)._accept(APipe._ITERATOR_GENERATING_VISITOR_CLASS())
