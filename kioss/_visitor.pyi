@@ -12,7 +12,7 @@ T = TypeVar("T")
 U = TypeVar("U")
 
 
-class APipeVisitor(Generic[V], ABC):
+class AVisitor(Generic[V], ABC):
     @abstractmethod
     def visitSourcePipe(self, pipe: _plan.SourcePipe) -> V: ...
 
@@ -40,7 +40,7 @@ class APipeVisitor(Generic[V], ABC):
     @abstractmethod
     def visitLogPipe(self, pipe: _plan.LogPipe) -> V: ...
 
-class IteratorGeneratingPipeVisitor(APipeVisitor[Iterator[T]]):
+class IteratorGeneratingVisitor(AVisitor[Iterator[T]]):
     def visitSourcePipe(self, pipe: _plan.SourcePipe[T]) -> Iterator[T]: ...
 
     def visitMapPipe(self, pipe: _plan.MapPipe[T]) -> Iterator[T]: ...

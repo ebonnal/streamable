@@ -8,49 +8,48 @@ from typing import (
 
 from kioss import _exec, _concurrent_exec, _util, _plan
 
-V = TypeVar("V")
 T = TypeVar("T")
 U = TypeVar("U")
 
 
-class APipeVisitor(Generic[V], ABC):
+class AVisitor(ABC):
     @abstractmethod
-    def visitSourcePipe(self, pipe: _plan.SourcePipe) -> V:
+    def visitSourcePipe(self, pipe: _plan.SourcePipe) -> Any:
         raise NotImplementedError()
 
     @abstractmethod
-    def visitMapPipe(self, pipe: _plan.MapPipe) -> V:
+    def visitMapPipe(self, pipe: _plan.MapPipe) -> Any:
         raise NotImplementedError()
 
     @abstractmethod
-    def visitFlattenPipe(self, pipe: _plan.FlattenPipe) -> V:
+    def visitFlattenPipe(self, pipe: _plan.FlattenPipe) -> Any:
         raise NotImplementedError()
 
     @abstractmethod
-    def visitChainPipe(self, pipe: _plan.ChainPipe) -> V:
+    def visitChainPipe(self, pipe: _plan.ChainPipe) -> Any:
         raise NotImplementedError()
 
     @abstractmethod
-    def visitFilterPipe(self, pipe: _plan.FilterPipe) -> V:
+    def visitFilterPipe(self, pipe: _plan.FilterPipe) -> Any:
         raise NotImplementedError()
 
     @abstractmethod
-    def visitBatchPipe(self, pipe: _plan.BatchPipe) -> V:
+    def visitBatchPipe(self, pipe: _plan.BatchPipe) -> Any:
         raise NotImplementedError()
 
     @abstractmethod
-    def visitSlowPipe(self, pipe: _plan.SlowPipe) -> V:
+    def visitSlowPipe(self, pipe: _plan.SlowPipe) -> Any:
         raise NotImplementedError()
 
     @abstractmethod
-    def visitCatchPipe(self, pipe: _plan.CatchPipe) -> V:
+    def visitCatchPipe(self, pipe: _plan.CatchPipe) -> Any:
         raise NotImplementedError()
 
     @abstractmethod
-    def visitLogPipe(self, pipe: _plan.LogPipe) -> V:
+    def visitLogPipe(self, pipe: _plan.LogPipe) -> Any:
         raise NotImplementedError()
 
-class IteratorGeneratingPipeVisitor(APipeVisitor[Iterator[T]]):
+class IteratorGeneratingVisitor(AVisitor[Iterator[T]]):
 
     def visitSourcePipe(self, pipe: _plan.SourcePipe[T]) -> Iterator[T]:
         iterator = pipe.source()
