@@ -4,9 +4,9 @@ import timeit
 import unittest
 from collections import Counter
 
-from typing import List, Optional, TypeVar
+from typing import List, TypeVar
 
-from parameterized import parameterized
+from parameterized import parameterized # type: ignore
 
 from kioss import Pipe, _util
 

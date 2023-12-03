@@ -161,8 +161,8 @@ class CatchingIteratorWrapper(IteratorWrapper[T]):
     def __init__(
         self,
         iterator: Iterator[T],
-        classes: Tuple[Type[Exception]],
-        when: Optional[Callable[[Exception], bool]],
+        *classes: Type[Exception],
+        when: Optional[Callable[[Exception], bool]] = None,
     ) -> None:
         super().__init__(iterator)
         self.classes = classes

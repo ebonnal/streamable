@@ -6,19 +6,18 @@ from typing import (
     Iterator,
     List,
     Optional,
-    Tuple,
     Type,
     TypeVar,
 )
 
-from kioss import _util, _visitor
+from kioss import _util
 
 T = TypeVar("T")
 U = TypeVar("U")
 R = TypeVar("R")
 V = TypeVar("V")
 
-ITERATOR_GENERATING_VISITOR_CLASS = _visitor.IteratorGeneratingPipeVisitor
+ITERATOR_GENERATING_VISITOR_CLASS: "Optional[_visitor.APipeVisitor[Iterator[T]]]" = None
 
 class APipe(Iterable[T], ABC):
     def __init__(self, upstream: "APipe[U]"):
@@ -28,7 +27,7 @@ class APipe(Iterable[T], ABC):
         return self._accept(ITERATOR_GENERATING_VISITOR_CLASS())
     
     @abstractmethod
-    def _accept(self, visitor: _visitor.APipeVisitor[V]) -> V:
+    def _accept(self, visitor: "_visitor.APipeVisitor[V]") -> V:
         raise NotImplementedError()
 
     def __add__(self, other: "APipe[T]") -> "APipe[T]":
@@ -252,7 +251,7 @@ class SourcePipe(APipe[T]):
             )
         self.source = source
     
-    def _accept(self, visitor: _visitor.APipeVisitor[V]) -> V:
+    def _accept(self, visitor: "_visitor.APipeVisitor[V]") -> V:
         return visitor.visitSourcePipe(self)
 
 
@@ -262,7 +261,7 @@ class FilterPipe(APipe[T]):
         super().__init__(upstream)
         self.predicate = predicate
 
-    def _accept(self, visitor: _visitor.APipeVisitor[V]) -> V:
+    def _accept(self, visitor: "_visitor.APipeVisitor[V]") -> V:
         return visitor.visitFilterPipe(self)
 
 
@@ -272,7 +271,7 @@ class MapPipe(APipe[R]):
         self.func = func
         self.n_threads = n_threads
 
-    def _accept(self, visitor: _visitor.APipeVisitor[V]) -> V:
+    def _accept(self, visitor: "_visitor.APipeVisitor[V]") -> V:
         return visitor.visitMapPipe(self)
 
 class LogPipe(APipe[T]):
@@ -280,7 +279,7 @@ class LogPipe(APipe[T]):
         super().__init__(upstream)
         self.what = what
 
-    def _accept(self, visitor: _visitor.APipeVisitor[V]) -> V:
+    def _accept(self, visitor: "_visitor.APipeVisitor[V]") -> V:
         return visitor.visitLogPipe(self)
 
 
@@ -289,7 +288,7 @@ class FlattenPipe(APipe[T]):
         super().__init__(upstream)
         self.n_threads = n_threads
 
-    def _accept(self, visitor: _visitor.APipeVisitor[V]) -> V:
+    def _accept(self, visitor: "_visitor.APipeVisitor[V]") -> V:
         return visitor.visitFlattenPipe(self)
 
 
@@ -299,7 +298,7 @@ class BatchPipe(APipe[List[T]]):
         self.size = size
         self.period = period
 
-    def _accept(self, visitor: _visitor.APipeVisitor[V]) -> V:
+    def _accept(self, visitor: "_visitor.APipeVisitor[V]") -> V:
         return visitor.visitBatchPipe(self)
 
 class CatchPipe(APipe[T]):
@@ -313,7 +312,7 @@ class CatchPipe(APipe[T]):
         self.classes = classes
         self.when = when
 
-    def _accept(self, visitor: _visitor.APipeVisitor[V]) -> V:
+    def _accept(self, visitor: "_visitor.APipeVisitor[V]") -> V:
         return visitor.visitCatchPipe(self)
 
 
@@ -322,7 +321,7 @@ class ChainPipe(APipe[T]):
         super().__init__(upstream)
         self.others = others
 
-    def _accept(self, visitor: _visitor.APipeVisitor[V]) -> V:
+    def _accept(self, visitor: "_visitor.APipeVisitor[V]") -> V:
         return visitor.visitChainPipe(self)
 
 
@@ -331,8 +330,8 @@ class SlowPipe(APipe[T]):
         super().__init__(upstream)
         self.freq = freq
 
-    def _accept(self, visitor: _visitor.APipeVisitor[V]) -> V:
+    def _accept(self, visitor: "_visitor.APipeVisitor[V]") -> V:
         return visitor.visitSlowPipe(self)
 
-a: Iterator[str] = SourcePipe(range(8).__iter__).do(lambda e:e).map(str).do(print)._accept(ITERATOR_GENERATING_VISITOR_CLASS())
-b: Iterator[str] = SourcePipe(range(8).__iter__).do(lambda e:e).map(str).do(print)._accept(_visitor.IteratorGeneratingPipeVisitor())
+# a: Iterator[str] = SourcePipe(range(8).__iter__).do(lambda e:e).map(str).do(print)._accept(ITERATOR_GENERATING_VISITOR_CLASS())
+# b: Iterator[str] = SourcePipe(range(8).__iter__).do(lambda e:e).map(str).do(print)._accept(_visitor.IteratorGeneratingPipeVisitor())

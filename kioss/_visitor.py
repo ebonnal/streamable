@@ -1,7 +1,6 @@
 import itertools
 from abc import ABC, abstractmethod
 from typing import (
-    Any,
     Generic,
     Iterator,
     TypeVar,
@@ -81,12 +80,12 @@ class IteratorGeneratingPipeVisitor(APipeVisitor[Iterator[T]]):
             )
 
     def visitChainPipe(self, pipe: _plan.ChainPipe[T]) -> Iterator[T]:
-        return itertools.chain(pipe.upstream._accept(self), *list(map(_plan.APipe._accept, pipe.others)))
+        return itertools.chain(pipe.upstream._accept(self), *list(map(lambda pipe: pipe._accept, pipe.others)))
 
     def visitFilterPipe(self, pipe: _plan.FilterPipe[T]) -> Iterator[T]:
         return filter(pipe.predicate, pipe.upstream._accept(self))
 
-    def visitBatchPipe(self, pipe: _plan.BatchPipe[T]) -> Iterator[T]:
+    def visitBatchPipe(self, pipe: _plan.BatchPipe[U]) -> Iterator[T]:
         return _exec.BatchingIteratorWrapper(
             pipe.upstream._accept(self), pipe.size, pipe.period
         )
@@ -96,7 +95,7 @@ class IteratorGeneratingPipeVisitor(APipeVisitor[Iterator[T]]):
 
     def visitCatchPipe(self, pipe: _plan.CatchPipe[T]) -> Iterator[T]:
         return _exec.CatchingIteratorWrapper(
-            pipe.upstream._accept(self), pipe.classes, pipe.when
+            pipe.upstream._accept(self), *pipe.classes, when=pipe.when
         )
 
     def visitLogPipe(self, pipe: _plan.LogPipe[T]) -> Iterator[T]:
