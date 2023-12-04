@@ -21,7 +21,9 @@ T = TypeVar("T")
 U = TypeVar("U")
 R = TypeVar("R")
 
-ITERATOR_PRODUCING_VISITOR: "Optional[_iter_production.IteratorProducingVisitor]" = None
+ITERATOR_PRODUCING_VISITOR_CLASS: "Optional[Type[_iter_production.IteratorProducingVisitor]]" = (
+    None
+)
 EXPLAINING_VISITOR_CLASS: "Optional[Type[_explanation.ExplainingVisitor]]" = None
 
 
@@ -29,13 +31,13 @@ class APipe(Iterable[T], ABC):
     upstream: "Optional[APipe]"
 
     def __iter__(self) -> Iterator[T]:
-        if ITERATOR_PRODUCING_VISITOR is None:
-            raise ValueError("_plan.ITERATOR_PRODUCING_VISITOR is None")
-        return self._accept(ITERATOR_PRODUCING_VISITOR)
+        if ITERATOR_PRODUCING_VISITOR_CLASS is None:
+            raise ValueError("_pipe.ITERATOR_PRODUCING_VISITOR_CLASS is None")
+        return self._accept(ITERATOR_PRODUCING_VISITOR_CLASS())
 
     def __repr__(self) -> str:
         if EXPLAINING_VISITOR_CLASS is None:
-            raise ValueError("_plan.EXPLAINER_VISITOR is None")
+            raise ValueError("_pipe.EXPLAINING_VISITOR_CLASS is None")
         return self._accept(EXPLAINING_VISITOR_CLASS())
 
     @abstractmethod
