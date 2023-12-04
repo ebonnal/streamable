@@ -6,7 +6,7 @@ from collections import Counter
 
 from typing import Iterator, List, TypeVar
 
-from parameterized import parameterized # type: ignore
+from parameterized import parameterized  # type: ignore
 
 from kioss import APipe, Pipe, _util
 
@@ -181,7 +181,7 @@ class TestPipe(unittest.TestCase):
         # test rasing:
         self.assertRaises(
             ValueError,
-            Pipe([map(int, "12-3")].__iter__).flatten(n_threads=n_threads).collect, # type: ignore
+            Pipe([map(int, "12-3")].__iter__).flatten(n_threads=n_threads).collect,  # type: ignore
         )
         self.assertRaises(
             ValueError,
@@ -494,14 +494,14 @@ class TestPipe(unittest.TestCase):
         self.assertListEqual(samples, [0] * n)
 
     def test_invalid_source(self) -> None:
-        self.assertRaises(TypeError, lambda: Pipe(range(3))) # type: ignore
-        pipe_ok_at_construction: Pipe[int] = Pipe(lambda: range(3)) # type: ignore
+        self.assertRaises(TypeError, lambda: Pipe(range(3)))  # type: ignore
+        pipe_ok_at_construction: Pipe[int] = Pipe(lambda: range(3))  # type: ignore
         self.assertRaises(TypeError, lambda: pipe_ok_at_construction.collect())
 
     @parameterized.expand([[1], [2], [3]])
     def test_invalid_flatten_upstream(self, n_threads: int):
         self.assertRaises(
-            TypeError, Pipe(range(3).__iter__).flatten(n_threads=n_threads).collect # type: ignore
+            TypeError, Pipe(range(3).__iter__).flatten(n_threads=n_threads).collect  # type: ignore
         )
 
     def test_planning_and_execution_decoupling(self) -> None:
@@ -514,15 +514,11 @@ class TestPipe(unittest.TestCase):
         self.assertListEqual(b.collect(), [list(range(N))])
 
     def test_generator_already_generating(self) -> None:
-        l: List[Iterator[int]] = [iter((ten_ms_identity(x) for x in range(N))) for _ in range(3)]
+        l: List[Iterator[int]] = [
+            iter((ten_ms_identity(x) for x in range(N))) for _ in range(3)
+        ]
         self.assertEqual(
-            Counter(
-                Pipe(
-                    l.__iter__
-                )
-                .map(iter)
-                .flatten(n_threads=2)
-            ),
+            Counter(Pipe(l.__iter__).map(iter).flatten(n_threads=2)),
             Counter(list(range(N)) + list(range(N)) + list(range(N))),
         )
 
@@ -531,12 +527,15 @@ class TestPipe(unittest.TestCase):
             Pipe(range(8).__iter__)
             .filter(lambda _: True)
             .batch(100)
-            .log('batches')
+            .log("batches")
             .map(iter)
             .flatten(n_threads=4)
             .slow(64)
-            .log('slowed elems')
-            .chain(Pipe([].__iter__).filter(lambda e: True).log('other 1'), Pipe([].__iter__).log('other 2'))
+            .log("slowed elems")
+            .chain(
+                Pipe([].__iter__).do(lambda e: None).log("other 1"),
+                Pipe([].__iter__).log("other 2"),
+            )
             .catch(ValueError, TypeError, when=lambda e: True)
         )
         a = repr(p)

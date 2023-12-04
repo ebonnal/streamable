@@ -75,11 +75,14 @@ def duck_check_type_is_iterator(expected_iterator: Any) -> TypeGuard[Iterator]:
 
     return True
 
+
 def colorize_in_red(s: str) -> str:
     return f"\033[91m{s}\033[0m"
 
+
 def colorize_in_grey(s: str) -> str:
     return f"\033[90m{s}\033[0m"
+
 
 def bold(s: str) -> str:
     return f"\033[1m{s}\033[0m"

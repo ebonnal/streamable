@@ -12,7 +12,7 @@ from typing import (
     Union,
 )
 
-from kioss._exec import IteratorWrapper
+from kioss._execution._core import IteratorWrapper
 
 T = TypeVar("T")
 R = TypeVar("R")
@@ -22,11 +22,18 @@ R = TypeVar("R")
 class _ExceptionContainer(Exception):
     exception: Exception
 
+
 class _Skip:
     pass
 
+
 class ThreadedMappingIteratorWrapper(IteratorWrapper[R]):
-    def __init__(self, iterator: Iterator[T], func: Callable[[T], Union[R, _Skip]], n_workers: int):
+    def __init__(
+        self,
+        iterator: Iterator[T],
+        func: Callable[[T], Union[R, _Skip]],
+        n_workers: int,
+    ):
         super().__init__(iter(ThreadedMappingIterable(iterator, func, n_workers)))
 
     def __next__(self) -> R:
@@ -81,7 +88,6 @@ class ThreadedMappingIterable(Iterable[Union[R, _ExceptionContainer]]):
                             break
                 except Exception as e:
                     yield _ExceptionContainer(e)
-
 
 
 class ThreadedFlatteningIteratorWrapper(ThreadedMappingIteratorWrapper[T]):

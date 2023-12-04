@@ -3,6 +3,7 @@ from typing import Any
 
 from kioss import _pipe
 
+
 class AVisitor(ABC):
     @abstractmethod
     def visitSourcePipe(self, pipe: _pipe.SourcePipe) -> Any:
@@ -10,6 +11,10 @@ class AVisitor(ABC):
 
     @abstractmethod
     def visitMapPipe(self, pipe: _pipe.MapPipe) -> Any:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def visitDoPipe(self, pipe: _pipe.DoPipe) -> Any:
         raise NotImplementedError()
 
     @abstractmethod
