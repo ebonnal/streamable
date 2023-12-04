@@ -367,7 +367,7 @@ class CatchPipe(APipe[T]):
         return visitor.visit_catch_pipe(self)
 
     def __str__(self) -> str:
-        return f"Catch(exception instances of classes [{', '.join(map(lambda class_: class_.__name__, self.classes))}]{', with an additional `when` condition' if self.when is not None else ''})"
+        return f"Catch(exception instances of class in [{', '.join(map(lambda class_: class_.__name__, self.classes))}]{', with an additional `when` condition' if self.when is not None else ''})"
 
 
 class ChainPipe(APipe[T]):
