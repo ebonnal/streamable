@@ -3,6 +3,7 @@ from typing_extensions import TypeGuard
 import logging
 
 LOGGER = logging.getLogger("kioss")
+LOGGER.propagate = False
 handler = logging.StreamHandler()
 formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 handler.setFormatter(formatter)
