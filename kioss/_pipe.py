@@ -267,7 +267,7 @@ class SourcePipe(APipe[T]):
         self.source = source
 
     def _accept(self, visitor: "AVisitor") -> Any:
-        return visitor.visitSourcePipe(self)
+        return visitor.visit_source_pipe(self)
 
     def __str__(self) -> str:
         return f"Source(of type: {type(self.source)})"
@@ -279,7 +279,7 @@ class FilterPipe(APipe[T]):
         self.predicate = predicate
 
     def _accept(self, visitor: "AVisitor") -> Any:
-        return visitor.visitFilterPipe(self)
+        return visitor.visit_filter_pipe(self)
 
     def __str__(self) -> str:
         return f"Filter(using predicate function of type {type(self.predicate)})"
@@ -292,7 +292,7 @@ class MapPipe(APipe[R]):
         self.n_threads = n_threads
 
     def _accept(self, visitor: "AVisitor") -> Any:
-        return visitor.visitMapPipe(self)
+        return visitor.visit_map_pipe(self)
 
     def __str__(self) -> str:
         return f"Map(function of type {type(self.func)}, using {self.n_threads} thread{'s' if self.n_threads > 1 else ''})"
@@ -305,7 +305,7 @@ class DoPipe(APipe[T]):
         self.n_threads = n_threads
 
     def _accept(self, visitor: "AVisitor") -> Any:
-        return visitor.visitDoPipe(self)
+        return visitor.visit_do_pipe(self)
 
     def __str__(self) -> str:
         return f"Do(side effects by applying a function of type {type(self.func)}, using {self.n_threads} thread{'s' if self.n_threads > 1 else ''})"
@@ -317,7 +317,7 @@ class LogPipe(APipe[T]):
         self.what = what
 
     def _accept(self, visitor: "AVisitor") -> Any:
-        return visitor.visitLogPipe(self)
+        return visitor.visit_log_pipe(self)
 
     def __str__(self) -> str:
         return f"Log('{self.what}')"
@@ -329,7 +329,7 @@ class FlattenPipe(APipe[T]):
         self.n_threads = n_threads
 
     def _accept(self, visitor: "AVisitor") -> Any:
-        return visitor.visitFlattenPipe(self)
+        return visitor.visit_flatten_pipe(self)
 
     def __str__(self) -> str:
         return (
@@ -344,7 +344,7 @@ class BatchPipe(APipe[List[T]]):
         self.period = period
 
     def _accept(self, visitor: "AVisitor") -> Any:
-        return visitor.visitBatchPipe(self)
+        return visitor.visit_batch_pipe(self)
 
     def __str__(self) -> str:
         return f"Batch(elements by groups of {self.size} element{'s' if self.size > 1 else ''}, or over a period of {self.period} second{'s' if self.period > 1 else ''})"
@@ -362,7 +362,7 @@ class CatchPipe(APipe[T]):
         self.when = when
 
     def _accept(self, visitor: "AVisitor") -> Any:
-        return visitor.visitCatchPipe(self)
+        return visitor.visit_catch_pipe(self)
 
     def __str__(self) -> str:
         return f"Catch(exception instances of classes [{', '.join(map(lambda class_: class_.__name__, self.classes))}]{', with an additional `when` condition' if self.when is not None else ''})"
@@ -374,7 +374,7 @@ class ChainPipe(APipe[T]):
         self.others = others
 
     def _accept(self, visitor: "AVisitor") -> Any:
-        return visitor.visitChainPipe(self)
+        return visitor.visit_chain_pipe(self)
 
     def __str__(self) -> str:
         return f"Chain({len(self.others)+1} pipes)"  # TODO itricate explains
@@ -386,7 +386,7 @@ class SlowPipe(APipe[T]):
         self.freq = freq
 
     def _accept(self, visitor: "AVisitor") -> Any:
-        return visitor.visitSlowPipe(self)
+        return visitor.visit_slow_pipe(self)
 
     def __str__(self) -> str:
         return f"Slow(at a maximum frequancy of {self.freq} element{'s' if self.freq > 1 else ''} per second)"

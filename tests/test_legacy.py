@@ -522,7 +522,7 @@ class TestPipe(unittest.TestCase):
             Counter(list(range(N)) + list(range(N)) + list(range(N))),
         )
 
-    def test_str(self) -> None:
+    def test_repr(self) -> None:
         p = (
             Pipe(range(8).__iter__)
             .filter(lambda _: True)
