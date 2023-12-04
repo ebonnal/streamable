@@ -52,9 +52,10 @@ class FlatteningIteratorWrapper(IteratorWrapper[R]):
 
 
 class LoggingIteratorWrapper(IteratorWrapper[T]):
-    def __init__(self, iterator: Iterator[T], what: str) -> None:
+    def __init__(self, iterator: Iterator[T], what: str, colored: bool) -> None:
         super().__init__(iterator)
         self.what = what
+        self.colored = colored
         self.yields_count = 0
         self.errors_count = 0
         self.last_log_at_yields_count: Optional[int] = None
@@ -63,11 +64,16 @@ class LoggingIteratorWrapper(IteratorWrapper[T]):
 
     def _log(self) -> None:
         errors_summary = f"with {self.errors_count} error{'s' if self.errors_count > 1 else ''} produced"
-        if self.errors_count > 0:
+        if self.colored and self.errors_count > 0:
             errors_summary = _util.bold(_util.colorize_in_red(errors_summary))
-        yields_summary = _util.bold(
-            f"{self.yields_count} {self.what[:-1] if self.yields_count <= 1 and self.what.endswith('s') else self.what} have been yielded"
+        what = (
+            self.what[:-1]
+            if self.yields_count <= 1 and self.what.endswith("s")
+            else self.what
         )
+        yields_summary = f"{self.yields_count} {what} have been yielded"
+        if self.colored:
+            yields_summary = _util.bold(yields_summary)
         elapsed_time = f"in elapsed time {datetime.fromtimestamp(time.time()) - datetime.fromtimestamp(self.start_time)}"
         _util.LOGGER.info("%s, %s, %s", yields_summary, elapsed_time, errors_summary)
 

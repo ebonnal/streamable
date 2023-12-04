@@ -465,6 +465,15 @@ class TestPipe(unittest.TestCase):
             [[1, 2], [3]],
         )
 
+        (
+            Pipe("12-3".__iter__)
+            .log("chars")
+            .map(int)
+            .log("ints", colored=True)
+            .batch(2)
+            .superintend(raise_if_more_errors_than=1)
+        )
+
     def test_partial_iteration(self) -> None:
         first_elem = next(
             iter(
@@ -522,7 +531,7 @@ class TestPipe(unittest.TestCase):
             Counter(list(range(N)) + list(range(N)) + list(range(N))),
         )
 
-    def test_repr(self) -> None:
+    def test_explain(self) -> None:
         p = (
             Pipe(range(8).__iter__)
             .filter(lambda _: True)
@@ -538,9 +547,10 @@ class TestPipe(unittest.TestCase):
             )
             .catch(ValueError, TypeError, when=lambda e: True)
         )
-        a = repr(p)
+        a = p.explain()
         p.collect()
-        b = repr(p)
+        b = p.explain()
+        c = p.explain(colored=True)
         self.assertEqual(a, b)
-        self.assertGreater(len(a), 32)
-        print(a)
+        self.assertGreater(len(c), len(a))
+        print(c)

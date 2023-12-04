@@ -2,7 +2,7 @@ from setuptools import find_packages, setup # type: ignore
 
 setup(
     name='kioss',
-    version='0.6.4',
+    version='0.6.6',
     packages=find_packages(),
     package_data={"kioss": ["py.typed"]},
     url='http://github.com/bonnal-enzo/kioss',

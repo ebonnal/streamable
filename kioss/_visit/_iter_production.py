@@ -68,4 +68,6 @@ class IteratorProducingVisitor(AVisitor):
         )
 
     def visit_log_pipe(self, pipe: _pipe.LogPipe[T]) -> Iterator[T]:
-        return _core.LoggingIteratorWrapper(pipe.upstream._accept(self), pipe.what)
+        return _core.LoggingIteratorWrapper(
+            pipe.upstream._accept(self), pipe.what, pipe.colored
+        )

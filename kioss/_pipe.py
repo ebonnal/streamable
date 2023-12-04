@@ -38,13 +38,10 @@ class APipe(Iterable[T], ABC):
     def __add__(self, other: "APipe[T]") -> "APipe[T]":
         return self.chain(other)
 
-    def __repr__(self) -> str:
-        """
-        Explain the plan of the pipe
-        """
+    def explain(self, colored: bool = False) -> str:
         if EXPLAINING_VISITOR_CLASS is None:
             raise ValueError("_pipe.EXPLAINING_VISITOR_CLASS is None")
-        return self._accept(EXPLAINING_VISITOR_CLASS())
+        return self._accept(EXPLAINING_VISITOR_CLASS(colored))
 
     @abstractmethod
     def _accept(self, visitor: "AVisitor") -> Any:
@@ -175,17 +172,18 @@ class APipe(Iterable[T], ABC):
         """
         return CatchPipe(self, *classes, when=when)
 
-    def log(self, what: str = "elements") -> "APipe[T]":
+    def log(self, what: str = "elements", colored: bool = False) -> "APipe[T]":
         """
         Log the elements of the Pipe as they are iterated.
 
         Args:
             what (str): name the objects yielded by the pipe for clearer logs, must be a plural descriptor.
+            colored (bool): whether or not to use ascii colorization.
 
         Returns:
             Pipe[T]: A new Pipe instance with logging capability.
         """
-        return LogPipe(self, what)
+        return LogPipe(self, what, colored)
 
     def collect(self, n_samples: Optional[int] = None) -> List[T]:
         """
@@ -239,7 +237,7 @@ class APipe(Iterable[T], ABC):
             return True
 
         safe_plan = plan.catch(Exception, when=register_error_sample)
-        _util.LOGGER.info(repr(safe_plan))
+        _util.LOGGER.info(safe_plan.explain(colored=False))
         samples = safe_plan.collect(n_samples=n_samples)
         if errors_count > 0:
             _util.LOGGER.error(
@@ -305,9 +303,10 @@ class DoPipe(APipe[T]):
 
 
 class LogPipe(APipe[T]):
-    def __init__(self, upstream: APipe[T], what: str = "elements"):
+    def __init__(self, upstream: APipe[T], what: str, colored: bool):
         self.upstream: APipe[T] = upstream
         self.what = what
+        self.colored = colored
 
     def _accept(self, visitor: "AVisitor") -> Any:
         return visitor.visit_log_pipe(self)

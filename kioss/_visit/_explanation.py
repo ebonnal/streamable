@@ -7,21 +7,34 @@ from kioss._visit._base import AVisitor
 class ExplainingVisitor(AVisitor):
     HEADER = "Pipe's plan:"
 
-    def __init__(self, initial_margin: int = 0, add_header: bool = True):
+    def __init__(self, colored: bool, initial_margin: int = 0, add_header: bool = True):
+        self.colored = colored
         self.current_margin = initial_margin
         self.margin_step = 2
         self.add_header = add_header
 
     def additional_explain_lines(self, name: str, descr: str) -> str:
-        return f"{' '*self.current_margin}{_util.colorize_in_grey('└' + '─'*(self.margin_step - 1))}•{_util.colorize_in_red(name)}({descr})\n"
+        margin = " " * self.current_margin
+        if self.add_header:
+            linking_symbols = " " * self.margin_step + "•"
+        else:
+            linking_symbols = "└" + "─" * (self.margin_step - 1) + "•"
+
+        if self.colored:
+            linking_symbols = _util.colorize_in_grey(linking_symbols)
+            name = _util.colorize_in_red(name)
+        return f"{margin}{linking_symbols}{name}({descr})\n"
 
     def visit_any_pipe(self, pipe: _pipe.APipe, name: str, descr: str) -> str:
+        additional_explain_lines = self.additional_explain_lines(name, descr)
         if self.add_header:
-            header = _util.bold(ExplainingVisitor.HEADER) + "\n"
+            if self.colored:
+                header = _util.bold(ExplainingVisitor.HEADER) + "\n"
+            else:
+                header = ExplainingVisitor.HEADER + "\n"
             self.add_header = False
         else:
             header = ""
-        additional_explain_lines = self.additional_explain_lines(name, descr)
         self.current_margin += self.margin_step
         if pipe.upstream is not None:
             upstream_repr = pipe.upstream._accept(self)
@@ -37,7 +50,9 @@ class ExplainingVisitor(AVisitor):
         chained_pipes_repr = "".join(
             map(
                 lambda pipe: pipe._accept(
-                    ExplainingVisitor(self.current_margin, add_header=False)
+                    ExplainingVisitor(
+                        self.colored, self.current_margin, add_header=False
+                    )
                 ),
                 pipe.others,
             )
