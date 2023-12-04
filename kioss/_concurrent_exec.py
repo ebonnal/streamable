@@ -3,11 +3,9 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from queue import Queue
 from typing import (
-    Any,
     Callable,
     Iterable,
     Iterator,
-    List,
     Optional,
     Set,
     TypeVar,

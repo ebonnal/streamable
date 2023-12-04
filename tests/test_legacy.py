@@ -536,7 +536,7 @@ class TestPipe(unittest.TestCase):
             .flatten(n_threads=4)
             .slow(64)
             .log('slowed elems')
-            .chain(Pipe([].__iter__), Pipe([].__iter__))
+            .chain(Pipe([].__iter__).filter(lambda e: True).log('other 1'), Pipe([].__iter__).log('other 2'))
             .catch(ValueError, TypeError, when=lambda e: True)
         )
         a = repr(p)

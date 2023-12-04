@@ -62,16 +62,12 @@ class LoggingIteratorWrapper(IteratorWrapper[T]):
         _util.LOGGER.info("iteration over '%s' will be logged.", self.what)
 
     def _log(self) -> None:
-        _util.LOGGER.info(
-            "%s `%s` have been yielded in elapsed time '%s' with %s errors produced",
-            self.yields_count,
-            self.what,
-            str(
-                datetime.fromtimestamp(time.time())
-                - datetime.fromtimestamp(self.start_time)
-            ),
-            self.errors_count,
-        )
+        errors_summary = f"with {self.errors_count} error{'s' if self.errors_count > 1 else ''} produced"
+        if self.errors_count > 0:
+            errors_summary = _util.bold(_util.colorize_in_red(errors_summary))
+        yields_summary = _util.bold(f"{self.yields_count} {self.what[:-1] if self.yields_count <= 1 and self.what.endswith('s') else self.what} have been yielded")
+        elapsed_time = f"in elapsed time {datetime.fromtimestamp(time.time()) - datetime.fromtimestamp(self.start_time)}"
+        _util.LOGGER.info("%s, %s, %s", yields_summary, elapsed_time, errors_summary)
 
     def __next__(self) -> T:
         to_be_raised: Optional[Exception] = None
