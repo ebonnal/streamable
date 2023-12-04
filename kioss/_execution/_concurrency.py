@@ -62,10 +62,8 @@ class ThreadedMappingIterable(Iterable[Union[R, _ExceptionContainer]]):
                 try:
                     while (
                         not iterator_exhausted
-                        and executor._work_queue.qsize()
-                        < self.max_queue_size
-                        and n_iterated_elems - n_yields
-                        < self.max_queue_size
+                        and executor._work_queue.qsize() < self.max_queue_size
+                        and n_iterated_elems - n_yields < self.max_queue_size
                     ):
                         try:
                             elem = next(self.iterator)
@@ -81,8 +79,7 @@ class ThreadedMappingIterable(Iterable[Union[R, _ExceptionContainer]]):
                             return
                         if (
                             not iterator_exhausted
-                            and executor._work_queue.qsize()
-                            < self.max_queue_size // 2
+                            and executor._work_queue.qsize() < self.max_queue_size // 2
                         ):
                             break
                 except Exception as e:
@@ -106,8 +103,7 @@ class ThreadedFlatteningIteratorWrapper(ThreadedMappingIteratorWrapper[T]):
             while True:
                 while (
                     not self.iterator_iterator_exhausted
-                    and len(self.iterators_pool)
-                    < self.pool_size
+                    and len(self.iterators_pool) < self.pool_size
                 ):
                     try:
                         elem = next(self.iterator_iterator)
@@ -155,7 +151,9 @@ class ThreadedFlatteningIteratorWrapper(ThreadedMappingIteratorWrapper[T]):
 
     def __init__(self, iterator: Iterator[Iterator[T]], n_workers: int):
         super().__init__(
-            ThreadedFlatteningIteratorWrapper.IteratorIteratorNextsShuffler(iterator, pool_size=n_workers*16),
+            ThreadedFlatteningIteratorWrapper.IteratorIteratorNextsShuffler(
+                iterator, pool_size=n_workers * 16
+            ),
             func=lambda f: f(),
             n_workers=n_workers,
         )
