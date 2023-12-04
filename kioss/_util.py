@@ -1,5 +1,5 @@
 from typing import Any, Callable, Iterable, Iterator, Type, TypeVar, Union
-
+from typing_extensions import TypeGuard
 import logging
 
 LOGGER = logging.getLogger("kioss")
@@ -43,7 +43,7 @@ def identity(obj: T) -> T:
     return obj
 
 
-def duck_check_type_is_iterator(expected_iterator: Any) -> None:
+def duck_check_type_is_iterator(expected_iterator: Any) -> TypeGuard[Iterator]:
     """
     Raises:
         TypeError: If the expected_iterator does not implement __iter__ and __next__ methods.
@@ -72,3 +72,5 @@ def duck_check_type_is_iterator(expected_iterator: Any) -> None:
         raise TypeError(
             f"Provided object is not an iterator because it implements the __iter__ but not the __next__ one."
         )
+
+    return True

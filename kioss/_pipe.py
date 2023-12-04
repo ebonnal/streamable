@@ -288,7 +288,7 @@ class MapPipe(APipe[R]):
         return visitor.visitMapPipe(self)
 
     def __str__(self) -> str:
-        return f"Map(function of type {type(self.func)}, using {self.n_threads} threads)"
+        return f"Map(function of type {type(self.func)}, using {self.n_threads} thread{'s' if self.n_threads > 1 else ''})"
 
 class LogPipe(APipe[T]):
     def __init__(self, upstream: APipe[T], what: str = "elements"):
@@ -310,7 +310,7 @@ class FlattenPipe(APipe[T]):
         return visitor.visitFlattenPipe(self)
 
     def __str__(self) -> str:
-        return f"Flatten(using {self.n_threads} threads)"
+        return f"Flatten(using {self.n_threads} thread{'s' if self.n_threads > 1 else ''})"
 
 class BatchPipe(APipe[List[T]]):
     def __init__(self, upstream: APipe[T], size: int, period: float):
@@ -322,7 +322,7 @@ class BatchPipe(APipe[List[T]]):
         return visitor.visitBatchPipe(self)
 
     def __str__(self) -> str:
-        return f"Batch(elements by groups of {self.size}, or over a period of {self.period} seconds)"
+        return f"Batch(elements by groups of {self.size} element{'s' if self.size > 1 else ''}, or over a period of {self.period} second{'s' if self.period > 1 else ''})"
 
 class CatchPipe(APipe[T]):
     def __init__(

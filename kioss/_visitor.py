@@ -98,7 +98,6 @@ class ExplainingVisitor(AVisitor):
         return self.visitAnyPipe(pipe)
 
 class IteratorGeneratingVisitor(AVisitor):
-
     def visitSourcePipe(self, pipe: _pipe.SourcePipe[T]) -> Iterator[T]:
         iterator = pipe.source()
         try:
@@ -134,7 +133,7 @@ class IteratorGeneratingVisitor(AVisitor):
 
     def visitBatchPipe(self, pipe: _pipe.BatchPipe[T]) -> Iterator[List[T]]:
         return _exec.BatchingIteratorWrapper(
-            iter(pipe.upstream), pipe.size, pipe.period
+            pipe.upstream._accept(self), pipe.size, pipe.period
         )
 
     def visitSlowPipe(self, pipe: _pipe.SlowPipe[T]) -> Iterator[T]:
