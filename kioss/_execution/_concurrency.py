@@ -9,39 +9,50 @@ from typing import (
     Optional,
     Set,
     TypeVar,
+    Union,
 )
 
-from kioss._exec import IteratorWrapper
+from kioss._execution._core import IteratorWrapper
 
 T = TypeVar("T")
 R = TypeVar("R")
 
 
 @dataclass
-class ExceptionContainer(Exception):
+class _ExceptionContainer(Exception):
     exception: Exception
 
 
+class _Skip:
+    pass
+
+
 class ThreadedMappingIteratorWrapper(IteratorWrapper[R]):
-    def __init__(self, iterator: Iterator[T], func: Callable[[T], R], n_workers: int):
+    def __init__(
+        self,
+        iterator: Iterator[T],
+        func: Callable[[T], Union[R, _Skip]],
+        n_workers: int,
+    ):
         super().__init__(iter(ThreadedMappingIterable(iterator, func, n_workers)))
 
     def __next__(self) -> R:
-        elem = super().__next__()
-        if isinstance(elem, ExceptionContainer):
-            raise elem.exception
-        return elem
+        while True:
+            elem = next(self.iterator)
+            if isinstance(elem, _ExceptionContainer):
+                raise elem.exception
+            if elem != ThreadedFlatteningIteratorWrapper._SKIP:
+                return elem
 
 
-class ThreadedMappingIterable(Iterable[R]):
-    _MAX_QUEUE_SIZE = 32
-
+class ThreadedMappingIterable(Iterable[Union[R, _ExceptionContainer]]):
     def __init__(self, iterator: Iterator[T], func: Callable[[T], R], n_workers: int):
         self.iterator = iterator
         self.func = func
         self.n_workers = n_workers
+        self.max_queue_size = n_workers * 16
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Union[R, _ExceptionContainer]]:
         futures: "Queue[Future]" = Queue()
         iterator_exhausted = False
         n_yields = 0
@@ -51,10 +62,8 @@ class ThreadedMappingIterable(Iterable[R]):
                 try:
                     while (
                         not iterator_exhausted
-                        and executor._work_queue.qsize()
-                        < ThreadedMappingIterable._MAX_QUEUE_SIZE
-                        and n_iterated_elems - n_yields
-                        < ThreadedMappingIterable._MAX_QUEUE_SIZE
+                        and executor._work_queue.qsize() < self.max_queue_size
+                        and n_iterated_elems - n_yields < self.max_queue_size
                     ):
                         try:
                             elem = next(self.iterator)
@@ -70,33 +79,31 @@ class ThreadedMappingIterable(Iterable[R]):
                             return
                         if (
                             not iterator_exhausted
-                            and executor._work_queue.qsize()
-                            < ThreadedMappingIterable._MAX_QUEUE_SIZE // 2
+                            and executor._work_queue.qsize() < self.max_queue_size // 2
                         ):
                             break
                 except Exception as e:
-                    yield ExceptionContainer(e)
+                    yield _ExceptionContainer(e)
 
 
 class ThreadedFlatteningIteratorWrapper(ThreadedMappingIteratorWrapper[T]):
-    _SKIP = []
-    _BUFFER_SIZE = 32
+    _SKIP: _Skip = _Skip()
     _INIT_RETRY_BACKFOFF = 0.0005
 
-    class IteratorIteratorNextsShuffler(Iterator[Callable[[], T]]):
-        def __init__(self, iterator_iterator: Iterator[Iterator[T]]):
+    class IteratorIteratorNextsShuffler(Iterator[Callable[[], Union[T, _Skip]]]):
+        def __init__(self, iterator_iterator: Iterator[Iterator[T]], pool_size: int):
             self.iterator_iterator = iterator_iterator
             self.iterator_iterator_exhausted = False
+            self.pool_size = pool_size
             self.iterators_pool: Set[Iterator[T]] = set()
             self.iterators_being_iterated: Set[Iterator[T]] = set()
 
-        def __next__(self):
+        def __next__(self) -> Callable[[], Union[T, _Skip]]:
             backoff = ThreadedFlatteningIteratorWrapper._INIT_RETRY_BACKFOFF
             while True:
                 while (
                     not self.iterator_iterator_exhausted
-                    and len(self.iterators_pool)
-                    < ThreadedFlatteningIteratorWrapper._BUFFER_SIZE
+                    and len(self.iterators_pool) < self.pool_size
                 ):
                     try:
                         elem = next(self.iterator_iterator)
@@ -122,7 +129,7 @@ class ThreadedFlatteningIteratorWrapper(ThreadedMappingIteratorWrapper[T]):
                     backoff *= 2
                     continue
 
-                def f():
+                def f() -> Union[T, _Skip]:
                     exhausted = False
                     to_be_raised: Optional[Exception] = None
                     try:
@@ -144,13 +151,9 @@ class ThreadedFlatteningIteratorWrapper(ThreadedMappingIteratorWrapper[T]):
 
     def __init__(self, iterator: Iterator[Iterator[T]], n_workers: int):
         super().__init__(
-            ThreadedFlatteningIteratorWrapper.IteratorIteratorNextsShuffler(iterator),
+            ThreadedFlatteningIteratorWrapper.IteratorIteratorNextsShuffler(
+                iterator, pool_size=n_workers * 16
+            ),
             func=lambda f: f(),
             n_workers=n_workers,
         )
-
-    def __next__(self) -> T:
-        while True:
-            elem = super().__next__()
-            if elem != ThreadedFlatteningIteratorWrapper._SKIP:
-                return elem

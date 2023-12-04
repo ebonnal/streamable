@@ -1,8 +1,8 @@
-from setuptools import setup
+from setuptools import setup # type: ignore
 
 setup(
     name='kioss',
-    version='0.5.2',
+    version='0.6.0',
     packages=['kioss'],
     url='http://github.com/bonnal-enzo/kioss',
     license='Apache 2.',
