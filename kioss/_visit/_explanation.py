@@ -9,7 +9,7 @@ class ExplainingVisitor(AVisitor):
 
     def __init__(self, initial_margin: int = 0, add_header: bool = True):
         self.current_margin = initial_margin
-        self.margin_step = 4
+        self.margin_step = 2
         self.add_header = add_header
 
     def additional_explain_lines(self, pipe: _pipe.APipe) -> str:
