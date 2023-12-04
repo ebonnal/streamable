@@ -7,7 +7,7 @@ from typing import (
     TypeVar,
 )
 
-from kioss import _exec, _concurrent_exec, _util, _plan, _visitor
+from kioss import _exec, _concurrent_exec, _pipe, _util, _visitor
 
 V = TypeVar("V")
 T = TypeVar("T")
@@ -15,7 +15,7 @@ U = TypeVar("U")
 
 class IteratorGeneratingVisitor(_visitor.AVisitor):
 
-    def visitSourcePipe(self, pipe: _plan.SourcePipe[T]) -> Iterator[T]:
+    def visitSourcePipe(self, pipe: _pipe.SourcePipe[T]) -> Iterator[T]:
         iterator = pipe.source()
         try:
             # duck-type checks that the object returned by the source is an iterator
@@ -26,7 +26,7 @@ class IteratorGeneratingVisitor(_visitor.AVisitor):
             ) from e
         return iterator
 
-    def visitMapPipe(self, pipe: _plan.MapPipe[T]) -> Iterator[T]:
+    def visitMapPipe(self, pipe: _pipe.MapPipe[T]) -> Iterator[T]:
         if pipe.n_threads == 1:
             return map(pipe.func, iter(pipe.upstream))
         else:
@@ -34,8 +34,8 @@ class IteratorGeneratingVisitor(_visitor.AVisitor):
                 iter(pipe.upstream), pipe.func, n_workers=pipe.n_threads
             ) 
 
-    def visitFlattenPipe(self, pipe: _plan.FlattenPipe[T]) -> Iterator[T]:
-        upstream_pipe: _plan.APipe[Iterator[T]] = pipe.upstream
+    def visitFlattenPipe(self, pipe: _pipe.FlattenPipe[T]) -> Iterator[T]:
+        upstream_pipe: _pipe.APipe[Iterator[T]] = pipe.upstream
         if pipe.n_threads == 1:
             return _exec.FlatteningIteratorWrapper(iter(upstream_pipe))
         else:
@@ -43,24 +43,24 @@ class IteratorGeneratingVisitor(_visitor.AVisitor):
                 iter(pipe.upstream), n_workers=pipe.n_threads
             )
 
-    def visitChainPipe(self, pipe: _plan.ChainPipe[T]) -> Iterator[T]:
+    def visitChainPipe(self, pipe: _pipe.ChainPipe[T]) -> Iterator[T]:
         return itertools.chain(iter(pipe.upstream), *list(map(iter, pipe.others)))
 
-    def visitFilterPipe(self, pipe: _plan.FilterPipe[T]) -> Iterator[T]:
+    def visitFilterPipe(self, pipe: _pipe.FilterPipe[T]) -> Iterator[T]:
         return filter(pipe.predicate, iter(pipe.upstream))
 
-    def visitBatchPipe(self, pipe: _plan.BatchPipe[U]) -> Iterator[List[U]]:
+    def visitBatchPipe(self, pipe: _pipe.BatchPipe[U]) -> Iterator[List[U]]:
         return _exec.BatchingIteratorWrapper(
             iter(pipe.upstream), pipe.size, pipe.period
         )
 
-    def visitSlowPipe(self, pipe: _plan.SlowPipe[T]) -> Iterator[T]:
+    def visitSlowPipe(self, pipe: _pipe.SlowPipe[T]) -> Iterator[T]:
         return _exec.SlowingIteratorWrapper(iter(pipe.upstream), pipe.freq)
 
-    def visitCatchPipe(self, pipe: _plan.CatchPipe[T]) -> Iterator[T]:
+    def visitCatchPipe(self, pipe: _pipe.CatchPipe[T]) -> Iterator[T]:
         return _exec.CatchingIteratorWrapper(
             iter(pipe.upstream), *pipe.classes, when=pipe.when
         )
 
-    def visitLogPipe(self, pipe: _plan.LogPipe[T]) -> Iterator[T]:
+    def visitLogPipe(self, pipe: _pipe.LogPipe[T]) -> Iterator[T]:
         return _exec.LoggingIteratorWrapper(iter(pipe.upstream), pipe.what)

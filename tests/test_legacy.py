@@ -525,3 +525,23 @@ class TestPipe(unittest.TestCase):
             ),
             Counter(list(range(N)) + list(range(N)) + list(range(N))),
         )
+
+    def test_str(self) -> None:
+        p = (
+            Pipe(range(8).__iter__)
+            .filter(lambda _: True)
+            .batch(100)
+            .log('batches')
+            .map(iter)
+            .flatten(n_threads=4)
+            .slow(64)
+            .log('slowed elems')
+            .chain(Pipe([].__iter__), Pipe([].__iter__))
+            .catch(ValueError, TypeError, when=lambda e: True)
+        )
+        a = repr(p)
+        p.collect()
+        b = repr(p)
+        self.assertEqual(a, b)
+        self.assertGreater(len(a), 32)
+        print(a)
