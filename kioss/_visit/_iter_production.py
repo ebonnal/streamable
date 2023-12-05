@@ -1,5 +1,6 @@
 import itertools
 from typing import (
+    Any,
     Iterator,
     List,
     TypeVar,
@@ -7,12 +8,12 @@ from typing import (
 
 from kioss import _pipe, _util
 from kioss._execution import _concurrency, _core
-from kioss._visit._base import AVisitor
+from kioss._visit._base import Visitor
 
 T = TypeVar("T")
 
 
-class IteratorProducingVisitor(AVisitor[Iterator]):
+class IteratorProducingVisitor(Visitor[Iterator]):
     def visit_source_pipe(self, pipe: _pipe.SourcePipe[T]) -> Iterator[T]:
         iterator = pipe.source()
         try:
@@ -27,7 +28,8 @@ class IteratorProducingVisitor(AVisitor[Iterator]):
     def visit_map_pipe(self, pipe: _pipe.MapPipe[T]) -> Iterator[T]:
         func = _util.map_exception(pipe.func, source=StopIteration, target=RuntimeError)
         if pipe.n_threads == 1:
-            return map(func, pipe.upstream._accept(self))
+            it: Iterator[T] = pipe.upstream._accept(self)
+            return map(func, it)
         else:
             return _concurrency.ThreadedMappingIteratorWrapper(
                 pipe.upstream._accept(self), func, n_workers=pipe.n_threads
@@ -47,12 +49,15 @@ class IteratorProducingVisitor(AVisitor[Iterator]):
             )
 
     def visit_chain_pipe(self, pipe: _pipe.ChainPipe[T]) -> Iterator[T]:
-        return itertools.chain(
-            pipe.upstream._accept(self), *list(map(iter, pipe.others))
+        it: Iterator[T] = pipe.upstream._accept(self)
+        other_its: List[Iterator[T]] = list(
+            map(lambda pipe: pipe._accept(self), pipe.others)
         )
+        return itertools.chain(it, *other_its)
 
     def visit_filter_pipe(self, pipe: _pipe.FilterPipe[T]) -> Iterator[T]:
-        return filter(pipe.predicate, pipe.upstream._accept(self))
+        it: Iterator[T] = pipe.upstream._accept(self)
+        return filter(pipe.predicate, it)
 
     def visit_batch_pipe(self, pipe: _pipe.BatchPipe[T]) -> Iterator[List[T]]:
         return _core.BatchingIteratorWrapper(

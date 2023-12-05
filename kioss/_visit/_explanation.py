@@ -1,10 +1,10 @@
 from typing import Any
 
 from kioss import _pipe, _util
-from kioss._visit._base import AVisitor
+from kioss._visit._base import Visitor
 
 
-class ExplainingVisitor(AVisitor[str]):
+class ExplainingVisitor(Visitor[str]):
     HEADER = "Pipe's plan:"
 
     def __init__(self, colored: bool, initial_margin: int = 0, add_header: bool = True):

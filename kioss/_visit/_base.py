@@ -6,7 +6,7 @@ from kioss import _pipe
 V = TypeVar("V")
 
 
-class AVisitor(Generic[V], ABC):
+class Visitor(Generic[V], ABC):
     def __init__(self, *args, **kwargs):
         pass
 

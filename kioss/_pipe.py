@@ -15,18 +15,19 @@ from kioss import _util
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from kioss._visit._base import AVisitor
+    from kioss._visit._base import Visitor
 
 T = TypeVar("T")
 U = TypeVar("U")
 R = TypeVar("R")
+V = TypeVar("V")
 
 
 class Pipe(Iterable[T], ABC):
     upstream: "Optional[Pipe]"
     SOURCE_PIPE_CLASS: Optional[Type["SourcePipe"]] = None
-    ITERATOR_PRODUCING_VISITOR_CLASS: Optional[Type["AVisitor[Iterator]"]] = None
-    EXPLAINING_VISITOR_CLASS: Optional[Type["AVisitor[str]"]] = None
+    ITERATOR_PRODUCING_VISITOR_CLASS: Optional[Type["Visitor[Iterator]"]] = None
+    EXPLAINING_VISITOR_CLASS: Optional[Type["Visitor[str]"]] = None
 
     def __iter__(self) -> Iterator[T]:
         if Pipe.ITERATOR_PRODUCING_VISITOR_CLASS is None:
@@ -52,7 +53,7 @@ class Pipe(Iterable[T], ABC):
         return self._accept(Pipe.EXPLAINING_VISITOR_CLASS(colored))
 
     @abstractmethod
-    def _accept(self, visitor: "AVisitor") -> Any:
+    def _accept(self, visitor: "Visitor[V]") -> V:
         raise NotImplementedError()
 
     @staticmethod
@@ -277,7 +278,7 @@ class SourcePipe(Pipe[T]):
             )
         self.source = source
 
-    def _accept(self, visitor: "AVisitor") -> Any:
+    def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_source_pipe(self)
 
 
@@ -289,7 +290,7 @@ class FilterPipe(Pipe[T]):
         self.upstream: Pipe[T] = upstream
         self.predicate = predicate
 
-    def _accept(self, visitor: "AVisitor") -> Any:
+    def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_filter_pipe(self)
 
 
@@ -299,7 +300,7 @@ class MapPipe(Pipe[R]):
         self.func = func
         self.n_threads = n_threads
 
-    def _accept(self, visitor: "AVisitor") -> Any:
+    def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_map_pipe(self)
 
 
@@ -309,7 +310,7 @@ class DoPipe(Pipe[T]):
         self.func = func
         self.n_threads = n_threads
 
-    def _accept(self, visitor: "AVisitor") -> Any:
+    def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_do_pipe(self)
 
 
@@ -319,7 +320,7 @@ class LogPipe(Pipe[T]):
         self.what = what
         self.colored = colored
 
-    def _accept(self, visitor: "AVisitor") -> Any:
+    def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_log_pipe(self)
 
 
@@ -328,7 +329,7 @@ class FlattenPipe(Pipe[T]):
         self.upstream: Pipe[Iterator[T]] = upstream
         self.n_threads = n_threads
 
-    def _accept(self, visitor: "AVisitor") -> Any:
+    def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_flatten_pipe(self)
 
 
@@ -338,7 +339,7 @@ class BatchPipe(Pipe[List[T]]):
         self.size = size
         self.period = period
 
-    def _accept(self, visitor: "AVisitor") -> Any:
+    def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_batch_pipe(self)
 
 
@@ -353,7 +354,7 @@ class CatchPipe(Pipe[T]):
         self.classes = classes
         self.when = when
 
-    def _accept(self, visitor: "AVisitor") -> Any:
+    def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_catch_pipe(self)
 
 
@@ -362,7 +363,7 @@ class ChainPipe(Pipe[T]):
         self.upstream: Pipe[T] = upstream
         self.others = others
 
-    def _accept(self, visitor: "AVisitor") -> Any:
+    def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_chain_pipe(self)
 
 
@@ -371,5 +372,5 @@ class SlowPipe(Pipe[T]):
         self.upstream: Pipe[T] = upstream
         self.freq = freq
 
-    def _accept(self, visitor: "AVisitor") -> Any:
+    def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_slow_pipe(self)
