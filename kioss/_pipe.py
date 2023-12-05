@@ -1,6 +1,7 @@
-from abc import ABC, abstractmethod
 import inspect
+from abc import ABC, abstractmethod
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Iterable,
@@ -12,7 +13,6 @@ from typing import (
 )
 
 from kioss import _util
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from kioss._visit._base import Visitor

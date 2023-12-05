@@ -1,7 +1,7 @@
-from kioss._pipe import Pipe
 from kioss import _pipe
+from kioss._pipe import Pipe
 from kioss._util import LOGGER
-from kioss._visit import _iter_production, _explanation
+from kioss._visit import _explanation, _iter_production
 
 Pipe.ITERATOR_PRODUCING_VISITOR_CLASS = _iter_production.IteratorProducingVisitor
 Pipe.EXPLAINING_VISITOR_CLASS = _explanation.ExplainingVisitor

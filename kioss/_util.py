@@ -1,6 +1,7 @@
-from typing import Any, Callable, Iterable, Iterator, Type, TypeVar, Union
-from typing_extensions import TypeGuard
 import logging
+from typing import Any, Callable, Iterable, Iterator, Type, TypeVar, Union
+
+from typing_extensions import TypeGuard
 
 LOGGER = logging.getLogger("kioss")
 LOGGER.propagate = False

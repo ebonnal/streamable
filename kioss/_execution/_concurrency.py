@@ -2,15 +2,7 @@ import time
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from queue import Queue
-from typing import (
-    Callable,
-    Iterable,
-    Iterator,
-    Optional,
-    Set,
-    TypeVar,
-    Union,
-)
+from typing import Callable, Iterable, Iterator, Optional, Set, TypeVar, Union
 
 from kioss._execution._core import IteratorWrapper
 

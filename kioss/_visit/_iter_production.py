@@ -1,10 +1,5 @@
 import itertools
-from typing import (
-    Any,
-    Iterator,
-    List,
-    TypeVar,
-)
+from typing import Iterator, List, TypeVar
 
 from kioss import _pipe, _util
 from kioss._execution import _concurrency, _core
