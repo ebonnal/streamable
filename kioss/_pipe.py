@@ -10,6 +10,7 @@ from typing import (
     Optional,
     Type,
     TypeVar,
+    cast,
 )
 
 from kioss import _util
@@ -194,7 +195,7 @@ class Pipe(Iterable[T], ABC):
         """
         return LogPipe(self, what, colored)
 
-    def collect(self, n_samples: Optional[int] = None) -> List[T]:
+    def collect(self, n_samples: int = cast(int, float("inf"))) -> List[T]:
         """
         Convert the elements of the Pipe into a list. The entire pipe will be iterated, but only n_samples elements will be saved in the returned list.
 
