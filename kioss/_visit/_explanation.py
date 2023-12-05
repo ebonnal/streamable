@@ -4,7 +4,7 @@ from kioss import _pipe, _util
 from kioss._visit._base import AVisitor
 
 
-class ExplainingVisitor(AVisitor):
+class ExplainingVisitor(AVisitor[str]):
     HEADER = "Pipe's plan:"
 
     def __init__(self, colored: bool, initial_margin: int = 0, add_header: bool = True):
@@ -25,7 +25,7 @@ class ExplainingVisitor(AVisitor):
             name = _util.colorize_in_red(name)
         return f"{margin}{linking_symbols}{name}({descr})\n"
 
-    def visit_any_pipe(self, pipe: _pipe.APipe, name: str, descr: str) -> str:
+    def visit_any_pipe(self, pipe: _pipe.Pipe, name: str, descr: str) -> str:
         additional_explain_lines = self.additional_explain_lines(name, descr)
         if self.add_header:
             if self.colored:

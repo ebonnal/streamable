@@ -15,7 +15,7 @@ There is only 1 import:
 from kioss import Pipe
 ```
 
-A `Pipe` is an ***immutable*** `Iterable` that you instantiate with a function returning an `Iterator` (the data source).
+A `Pipe` is an ***immutable*** `Iterable` that you construct from a function returning an `Iterator` (the data source).
 
 You can then derive another `Pipe` from it by applying an operation on it.
 
@@ -61,7 +61,7 @@ from kioss import Pipe
 # Define your pipeline's plan:
 christmas_comments_integration_pipe: Pipe[str] = (
     # Read the comments made on your platform from your BigQuery datawarehouse
-    Pipe(bigquery.Client().query("SELECT text FROM fact.comment").result)
+    Pipe.from_source(bigquery.Client().query("SELECT text FROM fact.comment").result)
     .map(itemgetter("text"))
     .log(what="comments")
 

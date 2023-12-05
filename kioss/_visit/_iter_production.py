@@ -12,7 +12,7 @@ from kioss._visit._base import AVisitor
 T = TypeVar("T")
 
 
-class IteratorProducingVisitor(AVisitor):
+class IteratorProducingVisitor(AVisitor[Iterator]):
     def visit_source_pipe(self, pipe: _pipe.SourcePipe[T]) -> Iterator[T]:
         iterator = pipe.source()
         try:
