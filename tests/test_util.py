@@ -1,5 +1,4 @@
 import unittest
-from queue import Queue
 
 from kioss._util import sidify
 

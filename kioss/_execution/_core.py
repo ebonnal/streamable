@@ -1,7 +1,7 @@
 import time
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Callable, Iterator, List, Optional, Tuple, Type, TypeVar
+from typing import Callable, Iterator, List, Optional, Type, TypeVar
 
 T = TypeVar("T")
 R = TypeVar("R")

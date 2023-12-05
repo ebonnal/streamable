@@ -1,7 +1,6 @@
 import time
 import timeit
 import unittest
-
 from typing import TypeVar
 
 from kioss import Pipe
