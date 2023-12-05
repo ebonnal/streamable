@@ -223,7 +223,7 @@ class Pipe(Iterable[T], ABC):
         - else returns a sample of the output elements
 
         Args:
-            n_samples (int, optional): The maximum number of elements to collect in the list (default is infinity).
+            n_samples (int, optional): The maximum number of elements to collect in the list (default is 0).
             n_error_samples (int, optional): The maximum number of error samples to log (default is 8).
             raise_if_more_errors_than (int, optional): An error will be raised if the number of encountered errors is more than this threshold (default is 0).
         Returns:
