@@ -3,7 +3,7 @@ import time
 import timeit
 import unittest
 from collections import Counter
-from typing import Iterator, List, TypeVar
+from typing import Callable, Iterator, List, TypeVar
 
 from parameterized import parameterized  # type: ignore
 
@@ -56,6 +56,11 @@ class TestPipe(unittest.TestCase):
             list(range(8)),
         )
 
+    def test_flatten_typing(self) -> None:
+        a: Pipe[str] = Pipe.from_source("abc".__iter__).map(iter).flatten()
+        b: Pipe[str] = Pipe.from_source("abc".__iter__).map(list).flatten()
+        c: Pipe[str] = Pipe.from_source("abc".__iter__).map(set).flatten()
+
     @parameterized.expand([[1], [2], [3]])
     def test_flatten(self, n_threads: int):
         if n_threads == 1:
@@ -64,7 +69,6 @@ class TestPipe(unittest.TestCase):
                 list(
                     Pipe.from_source(["Hello World", "Happy to be here :)"].__iter__)
                     .map(str.split)
-                    .map(iter)
                     .flatten(n_threads=n_threads)
                 ),
                 ["Hello", "World", "Happy", "to", "be", "here", ":)"],
@@ -73,7 +77,6 @@ class TestPipe(unittest.TestCase):
             set(
                 Pipe.from_source(["Hello World", "Happy to be here :)"].__iter__)
                 .map(str.split)
-                .map(iter)
                 .flatten(n_threads=n_threads)
             ),
             {"Hello", "World", "Happy", "to", "be", "here", ":)"},
@@ -81,10 +84,8 @@ class TestPipe(unittest.TestCase):
         self.assertEqual(
             sum(
                 Pipe.from_source([["1 2 3", "4 5 6"], ["7", "8 9 10"]].__iter__)
-                .map(iter)
                 .flatten(n_threads=n_threads)
                 .map(str.split)
-                .map(iter)
                 .flatten(n_threads=n_threads)
                 .map(int)
             ),
@@ -113,11 +114,7 @@ class TestPipe(unittest.TestCase):
         self.assertAlmostEqual(
             timeit.timeit(
                 lambda: self.assertSetEqual(
-                    set(
-                        Pipe.from_source(pipes.__iter__)
-                        .map(iter)
-                        .flatten(n_threads=n_threads)
-                    ),
+                    set(Pipe.from_source(pipes.__iter__).flatten(n_threads=n_threads)),
                     set(range(N)),
                 ),
                 number=1,
@@ -138,9 +135,9 @@ class TestPipe(unittest.TestCase):
         self.assertEqual(
             next(
                 iter(
-                    Pipe.from_source([zeros(), zeros(), zeros()].__iter__)
-                    .map(iter)
-                    .flatten(n_threads=n_threads)
+                    Pipe.from_source([zeros(), zeros(), zeros()].__iter__).flatten(
+                        n_threads=n_threads
+                    )
                 )
             ),
             0,
@@ -156,7 +153,7 @@ class TestPipe(unittest.TestCase):
                 raise AssertionError()
             return x
 
-        get_pipe = lambda: (
+        get_pipe: Callable[[], Pipe[int]] = lambda: (
             Pipe.from_source(
                 lambda: map(
                     raise_for_4,
@@ -344,7 +341,6 @@ class TestPipe(unittest.TestCase):
             .map(int)
             .batch(2)
             .catch(ValueError, when=store_errors)
-            .map(iter)
             .flatten()
             .map(type)
             .collect(),
@@ -543,7 +539,7 @@ class TestPipe(unittest.TestCase):
 
     def test_invalid_source(self) -> None:
         self.assertRaises(TypeError, lambda: Pipe.from_source(range(3)))  # type: ignore
-        pipe_ok_at_construction: Pipe[int] = Pipe.from_source(lambda: range(3))  # type: ignore
+        pipe_ok_at_construction: Pipe[int] = Pipe.from_source(lambda: 0)  # type: ignore
         self.assertRaises(TypeError, lambda: pipe_ok_at_construction.collect())
 
     @parameterized.expand([[1], [2], [3]])
@@ -566,17 +562,16 @@ class TestPipe(unittest.TestCase):
             iter((ten_ms_identity(x) for x in range(N))) for _ in range(3)
         ]
         self.assertEqual(
-            Counter(Pipe.from_source(l.__iter__).map(iter).flatten(n_threads=2)),
+            Counter(Pipe.from_source(l.__iter__).flatten(n_threads=2)),
             Counter(list(range(N)) + list(range(N)) + list(range(N))),
         )
 
     def test_explain(self) -> None:
-        p = (
+        p: Pipe[int] = (
             Pipe.from_source(range(8).__iter__)
             .filter(lambda _: True)
             .batch(100)
             .log("batches")
-            .map(iter)
             .flatten(n_threads=4)
             .slow(64)
             .log("slowed elems")
@@ -593,3 +588,18 @@ class TestPipe(unittest.TestCase):
         self.assertEqual(a, b)
         self.assertGreater(len(c), len(a))
         print(c)
+
+    def test_accept_typing(self) -> None:
+        p: Pipe[str] = (
+            Pipe.from_source(lambda: range(10))
+            .batch()
+            .map(lambda b: list(map(str, b)))
+            .flatten()
+        )
+        it: Iterator[str] = iter(p)
+        from kioss._visit._iter_production import IteratorProducingVisitor
+
+        p._accept(IteratorProducingVisitor[str]())
+        from kioss._visit._explanation import ExplainingVisitor
+
+        p._accept(ExplainingVisitor())

@@ -15,7 +15,7 @@ There is only 1 import:
 from kioss import Pipe
 ```
 
-A `Pipe` is an ***immutable*** `Iterable` that you construct from a function returning an `Iterator` (the data source).
+A `Pipe` is an ***immutable*** `Iterable` that you construct from a function returning an `Iterable` (the data source).
 
 You can then derive another `Pipe` from it by applying an operation on it.
 
@@ -70,7 +70,6 @@ christmas_comments_integration_pipe: Pipe[str] = (
     .batch(size=20)
     .slow(freq=50)
     .map(translate.Client("en").translate, n_threads=4)
-    .map(iter)
     .flatten()
     .map(itemgetter("translatedText"))
     .log(what="comments translated in english")

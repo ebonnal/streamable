@@ -45,7 +45,7 @@ jobs:
 
     - name: checks
       run: |
-        # python -m autoflake --in-place --remove-all-unused-imports --remove-unused-variables -r kioss tests && python -m isort kioss tests && python -m black kioss tests
+        # python -m autoflake --in-place --remove-all-unused-imports --remove-unused-variables --ignore-init-module -r kioss tests && python -m isort kioss tests && python -m black kioss tests
         python -m pip install -r requirements.txt
-        python -m autoflake --in-place --remove-all-unused-imports --remove-unused-variables --check -r kioss tests
+        python -m autoflake --in-place --remove-all-unused-imports --remove-unused-variables --ignore-init-module --check -r kioss tests
         python -m black --check kioss/* tests/*

@@ -45,36 +45,17 @@ def identity(obj: T) -> T:
     return obj
 
 
-def duck_check_type_is_iterator(expected_iterator: Any) -> TypeGuard[Iterator]:
+def ducktype_assert_iterable(expected_iterator: Any) -> TypeGuard[Iterable]:
     """
     Raises:
         TypeError: If the expected_iterator does not implement __iter__ and __next__ methods.
     """
-
     try:
         expected_iterator.__iter__
-        implements__iter__ = True
     except AttributeError:
-        implements__iter__ = False
-    try:
-        expected_iterator.__next__
-        implements__next__ = True
-    except AttributeError:
-        implements__next__ = False
-
-    if not implements__iter__ and not implements__next__:
         raise TypeError(
-            f"Provided object is not an iterator because it does not implement __next__ and __iter__ methods"
+            f"Provided object is not an iterator because it does not implement the __iter__ methods."
         )
-    if not implements__iter__:
-        raise TypeError(
-            f"Provided object is not an iterator because it implements the __next__ but not the __iter__ one."
-        )
-    if not implements__next__:
-        raise TypeError(
-            f"Provided object is not an iterator because it implements the __iter__ but not the __next__ one."
-        )
-
     return True
 
 

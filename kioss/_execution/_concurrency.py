@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from queue import Queue
 from typing import Callable, Iterable, Iterator, Optional, Set, TypeVar, Union
 
+from kioss import _util
 from kioss._execution._core import IteratorWrapper
 
 T = TypeVar("T")
@@ -83,7 +84,7 @@ class ThreadedFlatteningIteratorWrapper(ThreadedMappingIteratorWrapper[T]):
     _INIT_RETRY_BACKFOFF = 0.0005
 
     class IteratorIteratorNextsShuffler(Iterator[Callable[[], Union[T, _Skip]]]):
-        def __init__(self, iterator_iterator: Iterator[Iterator[T]], pool_size: int):
+        def __init__(self, iterator_iterator: Iterator[Iterable[T]], pool_size: int):
             self.iterator_iterator = iterator_iterator
             self.iterator_iterator_exhausted = False
             self.pool_size = pool_size
@@ -99,11 +100,8 @@ class ThreadedFlatteningIteratorWrapper(ThreadedMappingIteratorWrapper[T]):
                 ):
                     try:
                         elem = next(self.iterator_iterator)
-                        if not isinstance(elem, Iterator):
-                            raise TypeError(
-                                f"Elements to be flattened have to be Iterators, but got '{elem}' of type{type(elem)}"
-                            )
-                        self.iterators_pool.add(elem)
+                        _util.ducktype_assert_iterable(elem)
+                        self.iterators_pool.add(iter(elem))
                     except StopIteration:
                         self.iterator_iterator_exhausted = True
 
@@ -141,7 +139,7 @@ class ThreadedFlatteningIteratorWrapper(ThreadedMappingIteratorWrapper[T]):
 
                 return f
 
-    def __init__(self, iterator: Iterator[Iterator[T]], n_workers: int):
+    def __init__(self, iterator: Iterator[Iterable[T]], n_workers: int):
         super().__init__(
             ThreadedFlatteningIteratorWrapper.IteratorIteratorNextsShuffler(
                 iterator, pool_size=n_workers * 16

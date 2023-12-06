@@ -1,7 +1,7 @@
 import time
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Callable, Iterator, List, Optional, Type, TypeVar
+from typing import Callable, Iterable, Iterator, List, Optional, Type, TypeVar
 
 T = TypeVar("T")
 R = TypeVar("R")
@@ -19,24 +19,18 @@ class IteratorWrapper(Iterator[T], ABC):
 
 
 class FlatteningIteratorWrapper(IteratorWrapper[R]):
-    def __init__(self, iterator: Iterator[Iterator[R]]) -> None:
+    def __init__(self, iterator: Iterator[Iterable[R]]) -> None:
         super().__init__(iterator)
         self.current_iterator_elem: Iterator[R] = iter([])
 
-    @staticmethod
-    def _sanitize_input(expected_iterator_elem):
-        _util.duck_check_type_is_iterator(expected_iterator_elem)
-        return expected_iterator_elem
-
     def __next__(self) -> R:
         try:
-            _util.duck_check_type_is_iterator(self.current_iterator_elem)
             return next(self.current_iterator_elem)
         except StopIteration:
             while True:
                 elem = next(self.iterator)
-                _util.duck_check_type_is_iterator(elem)
-                self.current_iterator_elem = elem
+                _util.ducktype_assert_iterable(elem)
+                self.current_iterator_elem = iter(elem)
                 try:
                     return next(self.current_iterator_elem)
                 except StopIteration:

@@ -7,7 +7,9 @@ from kioss._visit._base import Visitor
 class ExplainingVisitor(Visitor[str]):
     HEADER = "Pipe's plan:"
 
-    def __init__(self, colored: bool, initial_margin: int = 0, add_header: bool = True):
+    def __init__(
+        self, colored: bool = False, initial_margin: int = 0, add_header: bool = True
+    ):
         self.colored = colored
         self.current_margin = initial_margin
         self.margin_step = 2
