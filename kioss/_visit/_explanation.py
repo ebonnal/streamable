@@ -104,5 +104,5 @@ class ExplainingVisitor(Visitor[str]):
 
     def visit_log_pipe(self, pipe: _pipe.LogPipe) -> Any:
         name = "Log"
-        descr = f"the evolution of the ieration over {pipe.what}"
+        descr = f"the evolution of the iteration over {pipe.what}"
         return self.visit_any_pipe(pipe, name, descr)
