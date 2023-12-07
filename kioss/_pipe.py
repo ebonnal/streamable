@@ -251,6 +251,7 @@ class Pipe(Iterable[O], ABC):
         n_samples: int = 0,
         n_error_samples: int = 8,
         raise_if_more_errors_than: int = 0,
+        fail_fast: bool = False,
     ) -> List[O]:
         """
         Superintend the Pipe:
@@ -264,28 +265,35 @@ class Pipe(Iterable[O], ABC):
             n_samples (int, optional): The maximum number of elements to collect in the list (default is 0).
             n_error_samples (int, optional): The maximum number of error samples to log (default is 8).
             raise_if_more_errors_than (int, optional): An error will be raised if the number of encountered errors is more than this threshold (default is 0).
+            fail_fast (bool, optional): Decide to raise at the first encountered exception or at the end of the iteration (default is False).
         Returns:
             List[T]: A list containing the elements of the Pipe truncate to the first `n_samples` ones.
         Raises:
             RuntimeError: If more exception than `raise_if_more_errors_than` are catched during iteration.
         """
+        plan = self
+
         if not isinstance(self, LogPipe):
             plan = self.log("output elements")
-        else:
-            plan = self
+
         error_samples: List[Exception] = []
         errors_count = 0
 
-        def register_error_sample(error):
-            nonlocal errors_count
-            errors_count += 1
-            if len(error_samples) < n_error_samples:
-                error_samples.append(error)
-            return True
+        if not fail_fast:
 
-        safe_plan = plan.catch(Exception, when=register_error_sample)
-        _util.LOGGER.info(safe_plan.explain(colored=False))
-        samples = safe_plan.collect(n_samples=n_samples)
+            def register_error_sample(error):
+                nonlocal errors_count
+                errors_count += 1
+                if len(error_samples) < n_error_samples:
+                    error_samples.append(error)
+                return True
+
+            plan = plan.catch(Exception, when=register_error_sample)
+
+        _util.LOGGER.info(plan.explain(colored=False))
+
+        samples = plan.collect(n_samples=n_samples)
+
         if errors_count > 0:
             _util.LOGGER.error(
                 "first %s error samples: %s\nWill now raise the first of them:",

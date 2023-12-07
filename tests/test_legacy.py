@@ -488,6 +488,14 @@ class TestPipe(unittest.TestCase):
             lambda: superintend(raise_if_more_errors_than=0),
         )
 
+        # fail_fast
+        self.assertRaises(
+            ValueError,
+            lambda: Pipe.from_source("a-b".__iter__)
+            .map(int)
+            .superintend(fail_fast=True),
+        )
+
     def test_log(self) -> None:
         self.assertListEqual(
             Pipe.from_source("123".__iter__)
