@@ -38,12 +38,15 @@ class ThreadedMappingIteratorWrapper(IteratorWrapper[R]):
                 return elem
 
 
+BUFFER_SIZE_FACTOR = 16
+
+
 class ThreadedMappingIterable(Iterable[Union[R, _ExceptionContainer]]):
     def __init__(self, iterator: Iterator[T], func: Callable[[T], R], n_workers: int):
         self.iterator = iterator
         self.func = func
         self.n_workers = n_workers
-        self.max_queue_size = n_workers * 16
+        self.max_queue_size = n_workers * BUFFER_SIZE_FACTOR
 
     def __iter__(self) -> Iterator[Union[R, _ExceptionContainer]]:
         futures: "Queue[Future]" = Queue()
@@ -142,7 +145,7 @@ class ThreadedFlatteningIteratorWrapper(ThreadedMappingIteratorWrapper[T]):
     def __init__(self, iterator: Iterator[Iterable[T]], n_workers: int):
         super().__init__(
             ThreadedFlatteningIteratorWrapper.IteratorIteratorNextsShuffler(
-                iterator, pool_size=n_workers * 16
+                iterator, pool_size=n_workers * BUFFER_SIZE_FACTOR
             ),
             func=lambda f: f(),
             n_workers=n_workers,
