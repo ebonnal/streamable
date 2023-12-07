@@ -52,12 +52,7 @@ class LoggingIteratorWrapper(IteratorWrapper[T]):
         errors_summary = f"with {self.errors_count} error{'s' if self.errors_count > 1 else ''} produced"
         if self.colored and self.errors_count > 0:
             errors_summary = _util.bold(_util.colorize_in_red(errors_summary))
-        what = (
-            self.what[:-1]
-            if self.yields_count <= 1 and self.what.endswith("s")
-            else self.what
-        )
-        yields_summary = f"{self.yields_count} {what} have been yielded"
+        yields_summary = f"{self.yields_count} {self.what} have been yielded"
         if self.colored:
             yields_summary = _util.bold(yields_summary)
         elapsed_time = f"in elapsed time {datetime.fromtimestamp(time.time()) - datetime.fromtimestamp(self.start_time)}"
