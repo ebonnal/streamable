@@ -94,7 +94,7 @@ class ExplainingVisitor(Visitor[str]):
 
     def visit_slow_pipe(self, pipe: _pipe.SlowPipe) -> Any:
         name = "Slow"
-        descr = f"at a maximum frequancy of {pipe.freq} element{'s' if pipe.freq > 1 else ''} per second"
+        descr = f"at a maximum frequency of {pipe.freq} element{'s' if pipe.freq > 1 else ''} per second"
         return self.visit_any_pipe(pipe, name, descr)
 
     def visit_catch_pipe(self, pipe: _pipe.CatchPipe) -> Any:
