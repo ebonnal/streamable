@@ -549,6 +549,7 @@ class TestPipe(unittest.TestCase):
         p: Pipe[int] = (
             Pipe(range(8).__iter__)
             .filter(lambda _: True)
+            .map(lambda x: x)
             .batch(100)
             .log("batches")
             .flatten(n_threads=4)

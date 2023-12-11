@@ -64,17 +64,17 @@ class ExplainingVisitor(Visitor[str]):
 
     def visit_source_pipe(self, pipe: _pipe.Pipe) -> Any:
         name = "Source"
-        descr = f"of type: {type(pipe.source)}"
+        descr = f"from: {pipe.source}"
         return self.visit_any_pipe(pipe, name, descr)
 
     def visit_map_pipe(self, pipe: _pipe.MapPipe) -> Any:
         name = "Map"
-        descr = f"function of type {type(pipe.func)}, using {pipe.n_threads} thread{'s' if pipe.n_threads > 1 else ''}"
+        descr = f"function {pipe.func}, using {pipe.n_threads} thread{'s' if pipe.n_threads > 1 else ''}"
         return self.visit_any_pipe(pipe, name, descr)
 
     def visit_do_pipe(self, pipe: _pipe.DoPipe) -> Any:
         name = "Do"
-        descr = f"side effects by applying a function of type {type(pipe.func)}, using {pipe.n_threads} thread{'s' if pipe.n_threads > 1 else ''}"
+        descr = f"side effects by applying a function {pipe.func}, using {pipe.n_threads} thread{'s' if pipe.n_threads > 1 else ''}"
         return self.visit_any_pipe(pipe, name, descr)
 
     def visit_flatten_pipe(self, pipe: _pipe.FlattenPipe) -> Any:
@@ -84,7 +84,7 @@ class ExplainingVisitor(Visitor[str]):
 
     def visit_filter_pipe(self, pipe: _pipe.FilterPipe) -> Any:
         name = "Filter"
-        descr = f"using predicate function of type {type(pipe.predicate)}"
+        descr = f"using predicate function {pipe.predicate}"
         return self.visit_any_pipe(pipe, name, descr)
 
     def visit_batch_pipe(self, pipe: _pipe.BatchPipe) -> Any:
@@ -104,5 +104,5 @@ class ExplainingVisitor(Visitor[str]):
 
     def visit_log_pipe(self, pipe: _pipe.LogPipe) -> Any:
         name = "Log"
-        descr = f"the evolution of the iteration over {pipe.what}"
+        descr = f"the evolution of the iteration over '{pipe.what}'"
         return self.visit_any_pipe(pipe, name, descr)
