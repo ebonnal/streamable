@@ -10,7 +10,7 @@ U = TypeVar("U")
 
 
 class IteratorProducingVisitor(Visitor[Iterator[T]]):
-    def visit_source_pipe(self, pipe: _pipe.SourcePipe[T]) -> Iterator[T]:
+    def visit_source_pipe(self, pipe: _pipe.Pipe[T]) -> Iterator[T]:
         iterable = pipe.source()
         _util.ducktype_assert_iterable(iterable)
         return iter(iterable)

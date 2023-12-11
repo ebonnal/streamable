@@ -62,7 +62,7 @@ class ExplainingVisitor(Visitor[str]):
         upstream_repr = pipe.upstream._accept(self)
         return f"{additional_explain_lines}{chained_pipes_repr}{upstream_repr}"
 
-    def visit_source_pipe(self, pipe: _pipe.SourcePipe) -> Any:
+    def visit_source_pipe(self, pipe: _pipe.Pipe) -> Any:
         name = "Source"
         descr = f"of type: {type(pipe.source)}"
         return self.visit_any_pipe(pipe, name, descr)

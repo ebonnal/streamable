@@ -1,4 +1,3 @@
-from abc import ABC, abstractmethod
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -22,25 +21,35 @@ from kioss import _util
 if TYPE_CHECKING:
     from kioss._visit._base import Visitor
 
-I = TypeVar("I")
-O = TypeVar("O")
+R = TypeVar("R")
 T = TypeVar("T")
 V = TypeVar("V")
 
 
-class Pipe(Iterable[O], ABC):
-    upstream: "Optional[Pipe]"
+class Pipe(Iterable[T]):
+    def __init__(self, source: Callable[[], Iterable[T]]) -> None:
+        """
+        Initialize a Pipe with a data source.
 
-    @staticmethod
-    def from_source(source: Callable[[], Iterable[O]]) -> "Pipe[O]":
-        return SourcePipe(source)
+        The source must be a callable that returns an iterator, i.e., an object implementing __iter__ and __next__ methods.
+        Each subsequent iteration over the pipe will use a fresh iterator obtained from `source()`.
 
-    def __iter__(self) -> Iterator[O]:
+        Args:
+            source (Callable[[], Iterator[T]]): A factory function called to obtain a fresh data source iterator for each iteration.
+        """
+        self.upstream: "Optional[Pipe]" = None
+        if not callable(source):
+            raise TypeError(
+                f"source must be a callable returning an iterator, but the provided source is not a callable: got source '{source}' of type {type(source)}."
+            )
+        self.source = source
+
+    def __iter__(self) -> Iterator[T]:
         from kioss._visit import _iter_production
 
-        return self._accept(_iter_production.IteratorProducingVisitor[O]())
+        return self._accept(_iter_production.IteratorProducingVisitor[T]())
 
-    def __add__(self, other: "Pipe[O]") -> "Pipe[O]":
+    def __add__(self, other: "Pipe[T]") -> "Pipe[T]":
         return self.chain(other)
 
     def explain(self, colored: bool = False) -> str:
@@ -48,9 +57,8 @@ class Pipe(Iterable[O], ABC):
 
         return self._accept(_explanation.ExplainingVisitor(colored))
 
-    @abstractmethod
     def _accept(self, visitor: "Visitor[V]") -> V:
-        raise NotImplementedError()
+        return visitor.visit_source_pipe(self)
 
     @staticmethod
     def sanitize_n_threads(n_threads: int):
@@ -65,9 +73,9 @@ class Pipe(Iterable[O], ABC):
 
     def map(
         self,
-        func: Callable[[O], T],
+        func: Callable[[T], R],
         n_threads: int = 1,
-    ) -> "Pipe[T]":
+    ) -> "Pipe[R]":
         """
         Apply a function to each element of the Pipe, creating a new Pipe with the mapped elements.
 
@@ -82,9 +90,9 @@ class Pipe(Iterable[O], ABC):
 
     def do(
         self,
-        func: Callable[[O], Any],
+        func: Callable[[T], Any],
         n_threads: int = 1,
-    ) -> "Pipe[O]":
+    ) -> "Pipe[T]":
         """
         Run the func as side effect: the resulting Pipe forwards the upstream elements after func execution's end.
 
@@ -99,50 +107,50 @@ class Pipe(Iterable[O], ABC):
 
     @overload
     def flatten(
-        self: "Pipe[Collection[T]]",
+        self: "Pipe[Collection[R]]",
         n_threads: int = 1,
-    ) -> "Pipe[T]":
+    ) -> "Pipe[R]":
         ...
 
     @overload
     def flatten(
-        self: "Pipe[Pipe[T]]",
+        self: "Pipe[Pipe[R]]",
         n_threads: int = 1,
-    ) -> "Pipe[T]":
+    ) -> "Pipe[R]":
         ...
 
     @overload
     def flatten(
-        self: "Pipe[Iterator[T]]",
+        self: "Pipe[Iterator[R]]",
         n_threads: int = 1,
-    ) -> "Pipe[T]":
+    ) -> "Pipe[R]":
         ...
 
     @overload
     def flatten(
-        self: "Pipe[List[T]]",
+        self: "Pipe[List[R]]",
         n_threads: int = 1,
-    ) -> "Pipe[T]":
+    ) -> "Pipe[R]":
         ...
 
     @overload
     def flatten(
-        self: "Pipe[Sequence[T]]",
+        self: "Pipe[Sequence[R]]",
         n_threads: int = 1,
-    ) -> "Pipe[T]":
+    ) -> "Pipe[R]":
         ...
 
     @overload
     def flatten(
-        self: "Pipe[Set[T]]",
+        self: "Pipe[Set[R]]",
         n_threads: int = 1,
-    ) -> "Pipe[T]":
+    ) -> "Pipe[R]":
         ...
 
     def flatten(
-        self: "Pipe[Iterable[T]]",
+        self: "Pipe[Iterable[R]]",
         n_threads: int = 1,
-    ) -> "Pipe[T]":
+    ) -> "Pipe[R]":
         """
         Flatten the elements of the Pipe, which are assumed to be iterators, creating a new Pipe with individual elements.
 
@@ -153,7 +161,7 @@ class Pipe(Iterable[O], ABC):
         Pipe.sanitize_n_threads(n_threads)
         return FlattenPipe(self, n_threads)
 
-    def chain(self, *others: "Pipe[O]") -> "Pipe[O]":
+    def chain(self, *others: "Pipe[T]") -> "Pipe[T]":
         """
         Create a new Pipe by chaining the elements of this Pipe with the elements from other Pipes. The elements of a given Pipe are yielded after its predecessor Pipe is exhausted.
 
@@ -165,7 +173,7 @@ class Pipe(Iterable[O], ABC):
         """
         return ChainPipe(self, list(others))
 
-    def filter(self, predicate: Callable[[O], bool]) -> "Pipe[O]":
+    def filter(self, predicate: Callable[[T], bool]) -> "Pipe[T]":
         """
         Filter the elements of the Pipe based on the given predicate, creating a new Pipe with filtered elements.
 
@@ -177,7 +185,7 @@ class Pipe(Iterable[O], ABC):
         """
         return FilterPipe(self, predicate)
 
-    def batch(self, size: int = 100, period: float = float("inf")) -> "Pipe[List[O]]":
+    def batch(self, size: int = 100, period: float = float("inf")) -> "Pipe[List[T]]":
         """
         Batch elements of the Pipe into lists of a specified size or within a specified time window.
 
@@ -190,7 +198,7 @@ class Pipe(Iterable[O], ABC):
         """
         return BatchPipe(self, size, period)
 
-    def slow(self, freq: float) -> "Pipe[O]":
+    def slow(self, freq: float) -> "Pipe[T]":
         """
         Slow down the iteration to a maximum frequency in Hz (max number of elements yielded per second).
 
@@ -206,7 +214,7 @@ class Pipe(Iterable[O], ABC):
         self,
         *classes: Type[Exception],
         when: Optional[Callable[[Exception], bool]] = None,
-    ) -> "Pipe[O]":
+    ) -> "Pipe[T]":
         """
         Any error whose class is exception_class or a subclass of it will be catched and yielded.
 
@@ -219,7 +227,7 @@ class Pipe(Iterable[O], ABC):
         """
         return CatchPipe(self, *classes, when=when)
 
-    def log(self, what: str = "elements", colored: bool = False) -> "Pipe[O]":
+    def log(self, what: str = "elements", colored: bool = False) -> "Pipe[T]":
         """
         Log the elements of the Pipe as they are iterated.
 
@@ -232,7 +240,7 @@ class Pipe(Iterable[O], ABC):
         """
         return LogPipe(self, what, colored)
 
-    def collect(self, n_samples: int = cast(int, float("inf"))) -> List[O]:
+    def collect(self, n_samples: int = cast(int, float("inf"))) -> List[T]:
         """
         Convert the elements of the Pipe into a list. The entire pipe will be iterated, but only n_samples elements will be saved in the returned list.
 
@@ -252,7 +260,7 @@ class Pipe(Iterable[O], ABC):
         n_error_samples: int = 8,
         raise_if_more_errors_than: int = 0,
         fail_fast: bool = False,
-    ) -> List[O]:
+    ) -> List[T]:
         """
         Superintend the Pipe:
         - iterates over it until it is exhausted,

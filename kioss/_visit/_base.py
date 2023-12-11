@@ -11,7 +11,7 @@ class Visitor(Generic[V], ABC):
         pass
 
     @abstractmethod
-    def visit_source_pipe(self, pipe: _pipe.SourcePipe) -> V:
+    def visit_source_pipe(self, pipe: _pipe.Pipe) -> V:
         raise NotImplementedError()
 
     @abstractmethod
