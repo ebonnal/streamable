@@ -15,7 +15,7 @@ class IteratorWrapper(Iterator[T], ABC):
 
     @abstractmethod
     def __next__(self) -> T:
-        raise NotImplementedError()
+        ...
 
 
 class FlatteningIteratorWrapper(IteratorWrapper[R]):
