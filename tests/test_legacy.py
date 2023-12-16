@@ -433,6 +433,7 @@ class TestPipe(unittest.TestCase):
 
     def test_run(self) -> None:
         self.assertListEqual(Pipe("123".__iter__).map(int).run(collect_limit=2), [1, 2])
+        self.assertListEqual(Pipe("123".__iter__).map(int).run(), [])
 
         # errors
         run = Pipe("12-3".__iter__).map(int).run
