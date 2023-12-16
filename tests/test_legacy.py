@@ -91,9 +91,7 @@ class TestPipe(unittest.TestCase):
 
         # test potential recursion issue with chained empty iters
         list(
-            Pipe([iter([]) for _ in range(2000)].__iter__).flatten(
-                n_threads=n_threads
-            )
+            Pipe([iter([]) for _ in range(2000)].__iter__).flatten(n_threads=n_threads)
         )
 
         # test concurrency

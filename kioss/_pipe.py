@@ -12,7 +12,6 @@ from typing import (
     Set,
     Type,
     TypeVar,
-    cast,
     overload,
 )
 
