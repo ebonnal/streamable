@@ -77,8 +77,8 @@ Let's keep the same example:
 integers = Pipe(lambda: range(10))
 ```
 
-## ⚙️ Transformations
-![](https://media0.giphy.com/media/Lz1hoRQ6ETRi69jNCv/giphy.gif?cid=ecf05e47ayx84j19s9unpgg7e3qzscjlqkw76iv60se9dhfi&ep=v1_gifs_search&rid=giphy.gif&ct=g =250x)
+## Transformations
+![](./img/transform.gif)
 
 ## `.map`
 Defines the application of a function on parent elements.
@@ -139,8 +139,8 @@ one_to_thirty_integers: Pipe[int] = one_to_ten_integers.chain(
 )
 ```
 
-## 🎛️ Controls
-![](https://media4.giphy.com/media/uWLJEGCSWdmvK/giphy.gif?cid=ecf05e47a136jzo0oyszhb011168ueh4mn54h0lsekr61nqe&ep=v1_gifs_search&rid=giphy.gif&ct=g)
+## Controls
+![](./img/control.gif)
 
 ## `.slow`
 
