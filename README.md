@@ -64,7 +64,7 @@ for i in rate_limited_odd_squares:
 But alternatively, a pipe also exposes a convenient method `.run` to launch an iteration over itself until exhaustion. It catches exceptions occurring during iteration and optionnaly collects output elements into a list to return. At the end it raises if exceptions occurred.
 
 ```python
-odd_squares: List[int] = rate_limited_odd_squares.run()
+odd_squares: List[int] = rate_limited_odd_squares.run(collect_limit=1024)
 ```
 
 
