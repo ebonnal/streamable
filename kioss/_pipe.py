@@ -27,6 +27,8 @@ V = TypeVar("V")
 
 
 class Pipe(Iterable[T]):
+    _RUN_MAX_NUM_ERROR_SAMPLES = 8
+
     def __init__(self, source: Callable[[], Iterable[T]]) -> None:
         """
         Initialize a Pipe with a data source.
@@ -45,9 +47,9 @@ class Pipe(Iterable[T]):
         self.source = source
 
     def __iter__(self) -> Iterator[T]:
-        from kioss._visit import _iter_production
+        from kioss._visit import _iter
 
-        return self._accept(_iter_production.IteratorProducingVisitor[T]())
+        return self._accept(_iter.IteratorProducingVisitor[T]())
 
     def __add__(self, other: "Pipe[T]") -> "Pipe[T]":
         return self.chain(other)
@@ -77,7 +79,7 @@ class Pipe(Iterable[T]):
         n_threads: int = 1,
     ) -> "Pipe[R]":
         """
-        Apply a function to each element of the Pipe, creating a new Pipe with the mapped elements.
+        Apply a function to each element of the Pipe.
 
         Args:
             func (Callable[[T], R]): The function to be applied to each element.
@@ -104,6 +106,13 @@ class Pipe(Iterable[T]):
         """
         Pipe.sanitize_n_threads(n_threads)
         return DoPipe(self, func, n_threads)
+
+    @overload
+    def flatten(
+        self: "Pipe[Iterable[R]]",
+        n_threads: int = 1,
+    ) -> "Pipe[R]":
+        ...
 
     @overload
     def flatten(
@@ -152,7 +161,7 @@ class Pipe(Iterable[T]):
         n_threads: int = 1,
     ) -> "Pipe[R]":
         """
-        Flatten the elements of the Pipe, which are assumed to be iterators, creating a new Pipe with individual elements.
+        Flatten the elements of the Pipe, which are assumed to be iterables, creating a new Pipe with individual elements.
 
         Returns:
             Pipe[R]: A new Pipe instance with individual elements obtained by flattening the original elements.
@@ -216,7 +225,7 @@ class Pipe(Iterable[T]):
         when: Optional[Callable[[Exception], bool]] = None,
     ) -> "Pipe[T]":
         """
-        Any error whose class is exception_class or a subclass of it will be catched and yielded.
+        Any exception who is instance of `exception_class`will be catched, under the condition that the `when` predicate function (if provided) returns True.
 
         Args:
             classes (Type[Exception]): The class of exceptions to catch
@@ -227,9 +236,9 @@ class Pipe(Iterable[T]):
         """
         return CatchPipe(self, *classes, when=when)
 
-    def log(self, what: str = "elements", colored: bool = False) -> "Pipe[T]":
+    def observe(self, what: str = "elements", colored: bool = False) -> "Pipe[T]":
         """
-        Log the elements of the Pipe as they are iterated.
+        Will logs the evolution of the iteration over elements.
 
         Args:
             what (str): name the objects yielded by the pipe for clearer logs, must be a plural descriptor.
@@ -240,29 +249,14 @@ class Pipe(Iterable[T]):
         """
         return LogPipe(self, what, colored)
 
-    def collect(self, n_samples: int = cast(int, float("inf"))) -> List[T]:
-        """
-        Convert the elements of the Pipe into a list. The entire pipe will be iterated, but only n_samples elements will be saved in the returned list.
-
-        Args:
-            n_samples (int, optional): The maximum number of elements to collect in the list (default is infinity).
-
-        Returns:
-            List[T]: A list containing the elements of the Pipe truncate to the first `n_samples` ones.
-        """
-        return [
-            elem for i, elem in enumerate(self) if (n_samples is None or i < n_samples)
-        ]
-
-    def superintend(
+    def run(
         self,
-        n_samples: int = 0,
-        n_error_samples: int = 8,
+        max_num_output_elements: int = 0,
         raise_if_more_errors_than: int = 0,
         fail_fast: bool = False,
     ) -> List[T]:
         """
-        Superintend the Pipe:
+        Run the Pipe:
         - iterates over it until it is exhausted,
         - logs
         - catches exceptions log a sample of them at the end of the iteration
@@ -270,19 +264,19 @@ class Pipe(Iterable[T]):
         - else returns a sample of the output elements
 
         Args:
-            n_samples (int, optional): The maximum number of elements to collect in the list (default is 0).
-            n_error_samples (int, optional): The maximum number of error samples to log (default is 8).
+            max_num_output_elements (int, optional): The maximum number of elements to collect in the list (default is 0).
             raise_if_more_errors_than (int, optional): An error will be raised if the number of encountered errors is more than this threshold (default is 0).
             fail_fast (bool, optional): Decide to raise at the first encountered exception or at the end of the iteration (default is False).
         Returns:
             List[T]: A list containing the elements of the Pipe truncate to the first `n_samples` ones.
         Raises:
-            RuntimeError: If more exception than `raise_if_more_errors_than` are catched during iteration.
+            Exception: If more exception than `raise_if_more_errors_than` are catched during iteration.
         """
-        plan = self
+        max_num_error_samples = self._RUN_MAX_NUM_ERROR_SAMPLES
+        pipe = self
 
         if not isinstance(self, LogPipe):
-            plan = self.log("output elements")
+            pipe = self.observe("output elements")
 
         error_samples: List[Exception] = []
         errors_count = 0
@@ -292,26 +286,29 @@ class Pipe(Iterable[T]):
             def register_error_sample(error):
                 nonlocal errors_count
                 errors_count += 1
-                if len(error_samples) < n_error_samples:
+                if len(error_samples) < max_num_error_samples:
                     error_samples.append(error)
                 return True
 
-            plan = plan.catch(Exception, when=register_error_sample)
+            pipe = pipe.catch(Exception, when=register_error_sample)
 
-        _util.LOGGER.info(plan.explain(colored=False))
+        _util.LOGGER.info(pipe.explain(colored=False))
 
-        samples = plan.collect(n_samples=n_samples)
+        output_elements: List[T] = []
+        for elem in pipe:
+            if len(output_elements) < max_num_output_elements:
+                output_elements.append(elem)
 
         if errors_count > 0:
             _util.LOGGER.error(
                 "first %s error samples: %s\nWill now raise the first of them:",
-                n_error_samples,
+                max_num_error_samples,
                 list(map(repr, error_samples)),
             )
             if raise_if_more_errors_than < errors_count:
                 raise error_samples[0]
 
-        return samples
+        return output_elements
 
 
 X = TypeVar("X")
