@@ -250,7 +250,7 @@ class Pipe(Iterable[T]):
 
     def run(
         self,
-        max_num_output_elements: int = 0,
+        collect_limit: int = 0,
         raise_if_more_errors_than: int = 0,
         fail_fast: bool = False,
     ) -> List[T]:
@@ -263,8 +263,8 @@ class Pipe(Iterable[T]):
         - else returns a sample of the output elements
 
         Args:
-            max_num_output_elements (int, optional): The maximum number of elements to collect in the list (default is 0).
             raise_if_more_errors_than (int, optional): An error will be raised if the number of encountered errors is more than this threshold (default is 0).
+            collect_limit (int, optional): How many output elements to return (default is 0).
             fail_fast (bool, optional): Decide to raise at the first encountered exception or at the end of the iteration (default is False).
         Returns:
             List[T]: A list containing the elements of the Pipe truncate to the first `n_samples` ones.
@@ -293,10 +293,10 @@ class Pipe(Iterable[T]):
 
         _util.LOGGER.info(pipe.explain(colored=False))
 
-        output_elements: List[T] = []
+        output_samples: List[T] = []
         for elem in pipe:
-            if len(output_elements) < max_num_output_elements:
-                output_elements.append(elem)
+            if len(output_samples) < collect_limit:
+                output_samples.append(elem)
 
         if errors_count > 0:
             _util.LOGGER.error(
@@ -307,7 +307,7 @@ class Pipe(Iterable[T]):
             if raise_if_more_errors_than < errors_count:
                 raise error_samples[0]
 
-        return output_elements
+        return output_samples
 
 
 X = TypeVar("X")

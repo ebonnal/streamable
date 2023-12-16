@@ -1,12 +1,10 @@
-import logging
 from operator import itemgetter
 
 import requests
 from google.cloud import bigquery, translate # type: ignore
 from kioss import Pipe
 
-# Define your pipeline's plan:
-christmas_comments_integration_pipe: Pipe[str] = (
+(
     # Read the comments made on your platform from your BigQuery datawarehouse
     Pipe(bigquery.Client().query("SELECT text FROM fact.comment").result)
     .map(itemgetter("text"))
@@ -42,9 +40,5 @@ christmas_comments_integration_pipe: Pipe[str] = (
     .do(requests.Response.raise_for_status)
     .map(requests.Response.text)
     .observe(what="integration response's texts")
-)
-
-logging.info(
-    "5 samples of responses: %s",
-    christmas_comments_integration_pipe.run(max_num_output_elements=5)
+    .run()
 )

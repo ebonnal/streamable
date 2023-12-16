@@ -41,7 +41,7 @@ odd_squares: Pipe[int] = (
 
 ### 4.b. Controls
 
-Some operations do not act on the data itself but control the behavior of a future iteration over the pipe, here we will rate limit the iteration over odd squares up to 10 per second.
+Some operations do not act on the data itself but control the behavior of a future iteration over the pipe, here we will rate limit the iteration to a maximum of 10 odd squares per second.
 
 ```python
 rate_limited_odd_squares: Pipe[int] = odd_squares.slow(freq=10)
@@ -49,7 +49,7 @@ rate_limited_odd_squares: Pipe[int] = odd_squares.slow(freq=10)
 
 ## 5. Iterate
 
-Once your pipe's declaration is done you can iterate over it. Our `Pipe[int]` being a `Iterable[int]`, you are free to iterate over it the way you want, e.g.:
+Once your pipe's declaration is done you can iterate over it. Our `Pipe[int]` being an `Iterable[int]`, you are free to iterate over it the way you want, e.g.:
 ```python
 set(rate_limited_odd_squares)
 ```
@@ -61,10 +61,10 @@ for i in rate_limited_odd_squares:
     ...
 ```
 
-But alternatively, a pipe also exposes a convenient method `.run` to launch an iteration over itself until exhaustion. It collects along the way some output elements and catches exceptions. At the end it raises if exceptions occurred or returns the collected elements.
+But alternatively, a pipe also exposes a convenient method `.run` to launch an iteration over itself until exhaustion. It catches exceptions occurring during iteration and optionnaly collects output elements into a list to return. At the end it raises if exceptions occurred.
 
 ```python
-odd_squares: List[int] = rate_limited_odd_squares.run(output_limit=100)
+odd_squares: List[int] = rate_limited_odd_squares.run()
 ```
 
 
