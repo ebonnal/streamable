@@ -287,7 +287,7 @@ def integrate_pokemon_cards_into_bigquery(
     end_time: datetime.datetime,
 ) -> None:
     (
-        Pipe(PokemonCardSource(start_time, end_time))
+        Pipe(lambda: PokemonCardSource(start_time, end_time))
         # at this point we have a Pipe[List[Dict[str, Any]]]
 
         # Let's say pokemontcg.io rate limits us to 10 calls per second,
