@@ -192,7 +192,7 @@ You can additionally provide a `when` argument: a function that takes the parent
 ---
 
 # ⭐ ***Typical use case for `kioss` in Data Engineering*** ⭐
-![](./img/slows.gif)
+![](./img/dataeng.gif)
 
 As a data engineer, you often need to write python scripts to do **ETL** (extract the data from some source API, apply some transformation and load it into a data warehouse) or **EL** (same with minimal transformation) or **Reverse ETL** (read data from data warehouse and post it into some destination API).
 
