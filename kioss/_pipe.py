@@ -246,7 +246,7 @@ class Pipe(Iterable[T]):
         Returns:
             Pipe[T]: A new Pipe instance with logging capability.
         """
-        return LogPipe(self, what, colored)
+        return ObservePipe(self, what, colored)
 
     def run(
         self,
@@ -274,7 +274,7 @@ class Pipe(Iterable[T]):
         max_num_error_samples = self._RUN_MAX_NUM_ERROR_SAMPLES
         pipe = self
 
-        if not isinstance(self, LogPipe):
+        if not isinstance(self, ObservePipe):
             pipe = self.observe("output elements")
 
         error_samples: List[Exception] = []
@@ -366,14 +366,14 @@ class DoPipe(Pipe[Y]):
         return visitor.visit_do_pipe(self)
 
 
-class LogPipe(Pipe[Y]):
+class ObservePipe(Pipe[Y]):
     def __init__(self, upstream: Pipe[Y], what: str, colored: bool):
         self.upstream: Pipe[Y] = upstream
         self.what = what
         self.colored = colored
 
     def _accept(self, visitor: "Visitor[V]") -> V:
-        return visitor.visit_log_pipe(self)
+        return visitor.visit_observe_pipe(self)
 
 
 class FlattenPipe(Pipe[Y]):

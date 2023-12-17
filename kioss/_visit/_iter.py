@@ -64,7 +64,7 @@ class IteratorProducingVisitor(Visitor[Iterator[T]]):
             pipe.upstream._accept(self), *pipe.classes, when=pipe.when
         )
 
-    def visit_log_pipe(self, pipe: _pipe.LogPipe[T]) -> Iterator[T]:
-        return _core.LoggingIteratorWrapper(
+    def visit_observe_pipe(self, pipe: _pipe.ObservePipe[T]) -> Iterator[T]:
+        return _core.ObservingIteratorWrapper(
             pipe.upstream._accept(self), pipe.what, pipe.colored
         )

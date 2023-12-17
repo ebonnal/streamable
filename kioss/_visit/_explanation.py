@@ -102,7 +102,7 @@ class ExplainingVisitor(Visitor[str]):
         descr = f"exception instances of class in [{', '.join(map(lambda class_: class_.__name__, pipe.classes))}]{', with an additional `when` condition' if pipe.when is not None else ''}"
         return self.visit_any_pipe(pipe, name, descr)
 
-    def visit_log_pipe(self, pipe: _pipe.LogPipe) -> Any:
-        name = "Log"
+    def visit_observe_pipe(self, pipe: _pipe.ObservePipe) -> Any:
+        name = "Observe"
         descr = f"the evolution of the iteration over '{pipe.what}'"
         return self.visit_any_pipe(pipe, name, descr)
