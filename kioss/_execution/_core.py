@@ -37,7 +37,7 @@ class FlatteningIteratorWrapper(IteratorWrapper[R]):
                     pass
 
 
-class LoggingIteratorWrapper(IteratorWrapper[T]):
+class ObservingIteratorWrapper(IteratorWrapper[T]):
     def __init__(self, iterator: Iterator[T], what: str, colored: bool) -> None:
         super().__init__(iterator)
         self.what = what

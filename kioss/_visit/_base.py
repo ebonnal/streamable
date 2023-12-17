@@ -44,5 +44,5 @@ class Visitor(Generic[V], ABC):
         ...
 
     @abstractmethod
-    def visit_log_pipe(self, pipe: _pipe.LogPipe) -> V:
+    def visit_observe_pipe(self, pipe: _pipe.ObservePipe) -> V:
         ...
