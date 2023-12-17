@@ -3,7 +3,7 @@
 
 [![Actions Status](https://github.com/bonnal-enzo/kioss/workflows/test/badge.svg)](https://github.com/bonnal-enzo/kioss/actions) [![Actions Status](https://github.com/bonnal-enzo/kioss/workflows/PyPI/badge.svg)](https://github.com/bonnal-enzo/kioss/actions)
 
-Ease the **development of ETL/EL/ReverseETL** jobs.
+Library to **develop of ETL/EL/ReverseETL** scripts.
 
 ## 1. install
 
@@ -194,23 +194,23 @@ You can additionally provide a `when` argument: a function that takes the parent
 # ⭐ ***Typical use case for `kioss` in Data Engineering*** ⭐
 ![](./img/dataeng.gif)
 
-As a data engineer, you often need to write python scripts to do **ETL** (extract the data from some source API, apply some transformation and load it into a data warehouse) or **EL** (same with minimal transformation) or **Reverse ETL** (read data from data warehouse and post it into some destination API).
+As a data engineer, you often need to write python scripts to do **ETL** (*Extract* the data from a source API, *Transform* and *Load* it into the data warehouse) or **EL** (same but with minimal transformation) or **Reverse ETL** (read data from the data warehouse and post it into a destination API).
 
-These scripts **do not manipulate huge volumes** of data because they are scheduled to run periodically (using orchestrators like *Airflow/DAGster/Prefect*), and only manipulates the data produced or updated during that period. At worst if you are *Amazon*-sized business you may need to process 10 millions payment transactions every 10 minutes.
+These scripts **do not manipulate huge volumes** of data because they are scheduled to run periodically (using orchestrators like *Airflow/DAGster/Prefect*) and only manipulates the data produced or updated during that period. At worst if you are *Amazon*-sized business you may need to process 10 millions payment transactions every 10 minutes.
 
 These scripts tend to be replaced in part by EL tools like *Airbyte*, but sometimes you still need **custom integration logic**.
 
 These scripts are typically composed of:
-- the definition of a data **source** that may use:
-  - a client library: e.g. the `stripe` or `google.cloud.bigquery` modules.
-  - a custom `Iterator` that loops over the pages of a REST API and yields `Dict[str, Any]` json responses.
+- The definition of a data **source** that may use:
+  - A client library: e.g. the `stripe` or `google.cloud.bigquery` modules.
+  - A custom `Iterator` that loops over the pages of a REST API and yields `Dict[str, Any]` json responses.
   - ...
 
 - The **transformation** functions, that again may involve to call APIs.
 
 - The function to post into a **destination** that may use:
-  - a client library
-  - the `requests` module
+  - A client library.
+  - The `requests` module.
 
 - The logic to **batch** some records together: it will often costs less to POST several records at once to an API.
 
@@ -224,7 +224,7 @@ These scripts are typically composed of:
 
 The ambition of `kioss` is to help us write these type of scripts in a **DRY** (Don't Repeat Yourself), **flexible**, **robust** and **readable** way.
 
-Let's delve into an example to gain a better understanding of what a job powered by kioss entails!
+Let's delve into an example to gain a better understanding of what a job using `kioss` entails!
 
 ## 1. imports
 ```python
@@ -236,7 +236,7 @@ from typing import Iterable, Iterator, Dict, Any
 ```
 
 ## 2. source
-define your source `Iterable`:
+Define your source `Iterable`:
 
 ```python
 class PokemonCardPageSource(Iterable[List[Dict[str, Any]]]):
@@ -270,7 +270,7 @@ def raise_for_errors(dct: Dict[str, Any]) -> None:
         raise RuntimeError(f"Errors occurred: {errors}")
 ```
 
-also let's init a BQ client:
+Also let's init a BQ client:
 ```python
 bq_client = bigquery.Client(project)
 ```
