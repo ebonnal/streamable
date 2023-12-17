@@ -3,7 +3,7 @@ import time
 import timeit
 import unittest
 from collections import Counter
-from typing import Callable, Iterator, List, TypeVar
+from typing import Any, Callable, Iterator, List, TypeVar
 
 from parameterized import parameterized  # type: ignore
 
@@ -27,6 +27,8 @@ def ten_ms_identity(x: T) -> T:
     time.sleep(TEN_MS)
     return x
 
+def raise_stopiteration() -> bool:
+    raise StopIteration()
 
 # size of the test collections
 N = 64
@@ -271,6 +273,17 @@ class TestPipe(unittest.TestCase):
             set(args),
         )
         self.assertSetEqual(set(l), set(map(func, args)))
+        
+        self.assertEqual(
+            list(
+                Pipe(range(N).__iter__)
+                .do(lambda n:
+                    None if n % 2 == 0 else raise_stopiteration()
+                )
+                .catch(RuntimeError)
+            ),
+            list(range(0, N, 2)),
+        )
 
     def test_filter(self) -> None:
         self.assertListEqual(
@@ -279,6 +292,17 @@ class TestPipe(unittest.TestCase):
         )
 
         self.assertListEqual(list(Pipe(range(8).__iter__).filter(lambda _: False)), [])
+
+        self.assertEqual(
+            list(
+                Pipe(range(N).__iter__)
+                .filter(lambda n:
+                    True if n % 2 == 0 else raise_stopiteration()
+                )
+                .catch(RuntimeError)
+            ),
+            list(range(0, N, 2)),
+        )
 
     def test_batch(self) -> None:
         self.assertListEqual(
