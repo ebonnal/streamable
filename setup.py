@@ -9,5 +9,5 @@ setup(
     license='Apache 2.',
     author='bonnal-enzo',
     author_email='bonnal.enzo.dev@gmail.com',
-    description='Keep I/O Simple and Stupid: Library providing a expressive Iterator-based interface to write ETL pipelines.'
+    description='Keep I/O Simple and Stupid: Library to **develop of ETL/EL/ReverseETL** scripts.'
 )
