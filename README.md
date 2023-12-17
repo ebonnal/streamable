@@ -85,7 +85,7 @@ Defines the application of a function on parent elements.
 integer_strings: Pipe[str] = integers.map(str)
 ```
 
-You can pass an optional `n_threads` argument to `.map` for a concurrent application of the function using multiple threads.
+It has an optional `n_threads` parameter if you need to apply the function concurrently using multiple threads.
 
 ## `.do`
 Defines the application of a function on parent elements like `.map`, but the parent elements will be forwarded instead of the result of the function.
@@ -94,7 +94,7 @@ Defines the application of a function on parent elements like `.map`, but the pa
 printed_integers: Pipe[int] = integers.do(print)
 ```
 
-It also accepts a `n_threads` parameter.
+It also has an optional `n_threads` parameter.
 
 ## `.filter`
 Defines the filtering of parent elements based on a predicate function.
@@ -116,7 +116,7 @@ In this example a batch will be a list of 100 elements.
 It may contain less elements in the following cases:
 - the pipe is exhausted
 - an exception occurred
-- more than 60 seconds (`period` argument) has elapsed since the last batch has been yielded.
+- more than 60 seconds (the `period` parameter) has elapsed since the last batch has been yielded.
 
 ## `.flatten`
 
@@ -126,7 +126,7 @@ Defines the ungrouping of parent elements assuming that the parent elements are 
 integers: Pipe[int] = integer_batches.flatten()
 ```
 
-It also accepts a `n_threads` parameter to flatten concurrently several parent iterables.
+It also has an optional `n_threads` parameter to flatten concurrently several parent iterables.
 
 ## `.chain`
 
@@ -187,7 +187,7 @@ inverse_floats: Pipe[float] = integers.map(lambda x: 1/x)
 safe_inverse_floats: Pipe[float] = inverse_floats.catch(ZeroDivisionError)
 ```
 
-You can additionally provide a `when` argument: a function that takes the parent element as input and decides whether or not to catch the exception.
+It has an optional `when` parameter: a function that takes the parent element as input and decides whether or not to catch the exception.
 
 ---
 
