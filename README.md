@@ -3,7 +3,7 @@
 
 [![Actions Status](https://github.com/bonnal-enzo/kioss/workflows/test/badge.svg)](https://github.com/bonnal-enzo/kioss/actions) [![Actions Status](https://github.com/bonnal-enzo/kioss/workflows/PyPI/badge.svg)](https://github.com/bonnal-enzo/kioss/actions)
 
-Ease the **development of ETL/EL/ReverseETL** scripts.
+Ease the **development of ETL/EL/ReverseETL** jobs.
 
 ## 1. install
 
