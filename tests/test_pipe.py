@@ -1,8 +1,10 @@
 import time
 import timeit
 import unittest
-from typing import Any, Dict, Iterator, TypeVar, Callable, Iterable
-from parameterized import parameterized # type: ignore
+from typing import Callable, Iterable, Iterator, TypeVar
+
+from parameterized import parameterized  # type: ignore
+
 from kioss import Pipe
 
 T = TypeVar("T")
@@ -18,9 +20,12 @@ def timepipe(pipe: Pipe):
 
 # simulates an I/0 bound function
 slow_identity_duration = 0.01
+
+
 def slow_identity(x: T) -> T:
     time.sleep(slow_identity_duration)
     return x
+
 
 def identity(x: T) -> T:
     return x
@@ -29,6 +34,7 @@ def identity(x: T) -> T:
 # size of the test collections
 N = 32
 src: Callable[[], Iterable[int]] = range(N).__iter__
+
 
 class TestPipe(unittest.TestCase):
     def test_init(self) -> None:
@@ -44,13 +50,12 @@ class TestPipe(unittest.TestCase):
         )
 
         with self.assertRaisesRegex(
-                TypeError,
-                "source must be a callable but got a <class 'range'>",
-                msg="Instantiating a Pipe with a source not being a callable must raise TypeError."
-            ):
-            Pipe(range(N)) # type: ignore
+            TypeError,
+            "source must be a callable but got a <class 'range'>",
+            msg="Instantiating a Pipe with a source not being a callable must raise TypeError.",
+        ):
+            Pipe(range(N))  # type: ignore
 
-    
     def test_explain(self) -> None:
         complex_pipe: Pipe[int] = (
             Pipe(src)
@@ -98,32 +103,32 @@ class TestPipe(unittest.TestCase):
 
     def test_add(self) -> None:
         from kioss._pipe import ChainPipe
+
         pipe = Pipe(src)
         self.assertIsInstance(
             pipe.chain(pipe),
             ChainPipe,
             msg="iter(pipe) must return an Iterator",
         )
-    
+
     @parameterized.expand(
-            [
-                [Pipe.map, [identity]],
-                [Pipe.do, [identity]],
-                [Pipe.flatten, []],
-            ]
+        [
+            [Pipe.map, [identity]],
+            [Pipe.do, [identity]],
+            [Pipe.flatten, []],
+        ]
     )
     def test_sanitize_n_threads(self, method, args) -> None:
         pipe = Pipe(src)
         with self.assertRaises(
-                TypeError,
-                msg=f"{method} should be raising TypeError for non-int n_threads."
-            ):
+            TypeError,
+            msg=f"{method} should be raising TypeError for non-int n_threads.",
+        ):
             method(pipe, *args, n_threads="1")
 
         with self.assertRaises(
-                ValueError,
-                msg=f"{method} should be raising ValueError for n_threads=0."
-            ):
+            ValueError, msg=f"{method} should be raising ValueError for n_threads=0."
+        ):
             method(pipe, *args, n_threads=0)
 
         for n_threads in range(1, 10):

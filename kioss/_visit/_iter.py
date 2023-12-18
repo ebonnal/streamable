@@ -26,10 +26,10 @@ class IteratorProducingVisitor(Visitor[Iterator[T]]):
             )
 
     def visit_do_pipe(self, pipe: _pipe.DoPipe[T]) -> Iterator[T]:
-        func = _util.sidify(_util.map_exception(pipe.func, source=StopIteration, target=RuntimeError))
-        return self.visit_map_pipe(
-            _pipe.MapPipe(pipe.upstream, func, pipe.n_threads)
+        func = _util.sidify(
+            _util.map_exception(pipe.func, source=StopIteration, target=RuntimeError)
         )
+        return self.visit_map_pipe(_pipe.MapPipe(pipe.upstream, func, pipe.n_threads))
 
     def visit_flatten_pipe(self, pipe: _pipe.FlattenPipe[T]) -> Iterator[T]:
         it = pipe.upstream._accept(IteratorProducingVisitor[Iterable]())
@@ -48,7 +48,9 @@ class IteratorProducingVisitor(Visitor[Iterator[T]]):
         return itertools.chain(it, *other_its)
 
     def visit_filter_pipe(self, pipe: _pipe.FilterPipe[T]) -> Iterator[T]:
-        predicate = _util.map_exception(pipe.predicate, source=StopIteration, target=RuntimeError)
+        predicate = _util.map_exception(
+            pipe.predicate, source=StopIteration, target=RuntimeError
+        )
         it: Iterator[T] = pipe.upstream._accept(self)
         return filter(predicate, it)
 
@@ -63,7 +65,9 @@ class IteratorProducingVisitor(Visitor[Iterator[T]]):
 
     def visit_catch_pipe(self, pipe: _pipe.CatchPipe[T]) -> Iterator[T]:
         if pipe.when is not None:
-            when = _util.map_exception(pipe.when, source=StopIteration, target=RuntimeError)
+            when = _util.map_exception(
+                pipe.when, source=StopIteration, target=RuntimeError
+            )
         else:
             when = None
         return _core.CatchingIteratorWrapper(
