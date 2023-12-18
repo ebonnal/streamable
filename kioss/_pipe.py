@@ -40,9 +40,7 @@ class Pipe(Iterable[T]):
         """
         self.upstream: "Optional[Pipe]" = None
         if not callable(source):
-            raise TypeError(
-                f"source must be a callable but got a {type(source)}"
-            )
+            raise TypeError(f"source must be a callable but got a {type(source)}")
         self.source = source
 
     def __iter__(self) -> Iterator[T]:
