@@ -326,7 +326,7 @@ class TestStream(unittest.TestCase):
             [list(range(8))],
         )
         self.assertEqual(
-            len(list(Stream(range(8).__iter__).slow(10).batch(period=0.09))),
+            len(list(Stream(range(8).__iter__).slow(10).batch(seconds=0.09))),
             7,
         )
         # assert batch gracefully yields if next elem throw exception

@@ -27,7 +27,7 @@ from streamable import Stream
     # by batch of maximum size 100 and with at least 1 batch every 10 seconds
     # and at a maximum rate of 5 batches per second.
     # Also raise if the status code is not 200.
-    .batch(size=100, period=10)
+    .batch(size=100, seconds=10)
     .slow(freq=5)
     .map(
         lambda comment: requests.post(

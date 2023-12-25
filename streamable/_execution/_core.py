@@ -105,14 +105,14 @@ class BatchingIteratorWrapper(IteratorWrapper[List[T]]):
     """
     Batch an input iterator and yields its elements packed in a list when one of the following is True:
     - len(batch) == size
-    - the time elapsed between the first next() call on input iterator and last received elements is grater than period
+    - the time elapsed between the first next() call on input iterator and last received elements is grater than `seconds`
     - the next element reception thrown an exception (it is stored in self.to_be_raised and will be raised during the next call to self.__next__)
     """
 
-    def __init__(self, iterator: Iterator[T], size: int, period: float) -> None:
+    def __init__(self, iterator: Iterator[T], size: int, seconds: float) -> None:
         super().__init__(iterator)
         self.size = size
-        self.period = period
+        self.seconds = seconds
         self._to_be_raised: Optional[Exception] = None
         self._is_exhausted = False
 
@@ -127,7 +127,7 @@ class BatchingIteratorWrapper(IteratorWrapper[List[T]]):
         batch = None
         try:
             batch = [next(self.iterator)]
-            while len(batch) < self.size and (time.time() - start_time) < self.period:
+            while len(batch) < self.size and (time.time() - start_time) < self.seconds:
                 batch.append(next(self.iterator))
             return batch
         except StopIteration:

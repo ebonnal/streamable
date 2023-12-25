@@ -107,7 +107,7 @@ pair_integers: Stream[int] = integers.filter(lambda x: x % 2 == 0)
 Defines the grouping of parent elements into batches.
 
 ```python
-integer_batches: Stream[List[int]] = integers.batch(size=100, period=60)
+integer_batches: Stream[List[int]] = integers.batch(size=100, seconds=60)
 ```
 
 In this example a batch will be a list of 100 elements.
@@ -115,7 +115,7 @@ In this example a batch will be a list of 100 elements.
 It may contain less elements in the following cases:
 - the stream is exhausted
 - an exception occurred
-- more than 60 seconds (the `period` parameter) has elapsed since the last batch has been yielded.
+- more than 60 `seconds` have elapsed since the last batch has been yielded.
 
 ## `.flatten`
 
