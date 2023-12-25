@@ -2,11 +2,11 @@ from operator import itemgetter
 
 import requests
 from google.cloud import bigquery, translate # type: ignore
-from kioss import Pipe
+from iterable import Stream
 
 (
     # Read the comments made on your platform from your BigQuery datawarehouse
-    Pipe(bigquery.Client().query("SELECT text FROM fact.comment").result)
+    Stream(bigquery.Client().query("SELECT text FROM fact.comment").result)
     .map(itemgetter("text"))
     .observe(what="comments")
 
@@ -40,5 +40,5 @@ from kioss import Pipe
     .do(requests.Response.raise_for_status)
     .map(requests.Response.text)
     .observe(what="integration response's texts")
-    .run()
+    .iterate()
 )

@@ -31,7 +31,7 @@ jobs:
     - name: mypy
       run: |
         python -m pip install -r requirements.txt
-        python -m mypy kioss tests
+        python -m mypy iterable tests
 
   lint:
     runs-on: ubuntu-latest
@@ -45,7 +45,7 @@ jobs:
 
     - name: checks
       run: |
-        # python -m autoflake --in-place --remove-all-unused-imports --remove-unused-variables --ignore-init-module -r kioss tests && python -m isort kioss tests && python -m black kioss tests
+        # python -m autoflake --in-place --remove-all-unused-imports --remove-unused-variables --ignore-init-module -r iterable tests && python -m isort iterable tests && python -m black iterable tests
         python -m pip install -r requirements.txt
-        python -m autoflake --in-place --remove-all-unused-imports --remove-unused-variables --ignore-init-module --check -r kioss tests
-        python -m black --check kioss/* tests/*
+        python -m autoflake --in-place --remove-all-unused-imports --remove-unused-variables --ignore-init-module --check -r iterable tests
+        python -m black --check iterable/* tests/*

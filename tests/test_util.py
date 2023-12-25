@@ -1,6 +1,6 @@
 import unittest
 
-from kioss._util import sidify
+from iterable._util import sidify
 
 
 class TestUtil(unittest.TestCase):

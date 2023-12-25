@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from queue import Queue
 from typing import Callable, Iterable, Iterator, Optional, Set, TypeVar, Union
 
-from kioss import _util
-from kioss._execution._core import IteratorWrapper
+from iterable import _util
+from iterable._execution._core import IteratorWrapper
 
 T = TypeVar("T")
 R = TypeVar("R")
