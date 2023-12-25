@@ -191,18 +191,18 @@ class Stream(Iterable[T]):
         """
         return FilterStream(self, predicate)
 
-    def batch(self, size: int = 100, period: float = float("inf")) -> "Stream[List[T]]":
+    def batch(self, size: int = 100, seconds: float = float("inf")) -> "Stream[List[T]]":
         """
         Batch elements of the Stream into lists of a specified size or within a specified time window.
 
         Args:
             size (int, optional): The maximum number of elements per batch (default is 100).
-            period (float, optional): The maximum number of seconds to wait before yielding a batch (default is infinity).
+            seconds (float, optional): The maximum number of seconds to wait before yielding a batch (default is infinity).
 
         Returns:
             Stream[List[T]]: A new Stream instance with lists containing batches of elements.
         """
-        return BatchStream(self, size, period)
+        return BatchStream(self, size, seconds)
 
     def slow(self, freq: float) -> "Stream[T]":
         """
@@ -384,10 +384,10 @@ class FlattenStream(Stream[Y]):
 
 
 class BatchStream(Stream[List[Y]]):
-    def __init__(self, upstream: Stream[Y], size: int, period: float):
+    def __init__(self, upstream: Stream[Y], size: int, seconds: float):
         self.upstream: Stream[Y] = upstream
         self.size = size
-        self.period = period
+        self.seconds = seconds
 
     def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_batch_stream(self)

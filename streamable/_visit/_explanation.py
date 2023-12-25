@@ -89,7 +89,7 @@ class ExplainingVisitor(Visitor[str]):
 
     def visit_batch_stream(self, stream: _stream.BatchStream) -> Any:
         name = "Batch"
-        descr = f"elements by groups of {stream.size} element{'s' if stream.size > 1 else ''}, or over a period of {stream.period} second{'s' if stream.period > 1 else ''}"
+        descr = f"elements by groups of {stream.size} element{'s' if stream.size > 1 else ''}, or over a seconds of {stream.seconds} second{'s' if stream.seconds > 1 else ''}"
         return self.visit_any_stream(stream, name, descr)
 
     def visit_slow_stream(self, stream: _stream.SlowStream) -> Any:

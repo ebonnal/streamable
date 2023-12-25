@@ -61,7 +61,7 @@ class IteratorProducingVisitor(Visitor[Iterator[T]]):
     def visit_batch_stream(self, stream: _stream.BatchStream[U]) -> Iterator[T]:
         it: Iterator[U] = stream.upstream._accept(IteratorProducingVisitor[U]())
         return cast(
-            Iterator[T], _core.BatchingIteratorWrapper(it, stream.size, stream.period)
+            Iterator[T], _core.BatchingIteratorWrapper(it, stream.size, stream.seconds)
         )
 
     def visit_slow_stream(self, stream: _stream.SlowStream[T]) -> Iterator[T]:
