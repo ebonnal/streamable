@@ -2,7 +2,7 @@ from operator import itemgetter
 
 import requests
 from google.cloud import bigquery, translate # type: ignore
-from iterable import Stream
+from streamable import Stream
 
 (
     # Read the comments made on your platform from your BigQuery datawarehouse

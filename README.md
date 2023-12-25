@@ -1,19 +1,19 @@
-# `iterable`
+# `streamable`
 **Keep Iterables Simple and Stupid**
 
-[![Actions Status](https://github.com/bonnal-enzo/iterable/workflows/test/badge.svg)](https://github.com/bonnal-enzo/iterable/actions) [![Actions Status](https://github.com/bonnal-enzo/iterable/workflows/PyPI/badge.svg)](https://github.com/bonnal-enzo/iterable/actions)
+[![Actions Status](https://github.com/bonnal-enzo/streamable/workflows/test/badge.svg)](https://github.com/bonnal-enzo/streamable/actions) [![Actions Status](https://github.com/bonnal-enzo/streamable/workflows/PyPI/badge.svg)](https://github.com/bonnal-enzo/streamable/actions)
 
 Ease the manipulation of `Iterable`s.
 
 ## 1. install
 
 ```bash
-pip install iterable
+pip install streamable
 ```
 
 ## 2. import
 ```python
-from iterable import Stream
+from streamable import Stream
 ```
 
 ## 3. init
@@ -126,7 +126,7 @@ Defines the ungrouping of parent elements assuming that the parent elements are 
 integers: Stream[int] = integer_batches.flatten()
 ```
 
-It also has an optional `n_threads` parameter to flatten concurrently several parent iterables.
+It also has an optional `n_threads` parameter to flatten concurrently several parent streamables.
 
 ## `.chain`
 
@@ -222,15 +222,15 @@ These scripts are typically composed of:
 
 - The logic to **catch** exceptions of a given type. Also, we typically want to catch errors and seamlessly proceed with the integration until completion. For instance, if you have 1000 records to integrate and encounter an exception at the 236th record due to a malformed record, it is often more favorable to successfully integrate 999 records and raise after the interation has completed compared to skipping 763 valid records prematurely.
 
-The ambition of `iterable` is to help us write these type of scripts in a **DRY** (Don't Repeat Yourself), **flexible**, **robust** and **readable** way.
+The ambition of `streamable` is to help us write these type of scripts in a **DRY** (Don't Repeat Yourself), **flexible**, **robust** and **readable** way.
 
-Let's delve into an example to gain a better understanding of what a job using `iterable` entails!
+Let's delve into an example to gain a better understanding of what a job using `streamable` entails!
 
 ## 1. imports
 ```python
 import datetime
 import requests
-from iterable import Stream
+from streamable import Stream
 from google.cloud import bigquery
 from typing import Iterable, Iterator, Dict, Any
 ```

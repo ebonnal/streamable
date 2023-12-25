@@ -1,7 +1,7 @@
 from typing import Any
 
-from iterable import _stream, _util
-from iterable._visit._base import Visitor
+from streamable import _stream, _util
+from streamable._visit._base import Visitor
 
 
 class ExplainingVisitor(Visitor[str]):

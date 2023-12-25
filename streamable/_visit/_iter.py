@@ -1,9 +1,9 @@
 import itertools
 from typing import Iterable, Iterator, List, TypeVar, cast
 
-from iterable import _stream, _util
-from iterable._execution import _concurrency, _core
-from iterable._visit._base import Visitor
+from streamable import _stream, _util
+from streamable._execution import _concurrency, _core
+from streamable._visit._base import Visitor
 
 T = TypeVar("T")
 U = TypeVar("U")
@@ -16,7 +16,9 @@ class IteratorProducingVisitor(Visitor[Iterator[T]]):
         return iter(iterable)
 
     def visit_map_stream(self, stream: _stream.MapStream[U, T]) -> Iterator[T]:
-        func = _util.map_exception(stream.func, source=StopIteration, target=RuntimeError)
+        func = _util.map_exception(
+            stream.func, source=StopIteration, target=RuntimeError
+        )
         it: Iterator[U] = stream.upstream._accept(IteratorProducingVisitor[U]())
         if stream.n_threads == 1:
             return map(func, it)
@@ -29,7 +31,9 @@ class IteratorProducingVisitor(Visitor[Iterator[T]]):
         func = _util.sidify(
             _util.map_exception(stream.func, source=StopIteration, target=RuntimeError)
         )
-        return self.visit_map_stream(_stream.MapStream(stream.upstream, func, stream.n_threads))
+        return self.visit_map_stream(
+            _stream.MapStream(stream.upstream, func, stream.n_threads)
+        )
 
     def visit_flatten_stream(self, stream: _stream.FlattenStream[T]) -> Iterator[T]:
         it = stream.upstream._accept(IteratorProducingVisitor[Iterable]())

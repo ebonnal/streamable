@@ -7,7 +7,7 @@ from typing import Callable, Iterator, List, TypeVar
 
 from parameterized import parameterized  # type: ignore
 
-from iterable import Stream, _util
+from streamable import Stream, _util
 
 TEN_MS = 0.01
 DELTA = 0.35
@@ -38,7 +38,7 @@ N = 64
 
 class TestStream(unittest.TestCase):
     def test_init(self) -> None:
-        # from iterable
+        # from streamable
         self.assertListEqual(list(Stream(range(8).__iter__)), list(range(8)))
         # from iterator
         self.assertListEqual(list(Stream(range(8).__iter__)), list(range(8)))
@@ -95,7 +95,9 @@ class TestStream(unittest.TestCase):
 
         # test potential recursion issue with chained empty iters
         list(
-            Stream([iter([]) for _ in range(2000)].__iter__).flatten(n_threads=n_threads)
+            Stream([iter([]) for _ in range(2000)].__iter__).flatten(
+                n_threads=n_threads
+            )
         )
 
         # test concurrency
@@ -242,7 +244,9 @@ class TestStream(unittest.TestCase):
     def test_map_threading_bench(self) -> None:
         # non-threaded vs threaded execution time
         stream = Stream(range(N).__iter__).map(ten_ms_identity)
-        self.assertAlmostEqual(timestream(stream), TEN_MS * N, delta=DELTA * (TEN_MS * N))
+        self.assertAlmostEqual(
+            timestream(stream), TEN_MS * N, delta=DELTA * (TEN_MS * N)
+        )
         n_threads = 2
         stream = Stream(range(N).__iter__).map(ten_ms_identity, n_threads=n_threads)
         self.assertAlmostEqual(
@@ -291,7 +295,9 @@ class TestStream(unittest.TestCase):
             [1, 3, 5, 7],
         )
 
-        self.assertListEqual(list(Stream(range(8).__iter__).filter(lambda _: False)), [])
+        self.assertListEqual(
+            list(Stream(range(8).__iter__).filter(lambda _: False)), []
+        )
 
         self.assertEqual(
             list(
@@ -356,7 +362,9 @@ class TestStream(unittest.TestCase):
     def test_slow(self, n_threads: int):
         freq = 64
         stream = (
-            Stream(range(N).__iter__).map(ten_ms_identity, n_threads=n_threads).slow(freq)
+            Stream(range(N).__iter__)
+            .map(ten_ms_identity, n_threads=n_threads)
+            .slow(freq)
         )
         self.assertAlmostEqual(
             timestream(stream),
@@ -454,7 +462,9 @@ class TestStream(unittest.TestCase):
         )
 
     def test_iterate(self) -> None:
-        self.assertListEqual(Stream("123".__iter__).map(int).iterate(collect_limit=2), [1, 2])
+        self.assertListEqual(
+            Stream("123".__iter__).map(int).iterate(collect_limit=2), [1, 2]
+        )
         self.assertListEqual(Stream("123".__iter__).map(int).iterate(), [])
 
         # errors
@@ -585,9 +595,9 @@ class TestStream(unittest.TestCase):
             Stream(lambda: range(10)).batch().map(lambda b: list(map(str, b))).flatten()
         )
         it: Iterator[str] = iter(p)
-        from iterable._visit._iter import IteratorProducingVisitor
+        from streamable._visit._iter import IteratorProducingVisitor
 
         p._accept(IteratorProducingVisitor[str]())
-        from iterable._visit._explanation import ExplainingVisitor
+        from streamable._visit._explanation import ExplainingVisitor
 
         p._accept(ExplainingVisitor())

@@ -15,10 +15,10 @@ from typing import (
     overload,
 )
 
-from iterable import _util
+from streamable import _util
 
 if TYPE_CHECKING:
-    from iterable._visit._base import Visitor
+    from streamable._visit._base import Visitor
 
 R = TypeVar("R")
 T = TypeVar("T")
@@ -44,7 +44,7 @@ class Stream(Iterable[T]):
         self.source = source
 
     def __iter__(self) -> Iterator[T]:
-        from iterable._visit import _iter
+        from streamable._visit import _iter
 
         return self._accept(_iter.IteratorProducingVisitor[T]())
 
@@ -52,7 +52,7 @@ class Stream(Iterable[T]):
         return self.chain(other)
 
     def explain(self, colored: bool = False) -> str:
-        from iterable._visit import _explanation
+        from streamable._visit import _explanation
 
         return self._accept(_explanation.ExplainingVisitor(colored))
 
