@@ -125,7 +125,7 @@ Defines the ungrouping of parent elements assuming that the parent elements are 
 integers: Stream[int] = integer_batches.flatten()
 ```
 
-It also has an optional `n_threads` parameter to flatten concurrently several parent streamables.
+It also has an optional `n_threads` parameter to flatten concurrently several parent iterables.
 
 ## `.chain`
 
