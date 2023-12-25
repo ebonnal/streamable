@@ -420,7 +420,7 @@ class ChainStream(Stream[Y]):
 class SlowStream(Stream[Y]):
     def __init__(self, upstream: Stream[Y], frequency: float):
         self.upstream: Stream[Y] = upstream
-        self.frequency = freq
+        self.frequency = frequency
 
     def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_slow_stream(self)
