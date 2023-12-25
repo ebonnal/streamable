@@ -1,5 +1,4 @@
 # `streamable`
-**Keep Iterables Simple and Stupid**
 
 [![Actions Status](https://github.com/bonnal-enzo/streamable/workflows/test/badge.svg)](https://github.com/bonnal-enzo/streamable/actions) [![Actions Status](https://github.com/bonnal-enzo/streamable/workflows/PyPI/badge.svg)](https://github.com/bonnal-enzo/streamable/actions)
 
