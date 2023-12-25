@@ -36,7 +36,7 @@ There are 2 kinds of operations:
 odd_squares: Stream[int] = (
     integers
     .map(lambda x: x ** 2, concurrency=2) # transformation
-    .filter(lambda x: x % 2 == 1) # transformation
+    .filter(lambda x: x % 2) # transformation
     .slow(frequency=10) # control
 )
 ```
