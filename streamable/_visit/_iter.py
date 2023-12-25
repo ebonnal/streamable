@@ -65,7 +65,9 @@ class IteratorProducingVisitor(Visitor[Iterator[T]]):
         )
 
     def visit_slow_stream(self, stream: _stream.SlowStream[T]) -> Iterator[T]:
-        return _core.SlowingIteratorWrapper(stream.upstream._accept(self), stream.frequency)
+        return _core.SlowingIteratorWrapper(
+            stream.upstream._accept(self), stream.frequency
+        )
 
     def visit_catch_stream(self, stream: _stream.CatchStream[T]) -> Iterator[T]:
         if stream.when is not None:

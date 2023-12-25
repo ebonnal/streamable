@@ -79,7 +79,9 @@ class ExplainingVisitor(Visitor[str]):
 
     def visit_flatten_stream(self, stream: _stream.FlattenStream) -> Any:
         name = "Flatten"
-        descr = f"using {stream.concurrency} thread{'s' if stream.concurrency > 1 else ''}"
+        descr = (
+            f"using {stream.concurrency} thread{'s' if stream.concurrency > 1 else ''}"
+        )
         return self.visit_any_stream(stream, name, descr)
 
     def visit_filter_stream(self, stream: _stream.FilterStream) -> Any:
