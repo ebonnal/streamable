@@ -84,9 +84,9 @@ class ObservingIteratorWrapper(IteratorWrapper[T]):
 
 
 class SlowingIteratorWrapper(IteratorWrapper[T]):
-    def __init__(self, iterator: Iterator[T], freq: float) -> None:
+    def __init__(self, iterator: Iterator[T], frequency: float) -> None:
         super().__init__(iterator)
-        self.freq = freq
+        self.frequency = freq
         self.start: Optional[float] = None
         self.yields_count = 0
 
@@ -95,7 +95,7 @@ class SlowingIteratorWrapper(IteratorWrapper[T]):
             self.start = time.time()
         while True:
             next_elem = next(self.iterator)
-            while self.yields_count > (time.time() - self.start) * self.freq:
+            while self.yields_count > (time.time() - self.start) * self.frequency:
                 time.sleep(0.001)
             self.yields_count += 1
             return next_elem

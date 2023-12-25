@@ -94,7 +94,7 @@ class ExplainingVisitor(Visitor[str]):
 
     def visit_slow_stream(self, stream: _stream.SlowStream) -> Any:
         name = "Slow"
-        descr = f"at a maximum frequency of {stream.freq} element{'s' if stream.freq > 1 else ''} per second"
+        descr = f"at a maximum frequency of {stream.frequency} element{'s' if stream.frequency > 1 else ''} per second"
         return self.visit_any_stream(stream, name, descr)
 
     def visit_catch_stream(self, stream: _stream.CatchStream) -> Any:

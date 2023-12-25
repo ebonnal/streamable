@@ -204,17 +204,17 @@ class Stream(Iterable[T]):
         """
         return BatchStream(self, size, seconds)
 
-    def slow(self, freq: float) -> "Stream[T]":
+    def slow(self, frequency: float) -> "Stream[T]":
         """
         Slow down the iteration to a maximum frequency in Hz (max number of elements yielded per second).
 
         Args:
-            freq (float): The maximum frequency in Hz of the iteration, i.e. how many elements will be yielded per second at most.
+            frequency (float): The maximum frequency in Hz of the iteration, i.e. how many elements will be yielded per second at most.
 
         Returns:
             Stream[T]: A new Stream instance with elements iterated at the specified frequency.
         """
-        return SlowStream(self, freq)
+        return SlowStream(self, frequency)
 
     def catch(
         self,
@@ -418,9 +418,9 @@ class ChainStream(Stream[Y]):
 
 
 class SlowStream(Stream[Y]):
-    def __init__(self, upstream: Stream[Y], freq: float):
+    def __init__(self, upstream: Stream[Y], frequency: float):
         self.upstream: Stream[Y] = upstream
-        self.freq = freq
+        self.frequency = freq
 
     def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_slow_stream(self)

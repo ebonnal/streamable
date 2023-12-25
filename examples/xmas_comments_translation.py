@@ -13,7 +13,7 @@ from streamable import Stream
     # translate them in english concurrently using 4 threads
     # by batch of 20 at a maximum rate of 50 batches per second
     .batch(size=20)
-    .slow(freq=50)
+    .slow(frequency=50)
     .map(translate.Client("en").translate, n_threads=4)
     .flatten()
     .map(itemgetter("translatedText"))
@@ -28,7 +28,7 @@ from streamable import Stream
     # and at a maximum rate of 5 batches per second.
     # Also raise if the status code is not 200.
     .batch(size=100, seconds=10)
-    .slow(freq=5)
+    .slow(frequency=5)
     .map(
         lambda comment: requests.post(
             "https://some.endpoint/comment",
