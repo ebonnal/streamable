@@ -3,7 +3,7 @@ from typing import Any, Callable, Iterable, Iterator, Type, TypeVar, Union
 
 from typing_extensions import TypeGuard
 
-LOGGER = logging.getLogger("kioss")
+LOGGER = logging.getLogger("iterable")
 LOGGER.propagate = False
 handler = logging.StreamHandler()
 formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")

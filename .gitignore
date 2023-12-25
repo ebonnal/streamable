@@ -4,3 +4,4 @@ __pycache__
 tmp*
 build
 dist
+.mypy_cache

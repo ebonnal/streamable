@@ -6,7 +6,7 @@ from typing import Callable, Iterable, Iterator, List, Optional, Type, TypeVar
 T = TypeVar("T")
 R = TypeVar("R")
 
-from kioss import _util
+from iterable import _util
 
 
 class IteratorWrapper(Iterator[T], ABC):
