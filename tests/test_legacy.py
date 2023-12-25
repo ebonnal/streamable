@@ -360,16 +360,16 @@ class TestStream(unittest.TestCase):
 
     @parameterized.expand([[1], [2], [3]])
     def test_slow(self, n_threads: int):
-        freq = 64
+        frequency = 64
         stream = (
             Stream(range(N).__iter__)
             .map(ten_ms_identity, n_threads=n_threads)
-            .slow(freq)
+            .slow(frequency)
         )
         self.assertAlmostEqual(
             timestream(stream),
-            1 / freq * N,
-            delta=DELTA * (1 / freq * N),
+            1 / frequency * N,
+            delta=DELTA * (1 / frequency * N),
         )
 
     def test_time(self) -> None:

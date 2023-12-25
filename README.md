@@ -37,7 +37,7 @@ odd_squares: Stream[int] = (
     integers
     .map(lambda x: x ** 2, n_threads=2) # transformation
     .filter(lambda x: x % 2 == 1) # transformation
-    .slow(freq=10) # control
+    .slow(frequency=10) # control
 )
 ```
 All operations are described in the ***Operations guide*** section.
@@ -150,7 +150,7 @@ one_to_thirty_integers: Stream[int] = one_to_ten_integers.chain(
 Defines a maximum rate at which parent elements will be yielded.
 
 ```python
-slowed_integers: Stream[int] = integers.slow(freq=2)
+slowed_integers: Stream[int] = integers.slow(frequency=2)
 ```
 
 The rate is expressed in elements per second, here a maximum of 2 elements per second will be yielded when iterating on the stream.
@@ -291,7 +291,7 @@ def integrate_pokemon_cards_into_bigquery(
 
         # Let's say pokemontcg.io rate limits us to 10 calls per second,
         # let's keep a margin and slow our stream down to 9.
-        .slow(freq=9)
+        .slow(frequency=9)
         .observe(what="pokemon cards page")
 
         # let's flatten the card page into individual cards
