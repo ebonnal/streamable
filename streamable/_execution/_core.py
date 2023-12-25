@@ -86,7 +86,7 @@ class ObservingIteratorWrapper(IteratorWrapper[T]):
 class SlowingIteratorWrapper(IteratorWrapper[T]):
     def __init__(self, iterator: Iterator[T], frequency: float) -> None:
         super().__init__(iterator)
-        self.frequency = freq
+        self.frequency = frequency
         self.start: Optional[float] = None
         self.yields_count = 0
 
