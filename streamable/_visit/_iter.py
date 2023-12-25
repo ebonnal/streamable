@@ -20,11 +20,11 @@ class IteratorProducingVisitor(Visitor[Iterator[T]]):
             stream.func, source=StopIteration, target=RuntimeError
         )
         it: Iterator[U] = stream.upstream._accept(IteratorProducingVisitor[U]())
-        if stream.n_threads == 1:
+        if stream.concurrency == 1:
             return map(func, it)
         else:
             return _concurrency.ThreadedMappingIteratorWrapper(
-                it, func, n_workers=stream.n_threads
+                it, func, n_workers=stream.concurrency
             )
 
     def visit_do_stream(self, stream: _stream.DoStream[T]) -> Iterator[T]:
@@ -32,16 +32,16 @@ class IteratorProducingVisitor(Visitor[Iterator[T]]):
             _util.map_exception(stream.func, source=StopIteration, target=RuntimeError)
         )
         return self.visit_map_stream(
-            _stream.MapStream(stream.upstream, func, stream.n_threads)
+            _stream.MapStream(stream.upstream, func, stream.concurrency)
         )
 
     def visit_flatten_stream(self, stream: _stream.FlattenStream[T]) -> Iterator[T]:
         it = stream.upstream._accept(IteratorProducingVisitor[Iterable]())
-        if stream.n_threads == 1:
+        if stream.concurrency == 1:
             return _core.FlatteningIteratorWrapper(it)
         else:
             return _concurrency.ThreadedFlatteningIteratorWrapper(
-                it, n_workers=stream.n_threads
+                it, n_workers=stream.concurrency
             )
 
     def visit_chain_stream(self, stream: _stream.ChainStream[T]) -> Iterator[T]:

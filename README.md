@@ -35,7 +35,7 @@ There are 2 kinds of operations:
 ```python
 odd_squares: Stream[int] = (
     integers
-    .map(lambda x: x ** 2, n_threads=2) # transformation
+    .map(lambda x: x ** 2, concurrency=2) # transformation
     .filter(lambda x: x % 2 == 1) # transformation
     .slow(frequency=10) # control
 )
@@ -84,7 +84,7 @@ Defines the application of a function on parent elements.
 integer_strings: Stream[str] = integers.map(str)
 ```
 
-It has an optional `n_threads` parameter if you need to apply the function concurrently using multiple threads.
+It has an optional `concurrency` parameter if you need to apply the function concurrently using multiple threads.
 
 ## `.do`
 Defines the application of a function on parent elements like `.map`, but the parent elements will be forwarded instead of the result of the function.
@@ -93,7 +93,7 @@ Defines the application of a function on parent elements like `.map`, but the pa
 printed_integers: Stream[int] = integers.do(print)
 ```
 
-It also has an optional `n_threads` parameter.
+It also has an optional `concurrency` parameter.
 
 ## `.filter`
 Defines the filtering of parent elements based on a predicate function.
@@ -125,7 +125,7 @@ Defines the ungrouping of parent elements assuming that the parent elements are 
 integers: Stream[int] = integer_batches.flatten()
 ```
 
-It also has an optional `n_threads` parameter to flatten concurrently several parent iterables.
+It also has an optional `concurrency` parameter to flatten concurrently several parent iterables.
 
 ## `.chain`
 
@@ -319,7 +319,7 @@ def integrate_pokemon_cards_into_bigquery(
                     table="ingestion.pokemon_card",
                     json_rows=cards_batch,
             ),
-            n_threads=2,
+            concurrency=2,
         )
         # at this point we have a Stream[Sequence[Dict[str, Any]]]
 

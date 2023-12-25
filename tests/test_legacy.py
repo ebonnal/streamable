@@ -63,14 +63,14 @@ class TestStream(unittest.TestCase):
         c: Stream[str] = Stream("abc".__iter__).map(set).flatten()
 
     @parameterized.expand([[1], [2], [3]])
-    def test_flatten(self, n_threads: int):
-        if n_threads == 1:
+    def test_flatten(self, concurrency: int):
+        if concurrency == 1:
             # test ordering
             self.assertListEqual(
                 list(
                     Stream(["Hello World", "Happy to be here :)"].__iter__)
                     .map(str.split)
-                    .flatten(n_threads=n_threads)
+                    .flatten(concurrency=concurrency)
                 ),
                 ["Hello", "World", "Happy", "to", "be", "here", ":)"],
             )
@@ -78,16 +78,16 @@ class TestStream(unittest.TestCase):
             set(
                 Stream(["Hello World", "Happy to be here :)"].__iter__)
                 .map(str.split)
-                .flatten(n_threads=n_threads)
+                .flatten(concurrency=concurrency)
             ),
             {"Hello", "World", "Happy", "to", "be", "here", ":)"},
         )
         self.assertEqual(
             sum(
                 Stream([["1 2 3", "4 5 6"], ["7", "8 9 10"]].__iter__)
-                .flatten(n_threads=n_threads)
+                .flatten(concurrency=concurrency)
                 .map(str.split)
-                .flatten(n_threads=n_threads)
+                .flatten(concurrency=concurrency)
                 .map(int)
             ),
             55,
@@ -96,7 +96,7 @@ class TestStream(unittest.TestCase):
         # test potential recursion issue with chained empty iters
         list(
             Stream([iter([]) for _ in range(2000)].__iter__).flatten(
-                n_threads=n_threads
+                concurrency=concurrency
             )
         )
 
@@ -117,18 +117,18 @@ class TestStream(unittest.TestCase):
         self.assertAlmostEqual(
             timeit.timeit(
                 lambda: self.assertSetEqual(
-                    set(Stream(streams.__iter__).flatten(n_threads=n_threads)),
+                    set(Stream(streams.__iter__).flatten(concurrency=concurrency)),
                     set(range(N)),
                 ),
                 number=1,
             ),
             len(streams)
             * single_stream_iteration_duration
-            / (1 if n_threads is None else n_threads),
+            / (1 if concurrency is None else concurrency),
             delta=DELTA
             * len(streams)
             * single_stream_iteration_duration
-            / (1 if n_threads is None else n_threads)
+            / (1 if concurrency is None else concurrency)
             + queue_get_timeout,
         )
 
@@ -139,7 +139,7 @@ class TestStream(unittest.TestCase):
             next(
                 iter(
                     Stream([zeros(), zeros(), zeros()].__iter__).flatten(
-                        n_threads=n_threads
+                        concurrency=concurrency
                     )
                 )
             ),
@@ -170,7 +170,7 @@ class TestStream(unittest.TestCase):
                 )
             )
             .map(iter)
-            .flatten(n_threads=n_threads)
+            .flatten(concurrency=concurrency)
         )
         error_types = set()
 
@@ -191,11 +191,11 @@ class TestStream(unittest.TestCase):
         # test rasing:
         self.assertRaises(
             ValueError,
-            lambda: list(Stream([map(int, "12-3")].__iter__).flatten(n_threads=n_threads)),  # type: ignore
+            lambda: list(Stream([map(int, "12-3")].__iter__).flatten(concurrency=concurrency)),  # type: ignore
         )
         self.assertRaises(
             ValueError,
-            lambda: list(Stream(lambda: map(int, "-")).flatten(n_threads=n_threads)),  # type: ignore
+            lambda: list(Stream(lambda: map(int, "-")).flatten(concurrency=concurrency)),  # type: ignore
         )
 
     def test_add(self) -> None:
@@ -215,17 +215,17 @@ class TestStream(unittest.TestCase):
         )
 
     @parameterized.expand([[1], [2], [3]])
-    def test_map(self, n_threads: int):
+    def test_map(self, concurrency: int):
         func = lambda x: x**2
         self.assertSetEqual(
             set(
                 Stream(range(N).__iter__)
-                .map(ten_ms_identity, n_threads=n_threads)
+                .map(ten_ms_identity, concurrency=concurrency)
                 .map(lambda x: x if 1 / x else x)
-                .map(func, n_threads=n_threads)
+                .map(func, concurrency=concurrency)
                 .catch(ZeroDivisionError)
                 .map(
-                    ten_ms_identity, n_threads=n_threads
+                    ten_ms_identity, concurrency=concurrency
                 )  # check that the ZeroDivisionError is bypass the call to func
             ),
             set(map(func, range(1, N))),
@@ -235,7 +235,7 @@ class TestStream(unittest.TestCase):
             set(
                 Stream(l.__iter__)
                 .map(lambda l: iter(l))
-                .map(next, n_threads=n_threads)
+                .map(next, concurrency=concurrency)
                 .catch(RuntimeError)
             ),
             {1, 3},
@@ -247,12 +247,12 @@ class TestStream(unittest.TestCase):
         self.assertAlmostEqual(
             timestream(stream), TEN_MS * N, delta=DELTA * (TEN_MS * N)
         )
-        n_threads = 2
-        stream = Stream(range(N).__iter__).map(ten_ms_identity, n_threads=n_threads)
+        concurrency = 2
+        stream = Stream(range(N).__iter__).map(ten_ms_identity, concurrency=concurrency)
         self.assertAlmostEqual(
             timestream(stream),
-            TEN_MS * N / n_threads,
-            delta=DELTA * (TEN_MS * N) / n_threads,
+            TEN_MS * N / concurrency,
+            delta=DELTA * (TEN_MS * N) / concurrency,
         )
 
     def test_do(self) -> None:
@@ -275,7 +275,7 @@ class TestStream(unittest.TestCase):
         # with threads
         l.clear()
         self.assertSetEqual(
-            set(Stream(args.__iter__).do(func_with_side_effect, n_threads=2)),
+            set(Stream(args.__iter__).do(func_with_side_effect, concurrency=2)),
             set(args),
         )
         self.assertSetEqual(set(l), set(map(func, args)))
@@ -359,11 +359,11 @@ class TestStream(unittest.TestCase):
         self.assertIsInstance(next(iter(errors)), ValueError)
 
     @parameterized.expand([[1], [2], [3]])
-    def test_slow(self, n_threads: int):
+    def test_slow(self, concurrency: int):
         frequency = 64
         stream = (
             Stream(range(N).__iter__)
-            .map(ten_ms_identity, n_threads=n_threads)
+            .map(ten_ms_identity, concurrency=concurrency)
             .slow(frequency)
         )
         self.assertAlmostEqual(
@@ -382,7 +382,7 @@ class TestStream(unittest.TestCase):
         )
 
     @parameterized.expand([[1], [2], [3]])
-    def test_catch(self, n_threads: int):
+    def test_catch(self, concurrency: int):
         # ignore = True
         errors = set()
 
@@ -393,7 +393,7 @@ class TestStream(unittest.TestCase):
         self.assertSetEqual(
             set(
                 Stream(["1", "r", "2"].__iter__)
-                .map(int, n_threads=n_threads)
+                .map(int, concurrency=concurrency)
                 .catch(
                     Exception,
                     when=lambda error: "invalid literal for int() with base 10:"
@@ -411,14 +411,14 @@ class TestStream(unittest.TestCase):
             ValueError,
             lambda: list(
                 Stream(["1", "r", "2"].__iter__)
-                .map(int, n_threads=n_threads)
+                .map(int, concurrency=concurrency)
                 .catch(ValueError, when=lambda error: False)
             ),
         )
         self.assertListEqual(
             list(
                 Stream(["1", "r", "2"].__iter__)
-                .map(int, n_threads=n_threads)
+                .map(int, concurrency=concurrency)
                 .catch(
                     ValueError,
                     when=lambda error: "invalid literal for int() with base 10:"
@@ -432,7 +432,7 @@ class TestStream(unittest.TestCase):
         self.assertListEqual(
             list(
                 Stream(["1", "r", "2"].__iter__)
-                .map(int, n_threads=n_threads)
+                .map(int, concurrency=concurrency)
                 .catch(TypeError)
                 .catch(ValueError)
                 .catch(TypeError)
@@ -446,7 +446,7 @@ class TestStream(unittest.TestCase):
             ValueError,
             lambda: list(
                 Stream(["1", "r", "2"].__iter__)
-                .map(int, n_threads=n_threads)
+                .map(int, concurrency=concurrency)
                 .catch(TypeError)
                 .map(type)
             ),
@@ -455,7 +455,7 @@ class TestStream(unittest.TestCase):
             ValueError,
             lambda: list(
                 Stream(["1", "r", "2"].__iter__)
-                .map(int, n_threads=n_threads)
+                .map(int, concurrency=concurrency)
                 .catch(TypeError)
                 .map(type)
             ),
@@ -514,11 +514,11 @@ class TestStream(unittest.TestCase):
             iter(
                 Stream(([0] * N).__iter__)
                 .slow(50)
-                .map(_util.identity, n_threads=2)
+                .map(_util.identity, concurrency=2)
                 .slow(50)
-                .map(_util.identity, n_threads=2)
+                .map(_util.identity, concurrency=2)
                 .slow(50)
-                .map(_util.identity, n_threads=2)
+                .map(_util.identity, concurrency=2)
                 .slow(50)
             )
         )
@@ -527,11 +527,11 @@ class TestStream(unittest.TestCase):
         stream = (
             Stream(([0] * N).__iter__)
             .slow(50)
-            .map(_util.identity, n_threads=2)
+            .map(_util.identity, concurrency=2)
             .slow(50)
-            .map(_util.identity, n_threads=2)
+            .map(_util.identity, concurrency=2)
             .slow(50)
-            .map(_util.identity, n_threads=2)
+            .map(_util.identity, concurrency=2)
             .slow(50)
         )
         samples = list(itertools.islice(stream, n))
@@ -543,9 +543,9 @@ class TestStream(unittest.TestCase):
         self.assertRaises(TypeError, lambda: list(stream_ok_at_construction))
 
     @parameterized.expand([[1], [2], [3]])
-    def test_invalid_flatten_upstream(self, n_threads: int):
+    def test_invalid_flatten_upstream(self, concurrency: int):
         self.assertRaises(
-            TypeError, lambda: list(Stream(range(3).__iter__).flatten(n_threads=n_threads))  # type: ignore
+            TypeError, lambda: list(Stream(range(3).__iter__).flatten(concurrency=concurrency))  # type: ignore
         )
 
     def test_planning_and_execution_decoupling(self) -> None:
@@ -562,7 +562,7 @@ class TestStream(unittest.TestCase):
             iter((ten_ms_identity(x) for x in range(N))) for _ in range(3)
         ]
         self.assertEqual(
-            Counter(Stream(l.__iter__).flatten(n_threads=2)),
+            Counter(Stream(l.__iter__).flatten(concurrency=2)),
             Counter(list(range(N)) + list(range(N)) + list(range(N))),
         )
 
@@ -573,7 +573,7 @@ class TestStream(unittest.TestCase):
             .map(lambda x: x)
             .batch(100)
             .observe("batches")
-            .flatten(n_threads=4)
+            .flatten(concurrency=4)
             .slow(64)
             .observe("slowed elems")
             .chain(

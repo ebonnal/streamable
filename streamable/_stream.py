@@ -60,112 +60,112 @@ class Stream(Iterable[T]):
         return visitor.visit_source_stream(self)
 
     @staticmethod
-    def sanitize_n_threads(n_threads: int):
-        if not isinstance(n_threads, int):
+    def sanitize_concurrency(concurrency: int):
+        if not isinstance(concurrency, int):
             raise TypeError(
-                f"n_threads should be an int but got '{n_threads}' of type {type(n_threads)}."
+                f"concurrency should be an int but got '{concurrency}' of type {type(concurrency)}."
             )
-        if n_threads < 1:
+        if concurrency < 1:
             raise ValueError(
-                f"n_threads should be greater or equal to 1, but got {n_threads}."
+                f"concurrency should be greater or equal to 1, but got {concurrency}."
             )
 
     def map(
         self,
         func: Callable[[T], R],
-        n_threads: int = 1,
+        concurrency: int = 1,
     ) -> "Stream[R]":
         """
         Apply a function to each element of the Stream.
 
         Args:
             func (Callable[[T], R]): The function to be applied to each element.
-            n_threads (int): The number of threads for concurrent execution (default is 1, meaning only the main thread is used).
+            concurrency (int): The number of threads for concurrent execution (default is 1, meaning only the main thread is used).
         Returns:
             Stream[R]: A new Stream instance with elements resulting from applying the function to each element.
         """
-        Stream.sanitize_n_threads(n_threads)
-        return MapStream(self, func, n_threads)
+        Stream.sanitize_concurrency(concurrency)
+        return MapStream(self, func, concurrency)
 
     def do(
         self,
         func: Callable[[T], Any],
-        n_threads: int = 1,
+        concurrency: int = 1,
     ) -> "Stream[T]":
         """
         Run the func as side effect: the resulting Stream forwards the upstream elements after func execution's end.
 
         Args:
             func (Callable[[T], R]): The function to be applied to each element.
-            n_threads (int): The number of threads for concurrent execution (default is 1, meaning only the main thread is used).
+            concurrency (int): The number of threads for concurrent execution (default is 1, meaning only the main thread is used).
         Returns:
             Stream[T]: A new Stream instance with elements resulting from applying the function to each element.
         """
-        Stream.sanitize_n_threads(n_threads)
-        return DoStream(self, func, n_threads)
+        Stream.sanitize_concurrency(concurrency)
+        return DoStream(self, func, concurrency)
 
     @overload
     def flatten(
         self: "Stream[Iterable[R]]",
-        n_threads: int = 1,
+        concurrency: int = 1,
     ) -> "Stream[R]":
         ...
 
     @overload
     def flatten(
         self: "Stream[Collection[R]]",
-        n_threads: int = 1,
+        concurrency: int = 1,
     ) -> "Stream[R]":
         ...
 
     @overload
     def flatten(
         self: "Stream[Stream[R]]",
-        n_threads: int = 1,
+        concurrency: int = 1,
     ) -> "Stream[R]":
         ...
 
     @overload
     def flatten(
         self: "Stream[Iterator[R]]",
-        n_threads: int = 1,
+        concurrency: int = 1,
     ) -> "Stream[R]":
         ...
 
     @overload
     def flatten(
         self: "Stream[List[R]]",
-        n_threads: int = 1,
+        concurrency: int = 1,
     ) -> "Stream[R]":
         ...
 
     @overload
     def flatten(
         self: "Stream[Sequence[R]]",
-        n_threads: int = 1,
+        concurrency: int = 1,
     ) -> "Stream[R]":
         ...
 
     @overload
     def flatten(
         self: "Stream[Set[R]]",
-        n_threads: int = 1,
+        concurrency: int = 1,
     ) -> "Stream[R]":
         ...
 
     def flatten(
         self: "Stream[Iterable[R]]",
-        n_threads: int = 1,
+        concurrency: int = 1,
     ) -> "Stream[R]":
         """
         Flatten the elements of the Stream, which are assumed to be iterables, creating a new Stream with individual elements.
 
         Returns:
             Stream[R]: A new Stream instance with individual elements obtained by flattening the original elements.
-            n_threads (int): The number of threads for concurrent execution (default is 1, meaning only the main thread is used).
+            concurrency (int): The number of threads for concurrent execution (default is 1, meaning only the main thread is used).
         """
-        Stream.sanitize_n_threads(n_threads)
-        return FlattenStream(self, n_threads)
+        Stream.sanitize_concurrency(concurrency)
+        return FlattenStream(self, concurrency)
 
     def chain(self, *others: "Stream[T]") -> "Stream[T]":
         """
@@ -345,20 +345,20 @@ class FilterStream(Stream[Y]):
 
 
 class MapStream(Stream[Z], Generic[Y, Z]):
-    def __init__(self, upstream: Stream[Y], func: Callable[[Y], Z], n_threads: int):
+    def __init__(self, upstream: Stream[Y], func: Callable[[Y], Z], concurrency: int):
         self.upstream: Stream[Y] = upstream
         self.func = func
-        self.n_threads = n_threads
+        self.concurrency = concurrency
 
     def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_map_stream(self)
 
 
 class DoStream(Stream[Y]):
-    def __init__(self, upstream: Stream[Y], func: Callable[[Y], Any], n_threads: int):
+    def __init__(self, upstream: Stream[Y], func: Callable[[Y], Any], concurrency: int):
         self.upstream: Stream[Y] = upstream
         self.func = func
-        self.n_threads = n_threads
+        self.concurrency = concurrency
 
     def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_do_stream(self)
@@ -375,9 +375,9 @@ class ObserveStream(Stream[Y]):
 
 
 class FlattenStream(Stream[Y]):
-    def __init__(self, upstream: Stream[Iterable[Y]], n_threads: int) -> None:
+    def __init__(self, upstream: Stream[Iterable[Y]], concurrency: int) -> None:
         self.upstream: Stream[Iterable[Y]] = upstream
-        self.n_threads = n_threads
+        self.concurrency = concurrency
 
     def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_flatten_stream(self)
