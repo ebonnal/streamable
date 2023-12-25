@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Generic, TypeVar
 
-from iterable import _stream
+from streamable import _stream
 
 V = TypeVar("V")
 

@@ -5,7 +5,7 @@ from typing import Callable, Iterable, Iterator, TypeVar
 
 from parameterized import parameterized  # type: ignore
 
-from iterable import Stream
+from streamable import Stream
 
 T = TypeVar("T")
 
@@ -102,7 +102,7 @@ class TestStream(unittest.TestCase):
         )
 
     def test_add(self) -> None:
-        from iterable._stream import ChainStream
+        from streamable._stream import ChainStream
 
         stream = Stream(src)
         self.assertIsInstance(
