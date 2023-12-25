@@ -18,7 +18,7 @@ from streamable import Stream
 ## 3. init
 
 ```python
-integers: Stream[int] = Stream(source=lambda: range(10))
+integers: Stream[int] = Stream(lambda: range(10))
 ```
 
 Instantiate a `Stream` by providing a function that returns an `Iterable` (the data source).
