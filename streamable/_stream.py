@@ -191,7 +191,9 @@ class Stream(Iterable[T]):
         """
         return FilterStream(self, predicate)
 
-    def batch(self, size: int = 100, seconds: float = float("inf")) -> "Stream[List[T]]":
+    def batch(
+        self, size: int = 100, seconds: float = float("inf")
+    ) -> "Stream[List[T]]":
         """
         Batch elements of the Stream into lists of a specified size or within a specified time window.
 
