@@ -69,17 +69,17 @@ class ExplainingVisitor(Visitor[str]):
 
     def visit_map_stream(self, stream: _stream.MapStream) -> Any:
         name = "Map"
-        descr = f"function {stream.func}, using {stream.n_threads} thread{'s' if stream.n_threads > 1 else ''}"
+        descr = f"function {stream.func}, using {stream.concurrency} thread{'s' if stream.concurrency > 1 else ''}"
         return self.visit_any_stream(stream, name, descr)
 
     def visit_do_stream(self, stream: _stream.DoStream) -> Any:
         name = "Do"
-        descr = f"side effects by applying a function {stream.func}, using {stream.n_threads} thread{'s' if stream.n_threads > 1 else ''}"
+        descr = f"side effects by applying a function {stream.func}, using {stream.concurrency} thread{'s' if stream.concurrency > 1 else ''}"
         return self.visit_any_stream(stream, name, descr)
 
     def visit_flatten_stream(self, stream: _stream.FlattenStream) -> Any:
         name = "Flatten"
-        descr = f"using {stream.n_threads} thread{'s' if stream.n_threads > 1 else ''}"
+        descr = f"using {stream.concurrency} thread{'s' if stream.concurrency > 1 else ''}"
         return self.visit_any_stream(stream, name, descr)
 
     def visit_filter_stream(self, stream: _stream.FilterStream) -> Any:

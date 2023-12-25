@@ -14,7 +14,7 @@ from streamable import Stream
     # by batch of 20 at a maximum rate of 50 batches per second
     .batch(size=20)
     .slow(frequency=50)
-    .map(translate.Client("en").translate, n_threads=4)
+    .map(translate.Client("en").translate, concurrency=4)
     .flatten()
     .map(itemgetter("translatedText"))
     .observe(what="comments translated in english")
@@ -35,7 +35,7 @@ from streamable import Stream
             json={"text": comment},
             auth=("foo", "bar"),
         ),
-        n_threads=2,
+        concurrency=2,
     )
     .do(requests.Response.raise_for_status)
     .map(requests.Response.text)

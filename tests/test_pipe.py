@@ -63,7 +63,7 @@ class TestStream(unittest.TestCase):
             .map(lambda _: _)
             .batch(100)
             .observe("batches")
-            .flatten(n_threads=4)
+            .flatten(concurrency=4)
             .slow(64)
             .observe("stream #1 elements")
             .chain(
@@ -118,22 +118,22 @@ class TestStream(unittest.TestCase):
             [Stream.flatten, []],
         ]
     )
-    def test_sanitize_n_threads(self, method, args) -> None:
+    def test_sanitize_concurrency(self, method, args) -> None:
         stream = Stream(src)
         with self.assertRaises(
             TypeError,
-            msg=f"{method} should be raising TypeError for non-int n_threads.",
+            msg=f"{method} should be raising TypeError for non-int concurrency.",
         ):
-            method(stream, *args, n_threads="1")
+            method(stream, *args, concurrency="1")
 
         with self.assertRaises(
-            ValueError, msg=f"{method} should be raising ValueError for n_threads=0."
+            ValueError, msg=f"{method} should be raising ValueError for concurrency=0."
         ):
-            method(stream, *args, n_threads=0)
+            method(stream, *args, concurrency=0)
 
-        for n_threads in range(1, 10):
+        for concurrency in range(1, 10):
             self.assertIsInstance(
-                method(stream, *args, n_threads=n_threads),
+                method(stream, *args, concurrency=concurrency),
                 Stream,
-                msg=f"it must be ok to call {method} with n_threads={n_threads}",
+                msg=f"it must be ok to call {method} with concurrency={concurrency}",
             )
