@@ -162,22 +162,25 @@ class TestStream(unittest.TestCase):
         ]
     )
     def test_do(self, concurrency) -> None:
-        s: Set[int] = set()
+        side_collection: Set[int] = set()
 
-        def side_effect(x: int):
-            nonlocal s
-            s.add(square(x))
+        def side_effect(x: int, func: Callable[[int], int]):
+            nonlocal side_collection
+            side_collection.add(func(x))
 
-        res = list(Stream(src).do(side_effect, concurrency=concurrency))
+        res = list(
+            Stream(src).do(lambda i: side_effect(i, square), concurrency=concurrency)
+        )
+
         self.assertListEqual(
             res,
-            list(map(square, src())),
-            msg="At any concurrency the `do` method should call func on upstream elements (in any order).",
+            list(src()),
+            msg="At any concurrency the `do` method should return the upstream elements in order.",
         )
         self.assertSetEqual(
-            s,
+            side_collection,
             set(map(square, src())),
-            msg="At any concurrency the `do` method should return the upstream elements in order.",
+            msg="At any concurrency the `do` method should call func on upstream elements (in any order).",
         )
 
     @parameterized.expand(
