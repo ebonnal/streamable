@@ -19,6 +19,7 @@ from streamable import _util
 
 if TYPE_CHECKING:
     from streamable._visit._base import Visitor
+    import builtins
 
 R = TypeVar("R")
 T = TypeVar("T")
@@ -142,6 +143,20 @@ class Stream(Iterable[T]):
     @overload
     def flatten(
         self: "Stream[Sequence[R]]",
+        concurrency: int = 1,
+    ) -> "Stream[R]":
+        ...
+
+    @overload
+    def flatten(
+        self: "Stream[builtins.map[R]]",
+        concurrency: int = 1,
+    ) -> "Stream[R]":
+        ...
+
+    @overload
+    def flatten(
+        self: "Stream[builtins.filter[R]]",
         concurrency: int = 1,
     ) -> "Stream[R]":
         ...
