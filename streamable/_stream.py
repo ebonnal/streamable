@@ -18,8 +18,9 @@ from typing import (
 from streamable import _util
 
 if TYPE_CHECKING:
-    from streamable._visit._base import Visitor
     import builtins
+
+    from streamable._visit._base import Visitor
 
 R = TypeVar("R")
 T = TypeVar("T")

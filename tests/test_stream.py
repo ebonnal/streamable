@@ -1,7 +1,7 @@
 import time
 import timeit
 import unittest
-from typing import Callable, Generic, Iterable, Iterator, Set, Type, TypeVar, cast
+from typing import Callable, Iterable, Iterator, Set, Type, TypeVar, cast
 
 from parameterized import parameterized  # type: ignore
 
@@ -30,8 +30,10 @@ def slow_identity(x: T) -> T:
 def identity(x: T) -> T:
     return x
 
+
 def square(x):
     return x**2
+
 
 # size of the test collections
 N = 256
@@ -161,9 +163,11 @@ class TestStream(unittest.TestCase):
     )
     def test_do(self, concurrency) -> None:
         s: Set[int] = set()
+
         def side_effect(x: int):
             nonlocal s
             s.add(square(x))
+
         res = list(Stream(src).do(side_effect, concurrency=concurrency))
         self.assertListEqual(
             res,
@@ -188,7 +192,7 @@ class TestStream(unittest.TestCase):
         self.assertAlmostEqual(
             timestream(method(Stream(src), slow_identity, concurrency=concurrency)),
             expected_iteration_duration,
-            delta=expected_iteration_duration*0.25,
+            delta=expected_iteration_duration * 0.25,
             msg="Increasing the concurrency of mapping should decrease proportionnally the iteration's duration.",
         )
 
@@ -202,14 +206,13 @@ class TestStream(unittest.TestCase):
     def test_flatten_concurrency(self, concurrency) -> None:
         expected_iteration_duration = N * slow_identity_duration / concurrency
         n_iterables = 32
-        iterables_stream = (
-            Stream(lambda: range(n_iterables))
-            .map(lambda _: map(slow_identity, range(N // n_iterables)))
+        iterables_stream = Stream(lambda: range(n_iterables)).map(
+            lambda _: map(slow_identity, range(N // n_iterables))
         )
         self.assertAlmostEqual(
             timestream(iterables_stream.flatten(concurrency=concurrency)),
             expected_iteration_duration,
-            delta=expected_iteration_duration*0.25,
+            delta=expected_iteration_duration * 0.25,
             msg="Increasing the concurrency of mapping should decrease proportionnally the iteration's duration.",
         )
 
@@ -222,10 +225,7 @@ class TestStream(unittest.TestCase):
     def test_flatten(self, concurrency) -> None:
         n_iterables = 32
         it = list(map(slow_identity, range(N // n_iterables)))
-        iterables_stream = (
-            Stream(lambda: range(n_iterables))
-            .map(lambda _: it)
-        )
+        iterables_stream = Stream(lambda: range(n_iterables)).map(lambda _: it)
         self.assertCountEqual(
             list(iterables_stream.flatten(concurrency=concurrency)),
             list(it) * n_iterables,
@@ -240,25 +240,41 @@ class TestStream(unittest.TestCase):
         )
 
     def test_flatten_typing(self) -> None:
-        flattened_iterator_stream: Stream[str] = Stream("abc".__iter__).map(iter).flatten()
+        flattened_iterator_stream: Stream[str] = (
+            Stream("abc".__iter__).map(iter).flatten()
+        )
         flattened_list_stream: Stream[str] = Stream("abc".__iter__).map(list).flatten()
         flattened_set_stream: Stream[str] = Stream("abc".__iter__).map(set).flatten()
-        flattened_map_stream: Stream[str] = Stream("abc".__iter__).map(lambda char: map(lambda x: x, char)).flatten()
-        flattened_filter_stream: Stream[str] = Stream("abc".__iter__).map(lambda char: filter(lambda _: True, char)).flatten()
+        flattened_map_stream: Stream[str] = (
+            Stream("abc".__iter__).map(lambda char: map(lambda x: x, char)).flatten()
+        )
+        flattened_filter_stream: Stream[str] = (
+            Stream("abc".__iter__)
+            .map(lambda char: filter(lambda _: True, char))
+            .flatten()
+        )
 
     @parameterized.expand(
         [
             [raised_exc, catched_exc, concurrency]
-            for raised_exc, catched_exc in [(ValueError, ValueError), (StopIteration, RuntimeError)]
+            for raised_exc, catched_exc in [
+                (ValueError, ValueError),
+                (StopIteration, RuntimeError),
+            ]
             for concurrency in [1, 2]
         ]
     )
-    def test_flatten_with_exception(self, raised_exc: Type[Exception], catched_exc: Type[Exception], concurrency: int) -> None:
+    def test_flatten_with_exception(
+        self,
+        raised_exc: Type[Exception],
+        catched_exc: Type[Exception],
+        concurrency: int,
+    ) -> None:
         class odd_iterable(Iterable[int]):
             def __init__(self, i, pair_exception: Type[Exception]):
                 self.i = i
                 self.pair_exception = pair_exception
-                
+
             def __iter__(self) -> Iterator[int]:
                 if self.i % 2:
                     raise self.pair_exception()
@@ -267,7 +283,12 @@ class TestStream(unittest.TestCase):
         n_iterables = 4
 
         self.assertSetEqual(
-            set(Stream(lambda: range(n_iterables)).map(lambda i: cast(Iterable[int], odd_iterable(i, raised_exc))).flatten(concurrency=concurrency).catch(catched_exc)),
+            set(
+                Stream(lambda: range(n_iterables))
+                .map(lambda i: cast(Iterable[int], odd_iterable(i, raised_exc)))
+                .flatten(concurrency=concurrency)
+                .catch(catched_exc)
+            ),
             set(range(0, n_iterables, 2)),
             msg="At any concurrency the `flatten` method should be resilient to exceptions thrown by iterators, especially it should remap StopIteration one to RuntimeError.",
         )
