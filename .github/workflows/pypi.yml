@@ -7,7 +7,7 @@ on:
     paths:
       - 'setup.py'
 jobs:
-  deploy:
+  pypi:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
