@@ -379,7 +379,8 @@ class TestStream(unittest.TestCase):
         )
 
         # behavior with exceptions
-        f = lambda i: i/(10-i)
+        def f(i):
+            return i/(10-i)
         stream_iterator = iter(Stream(map(f, src()).__iter__).batch(100))
         self.assertListEqual(
             next(stream_iterator),
@@ -444,3 +445,37 @@ class TestStream(unittest.TestCase):
                 delta= 0.01 * expected_duration,
                 msg="`slow` must respect the frequency set.",
             )
+
+    def test_catch(self) -> None:
+        def f(i):
+            return i/(3 - i)
+        stream = Stream(lambda: map(f, src()))
+        safe_src = list(src())
+        del safe_src[3]
+        self.assertListEqual(
+            list(stream.catch(ZeroDivisionError)),
+            list(map(f, safe_src)),
+            msg="If the exception type matches the `catch`'s argument, then the impacted element should be .",
+        )
+        self.assertListEqual(
+            list(stream.catch(TestError, ZeroDivisionError)),
+            list(map(f, safe_src)),
+            msg="If the exception type matches one of the `catch`'s argument, then the impacted element should be .",
+        )
+        self.assertListEqual(
+            list(stream.catch(TestError, ZeroDivisionError, when=lambda _: True)),
+            list(map(f, safe_src)),
+            msg="If the exception type matches one of the `catch`'s argument and `when`predicate evaluates to True, then the impacted element should be .",
+        )
+
+        with self.assertRaises(
+            ZeroDivisionError,
+            msg="If a non catched exception type occurs, then it should be raised.",
+        ):
+            list(stream.catch(TestError))
+        with self.assertRaises(
+            ZeroDivisionError,
+            msg="If an exception of a catched type occurs but predicate `when` does not return True, then it should be raised.",
+        ):
+            list(stream.catch(ZeroDivisionError, when=lambda _: False))
+
