@@ -127,7 +127,10 @@ class BatchingIteratorWrapper(IteratorWrapper[List[T]]):
         batch = None
         try:
             batch = [next(self.iterator)]
-            while len(batch) < self.size and (time.time() - self.last_yielded_batch_at) < self.seconds:
+            while (
+                len(batch) < self.size
+                and (time.time() - self.last_yielded_batch_at) < self.seconds
+            ):
                 batch.append(next(self.iterator))
             self.last_yielded_batch_at = time.time()
             return batch

@@ -222,13 +222,9 @@ class Stream(Iterable[T]):
         """
         # if seconds == float("inf"):
         if size < 1:
-            raise ValueError(
-                f"batch's size should be >= 1 but got {size}."
-            )
+            raise ValueError(f"batch's size should be >= 1 but got {size}.")
         if seconds <= 0:
-            raise ValueError(
-                f"batch's seconds should be > 0 but got {seconds}."
-            )
+            raise ValueError(f"batch's seconds should be > 0 but got {seconds}.")
         return BatchStream(self, size, seconds)
 
     def slow(self, frequency: float) -> "Stream[T]":
@@ -303,7 +299,9 @@ class Stream(Iterable[T]):
         if collect_limit < 0:
             raise ValueError(f"`collect_limit` must be >= 0  but got {collect_limit}.")
         if raise_if_more_errors_than < 0:
-            raise ValueError(f"`raise_if_more_errors_than` must be >= 0  but got {raise_if_more_errors_than}.")
+            raise ValueError(
+                f"`raise_if_more_errors_than` must be >= 0  but got {raise_if_more_errors_than}."
+            )
 
         max_num_error_samples = self._RUN_MAX_NUM_ERROR_SAMPLES
         stream = self
@@ -347,6 +345,7 @@ class Stream(Iterable[T]):
 X = TypeVar("X")
 Y = TypeVar("Y")
 Z = TypeVar("Z")
+
 
 class FilterStream(Stream[Y]):
     def __init__(self, upstream: Stream[Y], predicate: Callable[[Y], bool]):
