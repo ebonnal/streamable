@@ -223,11 +223,11 @@ class Stream(Iterable[T]):
         # if seconds == float("inf"):
         if size < 1:
             raise ValueError(
-                f"batch's size should be >= 1."
+                f"batch's size should be >= 1 but got {size}."
             )
         if seconds <= 0:
             raise ValueError(
-                f"batch's seconds should be > 0."
+                f"batch's seconds should be > 0 but got {seconds}."
             )
         return BatchStream(self, size, seconds)
 
@@ -243,7 +243,7 @@ class Stream(Iterable[T]):
         """
         if frequency <= 0:
             raise ValueError(
-                f"frequency is the maximum number of elements to yield per second, it must be > 0."
+                f"frequency is the maximum number of elements to yield per second, it must be > 0  but got {frequency}."
             )
         return SlowStream(self, frequency)
 
@@ -300,6 +300,11 @@ class Stream(Iterable[T]):
         Raises:
             Exception: If more exception than `raise_if_more_errors_than` are catched during iteration.
         """
+        if collect_limit < 0:
+            raise ValueError(f"`collect_limit` must be >= 0  but got {collect_limit}.")
+        if raise_if_more_errors_than < 0:
+            raise ValueError(f"`raise_if_more_errors_than` must be >= 0  but got {raise_if_more_errors_than}.")
+
         max_num_error_samples = self._RUN_MAX_NUM_ERROR_SAMPLES
         stream = self
 
