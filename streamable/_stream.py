@@ -343,29 +343,6 @@ X = TypeVar("X")
 Y = TypeVar("Y")
 Z = TypeVar("Z")
 
-
-class SourceStream(Stream[X]):
-    def __init__(self, source: Callable[[], Iterable[X]]):
-        """
-        Initialize a Stream with a data source.
-
-        The source must be a callable that returns an iterator, i.e., an object implementing __iter__ and __next__ methods.
-        Each subsequent iteration over the stream will use a fresh iterator obtained from `source()`.
-
-        Args:
-            source (Callable[[], Iterator[T]]): A factory function called to obtain a fresh data source iterator for each iteration.
-        """
-        self.upstream = None
-        if not callable(source):
-            raise TypeError(
-                f"source must be a callable returning an iterator, but the provided source is not a callable: got source '{source}' of type {type(source)}."
-            )
-        self.source = source
-
-    def _accept(self, visitor: "Visitor[V]") -> V:
-        return visitor.visit_source_stream(self)
-
-
 class FilterStream(Stream[Y]):
     def __init__(self, upstream: Stream[Y], predicate: Callable[[Y], bool]):
         self.upstream: Stream[Y] = upstream
