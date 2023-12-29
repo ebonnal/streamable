@@ -1,6 +1,7 @@
 # `streamable`
 
-[![Actions Status](https://github.com/bonnal-enzo/streamable/workflows/test/badge.svg)](https://github.com/bonnal-enzo/streamable/actions) [![Actions Status](https://github.com/bonnal-enzo/streamable/workflows/PyPI/badge.svg)](https://github.com/bonnal-enzo/streamable/actions)
+[![Actions Status](https://github.com/bonnal-enzo/streamable/workflows/unittest/badge.svg)](https://github.com/bonnal-enzo/streamable/actions) [![Actions Status](https://github.com/bonnal-enzo/streamable/workflows/typing/badge.svg)](https://github.com/bonnal-enzo/streamable/actions)
+[![Actions Status](https://github.com/bonnal-enzo/streamable/workflows/lint/badge.svg)](https://github.com/bonnal-enzo/streamable/actions) [![Actions Status](https://github.com/bonnal-enzo/streamable/workflows/PyPI/badge.svg)](https://github.com/bonnal-enzo/streamable/actions)
 
 Ease the manipulation of `Iterable`s.
 
