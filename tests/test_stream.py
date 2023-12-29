@@ -322,3 +322,13 @@ class TestStream(unittest.TestCase):
             set(range(0, n_iterables, 2)),
             msg="At any concurrency the `flatten` method should be resilient to exceptions thrown by iterators, especially it should remap StopIteration one to RuntimeError.",
         )
+
+    def test_chain(self) -> None:
+        stream_a = Stream(range(10).__iter__)
+        stream_b = Stream(range(10, 20).__iter__)
+        stream_c = Stream(range(20, 30).__iter__)
+        self.assertListEqual(
+            list(stream_a.chain(stream_b, stream_c)),
+            list(range(30)),
+            msg="`chain` must yield the elements of the first stream the move on with the elements of the next ones and so on.",
+        )
