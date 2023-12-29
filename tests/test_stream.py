@@ -347,6 +347,21 @@ class TestStream(unittest.TestCase):
         )
 
     def test_batch(self) -> None:
+        # behavior with invalid arguments
+        for seconds in [-1, 0]:
+            with self.assertRaises(
+                ValueError,
+                msg="`batch` should raise error when called with `seconds` <= 0."
+            ):
+                list(Stream(lambda: [1]).batch(seconds=seconds)),
+        for size in [-1, 0]:
+            with self.assertRaises(
+                ValueError,
+                msg="`batch` should raise error when called with `size` < 1."
+            ):
+                list(Stream(lambda: [1]).batch(size=size)),
+
+        # batch size
         self.assertListEqual(
             list(Stream(lambda: range(6)).batch(size=4)),
             [[0, 1, 2, 3], [4, 5]],
@@ -362,20 +377,6 @@ class TestStream(unittest.TestCase):
             [],
             msg="",
         )
-
-        # behavior with invalid arguments
-        for seconds in [-1, 0]:
-            with self.assertRaises(
-                ValueError,
-                msg="`batch` should raise error when called with `seconds` <= 0."
-            ):
-                list(Stream(lambda: [1]).batch(seconds=seconds)),
-        for size in [-1, 0]:
-            with self.assertRaises(
-                ValueError,
-                msg="`batch` should raise error when called with `size` < 1."
-            ):
-                list(Stream(lambda: [1]).batch(size=size)),
 
         # behavior with exceptions
         f = lambda i: i/(10-i)
@@ -409,3 +410,37 @@ class TestStream(unittest.TestCase):
             list(map(lambda e: [e, e + 1], filter(lambda e: e % 2 == 0, src()))),
             msg="`batch` should yield upstream elements in a two-element batch if `seconds` inferior to twice the upstream yield period",
         )
+
+    def test_slow(self) -> None:
+        # behavior with invalid arguments
+        for frequency in [-0.01, 0]:
+            with self.assertRaises(
+                ValueError,
+                msg="`slow` should raise error when called with `frequency` <= 0."
+            ):
+                list(Stream(lambda: [1]).slow(frequency=frequency)),
+
+        # float or int frequency
+        for frequency in [0.9, 2]:
+            stream_iterator = iter(Stream(src).slow(frequency=frequency))
+            start_time = time.time()
+            a = next(stream_iterator)
+            b = next(stream_iterator)
+            end_time = time.time()
+            self.assertEqual(
+                a,
+                0,
+                msg="`slow` must forward upstream elements unchanged"
+            )
+            self.assertEqual(
+                b,
+                1,
+                msg="`slow` must forward upstream elements unchanged"
+            )
+            expected_duration = 1/frequency
+            self.assertAlmostEqual(
+                end_time - start_time,
+                expected_duration,
+                delta= 0.01 * expected_duration,
+                msg="`slow` must respect the frequency set.",
+            )
