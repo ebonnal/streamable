@@ -34,6 +34,11 @@ def identity(x: T) -> T:
 def square(x):
     return x**2
 
+def throw(exc: Type[Exception]):
+    raise exc()
+
+class TestError(Exception):
+    pass
 
 # size of the test collections
 N = 256
@@ -261,7 +266,7 @@ class TestStream(unittest.TestCase):
         [
             [raised_exc, catched_exc, concurrency, method]
             for raised_exc, catched_exc in [
-                (ValueError, ValueError),
+                (TestError, TestError),
                 (StopIteration, RuntimeError),
             ]
             for concurrency in [1, 2]
@@ -275,8 +280,6 @@ class TestStream(unittest.TestCase):
         concurrency: int,
         method: Callable[[Stream, Callable[[Any], Any], int], Stream],
     ) -> None:
-        def throw(exc: Type[Exception]):
-            raise exc()
 
         list(
             method(Stream(src), lambda _: throw(raised_exc), concurrency).catch(
@@ -288,7 +291,7 @@ class TestStream(unittest.TestCase):
         [
             [raised_exc, catched_exc, concurrency]
             for raised_exc, catched_exc in [
-                (ValueError, ValueError),
+                (TestError, TestError),
                 (StopIteration, RuntimeError),
             ]
             for concurrency in [1, 2]
@@ -341,4 +344,68 @@ class TestStream(unittest.TestCase):
             list(Stream(src).filter(predicate)),
             list(filter(predicate, src())),
             msg="`filter` must act like builtin filter",
+        )
+
+    def test_batch(self) -> None:
+        self.assertListEqual(
+            list(Stream(lambda: range(6)).batch(size=4)),
+            [[0, 1, 2, 3], [4, 5]],
+            msg="",
+        )
+        self.assertListEqual(
+            list(Stream(lambda: range(6)).batch(size=2)),
+            [[0, 1], [2, 3], [4, 5]],
+            msg="",
+        )
+        self.assertListEqual(
+            list(Stream(lambda: []).batch(size=2)),
+            [],
+            msg="",
+        )
+
+        # behavior with invalid arguments
+        for seconds in [-1, 0]:
+            with self.assertRaises(
+                ValueError,
+                msg="`batch` should raise error when called with `seconds` <= 0."
+            ):
+                list(Stream(lambda: [1]).batch(seconds=seconds)),
+        for size in [-1, 0]:
+            with self.assertRaises(
+                ValueError,
+                msg="`batch` should raise error when called with `size` < 1."
+            ):
+                list(Stream(lambda: [1]).batch(size=size)),
+
+        # behavior with exceptions
+        f = lambda i: i/(10-i)
+        stream_iterator = iter(Stream(map(f, src()).__iter__).batch(100))
+        self.assertListEqual(
+            next(stream_iterator),
+            list(map(f, range(10))),
+            msg="when encountering upstream exception, `batch` should yield the current accumulated batch...",
+        )
+
+        with self.assertRaises(
+            ZeroDivisionError,
+            msg="... and raise the upstream exception during the next call to `next`...",
+        ):
+            next(stream_iterator)
+
+        self.assertListEqual(
+            next(stream_iterator),
+            list(map(f, range(11, 111))),
+            msg="... and restarting a fresh batch to yield after that.",
+        )
+
+        # behavior of the `seconds` parameter
+        self.assertListEqual(
+            list(Stream(map(slow_identity, src()).__iter__).batch(seconds=0.9 * slow_identity_duration)),
+            list(map(lambda e: [e], src())),
+            msg="`batch` should yield each upstream element alone in a single-element batch if `seconds` inferior to the upstream yield period",
+        )
+        self.assertListEqual(
+            list(Stream(map(slow_identity, src()).__iter__).batch(seconds=1.9 * slow_identity_duration)),
+            list(map(lambda e: [e, e + 1], filter(lambda e: e % 2 == 0, src()))),
+            msg="`batch` should yield upstream elements in a two-element batch if `seconds` inferior to twice the upstream yield period",
         )

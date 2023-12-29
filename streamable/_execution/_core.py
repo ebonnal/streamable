@@ -115,6 +115,7 @@ class BatchingIteratorWrapper(IteratorWrapper[List[T]]):
         self.seconds = seconds
         self._to_be_raised: Optional[Exception] = None
         self._is_exhausted = False
+        self.last_yielded_batch_at = time.time()
 
     def __next__(self) -> List[T]:
         if self._is_exhausted:
@@ -123,21 +124,23 @@ class BatchingIteratorWrapper(IteratorWrapper[List[T]]):
             e = self._to_be_raised
             self._to_be_raised = None
             raise e
-        start_time = time.time()
         batch = None
         try:
             batch = [next(self.iterator)]
-            while len(batch) < self.size and (time.time() - start_time) < self.seconds:
+            while len(batch) < self.size and (time.time() - self.last_yielded_batch_at) < self.seconds:
                 batch.append(next(self.iterator))
+            self.last_yielded_batch_at = time.time()
             return batch
         except StopIteration:
             self._is_exhausted = True
             if batch:
+                self.last_yielded_batch_at = time.time()
                 return batch
             raise
         except Exception as e:
             if batch:
                 self._to_be_raised = e
+                self.last_yielded_batch_at = time.time()
                 return batch
             raise e
 

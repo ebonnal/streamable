@@ -220,6 +220,15 @@ class Stream(Iterable[T]):
         Returns:
             Stream[List[T]]: A new Stream instance with lists containing batches of elements.
         """
+        # if seconds == float("inf"):
+        if size < 1:
+            raise ValueError(
+                f"batch's size should be >= 1."
+            )
+        if seconds <= 0:
+            raise ValueError(
+                f"batch's seconds should be > 0."
+            )
         return BatchStream(self, size, seconds)
 
     def slow(self, frequency: float) -> "Stream[T]":
