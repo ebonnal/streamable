@@ -332,3 +332,13 @@ class TestStream(unittest.TestCase):
             list(range(30)),
             msg="`chain` must yield the elements of the first stream the move on with the elements of the next ones and so on.",
         )
+
+    def test_filter(self) -> None:
+        def predicate(x) -> bool:
+            return x % 2 == 1
+
+        self.assertListEqual(
+            list(Stream(src).filter(predicate)),
+            list(filter(predicate, src())),
+            msg="`filter` must act like builtin filter",
+        )
