@@ -236,7 +236,7 @@ class TestStream(unittest.TestCase):
     def test_flatten(self, concurrency) -> None:
         n_iterables = 32
         it = list(map(slow_identity, range(N // n_iterables)))
-        iterables_stream = Stream(lambda: range(n_iterables)).map(lambda _: it)
+        iterables_stream = Stream(lambda: map(lambda _: it, range(n_iterables)))
         self.assertCountEqual(
             list(iterables_stream.flatten(concurrency=concurrency)),
             list(it) * n_iterables,
@@ -416,7 +416,7 @@ class TestStream(unittest.TestCase):
         self.assertListEqual(
             list(
                 Stream(lambda: map(slow_identity, src())).batch(
-                    seconds=1.9 * slow_identity_duration
+                    seconds=1.8 * slow_identity_duration
                 )
             ),
             list(map(lambda e: [e, e + 1], filter(lambda e: e % 2 == 0, src()))),
