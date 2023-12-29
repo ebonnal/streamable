@@ -1,7 +1,7 @@
 import time
 import timeit
 import unittest
-from typing import Callable, Iterable, Iterator, Set, Type, TypeVar, cast
+from typing import Any, Callable, Iterable, Iterator, Set, Type, TypeVar, cast
 
 from parameterized import parameterized  # type: ignore
 
@@ -255,6 +255,33 @@ class TestStream(unittest.TestCase):
             Stream("abc".__iter__)
             .map(lambda char: filter(lambda _: True, char))
             .flatten()
+        )
+
+    @parameterized.expand(
+        [
+            [raised_exc, catched_exc, concurrency, method]
+            for raised_exc, catched_exc in [
+                (ValueError, ValueError),
+                (StopIteration, RuntimeError),
+            ]
+            for concurrency in [1, 2]
+            for method in [Stream.do, Stream.map]
+        ]
+    )
+    def test_map_or_do_with_exception(
+        self,
+        raised_exc: Type[Exception],
+        catched_exc: Type[Exception],
+        concurrency: int,
+        method: Callable[[Stream, Callable[[Any], Any], int], Stream],
+    ) -> None:
+        def throw(exc: Type[Exception]):
+            raise exc()
+
+        list(
+            method(Stream(src), lambda _: throw(raised_exc), concurrency).catch(
+                catched_exc
+            )
         )
 
     @parameterized.expand(
