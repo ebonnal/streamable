@@ -241,6 +241,10 @@ class Stream(Iterable[T]):
         Returns:
             Stream[T]: A new Stream instance with elements iterated at the specified frequency.
         """
+        if frequency <= 0:
+            raise ValueError(
+                f"frequency is the maximum number of elements to yield per second, it must be > 0."
+            )
         return SlowStream(self, frequency)
 
     def catch(
