@@ -235,12 +235,11 @@ class TestStream(unittest.TestCase):
     )
     def test_flatten(self, concurrency) -> None:
         n_iterables = 32
-        def it():
-            return list(map(slow_identity, range(N // n_iterables)))
-        iterables_stream = Stream(lambda: map(lambda _: it(), range(n_iterables)))
+        it = list(range(N // n_iterables))
+        iterables_stream = Stream(lambda: map(lambda _: it, range(n_iterables)))
         self.assertCountEqual(
             list(iterables_stream.flatten(concurrency=concurrency)),
-            list(it()) * n_iterables,
+            list(it) * n_iterables,
             msg="At any concurrency the `flatten` method should yield all the upstream iterables' elements.",
         )
 
