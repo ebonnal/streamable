@@ -75,7 +75,7 @@ class TestStream(unittest.TestCase):
             .map(lambda _: _)
             .batch(100)
             .observe("batches")
-            .flatten(concurrency=1) # todo
+            .flatten(concurrency=4)
             .slow(64)
             .observe("stream #1 elements")
             .chain(
@@ -210,8 +210,8 @@ class TestStream(unittest.TestCase):
     @parameterized.expand(
         [
             [1],
-            # [2],
-            # [4], # todo
+            [2],
+            [4],
         ]
     )
     def test_flatten_concurrency(self, concurrency) -> None:
@@ -307,7 +307,7 @@ class TestStream(unittest.TestCase):
                 (TestError, TestError),
                 (StopIteration, RuntimeError),
             ]
-            for concurrency in [1] # todo
+            for concurrency in [1, 2]
         ]
     )
     def test_flatten_with_exception(
