@@ -212,6 +212,32 @@ class TestStream(unittest.TestCase):
         [
             [1],
             [2],
+        ]
+    )
+    def test_flatten(self, concurrency) -> None:
+        n_iterables = 32
+        it = list(range(N // n_iterables))
+        double_it = it + it
+        iterables_stream = Stream(
+            lambda: map(slow_identity, [double_it] + [it for _ in range(n_iterables)])
+        )
+        self.assertCountEqual(
+            list(iterables_stream.flatten(concurrency=concurrency)),
+            list(it) * n_iterables + double_it,
+            msg="At any concurrency the `flatten` method should yield all the upstream iterables' elements.",
+        )
+
+        # test potential recursion issue with chained empty iters
+        list(
+            Stream([iter([]) for _ in range(2000)].__iter__).flatten(
+                concurrency=concurrency
+            )
+        )
+
+    @parameterized.expand(
+        [
+            [1],
+            [2],
             [4],
         ]
     )
@@ -226,29 +252,6 @@ class TestStream(unittest.TestCase):
             expected_iteration_duration,
             delta=expected_iteration_duration * 0.25,
             msg="Increasing the concurrency of mapping should decrease proportionnally the iteration's duration.",
-        )
-
-    @parameterized.expand(
-        [
-            [1],
-            [2],
-        ]
-    )
-    def test_flatten(self, concurrency) -> None:
-        n_iterables = 32
-        it = list(range(N // n_iterables))
-        iterables_stream = Stream(lambda: map(lambda _: it, range(n_iterables)))
-        self.assertCountEqual(
-            list(iterables_stream.flatten(concurrency=concurrency)),
-            list(it) * n_iterables,
-            msg="At any concurrency the `flatten` method should yield all the upstream iterables' elements.",
-        )
-
-        # test potential recursion issue with chained empty iters
-        list(
-            Stream([iter([]) for _ in range(2000)].__iter__).flatten(
-                concurrency=concurrency
-            )
         )
 
     def test_partial_iteration_on_streams_using_concurrency(self) -> None:
