@@ -115,6 +115,7 @@ class ThreadedFlatteningIteratorWrapper(ThreadedMappingIteratorWrapper[T]):
                     if (
                         self.iterator_iterator_exhausted
                         and len(self.iterators_being_iterated) == 0
+                        and len(self.iterators_pool) == 0
                     ):
                         raise StopIteration()
                     time.sleep(backoff)
