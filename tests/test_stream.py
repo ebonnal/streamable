@@ -48,6 +48,7 @@ N = 256
 src: Callable[[], Iterable[int]] = range(N).__iter__
 pair_src: Callable[[], Iterable[int]] = range(0, N, 2).__iter__
 
+
 class TestStream(unittest.TestCase):
     def test_init(self) -> None:
         stream = Stream(src)
@@ -291,9 +292,11 @@ class TestStream(unittest.TestCase):
 
         self.assertListEqual(
             list(
-                method(Stream(src), lambda i: throw(raised_exc) if i % 2 == 1 else i, concurrency).catch(
-                    catched_exc
-                )
+                method(
+                    Stream(src),
+                    lambda i: throw(raised_exc) if i % 2 == 1 else i,
+                    concurrency,
+                ).catch(catched_exc)
             ),
             list(pair_src()),
             msg="At any concurrency, `map`and `do` must not stop after one exception occured.",
