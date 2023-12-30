@@ -83,9 +83,9 @@ class ThreadedMappingIterable(Iterable[Union[R, _ExceptionContainer]]):
 
 
 class ThreadedFlatteningIteratorWrapper(ThreadedMappingIteratorWrapper[T]):
-
     class ShufflingNextsIterator(Iterator[Callable[[], Union[T, _Skip]]]):
         _INIT_RETRY_BACKFOFF = 0.0005
+
         def __init__(self, iterables_iterator: Iterator[Iterable[T]], pool_size: int):
             self.iterables_iterator = iterables_iterator
             self.iterator_iterator_exhausted = False
