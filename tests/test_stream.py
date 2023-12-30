@@ -251,6 +251,11 @@ class TestStream(unittest.TestCase):
             )
         )
 
+    def test_partial_iteration_on_streams_using_concurrency(self) -> None:
+        next(iter(Stream(src).batch().flatten(concurrency=2)))
+        next(iter(Stream(src).map(identity, concurrency=2)))
+        next(iter(Stream(src).do(identity, concurrency=2)))
+
     def test_flatten_typing(self) -> None:
         flattened_iterator_stream: Stream[str] = (
             Stream("abc".__iter__).map(iter).flatten()
