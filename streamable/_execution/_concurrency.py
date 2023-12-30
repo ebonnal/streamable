@@ -38,7 +38,7 @@ class ThreadedMappingIteratorWrapper(IteratorWrapper[R]):
                 return elem
 
 
-BUFFER_SIZE_FACTOR = 16
+BUFFER_SIZE_FACTOR = 3
 
 
 class ThreadedMappingIterable(Iterable[Union[R, _ExceptionContainer]]):
