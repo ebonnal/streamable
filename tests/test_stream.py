@@ -48,6 +48,7 @@ N = 256
 src: Callable[[], Iterable[int]] = range(N).__iter__
 pair_src: Callable[[], Iterable[int]] = range(0, N, 2).__iter__
 
+
 class TestStream(unittest.TestCase):
     def test_init(self) -> None:
         stream = Stream(src)

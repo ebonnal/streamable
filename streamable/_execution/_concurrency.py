@@ -34,7 +34,7 @@ class ThreadedMappingIteratorWrapper(IteratorWrapper[R]):
             elem = next(self.iterator)
             if isinstance(elem, _ExceptionContainer):
                 raise elem.exception
-            if elem != ThreadedFlatteningIteratorWrapper._SKIP:
+            if not isinstance(elem, _Skip):
                 return elem
 
 
@@ -83,35 +83,34 @@ class ThreadedMappingIterable(Iterable[Union[R, _ExceptionContainer]]):
 
 
 class ThreadedFlatteningIteratorWrapper(ThreadedMappingIteratorWrapper[T]):
-    _SKIP: _Skip = _Skip()
-    _INIT_RETRY_BACKFOFF = 0.0005
 
-    class IteratorIteratorNextsShuffler(Iterator[Callable[[], Union[T, _Skip]]]):
-        def __init__(self, iterator_iterator: Iterator[Iterable[T]], pool_size: int):
-            self.iterator_iterator = iterator_iterator
+    class ShufflingNextsIterator(Iterator[Callable[[], Union[T, _Skip]]]):
+        _INIT_RETRY_BACKFOFF = 0.0005
+        def __init__(self, iterables_iterator: Iterator[Iterable[T]], pool_size: int):
+            self.iterables_iterator = iterables_iterator
             self.iterator_iterator_exhausted = False
             self.pool_size = pool_size
             self.iterators_pool: Set[Iterator[T]] = set()
             self.iterators_being_iterated: Set[Iterator[T]] = set()
 
         def __next__(self) -> Callable[[], Union[T, _Skip]]:
-            backoff = ThreadedFlatteningIteratorWrapper._INIT_RETRY_BACKFOFF
+            backoff = self._INIT_RETRY_BACKFOFF
             while True:
                 while (
                     not self.iterator_iterator_exhausted
                     and len(self.iterators_pool) < self.pool_size
                 ):
                     try:
-                        elem = next(self.iterator_iterator)
-                        _util.ducktype_assert_iterable(elem)
-                        self.iterators_pool.add(iter(elem))
+                        iterable = next(self.iterables_iterator)
+                        _util.ducktype_assert_iterable(iterable)
+                        self.iterators_pool.add(iter(iterable))
                     except StopIteration:
                         self.iterator_iterator_exhausted = True
 
                 try:
                     next_iterator_elem = self.iterators_pool.pop()
                     self.iterators_being_iterated.add(next_iterator_elem)
-                    backoff = ThreadedFlatteningIteratorWrapper._INIT_RETRY_BACKFOFF
+                    backoff = self._INIT_RETRY_BACKFOFF
                 except KeyError:  # KeyError: 'pop from an empty set'
                     if (
                         self.iterator_iterator_exhausted
@@ -133,7 +132,7 @@ class ThreadedFlatteningIteratorWrapper(ThreadedMappingIteratorWrapper[T]):
                         to_be_raised = e
                     self.iterators_being_iterated.remove(next_iterator_elem)
                     if exhausted:
-                        return ThreadedFlatteningIteratorWrapper._SKIP
+                        return _Skip()
                     else:
                         self.iterators_pool.add(next_iterator_elem)
                     if to_be_raised is not None:
@@ -144,7 +143,7 @@ class ThreadedFlatteningIteratorWrapper(ThreadedMappingIteratorWrapper[T]):
 
     def __init__(self, iterator: Iterator[Iterable[T]], n_workers: int):
         super().__init__(
-            ThreadedFlatteningIteratorWrapper.IteratorIteratorNextsShuffler(
+            ThreadedFlatteningIteratorWrapper.ShufflingNextsIterator(
                 iterator, pool_size=n_workers * BUFFER_SIZE_FACTOR
             ),
             func=lambda f: f(),
