@@ -195,6 +195,42 @@ class TestStream(unittest.TestCase):
 
     @parameterized.expand(
         [
+            [raised_exc, catched_exc, concurrency, method]
+            for raised_exc, catched_exc in [
+                (TestError, TestError),
+                (StopIteration, RuntimeError),
+            ]
+            for concurrency in [1, 2]
+            for method in [Stream.do, Stream.map]
+        ]
+    )
+    def test_map_or_do_with_exception(
+        self,
+        raised_exc: Type[Exception],
+        catched_exc: Type[Exception],
+        concurrency: int,
+        method: Callable[[Stream, Callable[[Any], int], int], Stream],
+    ) -> None:
+        with self.assertRaises(
+            catched_exc,
+            msg="At any concurrency, `map`and `do` must raise",
+        ):
+            list(method(Stream(src), lambda _: throw(raised_exc), concurrency))
+
+        self.assertListEqual(
+            list(
+                method(
+                    Stream(src),
+                    lambda i: throw(raised_exc) if i % 2 == 1 else i,
+                    concurrency,
+                ).catch(catched_exc)
+            ),
+            list(pair_src()),
+            msg="At any concurrency, `map`and `do` must not stop after one exception occured.",
+        )
+
+    @parameterized.expand(
+        [
             [method, concurrency]
             for method in [Stream.do, Stream.map]
             for concurrency in [1, 2, 4]
@@ -235,6 +271,21 @@ class TestStream(unittest.TestCase):
             )
         )
 
+    def test_flatten_typing(self) -> None:
+        flattened_iterator_stream: Stream[str] = (
+            Stream("abc".__iter__).map(iter).flatten()
+        )
+        flattened_list_stream: Stream[str] = Stream("abc".__iter__).map(list).flatten()
+        flattened_set_stream: Stream[str] = Stream("abc".__iter__).map(set).flatten()
+        flattened_map_stream: Stream[str] = (
+            Stream("abc".__iter__).map(lambda char: map(lambda x: x, char)).flatten()
+        )
+        flattened_filter_stream: Stream[str] = (
+            Stream("abc".__iter__)
+            .map(lambda char: filter(lambda _: True, char))
+            .flatten()
+        )
+
     @parameterized.expand(
         [
             [1],
@@ -253,62 +304,6 @@ class TestStream(unittest.TestCase):
             expected_iteration_duration,
             delta=expected_iteration_duration * DELTA_RATE,
             msg="Increasing the concurrency of mapping should decrease proportionnally the iteration's duration.",
-        )
-
-    def test_partial_iteration_on_streams_using_concurrency(self) -> None:
-        next(iter(Stream(src).batch().flatten(concurrency=2)))
-        next(iter(Stream(src).map(identity, concurrency=2)))
-        next(iter(Stream(src).do(identity, concurrency=2)))
-
-    def test_flatten_typing(self) -> None:
-        flattened_iterator_stream: Stream[str] = (
-            Stream("abc".__iter__).map(iter).flatten()
-        )
-        flattened_list_stream: Stream[str] = Stream("abc".__iter__).map(list).flatten()
-        flattened_set_stream: Stream[str] = Stream("abc".__iter__).map(set).flatten()
-        flattened_map_stream: Stream[str] = (
-            Stream("abc".__iter__).map(lambda char: map(lambda x: x, char)).flatten()
-        )
-        flattened_filter_stream: Stream[str] = (
-            Stream("abc".__iter__)
-            .map(lambda char: filter(lambda _: True, char))
-            .flatten()
-        )
-
-    @parameterized.expand(
-        [
-            [raised_exc, catched_exc, concurrency, method]
-            for raised_exc, catched_exc in [
-                (TestError, TestError),
-                (StopIteration, RuntimeError),
-            ]
-            for concurrency in [1, 2]
-            for method in [Stream.do, Stream.map]
-        ]
-    )
-    def test_map_or_do_with_exception(
-        self,
-        raised_exc: Type[Exception],
-        catched_exc: Type[Exception],
-        concurrency: int,
-        method: Callable[[Stream, Callable[[Any], int], int], Stream],
-    ) -> None:
-        with self.assertRaises(
-            catched_exc,
-            msg="At any concurrency, `map`and `do` must raise",
-        ):
-            list(method(Stream(src), lambda _: throw(raised_exc), concurrency))
-
-        self.assertListEqual(
-            list(
-                method(
-                    Stream(src),
-                    lambda i: throw(raised_exc) if i % 2 == 1 else i,
-                    concurrency,
-                ).catch(catched_exc)
-            ),
-            list(pair_src()),
-            msg="At any concurrency, `map`and `do` must not stop after one exception occured.",
         )
 
     @parameterized.expand(
@@ -348,6 +343,46 @@ class TestStream(unittest.TestCase):
             ),
             set(range(0, n_iterables, 2)),
             msg="At any concurrency the `flatten` method should be resilient to exceptions thrown by iterators, especially it should remap StopIteration one to RuntimeError.",
+        )
+
+    @parameterized.expand([[concurrency] for concurrency in [2, 4]])
+    def test_partial_iteration_on_streams_using_concurrency(
+        self, concurrency: int
+    ) -> None:
+        from streamable._execution._concurrency import BUFFER_SIZE_FACTOR
+
+        yielded_elems = []
+
+        def remembering_src() -> Iterator[int]:
+            nonlocal yielded_elems
+            for elem in src():
+                yielded_elems.append(elem)
+                yield elem
+
+        for stream in [
+            Stream(remembering_src).map(identity, concurrency=concurrency),
+            Stream(remembering_src).do(identity, concurrency=concurrency),
+        ]:
+            yielded_elems = []
+            next(iter(stream))
+            self.assertEqual(
+                len(yielded_elems),
+                concurrency * BUFFER_SIZE_FACTOR,
+                msg=f"after only one `next` a concurrent {type(stream)} should have pulled only concurrency * BUFFER_SIZE_FACTOR={concurrency * BUFFER_SIZE_FACTOR} upstream elements.",
+            )
+        # flatten
+        batch_size = 2
+        stream = (
+            Stream(remembering_src)
+            .batch(size=batch_size)
+            .flatten(concurrency=concurrency)
+        )
+        yielded_elems = []
+        next(iter(stream))
+        self.assertLess(
+            len(yielded_elems),
+            concurrency * BUFFER_SIZE_FACTOR * 2 * batch_size,
+            msg=f"after only one `next` a concurrent `flatten` should have pulled only concurrency * BUFFER_SIZE_FACTOR={concurrency * BUFFER_SIZE_FACTOR} upstream elements.",
         )
 
     def test_chain(self) -> None:

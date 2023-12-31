@@ -1,7 +1,8 @@
+import itertools
 import time
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
-from typing import Callable, Iterable, Iterator, Optional, Set, TypeVar, Union
+from typing import Callable, Iterable, Iterator, List, Optional, Set, TypeVar, Union
 
 from streamable import _util
 from streamable._execution._core import IteratorWrapper
@@ -47,7 +48,7 @@ class ThreadedMappingIteratorWrapper(IteratorWrapper[R]):
                 return elem
 
 
-BUFFER_SIZE_FACTOR = 2
+BUFFER_SIZE_FACTOR = 8
 
 
 class ThreadedMappingIterable(Iterable[Union[R, _ExceptionContainer]]):
@@ -58,16 +59,16 @@ class ThreadedMappingIterable(Iterable[Union[R, _ExceptionContainer]]):
 
     def __iter__(self) -> Iterator[Union[R, _ExceptionContainer]]:
         with ThreadPoolExecutor(max_workers=self.n_workers) as executor:
-            it = _util.LimitedYieldsIteratorWrapper(
-                self.iterator,
-                initial_available_yields=BUFFER_SIZE_FACTOR,
-            )
-
-            def f(elem: T) -> R:
-                it.increment_available_yields()
-                return self.func(elem)
-
-            yield from executor.map(_ExceptionContainer.wrap(f), it)
+            while True:
+                futures: List[Future] = [
+                    executor.submit(self.func, elem)
+                    for elem in itertools.islice(
+                        self.iterator, self.n_workers * BUFFER_SIZE_FACTOR
+                    )
+                ]
+                if not len(futures):
+                    break
+                yield from map(_ExceptionContainer.wrap(Future.result), futures)
 
 
 class ThreadedFlatteningIteratorWrapper(ThreadedMappingIteratorWrapper[T]):
@@ -94,7 +95,6 @@ class ThreadedFlatteningIteratorWrapper(ThreadedMappingIteratorWrapper[T]):
                         self.iterators_pool.add(iter(iterable))
                     except StopIteration:
                         self.iterator_iterator_exhausted = True
-
                 try:
                     next_iterator_elem = self.iterators_pool.pop()
                     self.iterators_being_iterated.add(next_iterator_elem)
