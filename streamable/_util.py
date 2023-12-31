@@ -69,27 +69,3 @@ def colorize_in_grey(s: str) -> str:
 
 def bold(s: str) -> str:
     return f"\033[1m{s}\033[0m"
-
-
-import threading
-
-
-class LimitedYieldsIteratorWrapper(Iterator[T]):
-    class NoYieldAvailable(Exception):
-        pass
-
-    def __init__(self, iterator: Iterator[T], initial_available_yields: int):
-        self.iterator = iterator
-        self._available_yields = initial_available_yields
-
-    def __next__(self) -> T:
-        while True:
-            with threading.Lock():
-                if self._available_yields > 0:
-                    self._available_yields -= 1
-                    return next(self.iterator)
-            raise LimitedYieldsIteratorWrapper.NoYieldAvailable
-
-    def increment_available_yields(self) -> None:
-        with threading.Lock():
-            self._available_yields += 1

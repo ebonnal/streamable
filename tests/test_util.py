@@ -1,6 +1,6 @@
 import unittest
 
-from streamable._util import LimitedYieldsIteratorWrapper, sidify
+from streamable._util import sidify
 
 
 class TestUtil(unittest.TestCase):
@@ -15,17 +15,3 @@ class TestUtil(unittest.TestCase):
             return x**2
 
         self.assertEqual(g(2), 2)
-
-    def test_controling_iterator_wrapper(self) -> None:
-        l = []
-        ciw = LimitedYieldsIteratorWrapper(
-            map(lambda i: l.append(i), range(10)), initial_available_yields=1
-        )
-        next(ciw)
-        self.assertListEqual(l, list(range(1)))
-        self.assertEqual(ciw._available_yields, 0)
-        with self.assertRaises(
-            LimitedYieldsIteratorWrapper.NoYieldAvailable,
-            msg="Calling `next` while `_available_yields` is zero should raise NoYieldAvailable.",
-        ):
-            next(ciw)
