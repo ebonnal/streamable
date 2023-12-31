@@ -263,12 +263,14 @@ class TestStream(unittest.TestCase):
             list(it) * n_iterables + double_it,
             msg="At any concurrency the `flatten` method should yield all the upstream iterables' elements.",
         )
-
-        # test potential recursion issue with chained empty iters
-        list(
-            Stream([iter([]) for _ in range(2000)].__iter__).flatten(
-                concurrency=concurrency
-            )
+        self.assertListEqual(
+            list(
+                Stream([iter([]) for _ in range(2000)].__iter__).flatten(
+                    concurrency=concurrency
+                )
+            ),
+            [],
+            msg="`flatten` should not yield any element if upstream elements are empty iterables, and be resilient to recursion issue in case of successive empty upstream iterables.",
         )
 
         with self.assertRaises(
