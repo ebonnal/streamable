@@ -23,4 +23,4 @@ class TestUtil(unittest.TestCase):
         )
         next(ciw)
         self.assertListEqual(l, list(range(1)))
-        self.assertEqual(ciw.available_yields, 0)
+        self.assertEqual(ciw._available_yields, 0)
