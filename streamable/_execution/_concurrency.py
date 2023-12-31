@@ -14,16 +14,6 @@ R = TypeVar("R")
 class _ExceptionContainer(Exception):
     exception: Exception
 
-    @staticmethod
-    def wrap(func: Callable[[T], R]) -> Callable[[T], Union[R, "_ExceptionContainer"]]:
-        def f(elem: T) -> Union[R, "_ExceptionContainer"]:
-            try:
-                return func(elem)
-            except Exception as e:
-                return _ExceptionContainer(e)
-
-        return f
-
 
 class RaisingIterator(Iterator[T]):
     def __init__(
@@ -61,12 +51,13 @@ class ThreadedMappingIterable(Iterable[Union[R, _ExceptionContainer]]):
                     except StopIteration:
                         # the upstream iterator is exhausted
                         break
-                    futures.put(
-                        executor.submit(_ExceptionContainer.wrap(self.func), elem)
-                    )
+                    futures.put(executor.submit(self.func, elem))
                 if futures.empty():
                     break
-                yield futures.get().result()
+                try:
+                    yield futures.get().result()
+                except Exception as e:
+                    yield _ExceptionContainer(e)
 
 
 class ThreadedFlatteningIterable(Iterable[Union[T, _ExceptionContainer]]):
