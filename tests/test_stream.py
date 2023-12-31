@@ -271,6 +271,12 @@ class TestStream(unittest.TestCase):
             )
         )
 
+        with self.assertRaises(
+            TypeError,
+            msg="`flatten` should raise if an upstream element is not iterable.",
+        ):
+            next(iter(Stream(cast(Callable[[], Iterable], src)).flatten()))
+
     def test_flatten_typing(self) -> None:
         flattened_iterator_stream: Stream[str] = (
             Stream("abc".__iter__).map(iter).flatten()
