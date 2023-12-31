@@ -32,13 +32,10 @@ class Stream(Iterable[T]):
 
     def __init__(self, source: Callable[[], Iterable[T]]) -> None:
         """
-        Initialize a Stream with a data source.
-
-        The source must be a callable that returns an iterator, i.e., an object implementing __iter__ and __next__ methods.
-        Each subsequent iteration over the stream will use a fresh iterator obtained from `source()`.
+        Initialize a Stream by providing a source iterable.
 
         Args:
-            source (Callable[[], Iterator[T]]): A factory function called to obtain a fresh data source iterator for each iteration.
+            source (Callable[[], Iterator[T]]): The data source. This function is used to provide a fresh iterable to each iteration over the stream.
         """
         self.upstream: "Optional[Stream]" = None
         if not callable(source):
@@ -51,9 +48,15 @@ class Stream(Iterable[T]):
         return self._accept(_iter.IteratorProducingVisitor[T]())
 
     def __add__(self, other: "Stream[T]") -> "Stream[T]":
+        """
+        a + b is syntax sugar for a.chain(b).
+        """
         return self.chain(other)
 
     def explain(self, colored: bool = False) -> str:
+        """
+        Returns a friendly representation of this stream operations.
+        """
         from streamable._visit import _explanation
 
         return self._accept(_explanation.ExplainingVisitor(colored))
@@ -65,7 +68,7 @@ class Stream(Iterable[T]):
     def _validate_concurrency(concurrency: int):
         if concurrency < 1:
             raise ValueError(
-                f"concurrency should be greater or equal to 1, but got {concurrency}."
+                f"`concurrency` should be greater or equal to 1, but got {concurrency}."
             )
 
     def map(
@@ -74,13 +77,13 @@ class Stream(Iterable[T]):
         concurrency: int = 1,
     ) -> "Stream[R]":
         """
-        Apply a function to each element of the Stream.
+        Apply `func` to the upstream elements and yield the results in order.
 
         Args:
             func (Callable[[T], R]): The function to be applied to each element.
-            concurrency (int): The number of threads for concurrent execution (default is 1, meaning only the main thread is used).
+            concurrency (int): The number of threads used to concurrently apply the function (default is 1, meaning no concurrency).
         Returns:
-            Stream[R]: A new Stream instance with elements resulting from applying the function to each element.
+            Stream[R]: A stream of results of `func` applied to upstream elements.
         """
         Stream._validate_concurrency(concurrency)
         return MapStream(self, func, concurrency)
@@ -91,13 +94,14 @@ class Stream(Iterable[T]):
         concurrency: int = 1,
     ) -> "Stream[T]":
         """
-        Run the func as side effect: the resulting Stream forwards the upstream elements after func execution's end.
+        Call `func` on upstream elements, discarding the result and yielding upstream elements unchanged and in order.
+        If `func(elem)` throws an exception, then this exception will be thrown when iterating over the stream and `elem` will not be yielded.
 
         Args:
-            func (Callable[[T], R]): The function to be applied to each element.
-            concurrency (int): The number of threads for concurrent execution (default is 1, meaning only the main thread is used).
+            func (Callable[[T], Any]): The function to be applied to each element.
+            concurrency (int): The number of threads used to concurrently apply the function (default is 1, meaning no concurrency).
         Returns:
-            Stream[T]: A new Stream instance with elements resulting from applying the function to each element.
+            Stream[T]: A stream of upstream elements, unchanged.
         """
         Stream._validate_concurrency(concurrency)
         return DoStream(self, func, concurrency)
@@ -170,53 +174,56 @@ class Stream(Iterable[T]):
         concurrency: int = 1,
     ) -> "Stream[R]":
         """
-        Flatten the elements of the Stream, which are assumed to be iterables, creating a new Stream with individual elements.
+        Iterate over upstream elements, assumed to be iterables, and individually yield the sub-elements.
 
+        Args:
+            concurrency (int): The number of threads used to concurrently flatten the upstream iterables (default is 1, meaning no concurrency).
         Returns:
-            Stream[R]: A new Stream instance with individual elements obtained by flattening the original elements.
-            concurrency (int): The number of threads for concurrent execution (default is 1, meaning only the main thread is used).
+            Stream[R]: A stream of flattened elements from upstream iterables.
         """
         Stream._validate_concurrency(concurrency)
         return FlattenStream(self, concurrency)
 
     def chain(self, *others: "Stream[T]") -> "Stream[T]":
         """
-        Create a new Stream by chaining the elements of this Stream with the elements from other Streams. The elements of a given Stream are yielded after its predecessor Stream is exhausted.
+        Yield the elements of the chained streams, in order.
+        The elements of a given stream are yielded after its predecessor is exhausted.
 
         Args:
-            *others (Stream[T]): One or more additional Stream instances to chain with this Stream.
+            *others (Stream[T]): One or more streams to chain with this stream.
 
         Returns:
-            Stream[T]: A new Stream instance with elements from this Stream followed by elements from other Streams.
+            Stream[T]: A stream of elements of each stream in the chain, in order.
         """
         return ChainStream(self, list(others))
 
     def filter(self, predicate: Callable[[T], bool]) -> "Stream[T]":
         """
-        Filter the elements of the Stream based on the given predicate, creating a new Stream with filtered elements.
+        Filter the elements of the stream based on the given predicate.
 
         Args:
-            predicate (Callable[[T], bool]): The function that determines whether an element should be included.
+            predicate (Callable[[T], bool]): The function that decides whether an element should be kept or not.
 
         Returns:
-            Stream[T]: A new Stream instance with elements that satisfy the predicate.
+            Stream[T]: A stream of upstream elements satisfying the predicate.
         """
         return FilterStream(self, predicate)
 
-    def batch(
-        self, size: int = 100, seconds: float = float("inf")
-    ) -> "Stream[List[T]]":
+    def batch(self, size: int, seconds: float = float("inf")) -> "Stream[List[T]]":
         """
-        Batch elements of the Stream into lists of a specified size or within a specified time window.
+        Yield upstream elements grouped in lists.
+        A list will have ` size` elements unless:
+        - an exception occurs upstream, the batch prior to the exception is yielded uncomplete.
+        - the time elapsed since the last yield of a batch is greater than `seconds`.
+        - upstream is exhausted.
 
         Args:
-            size (int, optional): The maximum number of elements per batch (default is 100).
-            seconds (float, optional): The maximum number of seconds to wait before yielding a batch (default is infinity).
+            size (int): Maximum number of elements per batch.
+            seconds (float, optional): Maximum number of seconds between two yields (default is infinity).
 
         Returns:
-            Stream[List[T]]: A new Stream instance with lists containing batches of elements.
+            Stream[List[T]]: A stream of upstream elements batched into lists.
         """
-        # if seconds == float("inf"):
         if size < 1:
             raise ValueError(f"batch's size should be >= 1 but got {size}.")
         if seconds <= 0:
@@ -225,13 +232,13 @@ class Stream(Iterable[T]):
 
     def slow(self, frequency: float) -> "Stream[T]":
         """
-        Slow down the iteration to a maximum frequency in Hz (max number of elements yielded per second).
+        Slow down the iteration down to a maximum `frequency` = maximum number of elements yielded per second.
 
         Args:
-            frequency (float): The maximum frequency in Hz of the iteration, i.e. how many elements will be yielded per second at most.
+            frequency (float): The maximum number of elements yielded per second.
 
         Returns:
-            Stream[T]: A new Stream instance with elements iterated at the specified frequency.
+            Stream[T]: A stream yielding upstream elements at a maximum `frequency`.
         """
         if frequency <= 0:
             raise ValueError(
@@ -245,27 +252,34 @@ class Stream(Iterable[T]):
         when: Optional[Callable[[Exception], bool]] = None,
     ) -> "Stream[T]":
         """
-        Any exception who is instance of `exception_class`will be catched, under the condition that the `when` predicate function (if provided) returns True.
+        Catches the upstream exceptions whose type is in `classes` and satisfying the `when` predicate if provided.
 
         Args:
-            classes (Type[Exception]): The class of exceptions to catch
-            when (Callable[[Exception], bool], optional): catches an exception whose type is in `classes` only if this predicate function is None or evaluates to True.
+            classes (Type[Exception]): The classes of exception to be catched.
+            when (Callable[[Exception], bool], optional): An additional condition that must be satisfied to catch the exception.
 
         Returns:
-            Stream[T]: A new Stream instance with error handling capability.
+            Stream[T]: A stream of upstream elements catching the eligible exceptions.
         """
         return CatchStream(self, *classes, when=when)
 
     def observe(self, what: str = "elements", colored: bool = False) -> "Stream[T]":
         """
-        Will logs the evolution of the iteration over elements.
+        Logs the evolution of the iteration over elements.
+
+        A logarithmic scale is used to prevent logs flood:
+        - a 1st log is produced for the yield of the 1st element
+        - a 2nd log is produced when we reach the 2nd element
+        - a 3rd log is produced when we reach the 4th element
+        - a 4th log is produced when we reach the 8th element
+        - ...
 
         Args:
-            what (str): name the objects yielded by the stream for clearer logs, must be a plural descriptor.
+            what (str): (plural) name representing the objects yielded.
             colored (bool): whether or not to use ascii colorization.
 
         Returns:
-            Stream[T]: A new Stream instance with logging capability.
+            Stream[T]: A stream of upstream elements whose iteration is logged for observability.
         """
         return ObserveStream(self, what, colored)
 

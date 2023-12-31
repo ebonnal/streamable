@@ -405,7 +405,7 @@ class TestStream(unittest.TestCase):
                 ValueError,
                 msg="`batch` should raise error when called with `seconds` <= 0.",
             ):
-                list(Stream(lambda: [1]).batch(seconds=seconds)),
+                list(Stream(lambda: [1]).batch(size=100, seconds=seconds)),
         for size in [-1, 0]:
             with self.assertRaises(
                 ValueError,
@@ -457,7 +457,7 @@ class TestStream(unittest.TestCase):
         self.assertListEqual(
             list(
                 Stream(lambda: map(slow_identity, src())).batch(
-                    seconds=0.9 * slow_identity_duration
+                    size=100, seconds=0.9 * slow_identity_duration
                 )
             ),
             list(map(lambda e: [e], src())),
@@ -466,7 +466,7 @@ class TestStream(unittest.TestCase):
         self.assertListEqual(
             list(
                 Stream(lambda: map(slow_identity, src())).batch(
-                    seconds=1.8 * slow_identity_duration
+                    size=100, seconds=1.8 * slow_identity_duration
                 )
             ),
             list(map(lambda e: [e, e + 1], pair_src())),
