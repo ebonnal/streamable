@@ -25,8 +25,8 @@ class IteratorProducingVisitor(Visitor[Iterator[T]]):
         else:
             return _concurrency.RaisingIterator(
                 iter(
-                    _concurrency.ThreadedMappingIterable(
-                        it, func, n_workers=stream.concurrency
+                    _concurrency.ConcurrentMappingIterable(
+                        it, func, concurrency=stream.concurrency
                     )
                 )
             )
@@ -46,8 +46,8 @@ class IteratorProducingVisitor(Visitor[Iterator[T]]):
         else:
             return _concurrency.RaisingIterator(
                 iter(
-                    _concurrency.ThreadedFlatteningIterable(
-                        it, n_workers=stream.concurrency
+                    _concurrency.ConcurrentFlatteningIterable(
+                        it, concurrency=stream.concurrency
                     )
                 )
             )

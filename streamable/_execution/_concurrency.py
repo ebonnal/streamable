@@ -31,15 +31,15 @@ class RaisingIterator(Iterator[T]):
 _BUFFER_SIZE_FACTOR = 3
 
 
-class ThreadedMappingIterable(Iterable[Union[R, RaisingIterator.ExceptionContainer]]):
-    def __init__(self, iterator: Iterator[T], func: Callable[[T], R], n_workers: int):
+class ConcurrentMappingIterable(Iterable[Union[R, RaisingIterator.ExceptionContainer]]):
+    def __init__(self, iterator: Iterator[T], func: Callable[[T], R], concurrency: int):
         self.iterator = iterator
         self.func = func
-        self.n_workers = n_workers
-        self.buffer_size = n_workers * _BUFFER_SIZE_FACTOR
+        self.concurrency = concurrency
+        self.buffer_size = concurrency * _BUFFER_SIZE_FACTOR
 
     def __iter__(self) -> Iterator[Union[R, RaisingIterator.ExceptionContainer]]:
-        with ThreadPoolExecutor(max_workers=self.n_workers) as executor:
+        with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
             futures: "Queue[Future]" = Queue(maxsize=self.buffer_size)
             # queue and yield (FIFO)
             while True:
@@ -59,16 +59,16 @@ class ThreadedMappingIterable(Iterable[Union[R, RaisingIterator.ExceptionContain
                     yield RaisingIterator.ExceptionContainer(e)
 
 
-class ThreadedFlatteningIterable(
+class ConcurrentFlatteningIterable(
     Iterable[Union[T, RaisingIterator.ExceptionContainer]]
 ):
-    def __init__(self, iterables_iterator: Iterator[Iterable[T]], n_workers: int):
+    def __init__(self, iterables_iterator: Iterator[Iterable[T]], concurrency: int):
         self.iterables_iterator = iterables_iterator
-        self.n_workers = n_workers
-        self.buffer_size = n_workers * _BUFFER_SIZE_FACTOR
+        self.concurrency = concurrency
+        self.buffer_size = concurrency * _BUFFER_SIZE_FACTOR
 
     def __iter__(self) -> Iterator[Union[T, RaisingIterator.ExceptionContainer]]:
-        with ThreadPoolExecutor(max_workers=self.n_workers) as executor:
+        with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
             iterator_and_future_pairs: "Queue[Tuple[Iterator[T], Future]]" = Queue(
                 maxsize=self.buffer_size
             )
