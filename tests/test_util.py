@@ -24,3 +24,8 @@ class TestUtil(unittest.TestCase):
         next(ciw)
         self.assertListEqual(l, list(range(1)))
         self.assertEqual(ciw._available_yields, 0)
+        with self.assertRaises(
+            LimitedYieldsIteratorWrapper.NoYieldAvailable,
+            msg="Calling `next` while `_available_yields` is zero should raise NoYieldAvailable.",
+        ):
+            next(ciw)

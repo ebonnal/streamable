@@ -72,25 +72,23 @@ def bold(s: str) -> str:
 
 
 import threading
-import time
 
 
 class LimitedYieldsIteratorWrapper(Iterator[T]):
-    INIT_BACKFOFF = 0.0005
+    class NoYieldAvailable(Exception):
+        pass
 
     def __init__(self, iterator: Iterator[T], initial_available_yields: int):
         self.iterator = iterator
         self._available_yields = initial_available_yields
 
     def __next__(self) -> T:
-        backoff = LimitedYieldsIteratorWrapper.INIT_BACKFOFF
         while True:
             with threading.Lock():
                 if self._available_yields > 0:
                     self._available_yields -= 1
                     return next(self.iterator)
-            time.sleep(backoff)
-            backoff *= 2
+            raise LimitedYieldsIteratorWrapper.NoYieldAvailable
 
     def increment_available_yields(self) -> None:
         with threading.Lock():
