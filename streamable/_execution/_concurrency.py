@@ -10,21 +10,20 @@ T = TypeVar("T")
 R = TypeVar("R")
 
 
-@dataclass
-class _ExceptionContainer(Exception):
-    exception: Exception
-
-
 class RaisingIterator(Iterator[T]):
+    @dataclass
+    class ExceptionContainer:
+        exception: Exception
+
     def __init__(
         self,
-        iterator: Iterator[Union[T, _ExceptionContainer]],
+        iterator: Iterator[Union[T, ExceptionContainer]],
     ):
         self.iterator = iterator
 
     def __next__(self) -> T:
         elem = next(self.iterator)
-        if isinstance(elem, _ExceptionContainer):
+        if isinstance(elem, self.ExceptionContainer):
             raise elem.exception
         return elem
 
@@ -32,14 +31,14 @@ class RaisingIterator(Iterator[T]):
 _BUFFER_SIZE_FACTOR = 3
 
 
-class ThreadedMappingIterable(Iterable[Union[R, _ExceptionContainer]]):
+class ThreadedMappingIterable(Iterable[Union[R, RaisingIterator.ExceptionContainer]]):
     def __init__(self, iterator: Iterator[T], func: Callable[[T], R], n_workers: int):
         self.iterator = iterator
         self.func = func
         self.n_workers = n_workers
         self.buffer_size = n_workers * _BUFFER_SIZE_FACTOR
 
-    def __iter__(self) -> Iterator[Union[R, _ExceptionContainer]]:
+    def __iter__(self) -> Iterator[Union[R, RaisingIterator.ExceptionContainer]]:
         with ThreadPoolExecutor(max_workers=self.n_workers) as executor:
             futures: "Queue[Future]" = Queue(maxsize=self.buffer_size)
             # queue and yield (FIFO)
@@ -57,16 +56,18 @@ class ThreadedMappingIterable(Iterable[Union[R, _ExceptionContainer]]):
                 try:
                     yield futures.get().result()
                 except Exception as e:
-                    yield _ExceptionContainer(e)
+                    yield RaisingIterator.ExceptionContainer(e)
 
 
-class ThreadedFlatteningIterable(Iterable[Union[T, _ExceptionContainer]]):
+class ThreadedFlatteningIterable(
+    Iterable[Union[T, RaisingIterator.ExceptionContainer]]
+):
     def __init__(self, iterables_iterator: Iterator[Iterable[T]], n_workers: int):
         self.iterables_iterator = iterables_iterator
         self.n_workers = n_workers
         self.buffer_size = n_workers * _BUFFER_SIZE_FACTOR
 
-    def __iter__(self) -> Iterator[Union[T, _ExceptionContainer]]:
+    def __iter__(self) -> Iterator[Union[T, RaisingIterator.ExceptionContainer]]:
         with ThreadPoolExecutor(max_workers=self.n_workers) as executor:
             iterator_and_future_pairs: "Queue[Tuple[Iterator[T], Future]]" = Queue(
                 maxsize=self.buffer_size
@@ -93,7 +94,7 @@ class ThreadedFlatteningIterable(Iterable[Union[T, _ExceptionContainer]]):
                 except StopIteration:
                     continue
                 except Exception as e:
-                    yield _ExceptionContainer(e)
+                    yield RaisingIterator.ExceptionContainer(e)
                 self.iterables_iterator = itertools.chain(
                     self.iterables_iterator, [iterator]
                 )
