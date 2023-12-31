@@ -15,8 +15,6 @@ from typing import (
     overload,
 )
 
-from streamable import _util
-
 if TYPE_CHECKING:
     import builtins
 
@@ -28,8 +26,6 @@ V = TypeVar("V")
 
 
 class Stream(Iterable[T]):
-    _RUN_MAX_NUM_ERROR_SAMPLES = 8
-
     def __init__(self, source: Callable[[], Iterable[T]]) -> None:
         """
         Initialize a Stream by providing a source iterable.
@@ -250,6 +246,7 @@ class Stream(Iterable[T]):
         self,
         *classes: Type[Exception],
         when: Optional[Callable[[Exception], bool]] = None,
+        raise_at_exhaustion: bool = False,
     ) -> "Stream[T]":
         """
         Catches the upstream exceptions whose type is in `classes` and satisfying the `when` predicate if provided.
@@ -257,11 +254,14 @@ class Stream(Iterable[T]):
         Args:
             classes (Type[Exception]): The classes of exception to be catched.
             when (Callable[[Exception], bool], optional): An additional condition that must be satisfied to catch the exception.
+            raise_at_exhaustion (bool, optional): Set to True if you want the first catched exception to be raised when upstream is exhausted (default is False).
 
         Returns:
             Stream[T]: A stream of upstream elements catching the eligible exceptions.
         """
-        return CatchStream(self, *classes, when=when)
+        return CatchStream(
+            self, *classes, when=when, raise_at_exhaustion=raise_at_exhaustion
+        )
 
     def observe(self, what: str = "elements", colored: bool = False) -> "Stream[T]":
         """
@@ -283,73 +283,12 @@ class Stream(Iterable[T]):
         """
         return ObserveStream(self, what, colored)
 
-    def iterate(
-        self,
-        collect_limit: int = 0,
-        raise_if_more_errors_than: int = 0,
-        fail_fast: bool = False,
-    ) -> List[T]:
+    def exhaust(self) -> None:
         """
-        Run the Stream:
-        - iterates over it until it is exhausted,
-        - logs
-        - catches exceptions log a sample of them at the end of the iteration
-        - raises the first encountered error if more exception than `raise_if_more_errors_than` are catched during iteration.
-        - else returns a sample of the output elements
-
-        Args:
-            raise_if_more_errors_than (int, optional): An error will be raised if the number of encountered errors is more than this threshold (default is 0).
-            collect_limit (int, optional): How many output elements to return (default is 0).
-            fail_fast (bool, optional): Decide to raise at the first encountered exception or at the end of the iteration (default is False).
-        Returns:
-            List[T]: A list containing the elements of the Stream titeratecate to the first `n_samples` ones.
-        Raises:
-            Exception: If more exception than `raise_if_more_errors_than` are catched during iteration.
+        Iterates over the stream until exhaustion.
         """
-        if collect_limit < 0:
-            raise ValueError(f"`collect_limit` must be >= 0  but got {collect_limit}.")
-        if raise_if_more_errors_than < 0:
-            raise ValueError(
-                f"`raise_if_more_errors_than` must be >= 0  but got {raise_if_more_errors_than}."
-            )
-
-        max_num_error_samples = self._RUN_MAX_NUM_ERROR_SAMPLES
-        stream = self
-
-        if not isinstance(self, ObserveStream):
-            stream = self.observe("output elements")
-
-        error_samples: List[Exception] = []
-        errors_count = 0
-
-        if not fail_fast:
-
-            def register_error_sample(error):
-                nonlocal errors_count
-                errors_count += 1
-                if len(error_samples) < max_num_error_samples:
-                    error_samples.append(error)
-                return True
-
-            stream = stream.catch(Exception, when=register_error_sample)
-
-        _util.LOGGER.info(stream.explain(colored=False))
-
-        output_samples: List[T] = []
-        for elem in stream:
-            if len(output_samples) < collect_limit:
-                output_samples.append(elem)
-
-        if errors_count > 0:
-            _util.LOGGER.error(
-                "first %s error samples: %s\nWill now raise the first of them:",
-                max_num_error_samples,
-                list(map(repr, error_samples)),
-            )
-            if raise_if_more_errors_than < errors_count:
-                raise error_samples[0]
-
-        return output_samples
+        for _ in self:
+            pass
 
 
 X = TypeVar("X")
@@ -420,11 +359,13 @@ class CatchStream(Stream[Y]):
         self,
         upstream: Stream[Y],
         *classes: Type[Exception],
-        when: Optional[Callable[[Exception], bool]] = None,
+        when: Optional[Callable[[Exception], bool]],
+        raise_at_exhaustion: bool,
     ):
         self.upstream: Stream[Y] = upstream
         self.classes = classes
         self.when = when
+        self.raise_at_exhaustion = raise_at_exhaustion
 
     def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_catch_stream(self)

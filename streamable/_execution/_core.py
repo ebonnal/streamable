@@ -136,19 +136,32 @@ class CatchingIterator(Iterator[T]):
         self,
         iterator: Iterator[T],
         *classes: Type[Exception],
-        when: Optional[Callable[[Exception], bool]] = None,
+        when: Optional[Callable[[Exception], bool]],
+        raise_at_exhaustion: bool,
     ) -> None:
         self.iterator = iterator
         self.classes = classes
         self.when = when
+        self.raise_at_exhaustion = raise_at_exhaustion
+        self.first_catched_error: Optional[Exception] = None
+        self.first_error_has_been_raised = False
 
     def __next__(self) -> T:
         try:
             return next(self.iterator)
         except StopIteration:
+            if (
+                self.first_catched_error is not None
+                and self.raise_at_exhaustion
+                and not self.first_error_has_been_raised
+            ):
+                self.first_error_has_been_raised = True
+                raise self.first_catched_error
             raise
         except self.classes as exception:
             if self.when is None or self.when(exception):
+                if self.first_catched_error is None:
+                    self.first_catched_error = exception
                 return next(self)  # TODO fix recursion issue
             else:
                 raise exception

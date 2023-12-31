@@ -1,7 +1,7 @@
 import time
 import timeit
 import unittest
-from typing import Any, Callable, Iterable, Iterator, Set, Type, TypeVar, cast
+from typing import Any, Callable, Iterable, Iterator, List, Set, Type, TypeVar, cast
 
 from parameterized import parameterized  # type: ignore
 
@@ -539,6 +539,46 @@ class TestStream(unittest.TestCase):
         ):
             list(stream.catch(ZeroDivisionError, when=lambda _: False))
 
+        first_value = 1
+        second_value = 2
+        third_value = 3
+        functions = [
+            lambda: throw(TestError),
+            lambda: throw(TypeError),
+            lambda: first_value,
+            lambda: second_value,
+            lambda: throw(ValueError),
+            lambda: third_value,
+            lambda: throw(ZeroDivisionError),
+        ]
+
+        erroring_stream: Stream[int] = Stream(
+            lambda: map(lambda f: f(), functions)
+        ).catch(Exception, raise_at_exhaustion=True)
+        erroring_stream_iterator = iter(erroring_stream)
+        self.assertEqual(
+            next(erroring_stream_iterator),
+            first_value,
+            msg="`catch` should yield the first non exception throwing element.",
+        )
+        yields_count = 1
+        with self.assertRaises(
+            TestError,
+            msg="`catch` should raise the first error encountered when `raise_at_exhaustion` is True.",
+        ):
+            for _ in erroring_stream_iterator:
+                yields_count += 1
+        with self.assertRaises(
+            StopIteration,
+            msg="`catch` with `raise_at_exhaustion`=True should finally raise StopIteration to avoid infinite recursion if there is another catch downstream.",
+        ):
+            next(erroring_stream_iterator)
+        self.assertEqual(
+            yields_count,
+            3,
+            msg="3 elements should have passed been yielded between catched exceptions.",
+        )
+
     def test_observe(self) -> None:
         self.assertListEqual(
             list(
@@ -556,77 +596,14 @@ class TestStream(unittest.TestCase):
     def test_is_iterable(self) -> None:
         self.assertIsInstance(Stream(src), Iterable)
 
-    def test_iterate(self) -> None:
-        stream = Stream(src)
-        # behavior with invalid arguments
-        with self.assertRaises(
-            ValueError,
-            msg="`iterate` should raise error when called with `collect_limit` < 0.",
-        ):
-            stream.iterate(collect_limit=-1)
-        with self.assertRaises(
-            ValueError,
-            msg="`iterate` should raise error when called with `raise_if_more_errors_than` < 0.",
-        ):
-            stream.iterate(raise_if_more_errors_than=-1)
+    def test_exhaust(self) -> None:
+        l: List[int] = []
 
-        #
+        def effect(x: int) -> None:
+            nonlocal l
+            l.append(x)
+
+        Stream(src).do(effect).exhaust()
         self.assertListEqual(
-            stream.iterate(),
-            [],
-            msg="by default `iterate` should not collect anything",
+            l, list(src()), msg="`exhaust` should iterate over the entire stream."
         )
-        self.assertListEqual(
-            stream.iterate(collect_limit=10),
-            list(range(10)),
-            msg="`iterate` should collect up to `collect_limit` elements if provided.",
-        )
-        error_at_elem_index = 32
-        collect_limit = 64
-        erroring_stream = Stream(
-            lambda: map(
-                lambda e: throw(TestError) if e == error_at_elem_index else e, src()
-            )
-        )
-        self.assertListEqual(
-            erroring_stream.iterate(
-                collect_limit=collect_limit, raise_if_more_errors_than=1
-            ),
-            list(range(error_at_elem_index))
-            + list(range(error_at_elem_index + 1, collect_limit + 1)),
-            msg="`iterate` should not raise if number of errors <= raise_if_more_errors_than.",
-        )
-
-        with self.assertRaises(
-            TestError,
-            msg="`iterate` should raise if number of errors errors <= raise_if_more_errors_than but `fail_fast` is True.",
-        ):
-            erroring_stream.iterate(
-                collect_limit=collect_limit, raise_if_more_errors_than=1, fail_fast=True
-            ),
-
-        start_time = time.time()
-        try:
-            Stream(lambda: map(slow_identity, erroring_stream)).iterate(fail_fast=True),
-        except TestError:
-            pass
-        end_time = time.time()
-        expected_duration = slow_identity_duration * error_at_elem_index
-        self.assertAlmostEqual(
-            end_time - start_time,
-            expected_duration,
-            delta=0.3 * expected_duration,
-            msg="`iterate` should raise just after the first exception if `fail_fast` is True.",
-        )
-
-        with self.assertRaises(
-            TestError,
-            msg="`iterate` should raise if number of errors > raise_if_more_errors_than.",
-        ):
-            erroring_stream.iterate(raise_if_more_errors_than=0)
-
-        with self.assertRaises(
-            TestError,
-            msg="`iterate` should raise if `raise_if_more_errors_than` is default.",
-        ):
-            erroring_stream.iterate()

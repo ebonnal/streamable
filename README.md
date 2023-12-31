@@ -57,12 +57,10 @@ for i in rate_limited_odd_squares:
     ...
 ```
 
-Alternatively, a stream also exposes a convenient method `.iterate` to launch an iteration over itself until exhaustion. It catches exceptions occurring during iteration and optionnaly collects output elements into a list to return. At the end it raises if exceptions occurred.
+Alternatively, a stream also exposes an `.exhaust` method to launch an iteration over itself until exhaustion, with doing anything with output elements.
 
 ```python
-odd_squares: List[int] = rate_limited_odd_squares.iterate(collect_limit=1024)
-
-assert odd_squares == [1, 9, 25, 49, 81]
+rate_limited_odd_squares.exhaust()
 ```
 
 
@@ -187,7 +185,9 @@ inverse_floats: Stream[float] = integers.map(lambda x: 1/x)
 safe_inverse_floats: Stream[float] = inverse_floats.catch(ZeroDivisionError)
 ```
 
-It has an optional `when` parameter: a function that takes the parent element as input and decides whether or not to catch the exception.
+It has optional parameters:
+- `when`: a function that takes the parent element as input and decides whether or not to catch the exception.
+- `raise_at_exhaustion`: a boolean that you can set to `True` if you want the first catched exception to be raised when the stream is exhausted (i.e. at the end of the iteration).
 
 ---
 
@@ -332,7 +332,8 @@ def integrate_pokemon_cards_into_bigquery(
         .do(raise_for_errors)
 
         # iterate until no more card in the stream and finally raises if errors occurred.
-        .iterate()
+        .catch(Exception, raise_at_exhaustion=True)
+        .exhaust()
     )
 ```
 

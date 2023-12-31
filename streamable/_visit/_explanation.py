@@ -101,7 +101,7 @@ class ExplainingVisitor(Visitor[str]):
 
     def visit_catch_stream(self, stream: _stream.CatchStream) -> Any:
         name = "Catch"
-        descr = f"exception instances of class in [{', '.join(map(lambda class_: class_.__name__, stream.classes))}]{', with an additional `when` condition' if stream.when is not None else ''}"
+        descr = f"exception instances of class in [{', '.join(map(lambda class_: class_.__name__, stream.classes))}]{', with an additional `when` condition' if stream.when is not None else ''}, and{'' if stream.raise_at_exhaustion else ' not'} raising at exhaustion"
         return self.visit_stream(stream, name, descr)
 
     def visit_observe_stream(self, stream: _stream.ObserveStream) -> Any:

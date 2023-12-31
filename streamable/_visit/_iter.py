@@ -83,7 +83,10 @@ class IteratorProducingVisitor(Visitor[Iterator[T]]):
         else:
             when = None
         return _core.CatchingIterator(
-            stream.upstream._accept(self), *stream.classes, when=when
+            stream.upstream._accept(self),
+            *stream.classes,
+            when=when,
+            raise_at_exhaustion=stream.raise_at_exhaustion,
         )
 
     def visit_observe_stream(self, stream: _stream.ObserveStream[T]) -> Iterator[T]:
