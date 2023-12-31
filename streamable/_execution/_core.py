@@ -102,13 +102,6 @@ class SlowingIteratorWrapper(IteratorWrapper[T]):
 
 
 class BatchingIteratorWrapper(IteratorWrapper[List[T]]):
-    """
-    Batch an input iterator and yields its elements packed in a list when one of the following is True:
-    - len(batch) == size
-    - the time elapsed between the first next() call on input iterator and last received elements is grater than `seconds`
-    - the next element reception thrown an exception (it is stored in self.to_be_raised and will be raised during the next call to self.__next__)
-    """
-
     def __init__(self, iterator: Iterator[T], size: int, seconds: float) -> None:
         super().__init__(iterator)
         self.size = size
