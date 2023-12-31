@@ -1,7 +1,6 @@
 import time
-from concurrent.futures import Future, ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
-from queue import Queue
 from typing import Callable, Iterable, Iterator, Optional, Set, TypeVar, Union
 
 from streamable import _util
@@ -14,6 +13,16 @@ R = TypeVar("R")
 @dataclass
 class _ExceptionContainer(Exception):
     exception: Exception
+
+    @staticmethod
+    def wrap(func: Callable[[T], R]) -> Callable[[T], Union[R, "_ExceptionContainer"]]:
+        def f(elem: T) -> Union[R, "_ExceptionContainer"]:
+            try:
+                return func(elem)
+            except Exception as e:
+                return _ExceptionContainer(e)
+
+        return f
 
 
 class _Skip:
@@ -46,40 +55,19 @@ class ThreadedMappingIterable(Iterable[Union[R, _ExceptionContainer]]):
         self.iterator = iterator
         self.func = func
         self.n_workers = n_workers
-        self.max_queue_size = n_workers * BUFFER_SIZE_FACTOR
 
     def __iter__(self) -> Iterator[Union[R, _ExceptionContainer]]:
-        futures: "Queue[Future]" = Queue()
-        iterator_exhausted = False
-        n_yields = 0
-        n_iterated_elems = 0
         with ThreadPoolExecutor(max_workers=self.n_workers) as executor:
-            while True:
-                try:
-                    while (
-                        not iterator_exhausted
-                        and executor._work_queue.qsize() < self.max_queue_size
-                        and n_iterated_elems - n_yields < self.max_queue_size
-                    ):
-                        try:
-                            elem = next(self.iterator)
-                            n_iterated_elems += 1
-                            futures.put(executor.submit(self.func, elem))
-                        except StopIteration:
-                            iterator_exhausted = True
-                    while True:
-                        if n_yields < n_iterated_elems:
-                            n_yields += 1
-                            yield futures.get().result()
-                        if iterator_exhausted and n_iterated_elems == n_yields:
-                            return
-                        if (
-                            not iterator_exhausted
-                            and executor._work_queue.qsize() < self.max_queue_size // 2
-                        ):
-                            break
-                except Exception as e:
-                    yield _ExceptionContainer(e)
+            it = _util.LimitedYieldsIteratorWrapper(
+                self.iterator,
+                initial_available_yields=BUFFER_SIZE_FACTOR,
+            )
+
+            def f(elem: T) -> R:
+                it.increment_available_yields()
+                return self.func(elem)
+
+            yield from executor.map(_ExceptionContainer.wrap(f), it)
 
 
 class ThreadedFlatteningIteratorWrapper(ThreadedMappingIteratorWrapper[T]):
@@ -145,7 +133,7 @@ class ThreadedFlatteningIteratorWrapper(ThreadedMappingIteratorWrapper[T]):
     def __init__(self, iterator: Iterator[Iterable[T]], n_workers: int):
         super().__init__(
             ThreadedFlatteningIteratorWrapper.ShufflingNextsIterator(
-                iterator, pool_size=n_workers * BUFFER_SIZE_FACTOR * 2
+                iterator, pool_size=n_workers * BUFFER_SIZE_FACTOR
             ),
             func=lambda f: f(),
             n_workers=n_workers,
