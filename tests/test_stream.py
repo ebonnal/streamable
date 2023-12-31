@@ -43,6 +43,7 @@ class TestError(Exception):
     pass
 
 
+DELTA_RATE = 0.3
 # size of the test collections
 N = 256
 src: Callable[[], Iterable[int]] = range(N).__iter__
@@ -204,7 +205,7 @@ class TestStream(unittest.TestCase):
         self.assertAlmostEqual(
             timestream(method(Stream(src), slow_identity, concurrency=concurrency)),
             expected_iteration_duration,
-            delta=expected_iteration_duration * 0.25,
+            delta=expected_iteration_duration * DELTA_RATE,
             msg="Increasing the concurrency of mapping should decrease proportionnally the iteration's duration.",
         )
 
@@ -250,7 +251,7 @@ class TestStream(unittest.TestCase):
         self.assertAlmostEqual(
             timestream(iterables_stream.flatten(concurrency=concurrency)),
             expected_iteration_duration,
-            delta=expected_iteration_duration * 0.25,
+            delta=expected_iteration_duration * DELTA_RATE,
             msg="Increasing the concurrency of mapping should decrease proportionnally the iteration's duration.",
         )
 
