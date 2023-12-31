@@ -62,7 +62,7 @@ class Stream(Iterable[T]):
         return visitor.visit_source_stream(self)
 
     @staticmethod
-    def validate_concurrency(concurrency: int):
+    def _validate_concurrency(concurrency: int):
         if concurrency < 1:
             raise ValueError(
                 f"concurrency should be greater or equal to 1, but got {concurrency}."
@@ -82,7 +82,7 @@ class Stream(Iterable[T]):
         Returns:
             Stream[R]: A new Stream instance with elements resulting from applying the function to each element.
         """
-        Stream.validate_concurrency(concurrency)
+        Stream._validate_concurrency(concurrency)
         return MapStream(self, func, concurrency)
 
     def do(
@@ -99,7 +99,7 @@ class Stream(Iterable[T]):
         Returns:
             Stream[T]: A new Stream instance with elements resulting from applying the function to each element.
         """
-        Stream.validate_concurrency(concurrency)
+        Stream._validate_concurrency(concurrency)
         return DoStream(self, func, concurrency)
 
     @overload
@@ -176,7 +176,7 @@ class Stream(Iterable[T]):
             Stream[R]: A new Stream instance with individual elements obtained by flattening the original elements.
             concurrency (int): The number of threads for concurrent execution (default is 1, meaning only the main thread is used).
         """
-        Stream.validate_concurrency(concurrency)
+        Stream._validate_concurrency(concurrency)
         return FlattenStream(self, concurrency)
 
     def chain(self, *others: "Stream[T]") -> "Stream[T]":
