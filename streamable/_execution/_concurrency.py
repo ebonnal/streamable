@@ -47,19 +47,26 @@ class ThreadedMappingIterable(Iterable[Union[R, _ExceptionContainer]]):
         self.iterator = iterator
         self.func = func
         self.n_workers = n_workers
+        self.buffer_size = n_workers * BUFFER_SIZE_FACTOR
 
     def __iter__(self) -> Iterator[Union[R, _ExceptionContainer]]:
         with ThreadPoolExecutor(max_workers=self.n_workers) as executor:
+            futures: "Queue[Future]" = Queue(maxsize=self.buffer_size)
+            # queue and yield (FIFO)
             while True:
-                futures: List[Future] = [
-                    executor.submit(self.func, elem)
-                    for elem in itertools.islice(
-                        self.iterator, self.n_workers * BUFFER_SIZE_FACTOR
+                # queue tasks up to queue's maxsize
+                while not futures.full():
+                    try:
+                        elem = next(self.iterator)
+                    except StopIteration:
+                        # the upstream iterator is exhausted
+                        break
+                    futures.put(
+                        executor.submit(_ExceptionContainer.wrap(self.func), elem)
                     )
-                ]
-                if not len(futures):
+                yield futures.get().result()
+                if futures.empty():
                     break
-                yield from map(_ExceptionContainer.wrap(Future.result), futures)
 
 
 class ThreadedFlatteningIterable(Iterable[Union[T, _ExceptionContainer]]):
