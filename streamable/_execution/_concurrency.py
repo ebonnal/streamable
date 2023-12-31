@@ -1,9 +1,9 @@
 import itertools
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
-from typing import Callable, Iterable, Iterator, List, TypeVar, Union, cast
+from queue import Queue
+from typing import Callable, Iterable, Iterator, Tuple, TypeVar, Union, cast
 
-from streamable import _util
 from streamable._execution._core import Iterator
 
 T = TypeVar("T")
@@ -39,7 +39,7 @@ class RaisingIterator(Iterator[T]):
         return elem
 
 
-BUFFER_SIZE_FACTOR = 8
+_BUFFER_SIZE_FACTOR = 3
 
 
 class ThreadedMappingIterable(Iterable[Union[R, _ExceptionContainer]]):
@@ -47,7 +47,7 @@ class ThreadedMappingIterable(Iterable[Union[R, _ExceptionContainer]]):
         self.iterator = iterator
         self.func = func
         self.n_workers = n_workers
-        self.buffer_size = n_workers * BUFFER_SIZE_FACTOR
+        self.buffer_size = n_workers * _BUFFER_SIZE_FACTOR
 
     def __iter__(self) -> Iterator[Union[R, _ExceptionContainer]]:
         with ThreadPoolExecutor(max_workers=self.n_workers) as executor:
@@ -64,41 +64,45 @@ class ThreadedMappingIterable(Iterable[Union[R, _ExceptionContainer]]):
                     futures.put(
                         executor.submit(_ExceptionContainer.wrap(self.func), elem)
                     )
-                yield futures.get().result()
                 if futures.empty():
                     break
+                yield futures.get().result()
 
 
 class ThreadedFlatteningIterable(Iterable[Union[T, _ExceptionContainer]]):
     def __init__(self, iterables_iterator: Iterator[Iterable[T]], n_workers: int):
         self.iterables_iterator = iterables_iterator
         self.n_workers = n_workers
+        self.buffer_size = n_workers * _BUFFER_SIZE_FACTOR
 
-    def __iter__(self) -> Iterator[Union[R, _ExceptionContainer]]:
+    def __iter__(self) -> Iterator[Union[T, _ExceptionContainer]]:
         with ThreadPoolExecutor(max_workers=self.n_workers) as executor:
+            iterator_and_future_pairs: "Queue[Tuple[Iterator[T], Future]]" = Queue(
+                maxsize=self.buffer_size
+            )
+            # queue and yield (FIFO)
             while True:
-                iterators = [
-                    iter(iterable)
-                    for iterable in itertools.islice(
-                        self.iterables_iterator, self.n_workers * BUFFER_SIZE_FACTOR
-                    )
-                ]
-                for iterator in iterators:
-                    _util.validate_iterable(iterator)
-                futures: List[Future] = [
-                    executor.submit(cast(Callable[[Iterable[T]], T], next), iterator)
-                    for iterator in iterators
-                ]
-                if not len(futures):
-                    break
-
-                for iterator, future in zip(iterators, futures):
+                # queue tasks up to queue's maxsize
+                while not iterator_and_future_pairs.full():
                     try:
-                        yield future.result()
+                        iterable = next(self.iterables_iterator)
                     except StopIteration:
-                        continue
-                    except Exception as e:
-                        yield _ExceptionContainer(e)
-                    self.iterables_iterator = itertools.chain(
-                        self.iterables_iterator, [iterator]
+                        break
+                    iterator = iter(iterable)
+                    future = executor.submit(
+                        cast(Callable[[Iterable[T]], T], next), iterator
                     )
+                    iterator_and_future_pairs.put((iterator, future))
+
+                if iterator_and_future_pairs.empty():
+                    break
+                iterator, future = iterator_and_future_pairs.get()
+                try:
+                    yield future.result()
+                except StopIteration:
+                    continue
+                except Exception as e:
+                    yield _ExceptionContainer(e)
+                self.iterables_iterator = itertools.chain(
+                    self.iterables_iterator, [iterator]
+                )

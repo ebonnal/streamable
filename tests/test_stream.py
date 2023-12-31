@@ -43,7 +43,7 @@ class TestError(Exception):
     pass
 
 
-DELTA_RATE = 0.3
+DELTA_RATE = 0.25
 # size of the test collections
 N = 256
 src: Callable[[], Iterable[int]] = range(N).__iter__
@@ -355,7 +355,7 @@ class TestStream(unittest.TestCase):
     def test_partial_iteration_on_streams_using_concurrency(
         self, concurrency: int
     ) -> None:
-        from streamable._execution._concurrency import BUFFER_SIZE_FACTOR
+        from streamable._execution._concurrency import _BUFFER_SIZE_FACTOR
 
         yielded_elems = []
 
@@ -368,28 +368,15 @@ class TestStream(unittest.TestCase):
         for stream in [
             Stream(remembering_src).map(identity, concurrency=concurrency),
             Stream(remembering_src).do(identity, concurrency=concurrency),
+            Stream(remembering_src).batch(1).flatten(concurrency=concurrency),
         ]:
             yielded_elems = []
             next(iter(stream))
             self.assertEqual(
                 len(yielded_elems),
-                concurrency * BUFFER_SIZE_FACTOR,
-                msg=f"after only one `next` a concurrent {type(stream)} should have pulled only concurrency * BUFFER_SIZE_FACTOR={concurrency * BUFFER_SIZE_FACTOR} upstream elements.",
+                concurrency * _BUFFER_SIZE_FACTOR,
+                msg=f"after only one `next` a concurrent {type(stream)} should have pulled only concurrency * BUFFER_SIZE_FACTOR={concurrency * _BUFFER_SIZE_FACTOR} upstream elements.",
             )
-        # flatten
-        batch_size = 2
-        stream = (
-            Stream(remembering_src)
-            .batch(size=batch_size)
-            .flatten(concurrency=concurrency)
-        )
-        yielded_elems = []
-        next(iter(stream))
-        self.assertLess(
-            len(yielded_elems),
-            concurrency * BUFFER_SIZE_FACTOR * 2 * batch_size,
-            msg=f"after only one `next` a concurrent `flatten` should have pulled only concurrency * BUFFER_SIZE_FACTOR={concurrency * BUFFER_SIZE_FACTOR} upstream elements.",
-        )
 
     def test_chain(self) -> None:
         stream_a = Stream(range(10).__iter__)
