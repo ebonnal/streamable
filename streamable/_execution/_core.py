@@ -29,7 +29,7 @@ class FlatteningIteratorWrapper(IteratorWrapper[R]):
         except StopIteration:
             while True:
                 elem = next(self.iterator)
-                _util.ducktype_assert_iterable(elem)
+                _util.validate_iterable(elem)
                 self.current_iterator_elem = iter(elem)
                 try:
                     return next(self.current_iterator_elem)

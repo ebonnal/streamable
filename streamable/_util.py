@@ -45,7 +45,7 @@ def identity(obj: T) -> T:
     return obj
 
 
-def ducktype_assert_iterable(expected_iterator: Any) -> TypeGuard[Iterable]:
+def validate_iterable(expected_iterator: Any) -> TypeGuard[Iterable]:
     """
     Raises:
         TypeError: If the expected_iterator does not implement __iter__ and __next__ methods.

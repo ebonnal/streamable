@@ -12,7 +12,7 @@ U = TypeVar("U")
 class IteratorProducingVisitor(Visitor[Iterator[T]]):
     def visit_source_stream(self, stream: _stream.Stream[T]) -> Iterator[T]:
         iterable = stream.source()
-        _util.ducktype_assert_iterable(iterable)
+        _util.validate_iterable(iterable)
         return iter(iterable)
 
     def visit_map_stream(self, stream: _stream.MapStream[U, T]) -> Iterator[T]:
@@ -23,8 +23,12 @@ class IteratorProducingVisitor(Visitor[Iterator[T]]):
         if stream.concurrency == 1:
             return map(func, it)
         else:
-            return _concurrency.ThreadedMappingIteratorWrapper(
-                it, func, n_workers=stream.concurrency
+            return _concurrency.RaisingIteratorWrapper(
+                iter(
+                    _concurrency.ThreadedMappingIterable(
+                        it, func, n_workers=stream.concurrency
+                    )
+                )
             )
 
     def visit_do_stream(self, stream: _stream.DoStream[T]) -> Iterator[T]:
@@ -40,8 +44,12 @@ class IteratorProducingVisitor(Visitor[Iterator[T]]):
         if stream.concurrency == 1:
             return _core.FlatteningIteratorWrapper(it)
         else:
-            return _concurrency.ThreadedFlatteningIteratorWrapper(
-                it, n_workers=stream.concurrency
+            return _concurrency.RaisingIteratorWrapper(
+                iter(
+                    _concurrency.ThreadedFlatteningIterable(
+                        it, n_workers=stream.concurrency
+                    )
+                )
             )
 
     def visit_chain_stream(self, stream: _stream.ChainStream[T]) -> Iterator[T]:

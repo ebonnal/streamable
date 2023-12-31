@@ -1,8 +1,7 @@
 import itertools
-import time
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
-from typing import Callable, Iterable, Iterator, List, Optional, Set, TypeVar, Union
+from typing import Callable, Iterable, Iterator, List, TypeVar, Union, cast
 
 from streamable import _util
 from streamable._execution._core import IteratorWrapper
@@ -26,26 +25,18 @@ class _ExceptionContainer(Exception):
         return f
 
 
-class _Skip:
-    pass
-
-
-class ThreadedMappingIteratorWrapper(IteratorWrapper[R]):
+class RaisingIteratorWrapper(IteratorWrapper[R]):
     def __init__(
         self,
         iterator: Iterator[T],
-        func: Callable[[T], Union[R, _Skip]],
-        n_workers: int,
     ):
-        super().__init__(iter(ThreadedMappingIterable(iterator, func, n_workers)))
+        self.iterator = iterator
 
     def __next__(self) -> R:
-        while True:
-            elem = next(self.iterator)
-            if isinstance(elem, _ExceptionContainer):
-                raise elem.exception
-            if not isinstance(elem, _Skip):
-                return elem
+        elem = next(self.iterator)
+        if isinstance(elem, _ExceptionContainer):
+            raise elem.exception
+        return elem
 
 
 BUFFER_SIZE_FACTOR = 8
@@ -71,70 +62,36 @@ class ThreadedMappingIterable(Iterable[Union[R, _ExceptionContainer]]):
                 yield from map(_ExceptionContainer.wrap(Future.result), futures)
 
 
-class ThreadedFlatteningIteratorWrapper(ThreadedMappingIteratorWrapper[T]):
-    class ShufflingNextsIterator(Iterator[Callable[[], Union[T, _Skip]]]):
-        _INIT_RETRY_BACKFOFF = 0.0005
+class ThreadedFlatteningIterable(Iterable[Union[T, _ExceptionContainer]]):
+    def __init__(self, iterables_iterator: Iterator[Iterable[T]], n_workers: int):
+        self.iterables_iterator = iterables_iterator
+        self.n_workers = n_workers
 
-        def __init__(self, iterables_iterator: Iterator[Iterable[T]], pool_size: int):
-            self.iterables_iterator = iterables_iterator
-            self.iterator_iterator_exhausted = False
-            self.pool_size = pool_size
-            self.iterators_pool: Set[Iterator[T]] = set()
-            self.iterators_being_iterated: Set[Iterator[T]] = set()
-
-        def __next__(self) -> Callable[[], Union[T, _Skip]]:
-            backoff = self._INIT_RETRY_BACKFOFF
+    def __iter__(self) -> Iterator[Union[R, _ExceptionContainer]]:
+        with ThreadPoolExecutor(max_workers=self.n_workers) as executor:
             while True:
-                while (
-                    not self.iterator_iterator_exhausted
-                    and len(self.iterators_pool) < self.pool_size
-                ):
-                    try:
-                        iterable = next(self.iterables_iterator)
-                        _util.ducktype_assert_iterable(iterable)
-                        self.iterators_pool.add(iter(iterable))
-                    except StopIteration:
-                        self.iterator_iterator_exhausted = True
-                try:
-                    next_iterator_elem = self.iterators_pool.pop()
-                    self.iterators_being_iterated.add(next_iterator_elem)
-                    backoff = self._INIT_RETRY_BACKFOFF
-                except KeyError:  # KeyError: 'pop from an empty set'
-                    if (
-                        self.iterator_iterator_exhausted
-                        and len(self.iterators_being_iterated) == 0
-                        and len(self.iterators_pool) == 0
-                    ):
-                        raise StopIteration()
-                    time.sleep(backoff)
-                    backoff *= 2
-                    continue
+                iterators = [
+                    iter(iterable)
+                    for iterable in itertools.islice(
+                        self.iterables_iterator, self.n_workers * BUFFER_SIZE_FACTOR
+                    )
+                ]
+                for iterator in iterators:
+                    _util.validate_iterable(iterator)
+                futures: List[Future] = [
+                    executor.submit(cast(Callable[[Iterable[T]], T], next), iterator)
+                    for iterator in iterators
+                ]
+                if not len(futures):
+                    break
 
-                def f() -> Union[T, _Skip]:
-                    exhausted = False
-                    to_be_raised: Optional[Exception] = None
+                for iterator, future in zip(iterators, futures):
                     try:
-                        elem = next(next_iterator_elem)
+                        yield future.result()
                     except StopIteration:
-                        exhausted = True
+                        continue
                     except Exception as e:
-                        to_be_raised = e
-                    self.iterators_being_iterated.remove(next_iterator_elem)
-                    if exhausted:
-                        return _Skip()
-                    else:
-                        self.iterators_pool.add(next_iterator_elem)
-                    if to_be_raised is not None:
-                        raise to_be_raised
-                    return elem
-
-                return f
-
-    def __init__(self, iterator: Iterator[Iterable[T]], n_workers: int):
-        super().__init__(
-            ThreadedFlatteningIteratorWrapper.ShufflingNextsIterator(
-                iterator, pool_size=n_workers * BUFFER_SIZE_FACTOR
-            ),
-            func=lambda f: f(),
-            n_workers=n_workers,
-        )
+                        yield _ExceptionContainer(e)
+                    self.iterables_iterator = itertools.chain(
+                        self.iterables_iterator, [iterator]
+                    )
