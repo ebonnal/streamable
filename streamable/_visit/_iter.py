@@ -23,7 +23,7 @@ class IteratorProducingVisitor(Visitor[Iterator[T]]):
         if stream.concurrency == 1:
             return map(func, it)
         else:
-            return _concurrency.RaisingIteratorWrapper(
+            return _concurrency.RaisingIterator(
                 iter(
                     _concurrency.ThreadedMappingIterable(
                         it, func, n_workers=stream.concurrency
@@ -42,9 +42,9 @@ class IteratorProducingVisitor(Visitor[Iterator[T]]):
     def visit_flatten_stream(self, stream: _stream.FlattenStream[T]) -> Iterator[T]:
         it = stream.upstream._accept(IteratorProducingVisitor[Iterable]())
         if stream.concurrency == 1:
-            return _core.FlatteningIteratorWrapper(it)
+            return _core.FlatteningIterator(it)
         else:
-            return _concurrency.RaisingIteratorWrapper(
+            return _concurrency.RaisingIterator(
                 iter(
                     _concurrency.ThreadedFlatteningIterable(
                         it, n_workers=stream.concurrency
@@ -69,13 +69,11 @@ class IteratorProducingVisitor(Visitor[Iterator[T]]):
     def visit_batch_stream(self, stream: _stream.BatchStream[U]) -> Iterator[T]:
         it: Iterator[U] = stream.upstream._accept(IteratorProducingVisitor[U]())
         return cast(
-            Iterator[T], _core.BatchingIteratorWrapper(it, stream.size, stream.seconds)
+            Iterator[T], _core.BatchingIterator(it, stream.size, stream.seconds)
         )
 
     def visit_slow_stream(self, stream: _stream.SlowStream[T]) -> Iterator[T]:
-        return _core.SlowingIteratorWrapper(
-            stream.upstream._accept(self), stream.frequency
-        )
+        return _core.SlowingIterator(stream.upstream._accept(self), stream.frequency)
 
     def visit_catch_stream(self, stream: _stream.CatchStream[T]) -> Iterator[T]:
         if stream.when is not None:
@@ -84,11 +82,11 @@ class IteratorProducingVisitor(Visitor[Iterator[T]]):
             )
         else:
             when = None
-        return _core.CatchingIteratorWrapper(
+        return _core.CatchingIterator(
             stream.upstream._accept(self), *stream.classes, when=when
         )
 
     def visit_observe_stream(self, stream: _stream.ObserveStream[T]) -> Iterator[T]:
-        return _core.ObservingIteratorWrapper(
+        return _core.ObservingIterator(
             stream.upstream._accept(self), stream.what, stream.colored
         )

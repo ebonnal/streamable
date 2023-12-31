@@ -1,5 +1,4 @@
 import time
-from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Callable, Iterable, Iterator, List, Optional, Type, TypeVar
 
@@ -9,18 +8,9 @@ R = TypeVar("R")
 from streamable import _util
 
 
-class IteratorWrapper(Iterator[T], ABC):
-    def __init__(self, iterator: Iterator):
-        self.iterator = iterator
-
-    @abstractmethod
-    def __next__(self) -> T:
-        ...
-
-
-class FlatteningIteratorWrapper(IteratorWrapper[R]):
+class FlatteningIterator(Iterator[R]):
     def __init__(self, iterator: Iterator[Iterable[R]]) -> None:
-        super().__init__(iterator)
+        self.iterator = iterator
         self.current_iterator_elem: Iterator[R] = iter([])
 
     def __next__(self) -> R:
@@ -37,9 +27,9 @@ class FlatteningIteratorWrapper(IteratorWrapper[R]):
                     pass
 
 
-class ObservingIteratorWrapper(IteratorWrapper[T]):
+class ObservingIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], what: str, colored: bool) -> None:
-        super().__init__(iterator)
+        self.iterator = iterator
         self.what = what
         self.colored = colored
         self.yields_count = 0
@@ -83,9 +73,9 @@ class ObservingIteratorWrapper(IteratorWrapper[T]):
         return elem
 
 
-class SlowingIteratorWrapper(IteratorWrapper[T]):
+class SlowingIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], frequency: float) -> None:
-        super().__init__(iterator)
+        self.iterator = iterator
         self.frequency = frequency
         self.start: Optional[float] = None
         self.yields_count = 0
@@ -101,9 +91,9 @@ class SlowingIteratorWrapper(IteratorWrapper[T]):
             return next_elem
 
 
-class BatchingIteratorWrapper(IteratorWrapper[List[T]]):
+class BatchingIterator(Iterator[List[T]]):
     def __init__(self, iterator: Iterator[T], size: int, seconds: float) -> None:
-        super().__init__(iterator)
+        self.iterator = iterator
         self.size = size
         self.seconds = seconds
         self._to_be_raised: Optional[Exception] = None
@@ -141,14 +131,14 @@ class BatchingIteratorWrapper(IteratorWrapper[List[T]]):
             raise e
 
 
-class CatchingIteratorWrapper(IteratorWrapper[T]):
+class CatchingIterator(Iterator[T]):
     def __init__(
         self,
         iterator: Iterator[T],
         *classes: Type[Exception],
         when: Optional[Callable[[Exception], bool]] = None,
     ) -> None:
-        super().__init__(iterator)
+        self.iterator = iterator
         self.classes = classes
         self.when = when
 

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Callable, Iterable, Iterator, List, TypeVar, Union, cast
 
 from streamable import _util
-from streamable._execution._core import IteratorWrapper
+from streamable._execution._core import Iterator
 
 T = TypeVar("T")
 R = TypeVar("R")
@@ -25,14 +25,14 @@ class _ExceptionContainer(Exception):
         return f
 
 
-class RaisingIteratorWrapper(IteratorWrapper[R]):
+class RaisingIterator(Iterator[T]):
     def __init__(
         self,
-        iterator: Iterator[T],
+        iterator: Iterator[Union[T, _ExceptionContainer]],
     ):
         self.iterator = iterator
 
-    def __next__(self) -> R:
+    def __next__(self) -> T:
         elem = next(self.iterator)
         if isinstance(elem, _ExceptionContainer):
             raise elem.exception
