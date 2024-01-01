@@ -394,6 +394,14 @@ You may use parenthesis instead of trailing backslash `\` to go to line between 
 )
 ```
 
+## `streamable`'s functions
+The functionalities exposed by the `Stream` class are also available as functions:
+```python
+from streamable.functions import slow
+iterator: Iterator[int] = ...
+slowed_iterator: Iterator[int] = slow(iterator)
+```
+
 ## Mute INFO logs
 `.observe` produces `INFO` level logs that you can mute as follows:
 ```python

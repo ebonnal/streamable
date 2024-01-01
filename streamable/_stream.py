@@ -15,10 +15,17 @@ from typing import (
     overload,
 )
 
+from streamable._util import (
+    validate_batch_seconds,
+    validate_batch_size,
+    validate_concurrency,
+    validate_slow_frequency,
+)
+
 if TYPE_CHECKING:
     import builtins
 
-    from streamable._visit._base import Visitor
+    from streamable._visitors._base import Visitor
 
 U = TypeVar("U")
 T = TypeVar("T")
@@ -45,19 +52,12 @@ class Stream(Iterable[T]):
         return self.chain(other)
 
     def __iter__(self) -> Iterator[T]:
-        from streamable._visit import _iter
+        from streamable._visitors import _iteration
 
-        return self._accept(_iter.IteratorProducingVisitor[T]())
+        return self._accept(_iteration.IteratorProducingVisitor[T]())
 
     def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_source_stream(self)
-
-    @staticmethod
-    def _validate_concurrency(concurrency: int):
-        if concurrency < 1:
-            raise ValueError(
-                f"`concurrency` should be greater or equal to 1, but got {concurrency}."
-            )
 
     def batch(self, size: int, seconds: float = float("inf")) -> "Stream[List[T]]":
         """
@@ -74,10 +74,8 @@ class Stream(Iterable[T]):
         Returns:
             Stream[List[T]]: A stream of upstream elements batched into lists.
         """
-        if size < 1:
-            raise ValueError(f"batch's size should be >= 1 but got {size}.")
-        if seconds <= 0:
-            raise ValueError(f"batch's seconds should be > 0 but got {seconds}.")
+        validate_batch_size(size)
+        validate_batch_seconds(seconds)
         return BatchStream(self, size, seconds)
 
     def catch(
@@ -129,7 +127,7 @@ class Stream(Iterable[T]):
         Returns:
             Stream[T]: A stream of upstream elements, unchanged.
         """
-        Stream._validate_concurrency(concurrency)
+        validate_concurrency(concurrency)
         return DoStream(self, func, concurrency)
 
     def exhaust(self) -> None:
@@ -143,7 +141,7 @@ class Stream(Iterable[T]):
         """
         Returns a friendly representation of this stream operations.
         """
-        from streamable._visit import _explanation
+        from streamable._visitors import _explanation
 
         return self._accept(_explanation.ExplainingVisitor(colored))
 
@@ -234,7 +232,7 @@ class Stream(Iterable[T]):
         Returns:
             Stream[R]: A stream of flattened elements from upstream iterables.
         """
-        Stream._validate_concurrency(concurrency)
+        validate_concurrency(concurrency)
         return FlattenStream(self, concurrency)
 
     def observe(self, what: str = "elements", colored: bool = False) -> "Stream[T]":
@@ -271,7 +269,7 @@ class Stream(Iterable[T]):
         Returns:
             Stream[R]: A stream of results of `func` applied to upstream elements.
         """
-        Stream._validate_concurrency(concurrency)
+        validate_concurrency(concurrency)
         return MapStream(self, func, concurrency)
 
     def slow(self, frequency: float) -> "Stream[T]":
@@ -284,10 +282,7 @@ class Stream(Iterable[T]):
         Returns:
             Stream[T]: A stream yielding upstream elements at a maximum `frequency`.
         """
-        if frequency <= 0:
-            raise ValueError(
-                f"frequency is the maximum number of elements to yield per second, it must be > 0  but got {frequency}."
-            )
+        validate_slow_frequency(frequency)
         return SlowStream(self, frequency)
 
 

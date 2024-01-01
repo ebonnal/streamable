@@ -59,6 +59,30 @@ def validate_iterable(expected_iterator: Any) -> TypeGuard[Iterable]:
     return True
 
 
+def validate_concurrency(concurrency: int):
+    if concurrency < 1:
+        raise ValueError(
+            f"`concurrency` should be greater or equal to 1, but got {concurrency}."
+        )
+
+
+def validate_batch_size(size: int):
+    if size < 1:
+        raise ValueError(f"batch's size should be >= 1 but got {size}.")
+
+
+def validate_batch_seconds(seconds: float):
+    if seconds <= 0:
+        raise ValueError(f"batch's seconds should be > 0 but got {seconds}.")
+
+
+def validate_slow_frequency(frequency: float):
+    if frequency <= 0:
+        raise ValueError(
+            f"frequency is the maximum number of elements to yield per second, it must be > 0  but got {frequency}."
+        )
+
+
 def colorize_in_red(s: str) -> str:
     return f"\033[91m{s}\033[0m"
 

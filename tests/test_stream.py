@@ -357,7 +357,7 @@ class TestStream(unittest.TestCase):
     def test_partial_iteration_on_streams_using_concurrency(
         self, concurrency: int
     ) -> None:
-        from streamable._execution._concurrency import _BUFFER_SIZE_FACTOR
+        from streamable.functions._itertools import _CONCURRENCY_BUFFER_SIZE_FACTOR
 
         yielded_elems = []
 
@@ -376,8 +376,8 @@ class TestStream(unittest.TestCase):
             next(iter(stream))
             self.assertEqual(
                 len(yielded_elems),
-                concurrency * _BUFFER_SIZE_FACTOR,
-                msg=f"after only one `next` a concurrent {type(stream)} should have pulled only concurrency * BUFFER_SIZE_FACTOR={concurrency * _BUFFER_SIZE_FACTOR} upstream elements.",
+                concurrency * _CONCURRENCY_BUFFER_SIZE_FACTOR,
+                msg=f"after only one `next` a concurrent {type(stream)} should have pulled only concurrency * BUFFER_SIZE_FACTOR={concurrency * _CONCURRENCY_BUFFER_SIZE_FACTOR} upstream elements.",
             )
 
     def test_chain(self) -> None:
@@ -607,3 +607,24 @@ class TestStream(unittest.TestCase):
         self.assertListEqual(
             l, list(src()), msg="`exhaust` should iterate over the entire stream."
         )
+
+    def test_functions_signatures(self) -> None:
+        from streamable.functions import batch, catch, flatten, map, observe, slow
+
+        it = iter(src())
+        mapped_it_1: Iterator[int] = map(identity, it)
+        mapped_it_2: Iterator[int] = map(identity, it, concurrency=1)
+        mapped_it_3: Iterator[int] = map(identity, it, concurrency=2)
+        batched_it_1: Iterator[List[int]] = batch(it, size=1)
+        batched_it_2: Iterator[List[int]] = batch(it, size=1, seconds=0.1)
+        batched_it_3: Iterator[List[int]] = batch(it, size=1, seconds=2)
+        flattened_batched_it_1: Iterator[int] = flatten(batched_it_1)
+        flattened_batched_it_2: Iterator[int] = flatten(batched_it_1, concurrency=1)
+        flattened_batched_it_3: Iterator[int] = flatten(batched_it_1, concurrency=2)
+        catched_it_1: Iterator[int] = catch(it, Exception)
+        catched_it_2: Iterator[int] = catch(
+            it, Exception, when=lambda e: True, raise_at_exhaustion=True
+        )
+        observed_it_1: Iterator[int] = observe(it, what="objects")
+        observed_it_2: Iterator[int] = observe(it, what="objects", colored=True)
+        slowed_it_1: Iterator[int] = slow(it, frequency=1)
