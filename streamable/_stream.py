@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
     from streamable._visit._base import Visitor
 
-R = TypeVar("R")
+U = TypeVar("U")
 T = TypeVar("T")
 V = TypeVar("V")
 
@@ -38,24 +38,16 @@ class Stream(Iterable[T]):
             raise TypeError(f"source must be a callable but got a {type(source)}")
         self.source = source
 
-    def __iter__(self) -> Iterator[T]:
-        from streamable._visit import _iter
-
-        return self._accept(_iter.IteratorProducingVisitor[T]())
-
     def __add__(self, other: "Stream[T]") -> "Stream[T]":
         """
         a + b is syntax sugar for a.chain(b).
         """
         return self.chain(other)
 
-    def explain(self, colored: bool = False) -> str:
-        """
-        Returns a friendly representation of this stream operations.
-        """
-        from streamable._visit import _explanation
+    def __iter__(self) -> Iterator[T]:
+        from streamable._visit import _iter
 
-        return self._accept(_explanation.ExplainingVisitor(colored))
+        return self._accept(_iter.IteratorProducingVisitor[T]())
 
     def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_source_stream(self)
@@ -66,144 +58,6 @@ class Stream(Iterable[T]):
             raise ValueError(
                 f"`concurrency` should be greater or equal to 1, but got {concurrency}."
             )
-
-    def map(
-        self,
-        func: Callable[[T], R],
-        concurrency: int = 1,
-    ) -> "Stream[R]":
-        """
-        Apply `func` to the upstream elements and yield the results in order.
-
-        Args:
-            func (Callable[[T], R]): The function to be applied to each element.
-            concurrency (int): The number of threads used to concurrently apply the function (default is 1, meaning no concurrency).
-        Returns:
-            Stream[R]: A stream of results of `func` applied to upstream elements.
-        """
-        Stream._validate_concurrency(concurrency)
-        return MapStream(self, func, concurrency)
-
-    def do(
-        self,
-        func: Callable[[T], Any],
-        concurrency: int = 1,
-    ) -> "Stream[T]":
-        """
-        Call `func` on upstream elements, discarding the result and yielding upstream elements unchanged and in order.
-        If `func(elem)` throws an exception, then this exception will be thrown when iterating over the stream and `elem` will not be yielded.
-
-        Args:
-            func (Callable[[T], Any]): The function to be applied to each element.
-            concurrency (int): The number of threads used to concurrently apply the function (default is 1, meaning no concurrency).
-        Returns:
-            Stream[T]: A stream of upstream elements, unchanged.
-        """
-        Stream._validate_concurrency(concurrency)
-        return DoStream(self, func, concurrency)
-
-    @overload
-    def flatten(
-        self: "Stream[Iterable[R]]",
-        concurrency: int = 1,
-    ) -> "Stream[R]":
-        ...
-
-    @overload
-    def flatten(
-        self: "Stream[Collection[R]]",
-        concurrency: int = 1,
-    ) -> "Stream[R]":
-        ...
-
-    @overload
-    def flatten(
-        self: "Stream[Stream[R]]",
-        concurrency: int = 1,
-    ) -> "Stream[R]":
-        ...
-
-    @overload
-    def flatten(
-        self: "Stream[Iterator[R]]",
-        concurrency: int = 1,
-    ) -> "Stream[R]":
-        ...
-
-    @overload
-    def flatten(
-        self: "Stream[List[R]]",
-        concurrency: int = 1,
-    ) -> "Stream[R]":
-        ...
-
-    @overload
-    def flatten(
-        self: "Stream[Sequence[R]]",
-        concurrency: int = 1,
-    ) -> "Stream[R]":
-        ...
-
-    @overload
-    def flatten(
-        self: "Stream[builtins.map[R]]",
-        concurrency: int = 1,
-    ) -> "Stream[R]":
-        ...
-
-    @overload
-    def flatten(
-        self: "Stream[builtins.filter[R]]",
-        concurrency: int = 1,
-    ) -> "Stream[R]":
-        ...
-
-    @overload
-    def flatten(
-        self: "Stream[Set[R]]",
-        concurrency: int = 1,
-    ) -> "Stream[R]":
-        ...
-
-    def flatten(
-        self: "Stream[Iterable[R]]",
-        concurrency: int = 1,
-    ) -> "Stream[R]":
-        """
-        Iterate over upstream elements, assumed to be iterables, and individually yield the sub-elements.
-
-        Args:
-            concurrency (int): The number of threads used to concurrently flatten the upstream iterables (default is 1, meaning no concurrency).
-        Returns:
-            Stream[R]: A stream of flattened elements from upstream iterables.
-        """
-        Stream._validate_concurrency(concurrency)
-        return FlattenStream(self, concurrency)
-
-    def chain(self, *others: "Stream[T]") -> "Stream[T]":
-        """
-        Yield the elements of the chained streams, in order.
-        The elements of a given stream are yielded after its predecessor is exhausted.
-
-        Args:
-            *others (Stream[T]): One or more streams to chain with this stream.
-
-        Returns:
-            Stream[T]: A stream of elements of each stream in the chain, in order.
-        """
-        return ChainStream(self, list(others))
-
-    def filter(self, predicate: Callable[[T], bool]) -> "Stream[T]":
-        """
-        Filter the elements of the stream based on the given predicate.
-
-        Args:
-            predicate (Callable[[T], bool]): The function that decides whether an element should be kept or not.
-
-        Returns:
-            Stream[T]: A stream of upstream elements satisfying the predicate.
-        """
-        return FilterStream(self, predicate)
 
     def batch(self, size: int, seconds: float = float("inf")) -> "Stream[List[T]]":
         """
@@ -226,22 +80,6 @@ class Stream(Iterable[T]):
             raise ValueError(f"batch's seconds should be > 0 but got {seconds}.")
         return BatchStream(self, size, seconds)
 
-    def slow(self, frequency: float) -> "Stream[T]":
-        """
-        Slow down the iteration down to a maximum `frequency` = maximum number of elements yielded per second.
-
-        Args:
-            frequency (float): The maximum number of elements yielded per second.
-
-        Returns:
-            Stream[T]: A stream yielding upstream elements at a maximum `frequency`.
-        """
-        if frequency <= 0:
-            raise ValueError(
-                f"frequency is the maximum number of elements to yield per second, it must be > 0  but got {frequency}."
-            )
-        return SlowStream(self, frequency)
-
     def catch(
         self,
         *classes: Type[Exception],
@@ -263,6 +101,142 @@ class Stream(Iterable[T]):
             self, *classes, when=when, raise_at_exhaustion=raise_at_exhaustion
         )
 
+    def chain(self, *others: "Stream[T]") -> "Stream[T]":
+        """
+        Yield the elements of the chained streams, in order.
+        The elements of a given stream are yielded after its predecessor is exhausted.
+
+        Args:
+            *others (Stream[T]): One or more streams to chain with this stream.
+
+        Returns:
+            Stream[T]: A stream of elements of each stream in the chain, in order.
+        """
+        return ChainStream(self, list(others))
+
+    def do(
+        self,
+        func: Callable[[T], Any],
+        concurrency: int = 1,
+    ) -> "Stream[T]":
+        """
+        Call `func` on upstream elements, discarding the result and yielding upstream elements unchanged and in order.
+        If `func(elem)` throws an exception, then this exception will be thrown when iterating over the stream and `elem` will not be yielded.
+
+        Args:
+            func (Callable[[T], Any]): The function to be applied to each element.
+            concurrency (int): The number of threads used to concurrently apply the function (default is 1, meaning no concurrency).
+        Returns:
+            Stream[T]: A stream of upstream elements, unchanged.
+        """
+        Stream._validate_concurrency(concurrency)
+        return DoStream(self, func, concurrency)
+
+    def exhaust(self) -> None:
+        """
+        Iterates over the stream until exhaustion.
+        """
+        for _ in self:
+            pass
+
+    def explain(self, colored: bool = False) -> str:
+        """
+        Returns a friendly representation of this stream operations.
+        """
+        from streamable._visit import _explanation
+
+        return self._accept(_explanation.ExplainingVisitor(colored))
+
+    def filter(self, predicate: Callable[[T], bool]) -> "Stream[T]":
+        """
+        Filter the elements of the stream based on the given predicate.
+
+        Args:
+            predicate (Callable[[T], bool]): The function that decides whether an element should be kept or not.
+
+        Returns:
+            Stream[T]: A stream of upstream elements satisfying the predicate.
+        """
+        return FilterStream(self, predicate)
+
+    @overload
+    def flatten(
+        self: "Stream[Iterable[U]]",
+        concurrency: int = 1,
+    ) -> "Stream[U]":
+        ...
+
+    @overload
+    def flatten(
+        self: "Stream[Collection[U]]",
+        concurrency: int = 1,
+    ) -> "Stream[U]":
+        ...
+
+    @overload
+    def flatten(
+        self: "Stream[Stream[U]]",
+        concurrency: int = 1,
+    ) -> "Stream[U]":
+        ...
+
+    @overload
+    def flatten(
+        self: "Stream[Iterator[U]]",
+        concurrency: int = 1,
+    ) -> "Stream[U]":
+        ...
+
+    @overload
+    def flatten(
+        self: "Stream[List[U]]",
+        concurrency: int = 1,
+    ) -> "Stream[U]":
+        ...
+
+    @overload
+    def flatten(
+        self: "Stream[Sequence[U]]",
+        concurrency: int = 1,
+    ) -> "Stream[U]":
+        ...
+
+    @overload
+    def flatten(
+        self: "Stream[builtins.map[U]]",
+        concurrency: int = 1,
+    ) -> "Stream[U]":
+        ...
+
+    @overload
+    def flatten(
+        self: "Stream[builtins.filter[U]]",
+        concurrency: int = 1,
+    ) -> "Stream[U]":
+        ...
+
+    @overload
+    def flatten(
+        self: "Stream[Set[U]]",
+        concurrency: int = 1,
+    ) -> "Stream[U]":
+        ...
+
+    def flatten(
+        self: "Stream[Iterable[U]]",
+        concurrency: int = 1,
+    ) -> "Stream[U]":
+        """
+        Iterate over upstream elements, assumed to be iterables, and individually yield the sub-elements.
+
+        Args:
+            concurrency (int): The number of threads used to concurrently flatten the upstream iterables (default is 1, meaning no concurrency).
+        Returns:
+            Stream[R]: A stream of flattened elements from upstream iterables.
+        """
+        Stream._validate_concurrency(concurrency)
+        return FlattenStream(self, concurrency)
+
     def observe(self, what: str = "elements", colored: bool = False) -> "Stream[T]":
         """
         Logs the evolution of the iteration over elements.
@@ -283,70 +257,43 @@ class Stream(Iterable[T]):
         """
         return ObserveStream(self, what, colored)
 
-    def exhaust(self) -> None:
+    def map(
+        self,
+        func: Callable[[T], U],
+        concurrency: int = 1,
+    ) -> "Stream[U]":
         """
-        Iterates over the stream until exhaustion.
+        Apply `func` to the upstream elements and yield the results in order.
+
+        Args:
+            func (Callable[[T], R]): The function to be applied to each element.
+            concurrency (int): The number of threads used to concurrently apply the function (default is 1, meaning no concurrency).
+        Returns:
+            Stream[R]: A stream of results of `func` applied to upstream elements.
         """
-        for _ in self:
-            pass
+        Stream._validate_concurrency(concurrency)
+        return MapStream(self, func, concurrency)
+
+    def slow(self, frequency: float) -> "Stream[T]":
+        """
+        Slow down the iteration down to a maximum `frequency` = maximum number of elements yielded per second.
+
+        Args:
+            frequency (float): The maximum number of elements yielded per second.
+
+        Returns:
+            Stream[T]: A stream yielding upstream elements at a maximum `frequency`.
+        """
+        if frequency <= 0:
+            raise ValueError(
+                f"frequency is the maximum number of elements to yield per second, it must be > 0  but got {frequency}."
+            )
+        return SlowStream(self, frequency)
 
 
-X = TypeVar("X")
-Y = TypeVar("Y")
-Z = TypeVar("Z")
-
-
-class FilterStream(Stream[Y]):
-    def __init__(self, upstream: Stream[Y], predicate: Callable[[Y], bool]):
-        self.upstream: Stream[Y] = upstream
-        self.predicate = predicate
-
-    def _accept(self, visitor: "Visitor[V]") -> V:
-        return visitor.visit_filter_stream(self)
-
-
-class MapStream(Stream[Z], Generic[Y, Z]):
-    def __init__(self, upstream: Stream[Y], func: Callable[[Y], Z], concurrency: int):
-        self.upstream: Stream[Y] = upstream
-        self.func = func
-        self.concurrency = concurrency
-
-    def _accept(self, visitor: "Visitor[V]") -> V:
-        return visitor.visit_map_stream(self)
-
-
-class DoStream(Stream[Y]):
-    def __init__(self, upstream: Stream[Y], func: Callable[[Y], Any], concurrency: int):
-        self.upstream: Stream[Y] = upstream
-        self.func = func
-        self.concurrency = concurrency
-
-    def _accept(self, visitor: "Visitor[V]") -> V:
-        return visitor.visit_do_stream(self)
-
-
-class ObserveStream(Stream[Y]):
-    def __init__(self, upstream: Stream[Y], what: str, colored: bool):
-        self.upstream: Stream[Y] = upstream
-        self.what = what
-        self.colored = colored
-
-    def _accept(self, visitor: "Visitor[V]") -> V:
-        return visitor.visit_observe_stream(self)
-
-
-class FlattenStream(Stream[Y]):
-    def __init__(self, upstream: Stream[Iterable[Y]], concurrency: int) -> None:
-        self.upstream: Stream[Iterable[Y]] = upstream
-        self.concurrency = concurrency
-
-    def _accept(self, visitor: "Visitor[V]") -> V:
-        return visitor.visit_flatten_stream(self)
-
-
-class BatchStream(Stream[List[Y]]):
-    def __init__(self, upstream: Stream[Y], size: int, seconds: float):
-        self.upstream: Stream[Y] = upstream
+class BatchStream(Stream[List[T]]):
+    def __init__(self, upstream: Stream[T], size: int, seconds: float):
+        self.upstream: Stream[T] = upstream
         self.size = size
         self.seconds = seconds
 
@@ -354,15 +301,15 @@ class BatchStream(Stream[List[Y]]):
         return visitor.visit_batch_stream(self)
 
 
-class CatchStream(Stream[Y]):
+class CatchStream(Stream[T]):
     def __init__(
         self,
-        upstream: Stream[Y],
+        upstream: Stream[T],
         *classes: Type[Exception],
         when: Optional[Callable[[Exception], bool]],
         raise_at_exhaustion: bool,
     ):
-        self.upstream: Stream[Y] = upstream
+        self.upstream: Stream[T] = upstream
         self.classes = classes
         self.when = when
         self.raise_at_exhaustion = raise_at_exhaustion
@@ -371,18 +318,66 @@ class CatchStream(Stream[Y]):
         return visitor.visit_catch_stream(self)
 
 
-class ChainStream(Stream[Y]):
-    def __init__(self, upstream: Stream[Y], others: List[Stream]):
-        self.upstream: Stream[Y] = upstream
+class ChainStream(Stream[T]):
+    def __init__(self, upstream: Stream[T], others: List[Stream]):
+        self.upstream: Stream[T] = upstream
         self.others = others
 
     def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_chain_stream(self)
 
 
-class SlowStream(Stream[Y]):
-    def __init__(self, upstream: Stream[Y], frequency: float):
-        self.upstream: Stream[Y] = upstream
+class DoStream(Stream[T]):
+    def __init__(self, upstream: Stream[T], func: Callable[[T], Any], concurrency: int):
+        self.upstream: Stream[T] = upstream
+        self.func = func
+        self.concurrency = concurrency
+
+    def _accept(self, visitor: "Visitor[V]") -> V:
+        return visitor.visit_do_stream(self)
+
+
+class FilterStream(Stream[T]):
+    def __init__(self, upstream: Stream[T], predicate: Callable[[T], bool]):
+        self.upstream: Stream[T] = upstream
+        self.predicate = predicate
+
+    def _accept(self, visitor: "Visitor[V]") -> V:
+        return visitor.visit_filter_stream(self)
+
+
+class FlattenStream(Stream[T]):
+    def __init__(self, upstream: Stream[Iterable[T]], concurrency: int) -> None:
+        self.upstream: Stream[Iterable[T]] = upstream
+        self.concurrency = concurrency
+
+    def _accept(self, visitor: "Visitor[V]") -> V:
+        return visitor.visit_flatten_stream(self)
+
+
+class ObserveStream(Stream[T]):
+    def __init__(self, upstream: Stream[T], what: str, colored: bool):
+        self.upstream: Stream[T] = upstream
+        self.what = what
+        self.colored = colored
+
+    def _accept(self, visitor: "Visitor[V]") -> V:
+        return visitor.visit_observe_stream(self)
+
+
+class MapStream(Stream[U], Generic[T, U]):
+    def __init__(self, upstream: Stream[T], func: Callable[[T], U], concurrency: int):
+        self.upstream: Stream[T] = upstream
+        self.func = func
+        self.concurrency = concurrency
+
+    def _accept(self, visitor: "Visitor[V]") -> V:
+        return visitor.visit_map_stream(self)
+
+
+class SlowStream(Stream[T]):
+    def __init__(self, upstream: Stream[T], frequency: float):
+        self.upstream: Stream[T] = upstream
         self.frequency = frequency
 
     def _accept(self, visitor: "Visitor[V]") -> V:
