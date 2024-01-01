@@ -15,41 +15,51 @@ class IteratorProducingVisitor(Visitor[Iterator[T]]):
         return iter(iterable)
 
     def visit_map_stream(self, stream: _stream.MapStream[U, T]) -> Iterator[T]:
-        func = _util.map_exception(
-            stream.func, source=StopIteration, target=RuntimeError
+        return functions.map(
+            _util.map_exception(stream.func, StopIteration, RuntimeError),
+            stream.upstream._accept(IteratorProducingVisitor[U]()),
+            concurrency=stream.concurrency,
         )
-        it: Iterator[U] = stream.upstream._accept(IteratorProducingVisitor[U]())
-        return functions.map(func, it, concurrency=stream.concurrency)
 
     def visit_do_stream(self, stream: _stream.DoStream[T]) -> Iterator[T]:
-        func = _util.sidify(
-            _util.map_exception(stream.func, source=StopIteration, target=RuntimeError)
-        )
         return self.visit_map_stream(
-            _stream.MapStream(stream.upstream, func, stream.concurrency)
+            _stream.MapStream(
+                stream.upstream,
+                _util.sidify(stream.func),
+                stream.concurrency,
+            )
         )
 
     def visit_flatten_stream(self, stream: _stream.FlattenStream[T]) -> Iterator[T]:
-        it = stream.upstream._accept(IteratorProducingVisitor[Iterable]())
-        return functions.flatten(it, concurrency=stream.concurrency)
+        return functions.flatten(
+            stream.upstream._accept(IteratorProducingVisitor[Iterable]()),
+            concurrency=stream.concurrency,
+        )
 
     def visit_chain_stream(self, stream: _stream.ChainStream[T]) -> Iterator[T]:
-        it: Iterator[T] = stream.upstream._accept(self)
         other_its: List[Iterator[T]] = list(
             map(lambda stream: stream._accept(self), stream.others)
         )
-        return itertools.chain(it, *other_its)
+        return itertools.chain(
+            cast(Iterable[T], stream.upstream._accept(self)),
+            *other_its,
+        )
 
     def visit_filter_stream(self, stream: _stream.FilterStream[T]) -> Iterator[T]:
-        predicate = _util.map_exception(
-            stream.predicate, source=StopIteration, target=RuntimeError
+        return filter(
+            _util.map_exception(stream.predicate, StopIteration, RuntimeError),
+            cast(Iterable[T], stream.upstream._accept(self)),
         )
-        it: Iterator[T] = stream.upstream._accept(self)
-        return filter(predicate, it)
 
     def visit_batch_stream(self, stream: _stream.BatchStream[U]) -> Iterator[T]:
-        it: Iterator[U] = stream.upstream._accept(IteratorProducingVisitor[U]())
-        return cast(Iterator[T], functions.batch(it, stream.size, stream.seconds))
+        return cast(
+            Iterator[T],
+            functions.batch(
+                stream.upstream._accept(IteratorProducingVisitor[U]()),
+                stream.size,
+                stream.seconds,
+            ),
+        )
 
     def visit_slow_stream(self, stream: _stream.SlowStream[T]) -> Iterator[T]:
         return functions.slow(stream.upstream._accept(self), stream.frequency)
@@ -64,5 +74,7 @@ class IteratorProducingVisitor(Visitor[Iterator[T]]):
 
     def visit_observe_stream(self, stream: _stream.ObserveStream[T]) -> Iterator[T]:
         return functions.observe(
-            stream.upstream._accept(self), stream.what, stream.colored
+            stream.upstream._accept(self),
+            stream.what,
+            stream.colored,
         )
