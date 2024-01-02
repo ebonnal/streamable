@@ -1,6 +1,10 @@
 name: typing
 
-on: [push]
+on:
+  push:
+    paths:
+      - 'streamable'
+      - 'tests'
 
 jobs:
   mypy:

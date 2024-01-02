@@ -1,6 +1,10 @@
 name: lint
 
-on: [push]
+on:
+  push:
+    paths:
+      - 'streamable'
+      - 'tests'
 
 jobs:
   lint:
