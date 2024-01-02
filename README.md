@@ -404,7 +404,7 @@ You can now wrap this script as a task within your chosen job orchestrator.
 Example using **Airflow**:
 
 ```python
-... # imports from 1.
+...
 from typing import Optional
 from airflow.decorators import dag, task
 
