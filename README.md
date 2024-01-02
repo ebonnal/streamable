@@ -67,14 +67,14 @@ rate_limited_odd_squares.exhaust()
 
 ---
 
-# ⭐ ***Operations guide*** ⭐
+# 📒 ***operations guide***
 
 Let's keep the same example:
 ```python
 integers = Stream(lambda: range(10))
 ```
 
-# Transformations
+# transformations
 ![](./img/transform.gif)
 
 ## `.map`
@@ -141,7 +141,7 @@ one_to_thirty_integers: Stream[int] = one_to_ten_integers.chain(
 )
 ```
 
-# Controls
+# controls
 ![](./img/control.gif)
 
 ## `.slow`
@@ -191,7 +191,7 @@ It has optional parameters:
 
 ---
 
-# ⭐ ***Typical use case in Data Engineering*** ⭐
+# 🔧 ***typical use case in Data Engineering***
 ![](./img/dataeng.gif)
 
 As a data engineer, you often need to write python scripts to do **ETL** (*Extract* the data from a source API, *Transform* and *Load* it into the data warehouse) or **EL** (same but with minimal transformation) or **Reverse ETL** (read data from the data warehouse and post it into a destination API).
@@ -378,12 +378,12 @@ And we are done !
 ---
 
 
-# 📦 Tips Box
+# 📦 ***tips Box***
 
-## Typing
+## typing
 `streamable` is a fully typed module, you can `mypy` it !
 
-## Multi lines declaration
+## multi lines declaration
 You may use parenthesis instead of trailing backslash `\` to go to line between operation declarations.  
 ```python
 (
@@ -402,14 +402,14 @@ iterator: Iterator[int] = ...
 slowed_iterator: Iterator[int] = slow(iterator)
 ```
 
-## Mute INFO logs
+## mute logs
 `.observe` produces `INFO` level logs that you can mute as follows:
 ```python
 import logging
 logging.getLogger("streamable").setLevel(logging.WARNING)
 ```
 
-## Developer commands cheat sheet
+## dev commands cheat sheet
 
 ###  setup
 after having forked `streamable` and `git clone`d it locally:
