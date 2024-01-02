@@ -191,7 +191,68 @@ It has optional parameters:
 
 ---
 
-# 🔧 ***typical use case in Data Engineering***
+# 📦 ***tips box***
+
+## typing
+`streamable` is a fully typed module, you can `mypy` it !
+
+## multi lines declaration
+You may use parenthesis instead of trailing backslash `\` to go to line between operation declarations.  
+```python
+(
+    Stream(lambda: range(10))
+    .map(lambda x: 1/x)
+    .catch(ZeroDivisionError)
+    .exhaust()
+)
+```
+
+## `streamable`'s functions
+The functionalities exposed by the `Stream` class are also available as functions:
+```python
+from streamable.functions import slow
+iterator: Iterator[int] = ...
+slowed_iterator: Iterator[int] = slow(iterator)
+```
+
+## mute logs
+`.observe` produces `INFO` level logs that you can mute as follows:
+```python
+import logging
+logging.getLogger("streamable").setLevel(logging.WARNING)
+```
+
+## dev commands cheat sheet
+
+###  setup
+after having forked `streamable` and `git clone`d it locally:
+```bash
+cd streamable
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+```
+
+### unittest
+```bash
+python -m unittest
+```
+
+### type checking
+```bash
+python -m mypy streamable tests
+```
+
+### lint
+```bash
+python -m autoflake --in-place --remove-all-unused-imports --remove-unused-variables --ignore-init-module -r streamable tests \
+&& python -m isort streamable tests \
+&& python -m black streamable tests
+```
+
+---
+
+# 🔧 ***typical use case in data engineering***
 ![](./img/dataeng.gif)
 
 As a data engineer, you often need to write python scripts to do **ETL** (*Extract* the data from a source API, *Transform* and *Load* it into the data warehouse) or **EL** (same but with minimal transformation) or **Reverse ETL** (read data from the data warehouse and post it into a destination API).
@@ -374,65 +435,3 @@ _ = weekly_integrate_pokemon_cards_in_bigquery()
 ```
 
 And we are done !
-
----
-
-
-# 📦 ***tips Box***
-
-## typing
-`streamable` is a fully typed module, you can `mypy` it !
-
-## multi lines declaration
-You may use parenthesis instead of trailing backslash `\` to go to line between operation declarations.  
-```python
-(
-    Stream(lambda: range(10))
-    .map(lambda x: 1/x)
-    .catch(ZeroDivisionError)
-    .exhaust()
-)
-```
-
-## `streamable`'s functions
-The functionalities exposed by the `Stream` class are also available as functions:
-```python
-from streamable.functions import slow
-iterator: Iterator[int] = ...
-slowed_iterator: Iterator[int] = slow(iterator)
-```
-
-## mute logs
-`.observe` produces `INFO` level logs that you can mute as follows:
-```python
-import logging
-logging.getLogger("streamable").setLevel(logging.WARNING)
-```
-
-## dev commands cheat sheet
-
-###  setup
-after having forked `streamable` and `git clone`d it locally:
-```bash
-cd streamable
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements.txt
-```
-
-### unittest
-```bash
-python -m unittest
-```
-
-### type checking
-```bash
-python -m mypy streamable tests
-```
-
-### lint
-```bash
-python -m autoflake --in-place --remove-all-unused-imports --remove-unused-variables --ignore-init-module -r streamable tests \
-&& python -m isort streamable tests \
-&& python -m black streamable tests
-```
