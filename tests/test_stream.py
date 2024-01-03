@@ -582,7 +582,7 @@ class TestStream(unittest.TestCase):
     def test_observe(self) -> None:
         self.assertListEqual(
             list(
-                Stream("12-3".__iter__)
+                Stream("123-567".__iter__)
                 .observe("chars")
                 .map(int)
                 .observe("ints", colored=True)
@@ -590,7 +590,8 @@ class TestStream(unittest.TestCase):
                 .observe("ints_pairs")
                 .catch(ValueError)
             ),
-            [[1, 2], [3]],
+            [[1, 2], [3], [5, 6], [7]],
+            msg="This can break due to `batch`/`map`/`catch`, check other breaking tests to determine quickly if it's an issue with `observe`.",
         )
 
     def test_is_iterable(self) -> None:

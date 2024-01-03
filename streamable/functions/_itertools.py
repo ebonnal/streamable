@@ -31,9 +31,12 @@ class _ObservingIterator(Iterator[T]):
         self.colored = colored
         self.yields_count = 0
         self.errors_count = 0
-        self.last_log_at_yields_count: Optional[int] = None
+        self.last_log_at_n_iterations: Optional[int] = None
         self.start_time = time.time()
         _util.LOGGER.info("iteration over '%s' will be observed.", self.what)
+
+    def _n_iterations(self) -> int:
+        return self.yields_count + self.errors_count
 
     def _log(self) -> None:
         errors_summary = (
@@ -51,22 +54,22 @@ class _ObservingIterator(Iterator[T]):
         to_be_raised: Optional[Exception] = None
         try:
             elem = next(self.iterator)
+            self.yields_count += 1
         except StopIteration:
-            if self.yields_count != self.last_log_at_yields_count:
+            if self._n_iterations() != self.last_log_at_n_iterations:
                 self._log()
-                self.last_log_at_yields_count = self.yields_count
+                self.last_log_at_n_iterations = self._n_iterations()
             raise
         except Exception as e:
             to_be_raised = e
             self.errors_count += 1
 
-        self.yields_count += 1
         if (
-            self.last_log_at_yields_count is None
-            or self.yields_count == 2 * self.last_log_at_yields_count
+            self.last_log_at_n_iterations is None
+            or self._n_iterations() == 2 * self.last_log_at_n_iterations
         ):
             self._log()
-            self.last_log_at_yields_count = self.yields_count
+            self.last_log_at_n_iterations = self._n_iterations()
         if to_be_raised:
             raise to_be_raised
         return elem
