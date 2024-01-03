@@ -3,8 +3,8 @@ name: lint
 on:
   push:
     paths:
-      - 'streamable'
-      - 'tests'
+      - 'streamable/**'
+      - 'tests/**'
 
 jobs:
   lint:

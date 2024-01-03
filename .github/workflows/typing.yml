@@ -3,8 +3,8 @@ name: typing
 on:
   push:
     paths:
-      - 'streamable'
-      - 'tests'
+      - 'streamable/**'
+      - 'tests/**'
 
 jobs:
   mypy:
