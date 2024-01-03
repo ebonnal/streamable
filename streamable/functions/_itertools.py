@@ -252,11 +252,18 @@ def map(
     func: Callable[[T], U], iterator: Iterator[T], concurrency: int = 1
 ) -> Iterator[U]:
     _util.validate_concurrency(concurrency)
+    func = _util.map_exception(func, StopIteration, RuntimeError)
     if concurrency == 1:
         return builtins.map(func, iterator)
     else:
         return _RaisingIterator(
-            iter(_ConcurrentMappingIterable(iterator, func, concurrency=concurrency))
+            iter(
+                _ConcurrentMappingIterable(
+                    iterator,
+                    func,
+                    concurrency=concurrency,
+                )
+            )
         )
 
 

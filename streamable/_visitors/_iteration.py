@@ -16,7 +16,7 @@ class IteratorProducingVisitor(Visitor[Iterator[T]]):
 
     def visit_map_stream(self, stream: _stream.MapStream[U, T]) -> Iterator[T]:
         return functions.map(
-            _util.map_exception(stream.func, StopIteration, RuntimeError),
+            stream.func,
             stream.upstream._accept(IteratorProducingVisitor[U]()),
             concurrency=stream.concurrency,
         )
