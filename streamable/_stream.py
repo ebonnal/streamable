@@ -57,14 +57,6 @@ class Stream(Iterable[T]):
 
         return self._accept(_iteration.IteratorProducingVisitor[T]())
 
-    def __len__(self) -> int:
-        """
-        Launch an full iteration over the stream and returns the number of elements yielded.
-        Returns:
-            int: The number of elements in the stream.
-        """
-        return self.exhaust()
-
     def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_source_stream(self)
 

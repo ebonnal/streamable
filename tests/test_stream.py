@@ -597,13 +597,6 @@ class TestStream(unittest.TestCase):
     def test_is_iterable(self) -> None:
         self.assertIsInstance(Stream(src), Iterable)
 
-    def test_len(self):
-        self.assertEqual(
-            len(Stream(src)),
-            N,
-            msg="`len` should return the number of iterated elements.",
-        )
-
     def test_exhaust(self) -> None:
         l: List[int] = []
 
