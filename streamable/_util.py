@@ -6,7 +6,7 @@ from typing_extensions import TypeGuard
 LOGGER = logging.getLogger("streamable")
 LOGGER.propagate = False
 handler = logging.StreamHandler()
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+formatter = logging.Formatter("%(asctime)s: %(levelname)s: %(message)s")
 handler.setFormatter(formatter)
 LOGGER.addHandler(handler)
 LOGGER.setLevel(logging.INFO)

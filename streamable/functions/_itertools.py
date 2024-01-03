@@ -33,17 +33,19 @@ class _ObservingIterator(Iterator[T]):
         self.errors_count = 0
         self.last_log_at_yields_count: Optional[int] = None
         self.start_time = time.time()
-        _util.LOGGER.info("iteration over '%s' will be logged.", self.what)
+        _util.LOGGER.info("iteration over '%s' will be observed.", self.what)
 
     def _log(self) -> None:
-        errors_summary = f"with {self.errors_count} error{'s' if self.errors_count > 1 else ''} produced"
+        errors_summary = (
+            f"{self.errors_count} error{'s' if self.errors_count > 1 else ''} thrown"
+        )
         if self.colored and self.errors_count > 0:
             errors_summary = _util.bold(_util.colorize_in_red(errors_summary))
-        yields_summary = f"{self.yields_count} {self.what} have been yielded"
+        yields_summary = f"{self.yields_count} `{self.what}` yielded"
         if self.colored:
             yields_summary = _util.bold(yields_summary)
-        elapsed_time = f"in elapsed time {datetime.fromtimestamp(time.time()) - datetime.fromtimestamp(self.start_time)}"
-        _util.LOGGER.info("%s, %s, %s", yields_summary, elapsed_time, errors_summary)
+        elapsed_time = f"after {datetime.fromtimestamp(time.time()) - datetime.fromtimestamp(self.start_time)}"
+        _util.LOGGER.info("%s, %s and %s", elapsed_time, errors_summary, yields_summary)
 
     def __next__(self) -> T:
         to_be_raised: Optional[Exception] = None
