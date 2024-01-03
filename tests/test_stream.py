@@ -596,6 +596,13 @@ class TestStream(unittest.TestCase):
     def test_is_iterable(self) -> None:
         self.assertIsInstance(Stream(src), Iterable)
 
+    def test_len(self):
+        self.assertEqual(
+            len(Stream(src)),
+            N,
+            msg="`len` should return the number of iterated elements.",
+        )
+
     def test_exhaust(self) -> None:
         l: List[int] = []
 
@@ -603,7 +610,13 @@ class TestStream(unittest.TestCase):
             nonlocal l
             l.append(x)
 
-        Stream(src).do(effect).exhaust()
+        self.assertEqual(
+            Stream(src).do(effect).exhaust(),
+            N,
+            msg="`exhaust` should return the number of iterated elements.",
+        )
         self.assertListEqual(
             l, list(src()), msg="`exhaust` should iterate over the entire stream."
         )
+
+        Stream(src).do(effect).exhaust(explain=True)

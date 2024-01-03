@@ -16,6 +16,7 @@ from typing import (
 )
 
 from streamable._util import (
+    LOGGER,
     validate_batch_seconds,
     validate_batch_size,
     validate_concurrency,
@@ -55,6 +56,14 @@ class Stream(Iterable[T]):
         from streamable._visitors import _iteration
 
         return self._accept(_iteration.IteratorProducingVisitor[T]())
+
+    def __len__(self) -> int:
+        """
+        Launch an full iteration over the stream and returns the number of elements yielded.
+        Returns:
+            int: The number of elements in the stream.
+        """
+        return self.exhaust()
 
     def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_source_stream(self)
@@ -130,12 +139,21 @@ class Stream(Iterable[T]):
         validate_concurrency(concurrency)
         return DoStream(self, func, concurrency)
 
-    def exhaust(self) -> None:
+    def exhaust(self, explain: bool = False) -> int:
         """
         Iterates over the stream until exhaustion.
+
+        Args:
+            explain (bool, optional): Set to True to print the explain plan before the iteration (default in False).
+        Returns:
+            int: The number of elements that have been yielded by the stream.
         """
+        if explain:
+            LOGGER.info(self.explain())
+        yields = 0
         for _ in self:
-            pass
+            yields += 1
+        return yields
 
     def explain(self, colored: bool = False) -> str:
         """
@@ -235,6 +253,23 @@ class Stream(Iterable[T]):
         validate_concurrency(concurrency)
         return FlattenStream(self, concurrency)
 
+    def map(
+        self,
+        func: Callable[[T], U],
+        concurrency: int = 1,
+    ) -> "Stream[U]":
+        """
+        Apply `func` to the upstream elements and yield the results in order.
+
+        Args:
+            func (Callable[[T], R]): The function to be applied to each element.
+            concurrency (int): The number of threads used to concurrently apply the function (default is 1, meaning no concurrency).
+        Returns:
+            Stream[R]: A stream of results of `func` applied to upstream elements.
+        """
+        validate_concurrency(concurrency)
+        return MapStream(self, func, concurrency)
+
     def observe(self, what: str = "elements", colored: bool = False) -> "Stream[T]":
         """
         Logs the evolution of the iteration over elements.
@@ -254,23 +289,6 @@ class Stream(Iterable[T]):
             Stream[T]: A stream of upstream elements whose iteration is logged for observability.
         """
         return ObserveStream(self, what, colored)
-
-    def map(
-        self,
-        func: Callable[[T], U],
-        concurrency: int = 1,
-    ) -> "Stream[U]":
-        """
-        Apply `func` to the upstream elements and yield the results in order.
-
-        Args:
-            func (Callable[[T], R]): The function to be applied to each element.
-            concurrency (int): The number of threads used to concurrently apply the function (default is 1, meaning no concurrency).
-        Returns:
-            Stream[R]: A stream of results of `func` applied to upstream elements.
-        """
-        validate_concurrency(concurrency)
-        return MapStream(self, func, concurrency)
 
     def slow(self, frequency: float) -> "Stream[T]":
         """
