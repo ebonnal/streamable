@@ -46,8 +46,14 @@ class TestError(Exception):
 DELTA_RATE = 0.25
 # size of the test collections
 N = 256
-src: Callable[[], Iterable[int]] = range(N).__iter__
-pair_src: Callable[[], Iterable[int]] = range(0, N, 2).__iter__
+
+
+def src() -> Iterable[int]:
+    return range(N)
+
+
+def pair_src() -> Iterable[int]:
+    return range(0, N, 2)
 
 
 class TestStream(unittest.TestCase):
@@ -81,8 +87,8 @@ class TestStream(unittest.TestCase):
             .slow(64)
             .observe("stream #1 elements")
             .chain(
-                Stream([].__iter__).do(lambda _: None).observe("stream #2 elements"),
-                Stream([].__iter__).observe("stream #3 elements"),
+                Stream(lambda: []).do(lambda _: None).observe("stream #2 elements"),
+                Stream(lambda: []).observe("stream #3 elements"),
             )
             .catch(ValueError, TypeError, when=lambda _: True)
         )
@@ -265,7 +271,7 @@ class TestStream(unittest.TestCase):
         )
         self.assertListEqual(
             list(
-                Stream([iter([]) for _ in range(2000)].__iter__).flatten(
+                Stream(lambda: [iter([]) for _ in range(2000)]).flatten(
                     concurrency=concurrency
                 )
             ),
@@ -281,15 +287,15 @@ class TestStream(unittest.TestCase):
 
     def test_flatten_typing(self) -> None:
         flattened_iterator_stream: Stream[str] = (
-            Stream("abc".__iter__).map(iter).flatten()
+            Stream(lambda: "abc").map(iter).flatten()
         )
-        flattened_list_stream: Stream[str] = Stream("abc".__iter__).map(list).flatten()
-        flattened_set_stream: Stream[str] = Stream("abc".__iter__).map(set).flatten()
+        flattened_list_stream: Stream[str] = Stream(lambda: "abc").map(list).flatten()
+        flattened_set_stream: Stream[str] = Stream(lambda: "abc").map(set).flatten()
         flattened_map_stream: Stream[str] = (
-            Stream("abc".__iter__).map(lambda char: map(lambda x: x, char)).flatten()
+            Stream(lambda: "abc").map(lambda char: map(lambda x: x, char)).flatten()
         )
         flattened_filter_stream: Stream[str] = (
-            Stream("abc".__iter__)
+            Stream(lambda: "abc")
             .map(lambda char: filter(lambda _: True, char))
             .flatten()
         )
@@ -381,9 +387,9 @@ class TestStream(unittest.TestCase):
             )
 
     def test_chain(self) -> None:
-        stream_a = Stream(range(10).__iter__)
-        stream_b = Stream(range(10, 20).__iter__)
-        stream_c = Stream(range(20, 30).__iter__)
+        stream_a = Stream(lambda: range(10))
+        stream_b = Stream(lambda: range(10, 20))
+        stream_c = Stream(lambda: range(20, 30))
         self.assertListEqual(
             list(stream_a.chain(stream_b, stream_c)),
             list(range(30)),
@@ -582,7 +588,7 @@ class TestStream(unittest.TestCase):
     def test_observe(self) -> None:
         self.assertListEqual(
             list(
-                Stream("123-567".__iter__)
+                Stream(lambda: "123-567")
                 .observe("chars")
                 .map(int)
                 .observe("ints", colored=True)

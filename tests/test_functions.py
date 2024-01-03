@@ -1,5 +1,5 @@
 import unittest
-from typing import Callable, Iterable, Iterator, List, TypeVar
+from typing import Iterable, Iterator, List, TypeVar
 
 from streamable.functions import batch, catch, flatten, map, observe, slow
 
@@ -12,7 +12,10 @@ def identity(x: T) -> T:
 
 # size of the test collections
 N = 256
-src: Callable[[], Iterable[int]] = range(N).__iter__
+
+
+def src() -> Iterable[int]:
+    return range(N)
 
 
 class TestFunctions(unittest.TestCase):
