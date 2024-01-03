@@ -165,12 +165,12 @@ observed_slowed_integers: Stream[int] = slowed_integers.observe(what="integers f
 When iterating over the stream, you should get an output like:
 
 ```
-INFO - iteration over 'integers from 0 to 9' will be logged.
-INFO - 1 integers from 0 to 9 have been yielded, in elapsed time 0:00:00.000283, with 0 error produced
-INFO - 2 integers from 0 to 9 have been yielded, in elapsed time 0:00:00.501373, with 0 error produced
-INFO - 4 integers from 0 to 9 have been yielded, in elapsed time 0:00:01.501346, with 0 error produced
-INFO - 8 integers from 0 to 9 have been yielded, in elapsed time 0:00:03.500864, with 0 error produced
-INFO - 10 integers from 0 to 9 have been yielded, in elapsed time 0:00:04.500547, with 0 error produced
+INFO: iteration over 'integers from 0 to 9' will be observed.
+INFO: after 0:00:00.000283, 0 error thrown and 1 `integers from 0 to 9` yielded.
+INFO: after 0:00:00.501373, 0 error thrown and 2 `integers from 0 to 9` yielded.
+INFO: after 0:00:01.501346, 0 error thrown and 4 `integers from 0 to 9` yielded.
+INFO: after 0:00:03.500864, 0 error thrown and 8 `integers from 0 to 9` yielded.
+INFO: after 0:00:04.500547, 0 error thrown and 10 `integers from 0 to 9` yielded.
 ```
 
 As you can notice the logs can never be overwhelming because they are produced logarithmically.
@@ -197,7 +197,7 @@ It has optional parameters:
 `streamable` is a fully typed module, you can `mypy` it !
 
 ## multi lines declaration
-You may use parenthesis instead of trailing backslash `\` to go to line between operation declarations.  
+You may use parenthesis instead of trailing backslash `\` to go to line between operation declarations.
 ```python
 (
     Stream(lambda: range(10))
@@ -215,8 +215,7 @@ iterator: Iterator[int] = ...
 slowed_iterator: Iterator[int] = slow(iterator)
 ```
 
-## mute logs
-`.observe` produces `INFO` level logs that you can mute as follows:
+## set logging level
 ```python
 import logging
 logging.getLogger("streamable").setLevel(logging.WARNING)
