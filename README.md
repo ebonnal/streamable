@@ -393,7 +393,7 @@ def integrate_pokemon_cards_into_bigquery(
 
         # iterate until no more card in the stream and finally raises if errors occurred.
         .catch(Exception, raise_at_exhaustion=True)
-        .exhaust()
+        .exhaust(explain=True)
     )
 ```
 
