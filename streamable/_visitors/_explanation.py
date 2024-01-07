@@ -15,7 +15,11 @@ class ExplainingVisitor(Visitor[str]):
         self.margin_step = 2
         self.add_header = add_header
 
-    def additional_explain_lines(self, name: str, descr: str) -> str:
+    def additional_explain_lines(self, stream: _stream.Stream) -> str:
+        stream_str = str(stream)
+        end_of_name = stream_str.index("(")
+        name = stream_str[:end_of_name]
+        args = stream_str[end_of_name:]
         margin = " " * self.current_margin
         if self.add_header:
             linking_symbols = " " * self.margin_step + "•"
@@ -25,10 +29,10 @@ class ExplainingVisitor(Visitor[str]):
         if self.colored:
             linking_symbols = _util.colorize_in_grey(linking_symbols)
             name = _util.colorize_in_red(name)
-        return f"{margin}{linking_symbols}{name}({descr})\n"
+        return f"{margin}{linking_symbols}{name}{args}\n"
 
-    def visit_stream(self, stream: _stream.Stream, name: str, descr: str) -> str:
-        additional_explain_lines = self.additional_explain_lines(name, descr)
+    def visit_stream(self, stream: _stream.Stream) -> str:
+        additional_explain_lines = self.additional_explain_lines(stream)
         if self.add_header:
             if self.colored:
                 header = _util.bold(ExplainingVisitor.HEADER) + "\n"
@@ -45,9 +49,7 @@ class ExplainingVisitor(Visitor[str]):
         return f"{header}{additional_explain_lines}{upstream_repr}"
 
     def visit_chain_stream(self, stream: _stream.ChainStream) -> Any:
-        name = "Chain"
-        descr = f"{len(stream.others)+1} streams"
-        additional_explain_lines = self.additional_explain_lines(name, descr)
+        additional_explain_lines = self.additional_explain_lines(stream)
         self.current_margin += self.margin_step
         chained_streams_repr = "".join(
             map(
@@ -63,48 +65,28 @@ class ExplainingVisitor(Visitor[str]):
         return f"{additional_explain_lines}{chained_streams_repr}{upstream_repr}"
 
     def visit_source_stream(self, stream: _stream.Stream) -> Any:
-        name = "Source"
-        descr = f"from: {stream.source}"
-        return self.visit_stream(stream, name, descr)
+        return self.visit_stream(stream)
 
     def visit_map_stream(self, stream: _stream.MapStream) -> Any:
-        name = "Map"
-        descr = f"function {stream.func}, using {stream.concurrency} thread{'s' if stream.concurrency > 1 else ''}"
-        return self.visit_stream(stream, name, descr)
+        return self.visit_stream(stream)
 
     def visit_do_stream(self, stream: _stream.DoStream) -> Any:
-        name = "Do"
-        descr = f"side effects by applying a function {stream.func}, using {stream.concurrency} thread{'s' if stream.concurrency > 1 else ''}"
-        return self.visit_stream(stream, name, descr)
+        return self.visit_stream(stream)
 
     def visit_flatten_stream(self, stream: _stream.FlattenStream) -> Any:
-        name = "Flatten"
-        descr = (
-            f"using {stream.concurrency} thread{'s' if stream.concurrency > 1 else ''}"
-        )
-        return self.visit_stream(stream, name, descr)
+        return self.visit_stream(stream)
 
     def visit_filter_stream(self, stream: _stream.FilterStream) -> Any:
-        name = "Filter"
-        descr = f"using predicate function {stream.predicate}"
-        return self.visit_stream(stream, name, descr)
+        return self.visit_stream(stream)
 
     def visit_batch_stream(self, stream: _stream.BatchStream) -> Any:
-        name = "Batch"
-        descr = f"elements by groups of {stream.size} element{'s' if stream.size > 1 else ''}, or over a seconds of {stream.seconds} second{'s' if stream.seconds > 1 else ''}"
-        return self.visit_stream(stream, name, descr)
+        return self.visit_stream(stream)
 
     def visit_slow_stream(self, stream: _stream.SlowStream) -> Any:
-        name = "Slow"
-        descr = f"at a maximum frequency of {stream.frequency} element{'s' if stream.frequency > 1 else ''} per second"
-        return self.visit_stream(stream, name, descr)
+        return self.visit_stream(stream)
 
     def visit_catch_stream(self, stream: _stream.CatchStream) -> Any:
-        name = "Catch"
-        descr = f"exception instances of class in [{', '.join(map(lambda class_: class_.__name__, stream.classes))}]{', with an additional `when` condition' if stream.when is not None else ''}, and{'' if stream.raise_at_exhaustion else ' not'} raising at exhaustion"
-        return self.visit_stream(stream, name, descr)
+        return self.visit_stream(stream)
 
     def visit_observe_stream(self, stream: _stream.ObserveStream) -> Any:
-        name = "Observe"
-        descr = f"the evolution of the iteration over '{stream.what}'"
-        return self.visit_stream(stream, name, descr)
+        return self.visit_stream(stream)

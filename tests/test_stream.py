@@ -71,7 +71,7 @@ class TestStream(unittest.TestCase):
 
         with self.assertRaisesRegex(
             TypeError,
-            "source must be a callable but got a <class 'range'>",
+            "`source` must be a callable but got a <class 'range'>",
             msg="Instantiating a Stream with a source not being a callable must raise TypeError.",
         ):
             Stream(range(N))  # type: ignore

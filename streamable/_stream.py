@@ -43,7 +43,7 @@ class Stream(Iterable[T]):
         """
         self.upstream: "Optional[Stream]" = None
         if not callable(source):
-            raise TypeError(f"source must be a callable but got a {type(source)}")
+            raise TypeError(f"`source` must be a callable but got a {type(source)}")
         self.source = source
 
     def __add__(self, other: "Stream[T]") -> "Stream[T]":
@@ -56,6 +56,9 @@ class Stream(Iterable[T]):
         from streamable._visitors import _iteration
 
         return self._accept(_iteration.IteratorProducingVisitor[T]())
+
+    def __str__(self) -> str:
+        return f"Stream(source={self.source})"
 
     def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_source_stream(self)
@@ -305,6 +308,9 @@ class BatchStream(Stream[List[T]]):
     def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_batch_stream(self)
 
+    def __str__(self) -> str:
+        return f"BatchStream(size={self.size}, seconds={self.seconds})"
+
 
 class CatchStream(Stream[T]):
     def __init__(
@@ -322,6 +328,9 @@ class CatchStream(Stream[T]):
     def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_catch_stream(self)
 
+    def __str__(self) -> str:
+        return f"CatchStream(classes={list(map(lambda o: o.__name__, self.classes))}, when={self.when}, raise_at_exhaustion={self.raise_at_exhaustion})"
+
 
 class ChainStream(Stream[T]):
     def __init__(self, upstream: Stream[T], others: List[Stream]):
@@ -330,6 +339,9 @@ class ChainStream(Stream[T]):
 
     def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_chain_stream(self)
+
+    def __str__(self) -> str:
+        return f"ChainStream(others=[{len(self.others)} other streams])"
 
 
 class DoStream(Stream[T]):
@@ -341,6 +353,9 @@ class DoStream(Stream[T]):
     def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_do_stream(self)
 
+    def __str__(self) -> str:
+        return f"DoStream(func={self.func}, concurrency={self.concurrency})"
+
 
 class FilterStream(Stream[T]):
     def __init__(self, upstream: Stream[T], predicate: Callable[[T], bool]):
@@ -350,6 +365,9 @@ class FilterStream(Stream[T]):
     def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_filter_stream(self)
 
+    def __str__(self) -> str:
+        return f"FilterStream(predicate={self.predicate})"
+
 
 class FlattenStream(Stream[T]):
     def __init__(self, upstream: Stream[Iterable[T]], concurrency: int) -> None:
@@ -358,6 +376,9 @@ class FlattenStream(Stream[T]):
 
     def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_flatten_stream(self)
+
+    def __str__(self) -> str:
+        return f"FlattenStream(concurrency={self.concurrency})"
 
 
 class ObserveStream(Stream[T]):
@@ -369,6 +390,9 @@ class ObserveStream(Stream[T]):
     def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_observe_stream(self)
 
+    def __str__(self) -> str:
+        return f"ObserveStream(what='{self.what}', colored={self.colored})"
+
 
 class MapStream(Stream[U], Generic[T, U]):
     def __init__(self, upstream: Stream[T], func: Callable[[T], U], concurrency: int):
@@ -379,6 +403,9 @@ class MapStream(Stream[U], Generic[T, U]):
     def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_map_stream(self)
 
+    def __str__(self) -> str:
+        return f"MapStream(func={self.func}, concurrency={self.concurrency})"
+
 
 class SlowStream(Stream[T]):
     def __init__(self, upstream: Stream[T], frequency: float):
@@ -387,3 +414,6 @@ class SlowStream(Stream[T]):
 
     def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_slow_stream(self)
+
+    def __str__(self) -> str:
+        return f"SlowStream(frequency={self.frequency})"
