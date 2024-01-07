@@ -585,6 +585,20 @@ class TestStream(unittest.TestCase):
             msg="3 elements should have passed been yielded between catched exceptions.",
         )
 
+        only_catched_errors_stream = (
+            Stream(lambda: range(2000)).map(lambda i: throw(TestError)).catch(TestError)
+        )
+        self.assertEqual(
+            list(only_catched_errors_stream),
+            [],
+            msg="When upstream raise exceptions without yielding any element, listing the stream must return empty list, without recursion issue.",
+        )
+        with self.assertRaises(
+            StopIteration,
+            msg="When upstream raise exceptions without yielding any element, then the first call to `next` on a stream catching all errors should raise StopIteration.",
+        ):
+            next(iter(only_catched_errors_stream))
+
     def test_observe(self) -> None:
         self.assertListEqual(
             list(
