@@ -1,8 +1,6 @@
 import logging
 from typing import Any, Callable, Iterable, Iterator, Type, TypeVar, Union
 
-from typing_extensions import TypeGuard
-
 LOGGER = logging.getLogger("streamable")
 LOGGER.propagate = False
 handler = logging.StreamHandler()
@@ -45,7 +43,7 @@ def identity(obj: T) -> T:
     return obj
 
 
-def validate_iterable(expected_iterator: Any) -> TypeGuard[Iterable]:
+def validate_iterable(expected_iterator: Any) -> bool:
     """
     Raises:
         TypeError: If the expected_iterator does not implement __iter__ and __next__ methods.

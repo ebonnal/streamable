@@ -1,7 +1,5 @@
 from typing import Any
 
-from typing_extensions import override
-
 from streamable import _stream, _util
 from streamable._visitors._base import Visitor
 
@@ -51,15 +49,12 @@ class ExplainingVisitor(Visitor[str]):
             upstream_repr = ""
         return f"{header}{additional_explain_lines}{upstream_repr}"
 
-    @override
     def visit_batch_stream(self, stream: _stream.BatchStream) -> Any:
         return self.explain_stream(stream)
 
-    @override
     def visit_catch_stream(self, stream: _stream.CatchStream) -> Any:
         return self.explain_stream(stream)
 
-    @override
     def visit_chain_stream(self, stream: _stream.ChainStream) -> Any:
         additional_explain_lines = self.explanation_line(stream)
         self.current_margin += self.margin_step
@@ -76,29 +71,23 @@ class ExplainingVisitor(Visitor[str]):
         upstream_repr = stream.upstream()._accept(self)
         return f"{additional_explain_lines}{chained_streams_repr}{upstream_repr}"
 
-    @override
     def visit_do_stream(self, stream: _stream.DoStream) -> Any:
         return self.explain_stream(stream)
 
-    @override
     def visit_filter_stream(self, stream: _stream.FilterStream) -> Any:
         return self.explain_stream(stream)
 
-    @override
     def visit_flatten_stream(self, stream: _stream.FlattenStream) -> Any:
         return self.explain_stream(stream)
 
-    @override
     def visit_observe_stream(self, stream: _stream.ObserveStream) -> Any:
         return self.explain_stream(stream)
 
-    @override
     def visit_map_stream(self, stream: _stream.MapStream) -> Any:
         return self.explain_stream(stream)
 
     def visit_slow_stream(self, stream: _stream.SlowStream) -> Any:
         return self.explain_stream(stream)
 
-    @override
     def visit_stream(self, stream: _stream.Stream) -> Any:
         return self.explain_stream(stream)
