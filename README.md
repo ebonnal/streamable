@@ -24,58 +24,51 @@ integers: Stream[int] = Stream(lambda: range(10))
 
 Instantiate a `Stream` by providing a function that returns an `Iterable` (the data source).
 
-## 4. declare operations
+## 4. apply operations
 
-A `Stream` is ***immutable***, meaning that applying an operation returns a new child stream while the parent stream remains unchanged.
-
-There are 2 kinds of operations:
-- **transformations**: to act on the stream's elements
-- **controls**: to configure the behaviors of the iteration over the stream
-
+A `Stream` is ***immutable***: applying an operation returns a child stream independant from the parent.
 
 ```python
 odd_squares: Stream[int] = (
     integers
-    .map(lambda x: x ** 2, concurrency=2) # transformation
-    .filter(lambda x: x % 2 == 1) # transformation
-    .slow(frequency=10) # control
+    .map(lambda x: x ** 2)
+    .filter(lambda x: x % 2 == 1)
 )
+inversed_odd_squares: Stream[float] = odd_squares.map(lambda x: 1 / x)
 ```
+
 All operations are described in the ***Operations guide*** section.
 
 ## 5. iterate
 
-Once your stream's declaration is done you can iterate over it. Our `Stream[int]` being an `Iterable[int]`, you are free to iterate over it the way you want, e.g.:
+Once your stream's declaration is done you can iterate over it. A `Stream[int]` is an `Iterable[int]` and you can iterate over it as you wish, e.g.:
 ```python
-set(rate_limited_odd_squares)
+set(odd_squares)
 ```
 ```python
-sum(rate_limited_odd_squares)
+sum(odd_squares)
 ```
 ```python
-for i in rate_limited_odd_squares:
+for i in odd_squares:
     ...
 ```
 
-Alternatively, a stream also exposes an `.exhaust` method to launch an iteration over itself until exhaustion, with doing anything with output elements.
+Alternatively, a stream also exposes an `.exhaust` method that launches an iteration over itself until exhaustion.
 
 ```python
-rate_limited_odd_squares.exhaust()
+odd_squares.exhaust()
 ```
-
-
 
 ---
 
-# 📒 ***operations guide***
+# 📒 ***Tour of Operations***
 
-Let's keep the same example:
+Let's dive into the operations exposed by a `Stream`.
+
+Let's keep:
 ```python
 integers = Stream(lambda: range(10))
 ```
-
-# transformations
-![](./img/transform.gif)
 
 ## `.map`
 Defines the application of a function on parent elements.
@@ -86,7 +79,7 @@ integer_strings: Stream[str] = integers.map(str)
 It has an optional `concurrency` parameter if you need to apply the function concurrently using multiple threads.
 
 ## `.do`
-Defines the application of a function on parent elements like `.map`, but the parent elements will be forwarded instead of the result of the function.
+Defines the application of a function on parent elements like `.map`, but the parent elements are forwarded instead of the result of the function.
 
 ```python
 printed_integers: Stream[int] = integers.do(print)
@@ -109,7 +102,7 @@ Defines the grouping of parent elements into batches.
 integer_batches: Stream[List[int]] = integers.batch(size=100, seconds=60)
 ```
 
-In this example a batch will be a list of 100 elements.
+In this example a batch is a list of 100 elements.
 
 It may contain less elements in the following cases:
 - the stream is exhausted
@@ -141,28 +134,25 @@ one_to_thirty_integers: Stream[int] = one_to_ten_integers.chain(
 )
 ```
 
-# controls
-![](./img/control.gif)
-
 ## `.slow`
 
-Defines a maximum rate at which parent elements will be yielded.
+Defines a maximum rate at which parent elements are yielded.
 
 ```python
 slowed_integers: Stream[int] = integers.slow(frequency=2)
 ```
 
-The rate is expressed in elements per second, here a maximum of 2 elements per second will be yielded when iterating on the stream.
+The rate is expressed in elements per second, here a maximum of 2 elements per second are yielded when iterating on the stream.
 
 ## `.observe`
 
-Defines that the iteration process will be logged.
+If you define:
 
 ```python
 observed_slowed_integers: Stream[int] = slowed_integers.observe(what="integers from 0 to 9")
 ```
 
-When iterating over the stream, you should get an output like:
+then when iterating over the stream, you should get these logs:
 
 ```
 INFO: iteration over 'integers from 0 to 9' will be observed.
@@ -173,7 +163,7 @@ INFO: after 0:00:03.500864, 0 error thrown and 8 `integers from 0 to 9` yielded.
 INFO: after 0:00:04.500547, 0 error thrown and 10 `integers from 0 to 9` yielded.
 ```
 
-As you can notice the logs can never be overwhelming because they are produced logarithmically.
+As you can notice the logs can never be overwhelming because they are produced logarithmically: the $i^{th}$ log is produced when $2^{i-1}$ elements have been iterated.
 
 
 ## `.catch`
@@ -181,7 +171,7 @@ As you can notice the logs can never be overwhelming because they are produced l
 Defines that the provided type of exception will be catched.
 
 ```python
-inverse_floats: Stream[float] = integers.map(lambda x: 1/x)
+inverse_floats: Stream[float] = integers.map(lambda x: 1 / x)
 safe_inverse_floats: Stream[float] = inverse_floats.catch(ZeroDivisionError)
 ```
 
@@ -191,17 +181,17 @@ It has optional parameters:
 
 ---
 
-# 📦 ***tips box***
+# 📦 ***Tips Box***
 
 ## typing
 `streamable` is a fully typed module, you can `mypy` it !
 
-## multi lines declaration
+## multi lines
 You may use parenthesis instead of trailing backslash `\` to go to line between operation declarations.
 ```python
 (
     Stream(lambda: range(10))
-    .map(lambda x: 1/x)
+    .map(lambda x: 1 / x)
     .catch(ZeroDivisionError)
     .exhaust()
 )
@@ -251,7 +241,7 @@ python -m autoflake --in-place --remove-all-unused-imports --remove-unused-varia
 
 ---
 
-# 🔧 ***typical use case in data engineering***
+# 🔧 ***Usage in Data Engineering***
 ![](./img/dataeng.gif)
 
 As a data engineer, you often need to write python scripts to do **ETL** (*Extract* the data from a source API, *Transform* and *Load* it into the data warehouse) or **EL** (same but with minimal transformation) or **Reverse ETL** (read data from the data warehouse and post it into a destination API).
