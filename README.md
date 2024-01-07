@@ -280,7 +280,7 @@ These scripts are typically composed of:
 
 - The **retry** logic: be gentle with APIs, 2 retries each waiting 5 seconds can definitely help. For this the [`retrying` module](https://github.com/rholder/retrying) is great and let you decorate your transformation and destination functions with a retrying logic.
 
-- The logic to **catch** exceptions of a given type. Also, we typically want to catch errors and seamlessly proceed with the integration until completion. For instance, if you have 1000 records to integrate and encounter an exception at the 236th record due to a malformed record, it is often more favorable to successfully integrate 999 records and raise after the interation has completed compared to skipping 763 valid records prematurely.
+- The logic to **catch** exceptions of a given type, and if any raise after the integration completion.
 
 The ambition of `streamable` is to help us write these type of scripts in a **DRY** (Don't Repeat Yourself), **flexible**, **robust** and **readable** way.
 
