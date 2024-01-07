@@ -262,7 +262,7 @@ These scripts are typically composed of:
   - A client library.
   - The `requests` module.
 
-- The logic to **batch** some records together: it will often costs less to POST several records at once to an API.
+- The logic to **batch** some records together: it is often more efficient to POST several records at once to an API.
 
 - The logic to **limit the rate** of the calls to APIs to avoid breaking the API quotas (leading to the infamous `HTTP 429 (Too Many Requests)` status codes).
 
