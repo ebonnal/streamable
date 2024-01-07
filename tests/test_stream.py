@@ -634,3 +634,12 @@ class TestStream(unittest.TestCase):
         )
 
         Stream(src).do(effect).exhaust(explain=True)
+
+    def test_multiple_iterations(self):
+        stream = Stream(lambda: map(identity, src()))
+        for _ in range(3):
+            self.assertEqual(
+                list(stream),
+                list(src()),
+                msg="The first iteration over a stream should yield the same elements as any subsequent iteration on the same stream, even if it is based on a `source` returning an iterator that only support 1 iteration.",
+            )
