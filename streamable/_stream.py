@@ -381,19 +381,6 @@ class FlattenStream(Stream[T]):
         return f"FlattenStream(concurrency={self.concurrency})"
 
 
-class ObserveStream(Stream[T]):
-    def __init__(self, upstream: Stream[T], what: str, colored: bool):
-        self.upstream: Stream[T] = upstream
-        self.what = what
-        self.colored = colored
-
-    def _accept(self, visitor: "Visitor[V]") -> V:
-        return visitor.visit_observe_stream(self)
-
-    def __str__(self) -> str:
-        return f"ObserveStream(what='{self.what}', colored={self.colored})"
-
-
 class MapStream(Stream[U], Generic[T, U]):
     def __init__(self, upstream: Stream[T], func: Callable[[T], U], concurrency: int):
         self.upstream: Stream[T] = upstream
@@ -405,6 +392,19 @@ class MapStream(Stream[U], Generic[T, U]):
 
     def __str__(self) -> str:
         return f"MapStream(func={self.func}, concurrency={self.concurrency})"
+
+
+class ObserveStream(Stream[T]):
+    def __init__(self, upstream: Stream[T], what: str, colored: bool):
+        self.upstream: Stream[T] = upstream
+        self.what = what
+        self.colored = colored
+
+    def _accept(self, visitor: "Visitor[V]") -> V:
+        return visitor.visit_observe_stream(self)
+
+    def __str__(self) -> str:
+        return f"ObserveStream(what='{self.what}', colored={self.colored})"
 
 
 class SlowStream(Stream[T]):
