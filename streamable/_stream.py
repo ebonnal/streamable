@@ -15,6 +15,8 @@ from typing import (
     overload,
 )
 
+from typing_extensions import override
+
 from streamable._util import (
     LOGGER,
     validate_batch_seconds,
@@ -41,10 +43,12 @@ class Stream(Iterable[T]):
         Args:
             source (Callable[[], Iterator[T]]): The data source. This function is used to provide a fresh iterable to each iteration over the stream.
         """
-        self.upstream: "Optional[Stream]" = None
         if not callable(source):
             raise TypeError(f"`source` must be a callable but got a {type(source)}")
         self.source = source
+
+    def upstream(self) -> "Optional[Stream]":
+        return None
 
     def __add__(self, other: "Stream[T]") -> "Stream[T]":
         """
@@ -61,7 +65,7 @@ class Stream(Iterable[T]):
         return f"Stream(source={self.source})"
 
     def _accept(self, visitor: "Visitor[V]") -> V:
-        return visitor.visit_source_stream(self)
+        return visitor.visit_stream(self)
 
     def batch(self, size: int, seconds: float = float("inf")) -> "Stream[List[T]]":
         """
@@ -301,13 +305,19 @@ class Stream(Iterable[T]):
 
 class BatchStream(Stream[List[T]]):
     def __init__(self, upstream: Stream[T], size: int, seconds: float):
-        self.upstream: Stream[T] = upstream
+        self._upstream: Stream[T] = upstream
         self.size = size
         self.seconds = seconds
 
+    @override
+    def upstream(self) -> "Stream[T]":
+        return self._upstream
+
+    @override
     def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_batch_stream(self)
 
+    @override
     def __str__(self) -> str:
         return f"BatchStream(size={self.size}, seconds={self.seconds})"
 
@@ -320,100 +330,148 @@ class CatchStream(Stream[T]):
         when: Optional[Callable[[Exception], bool]],
         raise_at_exhaustion: bool,
     ):
-        self.upstream: Stream[T] = upstream
+        self._upstream: Stream[T] = upstream
         self.classes = classes
         self.when = when
         self.raise_at_exhaustion = raise_at_exhaustion
 
+    @override
+    def upstream(self) -> "Stream[T]":
+        return self._upstream
+
+    @override
     def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_catch_stream(self)
 
+    @override
     def __str__(self) -> str:
         return f"CatchStream(classes={list(map(lambda o: o.__name__, self.classes))}, when={self.when}, raise_at_exhaustion={self.raise_at_exhaustion})"
 
 
 class ChainStream(Stream[T]):
     def __init__(self, upstream: Stream[T], others: List[Stream]):
-        self.upstream: Stream[T] = upstream
+        self._upstream: Stream[T] = upstream
         self.others = others
 
+    @override
+    def upstream(self) -> "Stream[T]":
+        return self._upstream
+
+    @override
     def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_chain_stream(self)
 
+    @override
     def __str__(self) -> str:
         return f"ChainStream(others=[{len(self.others)} other streams])"
 
 
 class DoStream(Stream[T]):
     def __init__(self, upstream: Stream[T], func: Callable[[T], Any], concurrency: int):
-        self.upstream: Stream[T] = upstream
+        self._upstream: Stream[T] = upstream
         self.func = func
         self.concurrency = concurrency
 
+    @override
+    def upstream(self) -> "Stream[T]":
+        return self._upstream
+
+    @override
     def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_do_stream(self)
 
+    @override
     def __str__(self) -> str:
         return f"DoStream(func={self.func}, concurrency={self.concurrency})"
 
 
 class FilterStream(Stream[T]):
     def __init__(self, upstream: Stream[T], predicate: Callable[[T], bool]):
-        self.upstream: Stream[T] = upstream
+        self._upstream: Stream[T] = upstream
         self.predicate = predicate
 
+    @override
+    def upstream(self) -> "Stream[T]":
+        return self._upstream
+
+    @override
     def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_filter_stream(self)
 
+    @override
     def __str__(self) -> str:
         return f"FilterStream(predicate={self.predicate})"
 
 
 class FlattenStream(Stream[T]):
     def __init__(self, upstream: Stream[Iterable[T]], concurrency: int) -> None:
-        self.upstream: Stream[Iterable[T]] = upstream
+        self._upstream: Stream[Iterable[T]] = upstream
         self.concurrency = concurrency
 
+    @override
+    def upstream(self) -> "Stream[Iterable[T]]":
+        return self._upstream
+
+    @override
     def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_flatten_stream(self)
 
+    @override
     def __str__(self) -> str:
         return f"FlattenStream(concurrency={self.concurrency})"
 
 
 class MapStream(Stream[U], Generic[T, U]):
     def __init__(self, upstream: Stream[T], func: Callable[[T], U], concurrency: int):
-        self.upstream: Stream[T] = upstream
+        self._upstream: Stream[T] = upstream
         self.func = func
         self.concurrency = concurrency
 
+    @override
+    def upstream(self) -> "Stream[T]":
+        return self._upstream
+
+    @override
     def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_map_stream(self)
 
+    @override
     def __str__(self) -> str:
         return f"MapStream(func={self.func}, concurrency={self.concurrency})"
 
 
 class ObserveStream(Stream[T]):
     def __init__(self, upstream: Stream[T], what: str, colored: bool):
-        self.upstream: Stream[T] = upstream
+        self._upstream: Stream[T] = upstream
         self.what = what
         self.colored = colored
 
+    @override
+    def upstream(self) -> "Stream[T]":
+        return self._upstream
+
+    @override
     def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_observe_stream(self)
 
+    @override
     def __str__(self) -> str:
         return f"ObserveStream(what='{self.what}', colored={self.colored})"
 
 
 class SlowStream(Stream[T]):
     def __init__(self, upstream: Stream[T], frequency: float):
-        self.upstream: Stream[T] = upstream
+        self._upstream: Stream[T] = upstream
         self.frequency = frequency
 
+    @override
+    def upstream(self) -> "Stream[T]":
+        return self._upstream
+
+    @override
     def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_slow_stream(self)
 
+    @override
     def __str__(self) -> str:
         return f"SlowStream(frequency={self.frequency})"
