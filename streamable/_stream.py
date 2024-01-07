@@ -45,7 +45,7 @@ class Stream(Iterable[T]):
         """
         if not callable(source):
             raise TypeError(f"`source` must be a callable but got a {type(source)}")
-        self.source = source
+        self._source = source
 
     def upstream(self) -> "Optional[Stream]":
         return None
@@ -62,7 +62,7 @@ class Stream(Iterable[T]):
         return self._accept(_iteration.IteratorProducingVisitor[T]())
 
     def __str__(self) -> str:
-        return f"Stream(source={self.source})"
+        return f"Stream(source={self._source})"
 
     def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_stream(self)

@@ -60,7 +60,7 @@ class TestStream(unittest.TestCase):
     def test_init(self) -> None:
         stream = Stream(src)
         self.assertEqual(
-            stream.source,
+            stream._source,
             src,
             msg="The stream's `source` must be the source argument.",
         )

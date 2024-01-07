@@ -87,6 +87,6 @@ class IteratorProducingVisitor(Visitor[Iterator[T]]):
 
     @override
     def visit_stream(self, stream: _stream.Stream[T]) -> Iterator[T]:
-        iterable = stream.source()
+        iterable = stream._source()
         _util.validate_iterable(iterable)
         return iter(iterable)
