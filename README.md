@@ -1,4 +1,4 @@
-# `streamable`: *Fluidify `Iterable`s*
+# `streamable`: *Ease iteration*
 
 [![Actions Status](https://github.com/bonnal-enzo/streamable/workflows/unittest/badge.svg)](https://github.com/bonnal-enzo/streamable/actions) [![Actions Status](https://github.com/bonnal-enzo/streamable/workflows/typing/badge.svg)](https://github.com/bonnal-enzo/streamable/actions)
 [![Actions Status](https://github.com/bonnal-enzo/streamable/workflows/lint/badge.svg)](https://github.com/bonnal-enzo/streamable/actions) [![Actions Status](https://github.com/bonnal-enzo/streamable/workflows/PyPI/badge.svg)](https://github.com/bonnal-enzo/streamable/actions)

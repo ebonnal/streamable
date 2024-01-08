@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'setup.py'
+      - 'version.py'
 jobs:
   pypi:
     runs-on: ubuntu-latest
