@@ -40,7 +40,7 @@ class _ObservingIterator(Iterator[T]):
 
     def _log(self) -> None:
         errors_summary = (
-            f"{self.errors_count} error{'s' if self.errors_count > 1 else ''} thrown"
+            f"{self.errors_count} error{'s' if self.errors_count > 1 else ''}"
         )
         if self.colored and self.errors_count > 0:
             errors_summary = _util.bold(_util.colorize_in_red(errors_summary))

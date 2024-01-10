@@ -155,11 +155,11 @@ then when iterating over the stream, you should get these logs:
 
 ```
 INFO: iteration over 'integers from 0 to 9' will be observed.
-INFO: after 0:00:00.000283, 0 error thrown and 1 `integers from 0 to 9` yielded.
-INFO: after 0:00:00.501373, 0 error thrown and 2 `integers from 0 to 9` yielded.
-INFO: after 0:00:01.501346, 0 error thrown and 4 `integers from 0 to 9` yielded.
-INFO: after 0:00:03.500864, 0 error thrown and 8 `integers from 0 to 9` yielded.
-INFO: after 0:00:04.500547, 0 error thrown and 10 `integers from 0 to 9` yielded.
+INFO: after 0:00:00.000283, 0 error and 1 `integers from 0 to 9` yielded.
+INFO: after 0:00:00.501373, 0 error and 2 `integers from 0 to 9` yielded.
+INFO: after 0:00:01.501346, 0 error and 4 `integers from 0 to 9` yielded.
+INFO: after 0:00:03.500864, 0 error and 8 `integers from 0 to 9` yielded.
+INFO: after 0:00:04.500547, 0 error and 10 `integers from 0 to 9` yielded.
 ```
 
 As you can notice the logs can never be overwhelming because they are produced logarithmically: the $i^{th}$ log is produced when $2^{i-1}$ elements have been iterated.
