@@ -6,9 +6,9 @@ setup(
     version=__version__,
     packages=find_packages(),
     package_data={"streamable": ["py.typed"]},
-    url='http://github.com/bonnal-enzo/streamable',
+    url='http://github.com/ebonnal/streamable',
     license='Apache 2.',
-    author='bonnal-enzo',
+    author='ebonnal',
     author_email='bonnal.enzo.dev@gmail.com',
     description='Ease iteration.'
 )
