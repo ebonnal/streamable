@@ -600,19 +600,26 @@ class TestStream(unittest.TestCase):
             next(iter(only_catched_errors_stream))
 
     def test_observe(self) -> None:
+        value_error_rainsing_stream: Stream[List[int]] = (
+            Stream(lambda: "123--567")
+            .observe("chars")
+            .map(int)
+            .observe("ints", colored=True)
+            .batch(2)
+            .observe("ints_pairs")
+        )
+
         self.assertListEqual(
-            list(
-                Stream(lambda: "123-567")
-                .observe("chars")
-                .map(int)
-                .observe("ints", colored=True)
-                .batch(2)
-                .observe("ints_pairs")
-                .catch(ValueError)
-            ),
+            list(value_error_rainsing_stream.catch(ValueError)),
             [[1, 2], [3], [5, 6], [7]],
             msg="This can break due to `batch`/`map`/`catch`, check other breaking tests to determine quickly if it's an issue with `observe`.",
         )
+
+        with self.assertRaises(
+            ValueError,
+            msg="observe should forward-raise exceptions",
+        ):
+            list(value_error_rainsing_stream)
 
     def test_is_iterable(self) -> None:
         self.assertIsInstance(Stream(src), Iterable)

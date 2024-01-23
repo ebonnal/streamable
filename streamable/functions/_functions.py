@@ -29,50 +29,48 @@ class _ObservingIterator(Iterator[T]):
         self.iterator = iterator
         self.what = what
         self.colored = colored
-        self.yields_count = 0
-        self.errors_count = 0
-        self.last_log_at_n_iterations: Optional[int] = None
+        self.n_yields = 0
+        self.n_errors = 0
+        self.last_log_after_n_calls = 0
         self.start_time = time.time()
         _util.LOGGER.info("iteration over '%s' will be observed.", self.what)
 
-    def _n_iterations(self) -> int:
-        return self.yields_count + self.errors_count
-
     def _log(self) -> None:
-        errors_summary = (
-            f"{self.errors_count} error{'s' if self.errors_count > 1 else ''}"
-        )
-        if self.colored and self.errors_count > 0:
+        errors_summary = f"{self.n_errors} error"
+        if self.n_errors > 1:
+            errors_summary += "s"
+        if self.colored and self.n_errors > 0:
+            # colorize the error summary in red if any
             errors_summary = _util.bold(_util.colorize_in_red(errors_summary))
-        yields_summary = f"{self.yields_count} `{self.what}` yielded"
+
+        yields_summary = f"{self.n_yields} `{self.what}` yielded"
         if self.colored:
             yields_summary = _util.bold(yields_summary)
+
         elapsed_time = f"after {datetime.fromtimestamp(time.time()) - datetime.fromtimestamp(self.start_time)}"
+
         _util.LOGGER.info("%s, %s and %s", elapsed_time, errors_summary, yields_summary)
 
+    def n_calls(self) -> int:
+        return self.n_yields + self.n_errors
+
     def __next__(self) -> T:
-        to_be_raised: Optional[Exception] = None
         try:
             elem = next(self.iterator)
-            self.yields_count += 1
+            self.n_yields += 1
+            return elem
         except StopIteration:
-            if self._n_iterations() != self.last_log_at_n_iterations:
+            if self.n_calls() != self.last_log_after_n_calls:
+                self.last_log_after_n_calls = self.n_calls()
                 self._log()
-                self.last_log_at_n_iterations = self._n_iterations()
             raise
         except Exception as e:
-            to_be_raised = e
-            self.errors_count += 1
-
-        if (
-            self.last_log_at_n_iterations is None
-            or self._n_iterations() == 2 * self.last_log_at_n_iterations
-        ):
-            self._log()
-            self.last_log_at_n_iterations = self._n_iterations()
-        if to_be_raised:
-            raise to_be_raised
-        return elem
+            self.n_errors += 1
+            raise e
+        finally:
+            if self.n_calls() >= 2 * self.last_log_after_n_calls:
+                self._log()
+                self.last_log_after_n_calls = self.n_calls()
 
 
 def observe(iterator: Iterator[T], what: str, colored: bool = False) -> Iterator[T]:
