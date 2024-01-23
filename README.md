@@ -25,7 +25,8 @@ Instantiate a `Stream` by providing a function that returns an `Iterable` (the d
 
 ## 4. apply operations
 
-A `Stream` is ***immutable***: applying an operation returns a child stream independant from the parent.
+- Applying an operation is ***lazy***: it does not compute the elements.
+- A `Stream` is ***immutable***: applying an operation returns a child stream independant from the parent.
 
 ```python
 odd_squares: Stream[int] = (
