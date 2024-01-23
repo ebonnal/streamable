@@ -2,7 +2,7 @@ import itertools
 from typing import Iterable, Iterator, List, TypeVar, cast
 
 from streamable import _stream, _util, functions
-from streamable._visitors._base import Visitor
+from streamable._visitors._visitor import Visitor
 
 T = TypeVar("T")
 U = TypeVar("U")

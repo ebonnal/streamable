@@ -26,7 +26,7 @@ from streamable._util import (
 if TYPE_CHECKING:
     import builtins
 
-    from streamable._visitors._base import Visitor
+    from streamable._visitors._visitor import Visitor
 
 U = TypeVar("U")
 T = TypeVar("T")

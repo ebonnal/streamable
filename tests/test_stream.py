@@ -363,7 +363,7 @@ class TestStream(unittest.TestCase):
     def test_partial_iteration_on_streams_using_concurrency(
         self, concurrency: int
     ) -> None:
-        from streamable.functions._itertools import _CONCURRENCY_BUFFER_SIZE_FACTOR
+        from streamable.functions._functions import _CONCURRENCY_BUFFER_SIZE_FACTOR
 
         yielded_elems = []
 
