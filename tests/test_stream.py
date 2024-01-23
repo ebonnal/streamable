@@ -567,20 +567,20 @@ class TestStream(unittest.TestCase):
             first_value,
             msg="`catch` should yield the first non exception throwing element.",
         )
-        yields_count = 1
+        n_yields = 1
         with self.assertRaises(
             TestError,
             msg="`catch` should raise the first error encountered when `raise_at_exhaustion` is True.",
         ):
             for _ in erroring_stream_iterator:
-                yields_count += 1
+                n_yields += 1
         with self.assertRaises(
             StopIteration,
             msg="`catch` with `raise_at_exhaustion`=True should finally raise StopIteration to avoid infinite recursion if there is another catch downstream.",
         ):
             next(erroring_stream_iterator)
         self.assertEqual(
-            yields_count,
+            n_yields,
             3,
             msg="3 elements should have passed been yielded between catched exceptions.",
         )

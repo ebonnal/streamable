@@ -82,16 +82,16 @@ class _SlowingIterator(Iterator[T]):
         self.iterator = iterator
         self.frequency = frequency
         self.start: Optional[float] = None
-        self.yields_count = 0
+        self.n_yields = 0
 
     def __next__(self) -> T:
         if not self.start:
             self.start = time.time()
         while True:
             next_elem = next(self.iterator)
-            while self.yields_count > (time.time() - self.start) * self.frequency:
+            while self.n_yields > (time.time() - self.start) * self.frequency:
                 time.sleep(0.001)
-            self.yields_count += 1
+            self.n_yields += 1
             return next_elem
 
 
