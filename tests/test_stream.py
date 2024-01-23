@@ -617,7 +617,7 @@ class TestStream(unittest.TestCase):
 
         with self.assertRaises(
             ValueError,
-            msg="observe should forward-raise exceptions",
+            msg="`observe` should forward-raise exceptions",
         ):
             list(value_error_rainsing_stream)
 
