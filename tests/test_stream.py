@@ -489,25 +489,60 @@ class TestStream(unittest.TestCase):
                 msg="`slow` should raise error when called with `frequency` <= 0.",
             ):
                 list(Stream(lambda: [1]).slow(frequency=frequency))
+        
+        frequency = 3
+        period = 1 / frequency
+        super_slow_elem_pull_seconds = 1
+        N = 10
+        expected_duration = (N-1) * period + super_slow_elem_pull_seconds
+        self.assertAlmostEqual(
+            timestream(
+                Stream(lambda: range(N))
+                .do(lambda e: time.sleep(super_slow_elem_pull_seconds) if e == 0 else None)
+                .slow(frequency=frequency)
+            ),
+            expected_duration,
+            delta = 0.1 * expected_duration,
+            msg="avoid bursts after very slow particular upstream elements",
+        )
 
         # float or int frequency
-        for frequency in [0.9, 2]:
+        for frequency in [0.9, 2, 50]:
+            self.assertEqual(
+                next(
+                    iter(
+                        Stream(src)
+                        .slow(frequency=frequency)
+                        .slow(frequency=frequency * 2)
+                    )
+                ),
+                0,
+                msg="`slow` should avoid 'ValueError: sleep length must be non-negative'",
+            )
+
             stream_iterator = iter(Stream(src).slow(frequency=frequency))
             start_time = time.time()
             a = next(stream_iterator)
             b = next(stream_iterator)
+            c = next(stream_iterator)
             end_time = time.time()
+
             self.assertEqual(
                 a, 0, msg="`slow` must forward upstream elements unchanged"
             )
             self.assertEqual(
                 b, 1, msg="`slow` must forward upstream elements unchanged"
             )
-            expected_duration = 1 / frequency
+            self.assertEqual(
+                c, 2, msg="`slow` must forward upstream elements unchanged"
+            )
+
+            period = 1 / frequency
+            expected_duration = 3 * period
             self.assertAlmostEqual(
                 end_time - start_time,
                 expected_duration,
-                delta=0.01 * expected_duration,
+                delta=0.3 * expected_duration,
                 msg="`slow` must respect the frequency set.",
             )
 

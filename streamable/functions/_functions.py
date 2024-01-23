@@ -80,19 +80,15 @@ def observe(iterator: Iterator[T], what: str, colored: bool = False) -> Iterator
 class _SlowingIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], frequency: float) -> None:
         self.iterator = iterator
-        self.frequency = frequency
-        self.start: Optional[float] = None
-        self.n_yields = 0
+        self.period = 1 / frequency
 
     def __next__(self) -> T:
-        if not self.start:
-            self.start = time.time()
-        while True:
-            next_elem = next(self.iterator)
-            while self.n_yields > (time.time() - self.start) * self.frequency:
-                time.sleep(0.001)
-            self.n_yields += 1
-            return next_elem
+        start_time = time.time()
+        next_elem = next(self.iterator)
+        sleep_duration = self.period - (time.time() - start_time)
+        if sleep_duration > 0:
+            time.sleep(sleep_duration)
+        return next_elem
 
 
 def slow(iterator: Iterator[T], frequency: float) -> Iterator[T]:
