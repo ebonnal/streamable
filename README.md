@@ -26,22 +26,20 @@ Instantiate a `Stream` by providing a function that returns an `Iterable` (the d
 ## 4. apply operations
 
 - Applying an operation is ***lazy***: it does not compute the elements.
-- A `Stream` is ***immutable***: applying an operation returns a child stream independant from the parent.
+- A `Stream` is ***immutable***: applying an operation returns a child stream independent from the parent.
 
 ```python
-odd_squares: Stream[int] = (
+odd_square_strings: Stream[str] = (
     integers
     .map(lambda x: x ** 2)
     .filter(lambda x: x % 2 == 1)
+    .map(str)
 )
-inversed_odd_squares: Stream[float] = odd_squares.map(lambda x: 1 / x)
 ```
-
-All operations are described in the ***Operations guide*** section.
 
 ## 5. iterate
 
-Once your stream's declaration is done you can iterate over it. A `Stream[int]` is an `Iterable[int]` and you can iterate over it as you wish, e.g.:
+Once your stream's declaration is done you can iterate over it. A `Stream[T]` is an `Iterable[T]` and you can iterate over it as you wish, e.g.:
 ```python
 set(odd_squares)
 ```
@@ -51,12 +49,6 @@ sum(odd_squares)
 ```python
 for i in odd_squares:
     ...
-```
-
-Alternatively, a stream also exposes an `.exhaust` method that launches an iteration over itself until exhaustion.
-
-```python
-odd_squares.exhaust()
 ```
 
 ---
