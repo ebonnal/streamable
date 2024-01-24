@@ -36,16 +36,20 @@ V = TypeVar("V")
 class Stream(Iterable[T]):
     def __init__(self, source: Callable[[], Iterable[T]]) -> None:
         """
-        Initialize a Stream by providing a source iterable.
+        Initialize a Stream with a source iterable.
 
         Args:
-            source (Callable[[], Iterator[T]]): The data source. This function is used to provide a fresh iterable to each iteration over the stream.
+            source (Callable[[], Iterator[T]]): Function to be called at iteration to get the stream's source iterator.
         """
         if not callable(source):
             raise TypeError(f"`source` must be a callable but got a {type(source)}")
         self._source = source
 
     def upstream(self) -> "Optional[Stream]":
+        """
+        Returns:
+            Optional[Stream]: Parent stream if any.
+        """
         return None
 
     def __add__(self, other: "Stream[T]") -> "Stream[T]":
