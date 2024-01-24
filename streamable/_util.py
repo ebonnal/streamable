@@ -91,3 +91,12 @@ def colorize_in_grey(s: str) -> str:
 
 def bold(s: str) -> str:
     return f"\033[1m{s}\033[0m"
+
+
+def get_name(o: object):
+    if o is None:
+        return "None"
+    try:
+        return o.__name__  # type: ignore
+    except AttributeError:
+        return o.__class__.__name__ + "(...)"

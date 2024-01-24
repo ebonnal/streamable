@@ -77,10 +77,15 @@ class TestStream(unittest.TestCase):
             Stream(range(N))  # type: ignore
 
     def test_explain(self) -> None:
+        class CustomCallable:
+            def __call__(self, x: int) -> int:
+                return x
+
         complex_stream: Stream[int] = (
             Stream(src)
             .filter(lambda _: True)
             .map(lambda _: _)
+            .map(CustomCallable())
             .batch(100)
             .observe("batches")
             .flatten(concurrency=4)
@@ -91,6 +96,7 @@ class TestStream(unittest.TestCase):
                 Stream(lambda: []).observe("stream #3 elements"),
             )
             .catch(ValueError, TypeError, when=lambda _: True)
+            .catch(RuntimeError)
         )
         explanation_1 = complex_stream.explain()
         explanation_2 = complex_stream.explain()
@@ -489,20 +495,24 @@ class TestStream(unittest.TestCase):
                 msg="`slow` should raise error when called with `frequency` <= 0.",
             ):
                 list(Stream(lambda: [1]).slow(frequency=frequency))
-        
+
         frequency = 3
         period = 1 / frequency
         super_slow_elem_pull_seconds = 1
         N = 10
-        expected_duration = (N-1) * period + super_slow_elem_pull_seconds
+        expected_duration = (N - 1) * period + super_slow_elem_pull_seconds
         self.assertAlmostEqual(
             timestream(
                 Stream(lambda: range(N))
-                .do(lambda e: time.sleep(super_slow_elem_pull_seconds) if e == 0 else None)
+                .do(
+                    lambda e: time.sleep(super_slow_elem_pull_seconds)
+                    if e == 0
+                    else None
+                )
                 .slow(frequency=frequency)
             ),
             expected_duration,
-            delta = 0.1 * expected_duration,
+            delta=0.1 * expected_duration,
             msg="avoid bursts after very slow particular upstream elements",
         )
 

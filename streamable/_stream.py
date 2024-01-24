@@ -17,6 +17,7 @@ from typing import (
 
 from streamable._util import (
     LOGGER,
+    get_name,
     validate_batch_seconds,
     validate_batch_size,
     validate_concurrency,
@@ -63,8 +64,8 @@ class Stream(Iterable[T]):
 
         return self._accept(_iteration.IteratorProducingVisitor[T]())
 
-    def __str__(self) -> str:
-        return f"Stream(source={self._source})"
+    def __repr__(self) -> str:
+        return f"Stream(source={get_name(self._source)})"
 
     def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_stream(self)
@@ -73,7 +74,7 @@ class Stream(Iterable[T]):
         """
         Yield upstream elements grouped in lists.
         A list will have ` size` elements unless:
-        - an exception occurs upstream, the batch prior to the exception is yielded uncomplete.
+        - an exception occurs upstream={get_object_name(self.upstream)}, the batch prior to the exception is yielded uncomplete.
         - the time elapsed since the last yield of a batch is greater than `seconds`.
         - upstream is exhausted.
 
@@ -317,8 +318,8 @@ class BatchStream(Stream[List[T]]):
     def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_batch_stream(self)
 
-    def __str__(self) -> str:
-        return f"BatchStream(size={self.size}, seconds={self.seconds})"
+    def __repr__(self) -> str:
+        return f"BatchStream(upstream={get_name(self._upstream)}, size={self.size}, seconds={self.seconds})"
 
 
 class CatchStream(Stream[T]):
@@ -340,8 +341,8 @@ class CatchStream(Stream[T]):
     def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_catch_stream(self)
 
-    def __str__(self) -> str:
-        return f"CatchStream(classes={list(map(lambda o: o.__name__, self.classes))}, when={self.when}, raise_at_exhaustion={self.raise_at_exhaustion})"
+    def __repr__(self) -> str:
+        return f"CatchStream(upstream={get_name(self._upstream)}, {', '.join(map(get_name, self.classes))}, when={get_name(self.when)}, raise_at_exhaustion={self.raise_at_exhaustion})"
 
 
 class ChainStream(Stream[T]):
@@ -355,8 +356,8 @@ class ChainStream(Stream[T]):
     def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_chain_stream(self)
 
-    def __str__(self) -> str:
-        return f"ChainStream(others=[{len(self.others)} other streams])"
+    def __repr__(self) -> str:
+        return f"ChainStream(upstream={get_name(self._upstream)}, others=[{', '.join(map(get_name, self.others))}]))"
 
 
 class DoStream(Stream[T]):
@@ -371,8 +372,8 @@ class DoStream(Stream[T]):
     def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_do_stream(self)
 
-    def __str__(self) -> str:
-        return f"DoStream(func={self.func}, concurrency={self.concurrency})"
+    def __repr__(self) -> str:
+        return f"DoStream(upstream={get_name(self._upstream)}, func={get_name(self.func)}, concurrency={self.concurrency})"
 
 
 class FilterStream(Stream[T]):
@@ -386,8 +387,8 @@ class FilterStream(Stream[T]):
     def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_filter_stream(self)
 
-    def __str__(self) -> str:
-        return f"FilterStream(predicate={self.predicate})"
+    def __repr__(self) -> str:
+        return f"FilterStream(upstream={get_name(self._upstream)}, predicate={get_name(self.predicate)})"
 
 
 class FlattenStream(Stream[T]):
@@ -401,8 +402,8 @@ class FlattenStream(Stream[T]):
     def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_flatten_stream(self)
 
-    def __str__(self) -> str:
-        return f"FlattenStream(concurrency={self.concurrency})"
+    def __repr__(self) -> str:
+        return f"FlattenStream(upstream={get_name(self._upstream)}, concurrency={self.concurrency})"
 
 
 class MapStream(Stream[U], Generic[T, U]):
@@ -417,8 +418,8 @@ class MapStream(Stream[U], Generic[T, U]):
     def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_map_stream(self)
 
-    def __str__(self) -> str:
-        return f"MapStream(func={self.func}, concurrency={self.concurrency})"
+    def __repr__(self) -> str:
+        return f"MapStream(upstream={get_name(self._upstream)}, func={get_name(self.func)}, concurrency={self.concurrency})"
 
 
 class ObserveStream(Stream[T]):
@@ -433,8 +434,8 @@ class ObserveStream(Stream[T]):
     def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_observe_stream(self)
 
-    def __str__(self) -> str:
-        return f"ObserveStream(what='{self.what}', colored={self.colored})"
+    def __repr__(self) -> str:
+        return f"ObserveStream(upstream={get_name(self._upstream)}, what='{self.what}', colored={self.colored})"
 
 
 class SlowStream(Stream[T]):
@@ -448,5 +449,5 @@ class SlowStream(Stream[T]):
     def _accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_slow_stream(self)
 
-    def __str__(self) -> str:
-        return f"SlowStream(frequency={self.frequency})"
+    def __repr__(self) -> str:
+        return f"SlowStream(upstream={get_name(self._upstream)}, frequency={self.frequency})"
