@@ -40,7 +40,7 @@ class Stream(Iterable[T]):
         Initialize a Stream with a source iterable.
 
         Args:
-            source (Callable[[], Iterator[T]]): Function to be called at iteration to get the stream's source iterator.
+            source (Callable[[], Iterable[T]]): Function to be called at iteration to get the stream's source iterable.
         """
         if not callable(source):
             raise TypeError(f"`source` must be a callable but got a {type(source)}")
