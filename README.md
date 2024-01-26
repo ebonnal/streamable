@@ -69,7 +69,7 @@ Defines the application of a function on parent elements.
 integer_strings: Stream[str] = integers.map(str)
 ```
 
-It has an optional `concurrency` parameter if you need to apply the function concurrently using multiple threads.
+It has an optional `concurrency` parameter if you need to run the function concurrently using multiple threads.
 
 ## `.do`
 Defines the application of a function on parent elements like `.map`, but the parent elements are forwarded instead of the result of the function.
@@ -78,7 +78,7 @@ Defines the application of a function on parent elements like `.map`, but the pa
 printed_integers: Stream[int] = integers.do(print)
 ```
 
-It also has an optional `concurrency` parameter.
+It also has an optional `concurrency` parameter if you need to run the function concurrently using multiple threads.
 
 ## `.filter`
 Defines the filtering of parent elements based on a predicate function.
@@ -122,6 +122,19 @@ slowed_integers: Stream[int] = integers.slow(frequency=2)
 
 The rate is expressed in elements per second, here a maximum of 2 elements per second are yielded when iterating on the stream.
 
+## `.catch`
+
+Defines that the provided type of exception will be catched.
+
+```python
+inverse_floats: Stream[float] = integers.map(lambda x: 1 / x)
+safe_inverse_floats: Stream[float] = inverse_floats.catch(ZeroDivisionError)
+```
+
+It has optional parameters:
+- `when`: a function that takes the parent element as input and decides whether or not to catch the exception.
+- `raise_at_exhaustion`: a boolean that you can set to `True` if you want the first catched exception to be raised when the stream is exhausted (i.e. at the end of the iteration).
+
 ## `.observe`
 
 If you define:
@@ -143,19 +156,6 @@ INFO: after 0:00:04.500547, 0 error and 10 `integers from 0 to 9` yielded.
 
 As you can notice the logs can never be overwhelming because they are produced logarithmically: the $i^{th}$ log is produced when $2^{i-1}$ elements have been iterated.
 
-
-## `.catch`
-
-Defines that the provided type of exception will be catched.
-
-```python
-inverse_floats: Stream[float] = integers.map(lambda x: 1 / x)
-safe_inverse_floats: Stream[float] = inverse_floats.catch(ZeroDivisionError)
-```
-
-It has optional parameters:
-- `when`: a function that takes the parent element as input and decides whether or not to catch the exception.
-- `raise_at_exhaustion`: a boolean that you can set to `True` if you want the first catched exception to be raised when the stream is exhausted (i.e. at the end of the iteration).
 
 ---
 
