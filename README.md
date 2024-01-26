@@ -1,8 +1,9 @@
 # `streamable`: *Ease iteration*
 
-[![Actions Status](https://github.com/ebonnal/streamable/workflows/unittest/badge.svg)](https://github.com/ebonnal/streamable/actions) [![Actions Status](https://github.com/ebonnal/streamable/workflows/typing/badge.svg)](https://github.com/ebonnal/streamable/actions)
-[![Actions Status](https://github.com/ebonnal/streamable/workflows/lint/badge.svg)](https://github.com/ebonnal/streamable/actions) [![Actions Status](https://github.com/ebonnal/streamable/workflows/PyPI/badge.svg)](https://github.com/ebonnal/streamable/actions)
-
+[![Actions Status](https://github.com/ebonnal/streamable/workflows/unittest/badge.svg)](https://github.com/ebonnal/streamable/actions)
+[![Actions Status](https://github.com/ebonnal/streamable/workflows/typing/badge.svg)](https://github.com/ebonnal/streamable/actions)
+[![Actions Status](https://github.com/ebonnal/streamable/workflows/lint/badge.svg)](https://github.com/ebonnal/streamable/actions)
+[![Actions Status](https://github.com/ebonnal/streamable/workflows/PyPI/badge.svg)](https://github.com/ebonnal/streamable/actions)
 
 ## 1. install
 
@@ -173,10 +174,13 @@ It has optional parameters:
 
 ---
 
-# 📦 ***Tips Box***
+# 📦 ***Notes Box***
 
 ## typing
-`streamable` is a fully typed module, you can `mypy` it !
+**This module is typed**, you can `mypy` it !
+
+## supported Python versions
+The module is at least **compatible with Python 3.7+**, it is unittested for the following versions: `3.7.17`, `3.8.18`, `3.9.18`, `3.10.13`, `3.11.7`, `3.12.1`
 
 ## multi lines
 You may use parenthesis instead of trailing backslash `\` to go to line between operation declarations.

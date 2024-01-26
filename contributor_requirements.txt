@@ -1,0 +1,5 @@
+black==23.7.0
+isort==5.12.0
+mypy==1.7.1
+mypy-extensions==1.0.0
+autoflake==2.2.1
