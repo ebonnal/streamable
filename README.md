@@ -177,7 +177,7 @@ It has optional parameters:
 # 📦 ***Notes Box***
 
 ## typing
-**This module is typed**, you can `mypy` it !
+**This module is typed**, you can [`mypy`](https://github.com/python/mypy) it !
 
 ## supported Python versions
 The module is at least **compatible with Python 3.7+**, it is unittested for the following versions: `3.7.17`, `3.8.18`, `3.9.18`, `3.10.13`, `3.11.7`, `3.12.1`
