@@ -16,10 +16,6 @@ class Visitor(Generic[V], ABC):
         ...
 
     @abstractmethod
-    def visit_chain_stream(self, stream: _stream.ChainStream) -> V:
-        ...
-
-    @abstractmethod
     def visit_do_stream(self, stream: _stream.DoStream) -> V:
         ...
 

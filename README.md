@@ -112,21 +112,6 @@ integers: Stream[int] = integer_batches.flatten()
 
 It also has an optional `concurrency` parameter to flatten concurrently several parent iterables.
 
-## `.chain`
-
-Defines the concatenation of the parent stream with other streams. The resulting stream yields the elements of one stream until it is exhausted and then moves to the next one. It starts with the stream on which `.chain` is called.
-
-```python
-one_to_ten_integers: Stream[int] = Stream(lambda: range(1, 11))
-eleven_to_twenty_integers: Stream[int] = Stream(lambda: range(11, 21))
-twenty_one_to_thirty_integers: Stream[int] = Stream(lambda: range(21, 31))
-
-one_to_thirty_integers: Stream[int] = one_to_ten_integers.chain(
-    eleven_to_twenty_integers,
-    twenty_one_to_thirty_integers,
-)
-```
-
 ## `.slow`
 
 Defines a maximum rate at which parent elements are yielded.

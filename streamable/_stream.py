@@ -12,6 +12,7 @@ from typing import (
     Set,
     Type,
     TypeVar,
+    cast,
     overload,
 )
 
@@ -55,9 +56,9 @@ class Stream(Iterable[T]):
 
     def __add__(self, other: "Stream[T]") -> "Stream[T]":
         """
-        a + b is syntax sugar for a.chain(b).
+        a + b is syntax suger for Stream(lambda: [a, b]).flatten().
         """
-        return self.chain(other)
+        return cast(Stream[T], Stream([self, other].__iter__).flatten())
 
     def __iter__(self) -> Iterator[T]:
         from streamable._visitors import _iteration
@@ -109,19 +110,6 @@ class Stream(Iterable[T]):
         return CatchStream(
             self, *classes, when=when, raise_at_exhaustion=raise_at_exhaustion
         )
-
-    def chain(self, *others: "Stream[T]") -> "Stream[T]":
-        """
-        Yield the elements of the chained streams, in order.
-        The elements of a given stream are yielded after its predecessor is exhausted.
-
-        Args:
-            *others (Stream[T]): One or more streams to chain with this stream.
-
-        Returns:
-            Stream[T]: A stream of elements of each stream in the chain, in order.
-        """
-        return ChainStream(self, list(others))
 
     def do(
         self,
@@ -343,21 +331,6 @@ class CatchStream(Stream[T]):
 
     def __repr__(self) -> str:
         return f"CatchStream(upstream={get_name(self._upstream)}, {', '.join(map(get_name, self.classes))}, when={get_name(self.when)}, raise_at_exhaustion={self.raise_at_exhaustion})"
-
-
-class ChainStream(Stream[T]):
-    def __init__(self, upstream: Stream[T], others: List[Stream]):
-        self._upstream: Stream[T] = upstream
-        self.others = others
-
-    def upstream(self) -> "Stream[T]":
-        return self._upstream
-
-    def _accept(self, visitor: "Visitor[V]") -> V:
-        return visitor.visit_chain_stream(self)
-
-    def __repr__(self) -> str:
-        return f"ChainStream(upstream={get_name(self._upstream)}, others=[{', '.join(map(get_name, self.others))}]))"
 
 
 class DoStream(Stream[T]):

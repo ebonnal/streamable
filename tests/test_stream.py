@@ -91,10 +91,6 @@ class TestStream(unittest.TestCase):
             .flatten(concurrency=4)
             .slow(64)
             .observe("stream #1 elements")
-            .chain(
-                Stream(lambda: []).do(lambda _: None).observe("stream #2 elements"),
-                Stream(lambda: []).observe("stream #3 elements"),
-            )
             .catch(ValueError, TypeError, when=lambda _: True)
             .catch(RuntimeError)
         )
@@ -128,13 +124,22 @@ class TestStream(unittest.TestCase):
         )
 
     def test_add(self) -> None:
-        from streamable._stream import ChainStream
+        from streamable._stream import FlattenStream
 
         stream = Stream(src)
         self.assertIsInstance(
             stream + stream,
-            ChainStream,
-            msg="stream addition must return a ChainStream.",
+            FlattenStream,
+            msg="stream addition must return a FlattenStream.",
+        )
+
+        stream_a = Stream(lambda: range(10))
+        stream_b = Stream(lambda: range(10, 20))
+        stream_c = Stream(lambda: range(20, 30))
+        self.assertListEqual(
+            list(stream_a + stream_b + stream_c),
+            list(range(30)),
+            msg="`chain` must yield the elements of the first stream the move on with the elements of the next ones and so on.",
         )
 
     @parameterized.expand(
@@ -391,16 +396,6 @@ class TestStream(unittest.TestCase):
                 concurrency * _CONCURRENCY_BUFFER_SIZE_FACTOR,
                 msg=f"after only one `next` a concurrent {type(stream)} should have pulled only concurrency * BUFFER_SIZE_FACTOR={concurrency * _CONCURRENCY_BUFFER_SIZE_FACTOR} upstream elements.",
             )
-
-    def test_chain(self) -> None:
-        stream_a = Stream(lambda: range(10))
-        stream_b = Stream(lambda: range(10, 20))
-        stream_c = Stream(lambda: range(20, 30))
-        self.assertListEqual(
-            list(stream_a.chain(stream_b, stream_c)),
-            list(range(30)),
-            msg="`chain` must yield the elements of the first stream the move on with the elements of the next ones and so on.",
-        )
 
     def test_filter(self) -> None:
         def predicate(x) -> bool:

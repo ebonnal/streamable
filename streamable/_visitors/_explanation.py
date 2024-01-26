@@ -55,22 +55,6 @@ class ExplainingVisitor(Visitor[str]):
     def visit_catch_stream(self, stream: _stream.CatchStream) -> Any:
         return self.explain_stream(stream)
 
-    def visit_chain_stream(self, stream: _stream.ChainStream) -> Any:
-        additional_explain_lines = self.explanation_line(stream)
-        self.current_margin += self.margin_step
-        chained_streams_repr = "".join(
-            map(
-                lambda stream: stream._accept(
-                    ExplainingVisitor(
-                        self.colored, self.current_margin, add_header=False
-                    )
-                ),
-                stream.others,
-            )
-        )
-        upstream_repr = stream.upstream()._accept(self)
-        return f"{additional_explain_lines}{chained_streams_repr}{upstream_repr}"
-
     def visit_do_stream(self, stream: _stream.DoStream) -> Any:
         return self.explain_stream(stream)
 

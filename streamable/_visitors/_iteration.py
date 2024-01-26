@@ -1,5 +1,4 @@
-import itertools
-from typing import Iterable, Iterator, List, TypeVar, cast
+from typing import Iterable, Iterator, TypeVar, cast
 
 from streamable import _stream, _util, functions
 from streamable._visitors._visitor import Visitor
@@ -25,15 +24,6 @@ class IteratorProducingVisitor(Visitor[Iterator[T]]):
             *stream.classes,
             when=stream.when,
             raise_at_exhaustion=stream.raise_at_exhaustion,
-        )
-
-    def visit_chain_stream(self, stream: _stream.ChainStream[T]) -> Iterator[T]:
-        other_its: List[Iterator[T]] = list(
-            map(lambda stream: stream._accept(self), stream.others)
-        )
-        return itertools.chain(
-            cast(Iterable[T], stream.upstream()._accept(self)),
-            *other_its,
         )
 
     def visit_do_stream(self, stream: _stream.DoStream[T]) -> Iterator[T]:
