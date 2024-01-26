@@ -1,77 +1,46 @@
-from typing import Any
+import textwrap
 
 from streamable import _stream, _util
 from streamable._visitors._visitor import Visitor
 
 
 class ExplainingVisitor(Visitor[str]):
-    HEADER = "Stream's plan:"
-
     def __init__(
-        self, colored: bool = False, initial_margin: int = 0, add_header: bool = True
+        self,
+        colored: bool = False,
+        margin_step: int = 2,
+        header: str = "Stream's plan:",
     ):
         self.colored = colored
-        self.current_margin = initial_margin
-        self.margin_step = 2
-        self.add_header = add_header
+        self.header = header
+        self.margin_step = margin_step
 
-    def explanation_line(self, stream: _stream.Stream) -> str:
-        stream_str = str(stream)
-        end_of_name = stream_str.index("(")
-        name = stream_str[:end_of_name]
-        args = stream_str[end_of_name:]
-        margin = " " * self.current_margin
-        if self.add_header:
-            linking_symbols = " " * self.margin_step + "•"
-        else:
-            linking_symbols = "└" + "─" * (self.margin_step - 1) + "•"
+        self.linking_symbol = "└" + "─" * (self.margin_step - 1) + "•"
 
         if self.colored:
-            linking_symbols = _util.colorize_in_grey(linking_symbols)
-            name = _util.colorize_in_red(name)
-        return f"{margin}{linking_symbols}{name}{args}\n"
+            self.header = _util.bold(self.header)
+        if self.colored:
+            self.linking_symbol = _util.colorize_in_grey(self.linking_symbol)
 
-    def explain_stream(self, stream: _stream.Stream) -> str:
-        additional_explain_lines = self.explanation_line(stream)
-        if self.add_header:
-            if self.colored:
-                header = _util.bold(ExplainingVisitor.HEADER) + "\n"
-            else:
-                header = ExplainingVisitor.HEADER + "\n"
-            self.add_header = False
-        else:
-            header = ""
-        self.current_margin += self.margin_step
+    def visit_any(self, stream: _stream.Stream) -> str:
+        explanation = self.header
+
+        if self.header:
+            explanation += "\n"
+            self.header = ""
+
+        stream_repr = repr(stream)
+        if self.colored:
+            name, rest = stream_repr.split("(", maxsplit=1)
+            stream_repr = _util.colorize_in_red(name) + "(" + rest
+
+        explanation += self.linking_symbol + stream_repr + "\n"
+
         upstream = stream.upstream()
         if upstream is not None:
-            upstream_repr = upstream._accept(self)
-        else:
-            upstream_repr = ""
-        return f"{header}{additional_explain_lines}{upstream_repr}"
+            explanation += textwrap.indent(
+                upstream._accept(self),
+                prefix=" " * self.margin_step,
+            )
 
-    def visit_batch_stream(self, stream: _stream.BatchStream) -> Any:
-        return self.explain_stream(stream)
-
-    def visit_catch_stream(self, stream: _stream.CatchStream) -> Any:
-        return self.explain_stream(stream)
-
-    def visit_do_stream(self, stream: _stream.DoStream) -> Any:
-        return self.explain_stream(stream)
-
-    def visit_filter_stream(self, stream: _stream.FilterStream) -> Any:
-        return self.explain_stream(stream)
-
-    def visit_flatten_stream(self, stream: _stream.FlattenStream) -> Any:
-        return self.explain_stream(stream)
-
-    def visit_observe_stream(self, stream: _stream.ObserveStream) -> Any:
-        return self.explain_stream(stream)
-
-    def visit_map_stream(self, stream: _stream.MapStream) -> Any:
-        return self.explain_stream(stream)
-
-    def visit_slow_stream(self, stream: _stream.SlowStream) -> Any:
-        return self.explain_stream(stream)
-
-    def visit_stream(self, stream: _stream.Stream) -> Any:
-        return self.explain_stream(stream)
+        return explanation
