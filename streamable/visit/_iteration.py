@@ -47,6 +47,12 @@ class IteratorProducingVisitor(Visitor[Iterator[T]]):
             concurrency=stream.concurrency,
         )
 
+    def visit_limit_stream(self, stream: _stream.LimitStream[T]) -> Iterator[T]:
+        return functions.limit(
+            stream.upstream().accept(self),
+            stream.count,
+        )
+
     def visit_observe_stream(self, stream: _stream.ObserveStream[T]) -> Iterator[T]:
         return functions.observe(
             stream.upstream().accept(self),

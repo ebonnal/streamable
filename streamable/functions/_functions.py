@@ -24,6 +24,26 @@ U = TypeVar("U")
 from streamable import _util
 
 
+class LimitingIterator(Iterator[T]):
+    def __init__(self, iterator: Iterator[T], count: int) -> None:
+        self.iterator = iterator
+        self.count = count
+        self.n_yields = 0
+
+    def __next__(self):
+        if self.n_yields == self.count:
+            raise StopIteration()
+        try:
+            return next(self.iterator)
+        finally:
+            self.n_yields += 1
+
+
+def limit(iterator: Iterator[T], count: int) -> Iterator[T]:
+    _util.validate_limit_count(count)
+    return LimitingIterator(iterator, count)
+
+
 class _ObservingIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], what: str, colored: bool) -> None:
         self.iterator = iterator

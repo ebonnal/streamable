@@ -1,7 +1,7 @@
 import unittest
 from typing import Iterable, Iterator, List, TypeVar
 
-from streamable.functions import batch, catch, flatten, map, observe, slow
+from streamable.functions import batch, catch, flatten, limit, map, observe, slow
 
 T = TypeVar("T")
 
@@ -37,3 +37,4 @@ class TestFunctions(unittest.TestCase):
         observed_it_1: Iterator[int] = observe(it, what="objects")
         observed_it_2: Iterator[int] = observe(it, what="objects", colored=True)
         slowed_it_1: Iterator[int] = slow(it, frequency=1)
+        limited_it_1: Iterator[int] = limit(it, count=1)

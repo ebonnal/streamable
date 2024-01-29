@@ -22,6 +22,7 @@ from streamable._util import (
     validate_batch_seconds,
     validate_batch_size,
     validate_concurrency,
+    validate_limit_count,
     validate_slow_frequency,
 )
 
@@ -246,6 +247,19 @@ class Stream(Iterable[T]):
         validate_concurrency(concurrency)
         return FlattenStream(self, concurrency)
 
+    def limit(self, count: int) -> "Stream[T]":
+        """
+        Truncate to first `count` elements.
+
+        Args:
+            count (int): The maximum number of elements to yield.
+
+        Returns:
+            Stream[T]: A stream of `count` upstream elements.
+        """
+        validate_limit_count(count)
+        return LimitStream(self, count)
+
     def map(
         self,
         func: Callable[[T], U],
@@ -380,6 +394,21 @@ class FlattenStream(Stream[T]):
 
     def __repr__(self) -> str:
         return f"FlattenStream(upstream={get_name(self._upstream)}, concurrency={self.concurrency})"
+
+
+class LimitStream(Stream[T]):
+    def __init__(self, upstream: Stream[T], count: int) -> None:
+        self._upstream: Stream[T] = upstream
+        self.count = count
+
+    def upstream(self) -> "Stream[T]":
+        return self._upstream
+
+    def accept(self, visitor: "Visitor[V]") -> V:
+        return visitor.visit_limit_stream(self)
+
+    def __repr__(self) -> str:
+        return f"LimitStream(upstream={get_name(self._upstream)}, count={self.count})"
 
 
 class MapStream(Stream[U], Generic[T, U]):

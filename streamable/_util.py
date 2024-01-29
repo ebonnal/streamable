@@ -1,4 +1,5 @@
 import logging
+import sys
 from typing import Any, Callable, Iterable, Iterator, Type, TypeVar, Union
 
 LOGGER = logging.getLogger("streamable")
@@ -78,6 +79,15 @@ def validate_slow_frequency(frequency: float):
     if frequency <= 0:
         raise ValueError(
             f"frequency is the maximum number of elements to yield per second, it must be > 0  but got {frequency}."
+        )
+
+
+def validate_limit_count(count: int):
+    if count < 0:
+        raise ValueError(f"limit's count must be positive but got {count}.")
+    if count >= sys.maxsize:
+        raise ValueError(
+            f"limit's count must be less than sys.maxsize but got {count}."
         )
 
 

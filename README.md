@@ -156,6 +156,13 @@ INFO: after 0:00:04.500547, 0 error and 10 `integers from 0 to 9` yielded.
 
 As you can notice the logs can never be overwhelming because they are produced logarithmically: the $i^{th}$ log is produced when $2^{i-1}$ elements have been iterated.
 
+## `.limit`
+Defines a limitation on the number of parent elements yielded.
+
+```python
+ten_first_integers: Stream[int] = integers.limit(count=10)
+```
+
 
 ---
 

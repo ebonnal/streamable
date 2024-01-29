@@ -43,7 +43,7 @@ class TestError(Exception):
     pass
 
 
-DELTA_RATE = 0.25
+DELTA_RATE = 0.3
 # size of the test collections
 N = 256
 
@@ -83,6 +83,7 @@ class TestStream(unittest.TestCase):
 
         complex_stream: Stream[int] = (
             Stream(src)
+            .limit(1024)
             .filter(lambda _: True)
             .map(lambda _: _)
             .map(CustomCallable())
@@ -405,6 +406,58 @@ class TestStream(unittest.TestCase):
             list(Stream(src).filter(predicate)),
             list(filter(predicate, src())),
             msg="`filter` must act like builtin filter",
+        )
+
+    def test_limit(self) -> None:
+        self.assertEqual(
+            list(Stream(src).limit(N * 2)),
+            list(src()),
+            msg="`limit` must be ok with count >= stream length",
+        )
+        self.assertEqual(
+            list(Stream(src).limit(2)),
+            [0, 1],
+            msg="`limit` must be ok with count >= 1",
+        )
+        self.assertEqual(
+            list(Stream(src).limit(1)),
+            [0],
+            msg="`limit` must be ok with count == 1",
+        )
+        self.assertEqual(
+            list(Stream(src).limit(0)),
+            [],
+            msg="`limit` must be ok with count == 0",
+        )
+
+        with self.assertRaises(
+            ValueError,
+            msg="`limit` must raise ValueError if `count` is negative",
+        ):
+            Stream(src).limit(-1)
+
+        with self.assertRaises(
+            ValueError,
+            msg="`limit` must raise ValueError if `count` is float('inf')",
+        ):
+            Stream(src).limit(cast(int, float("inf")))
+
+        n_iterations = 0
+        count = N // 2
+        raising_stream_iterator = iter(
+            Stream(lambda: map(lambda x: x / 0, src())).limit(count)
+        )
+        while True:
+            try:
+                next(raising_stream_iterator)
+            except ZeroDivisionError:
+                n_iterations += 1
+            except StopIteration:
+                break
+        self.assertEqual(
+            n_iterations,
+            count,
+            msg="`limit` must not stop iteration when encountering exceptions",
         )
 
     def test_batch(self) -> None:

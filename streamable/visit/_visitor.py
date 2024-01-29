@@ -24,6 +24,9 @@ class Visitor(Generic[V]):
     def visit_flatten_stream(self, stream: _stream.FlattenStream) -> V:
         return self.visit_any(stream)
 
+    def visit_limit_stream(self, stream: _stream.LimitStream) -> V:
+        return self.visit_any(stream)
+
     def visit_observe_stream(self, stream: _stream.ObserveStream) -> V:
         return self.visit_any(stream)
 
