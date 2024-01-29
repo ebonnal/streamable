@@ -28,7 +28,7 @@ from streamable._util import (
 if TYPE_CHECKING:
     import builtins
 
-    from streamable._visitors._visitor import Visitor
+    from streamable.visit import Visitor
 
 U = TypeVar("U")
 T = TypeVar("T")
@@ -61,14 +61,17 @@ class Stream(Iterable[T]):
         return cast(Stream[T], Stream([self, other].__iter__).flatten())
 
     def __iter__(self) -> Iterator[T]:
-        from streamable._visitors import _iteration
+        from streamable.visit import _iteration
 
-        return self._accept(_iteration.IteratorProducingVisitor[T]())
+        return self.accept(_iteration.IteratorProducingVisitor[T]())
 
     def __repr__(self) -> str:
         return f"Stream(source={get_name(self._source)})"
 
-    def _accept(self, visitor: "Visitor[V]") -> V:
+    def accept(self, visitor: "Visitor[V]") -> V:
+        """
+        Entry point to visit this stream (en.wikipedia.org/wiki/Visitor_pattern).
+        """
         return visitor.visit_stream(self)
 
     def batch(self, size: int, seconds: float = float("inf")) -> "Stream[List[T]]":
@@ -149,9 +152,9 @@ class Stream(Iterable[T]):
         """
         Returns a friendly representation of this stream operations.
         """
-        from streamable._visitors import _explanation
+        from streamable.visit import _explanation
 
-        return self._accept(_explanation.ExplainingVisitor(colored))
+        return self.accept(_explanation.ExplainingVisitor(colored))
 
     def filter(self, predicate: Callable[[T], bool]) -> "Stream[T]":
         """
@@ -303,7 +306,7 @@ class BatchStream(Stream[List[T]]):
     def upstream(self) -> "Stream[T]":
         return self._upstream
 
-    def _accept(self, visitor: "Visitor[V]") -> V:
+    def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_batch_stream(self)
 
     def __repr__(self) -> str:
@@ -326,7 +329,7 @@ class CatchStream(Stream[T]):
     def upstream(self) -> "Stream[T]":
         return self._upstream
 
-    def _accept(self, visitor: "Visitor[V]") -> V:
+    def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_catch_stream(self)
 
     def __repr__(self) -> str:
@@ -342,7 +345,7 @@ class DoStream(Stream[T]):
     def upstream(self) -> "Stream[T]":
         return self._upstream
 
-    def _accept(self, visitor: "Visitor[V]") -> V:
+    def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_do_stream(self)
 
     def __repr__(self) -> str:
@@ -357,7 +360,7 @@ class FilterStream(Stream[T]):
     def upstream(self) -> "Stream[T]":
         return self._upstream
 
-    def _accept(self, visitor: "Visitor[V]") -> V:
+    def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_filter_stream(self)
 
     def __repr__(self) -> str:
@@ -372,7 +375,7 @@ class FlattenStream(Stream[T]):
     def upstream(self) -> "Stream[Iterable[T]]":
         return self._upstream
 
-    def _accept(self, visitor: "Visitor[V]") -> V:
+    def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_flatten_stream(self)
 
     def __repr__(self) -> str:
@@ -388,7 +391,7 @@ class MapStream(Stream[U], Generic[T, U]):
     def upstream(self) -> "Stream[T]":
         return self._upstream
 
-    def _accept(self, visitor: "Visitor[V]") -> V:
+    def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_map_stream(self)
 
     def __repr__(self) -> str:
@@ -404,7 +407,7 @@ class ObserveStream(Stream[T]):
     def upstream(self) -> "Stream[T]":
         return self._upstream
 
-    def _accept(self, visitor: "Visitor[V]") -> V:
+    def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_observe_stream(self)
 
     def __repr__(self) -> str:
@@ -419,7 +422,7 @@ class SlowStream(Stream[T]):
     def upstream(self) -> "Stream[T]":
         return self._upstream
 
-    def _accept(self, visitor: "Visitor[V]") -> V:
+    def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_slow_stream(self)
 
     def __repr__(self) -> str:

@@ -191,3 +191,6 @@ slowed_iterator: Iterator[int] = slow(iterator)
 import logging
 logging.getLogger("streamable").setLevel(logging.WARNING)
 ```
+
+## visitor pattern
+A `Stream` exposes an `.accept` method and you can implement a custom [***visitor***](https://en.wikipedia.org/wiki/Visitor_pattern) extending the `streamable.visit.Visitor` class.

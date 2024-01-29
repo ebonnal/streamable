@@ -1,7 +1,7 @@
 import textwrap
 
 from streamable import _stream, _util
-from streamable._visitors._visitor import Visitor
+from streamable.visit import Visitor
 
 
 class ExplainingVisitor(Visitor[str]):
@@ -39,7 +39,7 @@ class ExplainingVisitor(Visitor[str]):
         upstream = stream.upstream()
         if upstream is not None:
             explanation += textwrap.indent(
-                upstream._accept(self),
+                upstream.accept(self),
                 prefix=" " * self.margin_step,
             )
 
