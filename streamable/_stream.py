@@ -285,10 +285,10 @@ class Stream(Iterable[T]):
 
     def slow(self, frequency: float) -> "Stream[T]":
         """
-        Slow down the iteration down to a maximum `frequency` = maximum number of elements yielded per second.
+        Slow down the iteration down to a maximum `frequency`, more precisely an element will only be yielded if a period of 1/frequency seconds has elapsed since the last yield.
 
         Args:
-            frequency (float): The maximum number of elements yielded per second.
+            frequency (float): Maximum yields per second.
 
         Returns:
             Stream[T]: A stream yielding upstream elements at a maximum `frequency`.
