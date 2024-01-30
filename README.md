@@ -22,11 +22,11 @@ from streamable import Stream
 integers: Stream[int] = Stream(lambda: range(10))
 ```
 
-Instantiate a `Stream` by providing a function that returns an `Iterable` (the data source).
+Instantiate a `Stream` by providing a function that returns a fresh `Iterable` (the data source).
 
 ## 4. apply operations
 
-- Applying an operation is ***lazy***: it does not compute the elements.
+- Applying an operation is ***lazy***: it does not iterate over the source.
 - A `Stream` is ***immutable***: applying an operation returns a child stream independent from the parent.
 
 ```python
