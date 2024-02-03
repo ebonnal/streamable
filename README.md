@@ -1,4 +1,4 @@
-# `streamable`: *Ease iteration*
+# `streamable`: *elegant iteration*
 
 [![Actions Status](https://github.com/ebonnal/streamable/workflows/unittest/badge.svg)](https://github.com/ebonnal/streamable/actions)
 [![Actions Status](https://github.com/ebonnal/streamable/workflows/typing/badge.svg)](https://github.com/ebonnal/streamable/actions)
