@@ -48,12 +48,8 @@ class Stream(Iterable[T]):
             raise TypeError(f"`source` must be a callable but got a {type(source)}")
         self._source = source
 
-    def upstream(self) -> "Optional[Stream]":
-        """
-        Returns:
-            Optional[Stream]: Parent stream if any.
-        """
-        return None
+    upstream: "Optional[Stream]" = None
+    "Optional[Stream]: Parent stream if any."
 
     def __add__(self, other: "Stream[T]") -> "Stream[T]":
         """
@@ -313,18 +309,15 @@ class Stream(Iterable[T]):
 
 class BatchStream(Stream[List[T]]):
     def __init__(self, upstream: Stream[T], size: int, seconds: float):
-        self._upstream: Stream[T] = upstream
+        self.upstream: Stream[T] = upstream
         self.size = size
         self.seconds = seconds
-
-    def upstream(self) -> "Stream[T]":
-        return self._upstream
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_batch_stream(self)
 
     def __repr__(self) -> str:
-        return f"BatchStream(upstream={get_name(self._upstream)}, size={self.size}, seconds={self.seconds})"
+        return f"BatchStream(upstream={get_name(self.upstream)}, size={self.size}, seconds={self.seconds})"
 
 
 class CatchStream(Stream[T]):
@@ -335,124 +328,100 @@ class CatchStream(Stream[T]):
         when: Optional[Callable[[Exception], bool]],
         raise_at_exhaustion: bool,
     ):
-        self._upstream: Stream[T] = upstream
+        self.upstream: Stream[T] = upstream
         self.classes = classes
         self.when = when
         self.raise_at_exhaustion = raise_at_exhaustion
-
-    def upstream(self) -> "Stream[T]":
-        return self._upstream
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_catch_stream(self)
 
     def __repr__(self) -> str:
-        return f"CatchStream(upstream={get_name(self._upstream)}, {', '.join(map(get_name, self.classes))}, when={get_name(self.when)}, raise_at_exhaustion={self.raise_at_exhaustion})"
+        return f"CatchStream(upstream={get_name(self.upstream)}, {', '.join(map(get_name, self.classes))}, when={get_name(self.when)}, raise_at_exhaustion={self.raise_at_exhaustion})"
 
 
 class DoStream(Stream[T]):
     def __init__(self, upstream: Stream[T], func: Callable[[T], Any], concurrency: int):
-        self._upstream: Stream[T] = upstream
+        self.upstream: Stream[T] = upstream
         self.func = func
         self.concurrency = concurrency
-
-    def upstream(self) -> "Stream[T]":
-        return self._upstream
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_do_stream(self)
 
     def __repr__(self) -> str:
-        return f"DoStream(upstream={get_name(self._upstream)}, func={get_name(self.func)}, concurrency={self.concurrency})"
+        return f"DoStream(upstream={get_name(self.upstream)}, func={get_name(self.func)}, concurrency={self.concurrency})"
 
 
 class FilterStream(Stream[T]):
     def __init__(self, upstream: Stream[T], predicate: Callable[[T], bool]):
-        self._upstream: Stream[T] = upstream
+        self.upstream: Stream[T] = upstream
         self.predicate = predicate
-
-    def upstream(self) -> "Stream[T]":
-        return self._upstream
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_filter_stream(self)
 
     def __repr__(self) -> str:
-        return f"FilterStream(upstream={get_name(self._upstream)}, predicate={get_name(self.predicate)})"
+        return f"FilterStream(upstream={get_name(self.upstream)}, predicate={get_name(self.predicate)})"
 
 
 class FlattenStream(Stream[T]):
     def __init__(self, upstream: Stream[Iterable[T]], concurrency: int) -> None:
-        self._upstream: Stream[Iterable[T]] = upstream
+        self.upstream: Stream[Iterable[T]] = upstream
         self.concurrency = concurrency
-
-    def upstream(self) -> "Stream[Iterable[T]]":
-        return self._upstream
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_flatten_stream(self)
 
     def __repr__(self) -> str:
-        return f"FlattenStream(upstream={get_name(self._upstream)}, concurrency={self.concurrency})"
+        return f"FlattenStream(upstream={get_name(self.upstream)}, concurrency={self.concurrency})"
 
 
 class LimitStream(Stream[T]):
     def __init__(self, upstream: Stream[T], count: int) -> None:
-        self._upstream: Stream[T] = upstream
+        self.upstream: Stream[T] = upstream
         self.count = count
-
-    def upstream(self) -> "Stream[T]":
-        return self._upstream
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_limit_stream(self)
 
     def __repr__(self) -> str:
-        return f"LimitStream(upstream={get_name(self._upstream)}, count={self.count})"
+        return f"LimitStream(upstream={get_name(self.upstream)}, count={self.count})"
 
 
 class MapStream(Stream[U], Generic[T, U]):
     def __init__(self, upstream: Stream[T], func: Callable[[T], U], concurrency: int):
-        self._upstream: Stream[T] = upstream
+        self.upstream: Stream[T] = upstream
         self.func = func
         self.concurrency = concurrency
-
-    def upstream(self) -> "Stream[T]":
-        return self._upstream
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_map_stream(self)
 
     def __repr__(self) -> str:
-        return f"MapStream(upstream={get_name(self._upstream)}, func={get_name(self.func)}, concurrency={self.concurrency})"
+        return f"MapStream(upstream={get_name(self.upstream)}, func={get_name(self.func)}, concurrency={self.concurrency})"
 
 
 class ObserveStream(Stream[T]):
     def __init__(self, upstream: Stream[T], what: str, colored: bool):
-        self._upstream: Stream[T] = upstream
+        self.upstream: Stream[T] = upstream
         self.what = what
         self.colored = colored
-
-    def upstream(self) -> "Stream[T]":
-        return self._upstream
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_observe_stream(self)
 
     def __repr__(self) -> str:
-        return f"ObserveStream(upstream={get_name(self._upstream)}, what='{self.what}', colored={self.colored})"
+        return f"ObserveStream(upstream={get_name(self.upstream)}, what='{self.what}', colored={self.colored})"
 
 
 class SlowStream(Stream[T]):
     def __init__(self, upstream: Stream[T], frequency: float):
-        self._upstream: Stream[T] = upstream
+        self.upstream: Stream[T] = upstream
         self.frequency = frequency
-
-    def upstream(self) -> "Stream[T]":
-        return self._upstream
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_slow_stream(self)
 
     def __repr__(self) -> str:
-        return f"SlowStream(upstream={get_name(self._upstream)}, frequency={self.frequency})"
+        return f"SlowStream(upstream={get_name(self.upstream)}, frequency={self.frequency})"

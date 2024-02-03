@@ -36,7 +36,7 @@ class ExplainingVisitor(Visitor[str]):
 
         explanation += self.linking_symbol + stream_repr + "\n"
 
-        upstream = stream.upstream()
+        upstream = stream.upstream
         if upstream is not None:
             explanation += textwrap.indent(
                 upstream.accept(self),

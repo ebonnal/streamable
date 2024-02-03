@@ -65,7 +65,7 @@ class TestStream(unittest.TestCase):
             msg="The stream's `source` must be the source argument.",
         )
         self.assertIsNone(
-            stream.upstream(),
+            stream.upstream,
             msg="The `upstream` attribute of a base Stream's instance must be None.",
         )
 
