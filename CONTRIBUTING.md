@@ -1,6 +1,6 @@
 ###  setup
-after having forked `streamable` and `git clone`d it locally:
 ```bash
+git clone git@github.com:ebonnal/streamable
 cd streamable
 python -m venv .venv
 source .venv/bin/activate
