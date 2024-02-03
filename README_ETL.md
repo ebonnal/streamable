@@ -1,4 +1,4 @@
-# 🔧 ***Usage in Data Engineering***
+# 🔧 ***Use case in Data Engineering***
 
 As a data engineer, you often need to write python scripts to do **ETL** (*Extract* the data from a source API, *Transform* and *Load* it into the data warehouse) or **EL** (same but with minimal transformation) or **Reverse ETL** (read data from the data warehouse and post it into a destination API).
 
