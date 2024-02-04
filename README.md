@@ -40,7 +40,7 @@ odd_square_strings: Stream[str] = (
 ```
 
 ## 5. iterate
-Because `Stream[T]` extends `Iterable[T]` you can:
+`Stream[T]` extends `Iterable[T]` allowing:
 ```python
 set(odd_squares)
 ```
