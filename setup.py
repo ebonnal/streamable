@@ -10,5 +10,5 @@ setup(
     license="Apache 2.",
     author="ebonnal",
     author_email="bonnal.enzo.dev@gmail.com",
-    description="elegant iteration",
+    description="fluent iteration",
 )
