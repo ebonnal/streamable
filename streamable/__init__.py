@@ -1,2 +1,1 @@
-from streamable import functions
-from streamable._stream import Stream
+from streamable.stream import Stream

@@ -29,7 +29,7 @@ from streamable._util import (
 if TYPE_CHECKING:
     import builtins
 
-    from streamable.visit import Visitor
+    from streamable.visitor import Visitor
 
 U = TypeVar("U")
 T = TypeVar("T")
@@ -58,9 +58,9 @@ class Stream(Iterable[T]):
         return cast(Stream[T], Stream([self, other].__iter__).flatten())
 
     def __iter__(self) -> Iterator[T]:
-        from streamable.visit import _iteration
+        from streamable.visitors.iteration import IterationVisitor
 
-        return self.accept(_iteration.IteratorProducingVisitor[T]())
+        return self.accept(IterationVisitor[T]())
 
     def __repr__(self) -> str:
         return f"Stream(source={get_name(self._source)})"
@@ -149,9 +149,9 @@ class Stream(Iterable[T]):
         """
         Returns a friendly representation of this stream operations.
         """
-        from streamable.visit import _explanation
+        from streamable.visitors import explanation
 
-        return self.accept(_explanation.ExplainingVisitor(colored))
+        return self.accept(explanation.ExplanationVisitor(colored))
 
     def filter(self, predicate: Callable[[T], bool]) -> "Stream[T]":
         """

@@ -1,10 +1,10 @@
 import textwrap
 
-from streamable import _stream, _util
-from streamable.visit import Visitor
+from streamable import _util, stream
+from streamable.visitor import Visitor
 
 
-class ExplainingVisitor(Visitor[str]):
+class ExplanationVisitor(Visitor[str]):
     def __init__(
         self,
         colored: bool = False,
@@ -22,7 +22,7 @@ class ExplainingVisitor(Visitor[str]):
         if self.colored:
             self.linking_symbol = _util.colorize_in_grey(self.linking_symbol)
 
-    def visit_any(self, stream: _stream.Stream) -> str:
+    def visit_any(self, stream: stream.Stream) -> str:
         explanation = self.header
 
         if self.header:

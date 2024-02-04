@@ -125,7 +125,7 @@ class TestStream(unittest.TestCase):
         )
 
     def test_add(self) -> None:
-        from streamable._stream import FlattenStream
+        from streamable.stream import FlattenStream
 
         stream = Stream(src)
         self.assertIsInstance(
@@ -375,7 +375,7 @@ class TestStream(unittest.TestCase):
     def test_partial_iteration_on_streams_using_concurrency(
         self, concurrency: int
     ) -> None:
-        from streamable.functions._functions import _CONCURRENCY_BUFFER_SIZE_FACTOR
+        from streamable.functions import _CONCURRENCY_BUFFER_SIZE_FACTOR
 
         yielded_elems = []
 
