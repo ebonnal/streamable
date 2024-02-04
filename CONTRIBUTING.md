@@ -21,5 +21,5 @@ python -m mypy streamable tests
 ```bash
 python -m autoflake --in-place --remove-all-unused-imports --remove-unused-variables --ignore-init-module -r streamable tests \
 && python -m isort streamable tests \
-&& python -m black streamable tests
+&& python -m black .
 ```
