@@ -128,7 +128,7 @@ It has optional parameters:
 
 ## `.observe`
 
-Defines the logging of the evolution of any iteration over the stream.
+Defines the logging of the progress of any iteration over this stream.
 
 With
 ```python

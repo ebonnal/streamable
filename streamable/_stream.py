@@ -275,7 +275,7 @@ class Stream(Iterable[T]):
 
     def observe(self, what: str = "elements", colored: bool = False) -> "Stream[T]":
         """
-        Logs the evolution of the iteration over elements.
+        Logs the progress of any iteration over this stream's elements.
 
         A logarithmic scale is used to prevent logs flood:
         - a 1st log is produced for the yield of the 1st element
