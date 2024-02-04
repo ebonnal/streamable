@@ -111,7 +111,7 @@ class Stream(Iterable[T]):
             self, *classes, when=when, raise_at_exhaustion=raise_at_exhaustion
         )
 
-    def do(
+    def foreach(
         self,
         func: Callable[[T], Any],
         concurrency: int = 1,
@@ -127,7 +127,7 @@ class Stream(Iterable[T]):
             Stream[T]: A stream of upstream elements, unchanged.
         """
         validate_concurrency(concurrency)
-        return DoStream(self, func, concurrency)
+        return ForeachStream(self, func, concurrency)
 
     def exhaust(self, explain: bool = False) -> int:
         """
@@ -340,17 +340,17 @@ class CatchStream(Stream[T]):
         return f"CatchStream(upstream={get_name(self.upstream)}, {', '.join(map(get_name, self.classes))}, when={get_name(self.when)}, raise_at_exhaustion={self.raise_at_exhaustion})"
 
 
-class DoStream(Stream[T]):
+class ForeachStream(Stream[T]):
     def __init__(self, upstream: Stream[T], func: Callable[[T], Any], concurrency: int):
         self.upstream: Stream[T] = upstream
         self.func = func
         self.concurrency = concurrency
 
     def accept(self, visitor: "Visitor[V]") -> V:
-        return visitor.visit_do_stream(self)
+        return visitor.visit_foreach_stream(self)
 
     def __repr__(self) -> str:
-        return f"DoStream(upstream={get_name(self.upstream)}, func={get_name(self.func)}, concurrency={self.concurrency})"
+        return f"ForeachStream(upstream={get_name(self.upstream)}, func={get_name(self.func)}, concurrency={self.concurrency})"
 
 
 class FilterStream(Stream[T]):

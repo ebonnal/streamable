@@ -4,9 +4,9 @@ from streamable import _util, functions
 from streamable.stream import (
     BatchStream,
     CatchStream,
-    DoStream,
     FilterStream,
     FlattenStream,
+    ForeachStream,
     LimitStream,
     MapStream,
     ObserveStream,
@@ -38,7 +38,7 @@ class IterationVisitor(Visitor[Iterator[T]]):
             raise_at_exhaustion=stream.raise_at_exhaustion,
         )
 
-    def visit_do_stream(self, stream: DoStream[T]) -> Iterator[T]:
+    def visit_foreach_stream(self, stream: ForeachStream[T]) -> Iterator[T]:
         return self.visit_map_stream(
             MapStream(
                 stream.upstream,

@@ -146,7 +146,7 @@ class TestStream(unittest.TestCase):
     @parameterized.expand(
         [
             [Stream.map, [identity]],
-            [Stream.do, [identity]],
+            [Stream.foreach, [identity]],
             [Stream.flatten, []],
         ]
     )
@@ -189,7 +189,7 @@ class TestStream(unittest.TestCase):
             [2],
         ]
     )
-    def test_do(self, concurrency) -> None:
+    def test_foreach(self, concurrency) -> None:
         side_collection: Set[int] = set()
 
         def side_effect(x: int, func: Callable[[int], int]):
@@ -197,18 +197,20 @@ class TestStream(unittest.TestCase):
             side_collection.add(func(x))
 
         res = list(
-            Stream(src).do(lambda i: side_effect(i, square), concurrency=concurrency)
+            Stream(src).foreach(
+                lambda i: side_effect(i, square), concurrency=concurrency
+            )
         )
 
         self.assertListEqual(
             res,
             list(src()),
-            msg="At any concurrency the `do` method should return the upstream elements in order.",
+            msg="At any concurrency the `foreach` method should return the upstream elements in order.",
         )
         self.assertSetEqual(
             side_collection,
             set(map(square, src())),
-            msg="At any concurrency the `do` method should call func on upstream elements (in any order).",
+            msg="At any concurrency the `foreach` method should call func on upstream elements (in any order).",
         )
 
     @parameterized.expand(
@@ -219,10 +221,10 @@ class TestStream(unittest.TestCase):
                 (StopIteration, RuntimeError),
             ]
             for concurrency in [1, 2]
-            for method in [Stream.do, Stream.map]
+            for method in [Stream.foreach, Stream.map]
         ]
     )
-    def test_map_or_do_with_exception(
+    def test_map_or_foreach_with_exception(
         self,
         raised_exc: Type[Exception],
         catched_exc: Type[Exception],
@@ -231,7 +233,7 @@ class TestStream(unittest.TestCase):
     ) -> None:
         with self.assertRaises(
             catched_exc,
-            msg="At any concurrency, `map`and `do` must raise",
+            msg="At any concurrency, `map`and `foreach` must raise",
         ):
             list(method(Stream(src), lambda _: throw(raised_exc), concurrency))
 
@@ -244,17 +246,17 @@ class TestStream(unittest.TestCase):
                 ).catch(catched_exc)
             ),
             list(pair_src()),
-            msg="At any concurrency, `map`and `do` must not stop after one exception occured.",
+            msg="At any concurrency, `map`and `foreach` must not stop after one exception occured.",
         )
 
     @parameterized.expand(
         [
             [method, concurrency]
-            for method in [Stream.do, Stream.map]
+            for method in [Stream.foreach, Stream.map]
             for concurrency in [1, 2, 4]
         ]
     )
-    def test_map_and_do_concurrency(self, method, concurrency) -> None:
+    def test_map_and_foreach_concurrency(self, method, concurrency) -> None:
         expected_iteration_duration = N * slow_identity_duration / concurrency
         self.assertAlmostEqual(
             timestream(method(Stream(src), slow_identity, concurrency=concurrency)),
@@ -387,7 +389,7 @@ class TestStream(unittest.TestCase):
 
         for stream in [
             Stream(remembering_src).map(identity, concurrency=concurrency),
-            Stream(remembering_src).do(identity, concurrency=concurrency),
+            Stream(remembering_src).foreach(identity, concurrency=concurrency),
             Stream(remembering_src).batch(1).flatten(concurrency=concurrency),
         ]:
             yielded_elems = []
@@ -552,7 +554,7 @@ class TestStream(unittest.TestCase):
         self.assertAlmostEqual(
             timestream(
                 Stream(lambda: range(N))
-                .do(
+                .foreach(
                     lambda e: time.sleep(super_slow_elem_pull_seconds)
                     if e == 0
                     else None
@@ -725,7 +727,7 @@ class TestStream(unittest.TestCase):
             l.append(x)
 
         self.assertEqual(
-            Stream(src).do(effect).exhaust(),
+            Stream(src).foreach(effect).exhaust(),
             N,
             msg="`exhaust` should return the number of iterated elements.",
         )
@@ -733,7 +735,7 @@ class TestStream(unittest.TestCase):
             l, list(src()), msg="`exhaust` should iterate over the entire stream."
         )
 
-        Stream(src).do(effect).exhaust(explain=True)
+        Stream(src).foreach(effect).exhaust(explain=True)
 
     def test_multiple_iterations(self):
         stream = Stream(lambda: map(identity, src()))

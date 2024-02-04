@@ -15,7 +15,7 @@ class Visitor(Generic[V]):
     def visit_catch_stream(self, stream: stream.CatchStream) -> V:
         return self.visit_any(stream)
 
-    def visit_do_stream(self, stream: stream.DoStream) -> V:
+    def visit_foreach_stream(self, stream: stream.ForeachStream) -> V:
         return self.visit_any(stream)
 
     def visit_filter_stream(self, stream: stream.FilterStream) -> V:

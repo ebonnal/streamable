@@ -64,11 +64,11 @@ integer_strings: Stream[str] = integers.map(str)
 
 It has an optional `concurrency` parameter to run the function concurrently (threads).
 
-## `.do`
+## `.foreach`
 Defines the application of a function on parent elements like `.map`, but the parent elements are forwarded instead of the result of the function.
 
 ```python
-printed_integers: Stream[int] = integers.do(print)
+printed_integers: Stream[int] = integers.foreach(print)
 ```
 
 It has an optional `concurrency` parameter to run the function concurrently (threads).

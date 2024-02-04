@@ -88,7 +88,7 @@ def reverse_etl_example():
                 requests.post("https://third.party/users", json=users, headers=cast(dict, ...)),
                 concurrency=3,
             )
-            .do(requests.Response.raise_for_status)
+            .foreach(requests.Response.raise_for_status)
             .observe("integrated user batches")
             .catch(Exception, raise_at_exhaustion=True)
             .exhaust(explain=True)
