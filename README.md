@@ -27,7 +27,7 @@ Instantiate a `Stream` by providing a function that returns a fresh `Iterable` (
 ## 4. operate
 
 Applying an operation:
-- is ***lazy*** i.e it does not iterate over the source
+- is ***lazy*** i.e. it does not iterate over the source
 - returns a ***child*** stream without modifying the parent
 
 ```python
@@ -225,9 +225,9 @@ These jobs typically:
 
 - group elements to transform or POST them by **batch**.
 
-- **rate limit** API calls to avoid `HTTP 429 (Too Many Requests)` errors.
+- **rate limit** the calls made to APIs to respect the request quotas and avoid `HTTP 429 (Too Many Requests)` errors.
 
-- perform API calls **concurrently** using threads or `asyncio`.
+- Make API calls **concurrently** using threads or `asyncio`.
 
 - **retry** calls in case of failure.
 
@@ -250,9 +250,9 @@ from airflow.sensors.base import PokeReturnValue
 def reverse_etl_example():
 
     @task.sensor(poke_interval=60)
-    def users_query(
+    def users_updated_in_interval(
         data_interval_start = cast(datetime, ...),
-        data_interval_end = cast(datetime, ...)
+        data_interval_end = cast(datetime, ...),
     ) -> PokeReturnValue:
         """
         Checks data availability for the interval and returns the corresponding query.
@@ -267,7 +267,7 @@ def reverse_etl_example():
         )
 
     @task
-    def post_users(users_query: str):
+    def post_users(users_updated_in_interval: str):
         """
         Iterates over users from BigQuery and POST them concurrently by batch of 100 into a third party.
         The rate limit (16 requests/s) of the third party is respected.
@@ -278,14 +278,14 @@ def reverse_etl_example():
         from streamable import Stream
 
         (
-            Stream(bigquery.Client(...).query(users_query).result)
+            Stream(bigquery.Client(...).query(users_updated_in_interval).result)
             .map(dict)
             .observe("users")
             .batch(size=100)
             .observe("user batches")
             .slow(frequency=16)
             .map(lambda users:
-                requests.post("https://third.party/users", headers=cast(dict, ...), json=users),
+                requests.post("https://third.party/users", json=users, headers=cast(dict, ...)),
                 concurrency=3,
             )
             .do(requests.Response.raise_for_status)
@@ -294,7 +294,7 @@ def reverse_etl_example():
             .exhaust(explain=True)
         )
     
-    post_users(users_query())
+    post_users(users_updated_in_interval())
 
 _ = reverse_etl_example()
 
