@@ -210,34 +210,34 @@ These scripts are scheduled to run periodically (using a jobs orchestrator like 
 
 Some of these jobs are often very similar across companies and that is where tools like *Airbyte* shine by allowing to connect common sources and destinations to tackle most of the **EL** needs. When it's not enough Data Engineers write custom jobs.
 
-These jobs are typically composed of:
-- The definition of the data **source** using:
+These jobs typically:
+- define a data **source** using:
   - a client library: e.g. the `stripe` or `google.cloud.bigquery` modules
   - a custom `Iterator` that loops over the pages of a REST API and yields responses
   - ...
 
-- The **transformation** functions (may involve calls to APIs).
+- **transforms** elements (may involve calls to APIs)
 
-- The function to post into a **destination** using:
+- post into a **destination** using:
   - a client library
   - the `requests` module
   - ...
 
-- The logic to group elements into **batches** to transform or POST them at once.
+- group elements to transform or POST them by **batch**.
 
-- The logic to **limit the rate** of calls to APIs to avoid getting `HTTP 429 (Too Many Requests)` errors.
+- **rate limit** API calls to avoid `HTTP 429 (Too Many Requests)` errors.
 
-- The logic to perform API calls **concurrently** using threads or `asyncio`.
+- perform API calls **concurrently** using threads or `asyncio`.
 
-- The logic to **retry** calls in case of failure.
+- **retry** calls in case of failure.
 
-- The logic to **catch** certain exceptions.
+- **catch** certain exceptions.
 
-- The logic to **log** the job's progress.
+- **log** the job's progress.
 
 In this journey one can leverage the expressive interface provided by `streamable` to produce jobs that are easy to read and to maintain.
 
-Here is the basic structure of a reverse ETL job leveraging `streamable`and scheduled via Airflow:
+Here is the basic structure of a reverse ETL job that uses `streamable` and is scheduled via Airflow:
 
 ```python
 from datetime import datetime
