@@ -234,17 +234,23 @@ class _RaisingIterator(Iterator[T]):
         return elem
 
 
-_CONCURRENCY_BUFFER_SIZE_FACTOR = 3
+_CONCURRENCY_BUFFER_SIZE = 8
 
 
 class _ConcurrentMappingIterable(
     Iterable[Union[U, _RaisingIterator.ExceptionContainer]]
 ):
-    def __init__(self, iterator: Iterator[T], func: Callable[[T], U], concurrency: int):
+    def __init__(
+        self,
+        iterator: Iterator[T],
+        func: Callable[[T], U],
+        concurrency: int,
+        buffer_size: int,
+    ):
         self.iterator = iterator
         self.func = func
         self.concurrency = concurrency
-        self.buffer_size = concurrency * _CONCURRENCY_BUFFER_SIZE_FACTOR
+        self.buffer_size = buffer_size
 
     def __iter__(self) -> Iterator[Union[U, _RaisingIterator.ExceptionContainer]]:
         with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
@@ -281,6 +287,7 @@ def map(
                     iterator,
                     func,
                     concurrency=concurrency,
+                    buffer_size=_CONCURRENCY_BUFFER_SIZE,
                 )
             )
         )
@@ -289,10 +296,15 @@ def map(
 class _ConcurrentFlatteningIterable(
     Iterable[Union[T, _RaisingIterator.ExceptionContainer]]
 ):
-    def __init__(self, iterables_iterator: Iterator[Iterable[T]], concurrency: int):
+    def __init__(
+        self,
+        iterables_iterator: Iterator[Iterable[T]],
+        concurrency: int,
+        buffer_size: int,
+    ):
         self.iterables_iterator = iterables_iterator
         self.concurrency = concurrency
-        self.buffer_size = concurrency * _CONCURRENCY_BUFFER_SIZE_FACTOR
+        self.buffer_size = buffer_size
 
     def __iter__(self) -> Iterator[Union[T, _RaisingIterator.ExceptionContainer]]:
         with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
@@ -352,5 +364,11 @@ def flatten(iterator: Iterator[Iterable[T]], concurrency: int = 1) -> Iterator[T
         return _FlatteningIterator(iterator)
     else:
         return _RaisingIterator(
-            iter(_ConcurrentFlatteningIterable(iterator, concurrency=concurrency))
+            iter(
+                _ConcurrentFlatteningIterable(
+                    iterator,
+                    concurrency=concurrency,
+                    buffer_size=_CONCURRENCY_BUFFER_SIZE,
+                )
+            )
         )

@@ -377,7 +377,7 @@ class TestStream(unittest.TestCase):
     def test_partial_iteration_on_streams_using_concurrency(
         self, concurrency: int
     ) -> None:
-        from streamable.functions import _CONCURRENCY_BUFFER_SIZE_FACTOR
+        from streamable.functions import _CONCURRENCY_BUFFER_SIZE
 
         yielded_elems = []
 
@@ -396,8 +396,8 @@ class TestStream(unittest.TestCase):
             next(iter(stream))
             self.assertEqual(
                 len(yielded_elems),
-                concurrency * _CONCURRENCY_BUFFER_SIZE_FACTOR,
-                msg=f"after only one `next` a concurrent {type(stream)} should have pulled only concurrency * BUFFER_SIZE_FACTOR={concurrency * _CONCURRENCY_BUFFER_SIZE_FACTOR} upstream elements.",
+                _CONCURRENCY_BUFFER_SIZE,
+                msg=f"after only one `next` a concurrent {type(stream)} should have pulled only concurrency * BUFFER_SIZE_FACTOR={_CONCURRENCY_BUFFER_SIZE} upstream elements.",
             )
 
     def test_filter(self) -> None:
