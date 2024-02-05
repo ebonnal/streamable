@@ -385,8 +385,6 @@ class TestStream(unittest.TestCase):
     def test_partial_iteration_on_streams_using_concurrency(
         self, concurrency: int
     ) -> None:
-        from streamable.functions import _CONCURRENCY_BUFFER_SIZE
-
         yielded_elems = []
 
         def remembering_src() -> Iterator[int]:
@@ -401,11 +399,19 @@ class TestStream(unittest.TestCase):
             Stream(remembering_src).batch(1).flatten(concurrency=concurrency),
         ]:
             yielded_elems = []
-            next(iter(stream))
+            iterator = iter(stream)
+            time.sleep(0.5)
             self.assertEqual(
                 len(yielded_elems),
-                _CONCURRENCY_BUFFER_SIZE,
-                msg=f"after only one `next` a concurrent {type(stream)} should have pulled only concurrency * BUFFER_SIZE_FACTOR={_CONCURRENCY_BUFFER_SIZE} upstream elements.",
+                0,
+                msg=f"before the first call to `next` a concurrent {type(stream)} should have pulled 0 upstream elements.",
+            )
+            next(iterator)
+            time.sleep(0.5)
+            self.assertEqual(
+                len(yielded_elems),
+                concurrency,
+                msg=f"after the first call to `next` a concurrent {type(stream)} should have pulled only {concurrency} (=concurrency) upstream elements.",
             )
 
     def test_filter(self) -> None:

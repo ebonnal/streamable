@@ -234,9 +234,6 @@ class _RaisingIterator(Iterator[T]):
         return elem
 
 
-_CONCURRENCY_BUFFER_SIZE = 8
-
-
 class _ConcurrentMappingIterable(
     Iterable[Union[U, _RaisingIterator.ExceptionContainer]]
 ):
@@ -287,7 +284,7 @@ def map(
                     iterator,
                     func,
                     concurrency=concurrency,
-                    buffer_size=_CONCURRENCY_BUFFER_SIZE,
+                    buffer_size=concurrency,
                 )
             )
         )
@@ -368,7 +365,7 @@ def flatten(iterator: Iterator[Iterable[T]], concurrency: int = 1) -> Iterator[T
                 _ConcurrentFlatteningIterable(
                     iterator,
                     concurrency=concurrency,
-                    buffer_size=_CONCURRENCY_BUFFER_SIZE,
+                    buffer_size=concurrency,
                 )
             )
         )
