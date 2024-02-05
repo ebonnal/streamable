@@ -52,6 +52,14 @@ def src() -> Iterable[int]:
     return range(N)
 
 
+def less_and_less_slow_src() -> Iterable[int]:
+    """
+    Same as `src` but each element is yielded after a sleep time that gets shorter and shorter.
+    """
+    time.sleep(0.1 / N)
+    return range(N)
+
+
 def pair_src() -> Iterable[int]:
     return range(0, N, 2)
 
@@ -178,7 +186,7 @@ class TestStream(unittest.TestCase):
     )
     def test_map(self, concurrency) -> None:
         self.assertListEqual(
-            list(Stream(src).map(square, concurrency=concurrency)),
+            list(Stream(less_and_less_slow_src).map(square, concurrency=concurrency)),
             list(map(square, src())),
             msg="At any concurrency the `map` method should act as the builtin map function, transforming elements while preserving input elements order.",
         )
@@ -197,7 +205,7 @@ class TestStream(unittest.TestCase):
             side_collection.add(func(x))
 
         res = list(
-            Stream(src).foreach(
+            Stream(less_and_less_slow_src).foreach(
                 lambda i: side_effect(i, square), concurrency=concurrency
             )
         )
