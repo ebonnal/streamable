@@ -111,24 +111,6 @@ class Stream(Iterable[T]):
             self, *classes, when=when, raise_at_exhaustion=raise_at_exhaustion
         )
 
-    def foreach(
-        self,
-        func: Callable[[T], Any],
-        concurrency: int = 1,
-    ) -> "Stream[T]":
-        """
-        Call `func` on upstream elements, discarding the result and yielding upstream elements unchanged and in order.
-        If `func(elem)` throws an exception, then this exception will be thrown when iterating over the stream and `elem` will not be yielded.
-
-        Args:
-            func (Callable[[T], Any]): The function to be applied to each element.
-            concurrency (int): The number of threads used to concurrently apply the function (default is 1, meaning no concurrency).
-        Returns:
-            Stream[T]: A stream of upstream elements, unchanged.
-        """
-        validate_concurrency(concurrency)
-        return ForeachStream(self, func, concurrency)
-
     def exhaust(self, explain: bool = False) -> int:
         """
         Iterates over the stream until exhaustion.
@@ -243,6 +225,24 @@ class Stream(Iterable[T]):
         validate_concurrency(concurrency)
         return FlattenStream(self, concurrency)
 
+    def foreach(
+        self,
+        func: Callable[[T], Any],
+        concurrency: int = 1,
+    ) -> "Stream[T]":
+        """
+        Call `func` on upstream elements, discarding the result and yielding upstream elements unchanged and in order.
+        If `func(elem)` throws an exception, then this exception will be thrown when iterating over the stream and `elem` will not be yielded.
+
+        Args:
+            func (Callable[[T], Any]): The function to be applied to each element.
+            concurrency (int): The number of threads used to concurrently apply the function (default is 1, meaning no concurrency).
+        Returns:
+            Stream[T]: A stream of upstream elements, unchanged.
+        """
+        validate_concurrency(concurrency)
+        return ForeachStream(self, func, concurrency)
+
     def limit(self, count: int) -> "Stream[T]":
         """
         Truncate to first `count` elements.
@@ -340,19 +340,6 @@ class CatchStream(Stream[T]):
         return f"CatchStream(upstream={get_name(self.upstream)}, {', '.join(map(get_name, self.classes))}, when={get_name(self.when)}, raise_at_exhaustion={self.raise_at_exhaustion})"
 
 
-class ForeachStream(Stream[T]):
-    def __init__(self, upstream: Stream[T], func: Callable[[T], Any], concurrency: int):
-        self.upstream: Stream[T] = upstream
-        self.func = func
-        self.concurrency = concurrency
-
-    def accept(self, visitor: "Visitor[V]") -> V:
-        return visitor.visit_foreach_stream(self)
-
-    def __repr__(self) -> str:
-        return f"ForeachStream(upstream={get_name(self.upstream)}, func={get_name(self.func)}, concurrency={self.concurrency})"
-
-
 class FilterStream(Stream[T]):
     def __init__(self, upstream: Stream[T], predicate: Callable[[T], bool]):
         self.upstream: Stream[T] = upstream
@@ -375,6 +362,19 @@ class FlattenStream(Stream[T]):
 
     def __repr__(self) -> str:
         return f"FlattenStream(upstream={get_name(self.upstream)}, concurrency={self.concurrency})"
+
+
+class ForeachStream(Stream[T]):
+    def __init__(self, upstream: Stream[T], func: Callable[[T], Any], concurrency: int):
+        self.upstream: Stream[T] = upstream
+        self.func = func
+        self.concurrency = concurrency
+
+    def accept(self, visitor: "Visitor[V]") -> V:
+        return visitor.visit_foreach_stream(self)
+
+    def __repr__(self) -> str:
+        return f"ForeachStream(upstream={get_name(self.upstream)}, func={get_name(self.func)}, concurrency={self.concurrency})"
 
 
 class LimitStream(Stream[T]):

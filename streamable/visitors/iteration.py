@@ -38,15 +38,6 @@ class IterationVisitor(Visitor[Iterator[T]]):
             raise_at_exhaustion=stream.raise_at_exhaustion,
         )
 
-    def visit_foreach_stream(self, stream: ForeachStream[T]) -> Iterator[T]:
-        return self.visit_map_stream(
-            MapStream(
-                stream.upstream,
-                _util.sidify(stream.func),
-                stream.concurrency,
-            )
-        )
-
     def visit_filter_stream(self, stream: FilterStream[T]) -> Iterator[T]:
         return filter(
             _util.map_exception(stream.predicate, StopIteration, RuntimeError),
@@ -57,6 +48,15 @@ class IterationVisitor(Visitor[Iterator[T]]):
         return functions.flatten(
             stream.upstream.accept(IterationVisitor[Iterable]()),
             concurrency=stream.concurrency,
+        )
+
+    def visit_foreach_stream(self, stream: ForeachStream[T]) -> Iterator[T]:
+        return self.visit_map_stream(
+            MapStream(
+                stream.upstream,
+                _util.sidify(stream.func),
+                stream.concurrency,
+            )
         )
 
     def visit_limit_stream(self, stream: LimitStream[T]) -> Iterator[T]:

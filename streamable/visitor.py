@@ -15,13 +15,13 @@ class Visitor(Generic[V]):
     def visit_catch_stream(self, stream: stream.CatchStream) -> V:
         return self.visit_any(stream)
 
-    def visit_foreach_stream(self, stream: stream.ForeachStream) -> V:
-        return self.visit_any(stream)
-
     def visit_filter_stream(self, stream: stream.FilterStream) -> V:
         return self.visit_any(stream)
 
     def visit_flatten_stream(self, stream: stream.FlattenStream) -> V:
+        return self.visit_any(stream)
+
+    def visit_foreach_stream(self, stream: stream.ForeachStream) -> V:
         return self.visit_any(stream)
 
     def visit_limit_stream(self, stream: stream.LimitStream) -> V:
