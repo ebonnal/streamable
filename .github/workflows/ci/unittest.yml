@@ -5,7 +5,6 @@ on:
     paths:
       - 'streamable/**'
       - 'tests/**'
-      - '.github/workflows/unittest.yml'
 
 jobs:
   unittest:
