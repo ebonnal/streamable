@@ -115,15 +115,14 @@ The `frequency` is expressed in elements per second.
 
 ## `.catch`
 
-Defines the catching of the provided exception types.
+Defines the catching of exceptions satisfying a predicate function.
 
 ```python
 inverse_floats: Stream[float] = integers.map(lambda x: 1 / x)
-safe_inverse_floats: Stream[float] = inverse_floats.catch(ZeroDivisionError)
+safe_inverse_floats: Stream[float] = inverse_floats.catch(lambda ex: isinstance(ex, ZeroDivisionError))
 ```
 
 It has optional parameters:
-- `when`: a predicate function to decide if the exception has to be catched.
 - `raise_at_exhaustion`: to raise the first catched exception at upstream's exhaustion.
 
 ## `.observe`

@@ -30,9 +30,9 @@ class TestFunctions(unittest.TestCase):
         flattened_batched_it_1: Iterator[int] = flatten(batched_it_1)
         flattened_batched_it_2: Iterator[int] = flatten(batched_it_1, concurrency=1)
         flattened_batched_it_3: Iterator[int] = flatten(batched_it_1, concurrency=2)
-        catched_it_1: Iterator[int] = catch(it, Exception)
+        catched_it_1: Iterator[int] = catch(it, lambda ex: None)
         catched_it_2: Iterator[int] = catch(
-            it, Exception, when=lambda e: True, raise_at_exhaustion=True
+            it, lambda ex: None, raise_at_exhaustion=True
         )
         observed_it_1: Iterator[int] = observe(it, what="objects")
         observed_it_2: Iterator[int] = observe(it, what="objects", colored=True)

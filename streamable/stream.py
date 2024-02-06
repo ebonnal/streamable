@@ -10,7 +10,6 @@ from typing import (
     Optional,
     Sequence,
     Set,
-    Type,
     TypeVar,
     cast,
     overload,
@@ -92,24 +91,20 @@ class Stream(Iterable[T]):
 
     def catch(
         self,
-        *classes: Type[Exception],
-        when: Optional[Callable[[Exception], bool]] = None,
+        predicate: Callable[[Exception], Any] = bool,
         raise_at_exhaustion: bool = False,
     ) -> "Stream[T]":
         """
-        Catches the upstream exceptions whose type is in `classes` and satisfying the `when` predicate if provided.
+        Catches the upstream exceptions which are satisfying the provided `predicate`.
 
         Args:
-            classes (Type[Exception]): The classes of exception to be catched.
-            when (Callable[[Exception], bool], optional): An additional condition that must be satisfied to catch the exception.
+            predicate (Callable[[Exception], Any], optional): The exception will be catched if `predicate(exception)` is Truthy (all exceptions catched by default).
             raise_at_exhaustion (bool, optional): Set to True if you want the first catched exception to be raised when upstream is exhausted (default is False).
 
         Returns:
             Stream[T]: A stream of upstream elements catching the eligible exceptions.
         """
-        return CatchStream(
-            self, *classes, when=when, raise_at_exhaustion=raise_at_exhaustion
-        )
+        return CatchStream(self, predicate, raise_at_exhaustion=raise_at_exhaustion)
 
     def exhaust(self, explain: bool = False) -> int:
         """
@@ -324,20 +319,18 @@ class CatchStream(Stream[T]):
     def __init__(
         self,
         upstream: Stream[T],
-        *classes: Type[Exception],
-        when: Optional[Callable[[Exception], bool]],
+        predicate: Callable[[Exception], Any],
         raise_at_exhaustion: bool,
     ):
         self.upstream: Stream[T] = upstream
-        self.classes = classes
-        self.when = when
+        self.predicate = predicate
         self.raise_at_exhaustion = raise_at_exhaustion
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_catch_stream(self)
 
     def __repr__(self) -> str:
-        return f"CatchStream(upstream={get_name(self.upstream)}, {', '.join(map(get_name, self.classes))}, when={get_name(self.when)}, raise_at_exhaustion={self.raise_at_exhaustion})"
+        return f"CatchStream(upstream={get_name(self.upstream)}, predicate={get_name(self.predicate)}, raise_at_exhaustion={self.raise_at_exhaustion})"
 
 
 class FilterStream(Stream[T]):

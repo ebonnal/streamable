@@ -33,8 +33,7 @@ class IterationVisitor(Visitor[Iterator[T]]):
     def visit_catch_stream(self, stream: CatchStream[T]) -> Iterator[T]:
         return functions.catch(
             stream.upstream.accept(self),
-            *stream.classes,
-            when=stream.when,
+            stream.predicate,
             raise_at_exhaustion=stream.raise_at_exhaustion,
         )
 

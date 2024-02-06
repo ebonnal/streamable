@@ -100,8 +100,7 @@ class TestStream(unittest.TestCase):
             .flatten(concurrency=4)
             .slow(64)
             .observe("stream #1 elements")
-            .catch(ValueError, TypeError, when=lambda _: True)
-            .catch(RuntimeError)
+            .catch(lambda e: isinstance(e, (ValueError, TypeError)))
         )
         explanation_1 = complex_stream.explain()
         explanation_2 = complex_stream.explain()
@@ -633,31 +632,21 @@ class TestStream(unittest.TestCase):
         safe_src = list(src())
         del safe_src[3]
         self.assertListEqual(
-            list(stream.catch(ZeroDivisionError)),
+            list(stream.catch(lambda e: isinstance(e, ZeroDivisionError))),
             list(map(f, safe_src)),
-            msg="If the exception type matches the `catch`'s argument, then the impacted element should be .",
+            msg="If the exception type matches the `predicate`, then the impacted element should be ignored.",
         )
         self.assertListEqual(
-            list(stream.catch(TestError, ZeroDivisionError)),
+            list(stream.catch()),
             list(map(f, safe_src)),
-            msg="If the exception type matches one of the `catch`'s argument, then the impacted element should be .",
-        )
-        self.assertListEqual(
-            list(stream.catch(TestError, ZeroDivisionError, when=lambda _: True)),
-            list(map(f, safe_src)),
-            msg="If the exception type matches one of the `catch`'s argument and `when`predicate evaluates to True, then the impacted element should be .",
+            msg="If the predicate is not provided, then all exceptions should be catched.",
         )
 
         with self.assertRaises(
             ZeroDivisionError,
             msg="If a non catched exception type occurs, then it should be raised.",
         ):
-            list(stream.catch(TestError))
-        with self.assertRaises(
-            ZeroDivisionError,
-            msg="If an exception of a catched type occurs but predicate `when` does not return True, then it should be raised.",
-        ):
-            list(stream.catch(ZeroDivisionError, when=lambda _: False))
+            list(stream.catch(lambda e: False))
 
         first_value = 1
         second_value = 2
@@ -672,35 +661,41 @@ class TestStream(unittest.TestCase):
             lambda: throw(ZeroDivisionError),
         ]
 
-        erroring_stream: Stream[int] = Stream(
-            lambda: map(lambda f: f(), functions)
-        ).catch(Exception, raise_at_exhaustion=True)
-        erroring_stream_iterator = iter(erroring_stream)
-        self.assertEqual(
-            next(erroring_stream_iterator),
-            first_value,
-            msg="`catch` should yield the first non exception throwing element.",
-        )
-        n_yields = 1
-        with self.assertRaises(
-            TestError,
-            msg="`catch` should raise the first error encountered when `raise_at_exhaustion` is True.",
-        ):
-            for _ in erroring_stream_iterator:
-                n_yields += 1
-        with self.assertRaises(
-            StopIteration,
-            msg="`catch` with `raise_at_exhaustion`=True should finally raise StopIteration to avoid infinite recursion if there is another catch downstream.",
-        ):
-            next(erroring_stream_iterator)
-        self.assertEqual(
-            n_yields,
-            3,
-            msg="3 elements should have passed been yielded between catched exceptions.",
-        )
+        erroring_stream: Stream[int] = Stream(lambda: map(lambda f: f(), functions))
+        for catched_erroring_stream in [
+            erroring_stream.catch(raise_at_exhaustion=True),
+            erroring_stream.catch(
+                lambda e: isinstance(e, Exception), raise_at_exhaustion=True
+            ),
+        ]:
+            erroring_stream_iterator = iter(catched_erroring_stream)
+            self.assertEqual(
+                next(erroring_stream_iterator),
+                first_value,
+                msg="`catch` should yield the first non exception throwing element.",
+            )
+            n_yields = 1
+            with self.assertRaises(
+                TestError,
+                msg="`catch` should raise the first error encountered when `raise_at_exhaustion` is True.",
+            ):
+                for _ in erroring_stream_iterator:
+                    n_yields += 1
+            with self.assertRaises(
+                StopIteration,
+                msg="`catch` with `raise_at_exhaustion`=True should finally raise StopIteration to avoid infinite recursion if there is another catch downstream.",
+            ):
+                next(erroring_stream_iterator)
+            self.assertEqual(
+                n_yields,
+                3,
+                msg="3 elements should have passed been yielded between catched exceptions.",
+            )
 
         only_catched_errors_stream = (
-            Stream(lambda: range(2000)).map(lambda i: throw(TestError)).catch(TestError)
+            Stream(lambda: range(2000))
+            .map(lambda i: throw(TestError))
+            .catch(lambda e: isinstance(e, TestError))
         )
         self.assertEqual(
             list(only_catched_errors_stream),

@@ -6,13 +6,13 @@ from dataclasses import dataclass
 from datetime import datetime
 from queue import Queue
 from typing import (
+    Any,
     Callable,
     Iterable,
     Iterator,
     List,
     Optional,
     Tuple,
-    Type,
     TypeVar,
     Union,
     cast,
@@ -168,13 +168,11 @@ class _CatchingIterator(Iterator[T]):
     def __init__(
         self,
         iterator: Iterator[T],
-        *classes: Type[Exception],
-        when: Optional[Callable[[Exception], bool]],
+        predicate: Callable[[Exception], Any],
         raise_at_exhaustion: bool,
     ) -> None:
         self.iterator = iterator
-        self.classes = classes
-        self.when = when
+        self.predicate = predicate
         self.raise_at_exhaustion = raise_at_exhaustion
         self.first_catched_error: Optional[Exception] = None
         self.first_error_has_been_raised = False
@@ -192,8 +190,8 @@ class _CatchingIterator(Iterator[T]):
                     self.first_error_has_been_raised = True
                     raise self.first_catched_error
                 raise
-            except self.classes as exception:
-                if self.when is None or self.when(exception):
+            except Exception as exception:
+                if self.predicate(exception):
                     if self.first_catched_error is None:
                         self.first_catched_error = exception
                 else:
@@ -202,16 +200,15 @@ class _CatchingIterator(Iterator[T]):
 
 def catch(
     iterator: Iterator[T],
-    *classes: Type[Exception],
-    when: Optional[Callable[[Exception], bool]] = None,
+    predicate: Callable[[Exception], Any] = bool,
     raise_at_exhaustion: bool = False,
 ) -> Iterator[T]:
-    if when is not None:
-        when = _util.map_exception(when, source=StopIteration, target=RuntimeError)
+    predicate = _util.map_exception(
+        predicate, source=StopIteration, target=RuntimeError
+    )
     return _CatchingIterator(
         iterator,
-        *classes,
-        when=when,
+        predicate,
         raise_at_exhaustion=raise_at_exhaustion,
     )
 
