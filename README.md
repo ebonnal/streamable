@@ -62,7 +62,7 @@ Defines the application of a function on parent elements.
 integer_strings: Stream[str] = integers.map(str)
 ```
 
-It has an optional `concurrency` parameter to run the function concurrently (threads).
+It has an optional `concurrency` parameter to execute the function concurrently while preserving the order (threads).
 
 ## `.foreach`
 Defines the application of a function on parent elements like `.map`, but the parent elements are forwarded instead of the result of the function.
@@ -71,7 +71,7 @@ Defines the application of a function on parent elements like `.map`, but the pa
 printed_integers: Stream[int] = integers.foreach(print)
 ```
 
-It has an optional `concurrency` parameter to run the function concurrently (threads).
+It has an optional `concurrency` parameter to execute the function concurrently while preserving the order (threads).
 
 ## `.filter`
 Defines the filtering of parent elements based on a predicate function.
