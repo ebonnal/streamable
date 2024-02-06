@@ -88,7 +88,7 @@ Defines the grouping of parent elements into batches.
 integer_batches: Stream[List[int]] = integers.batch(size=100, seconds=60)
 ```
 
-Here a batch is a list of 100 elements but it may contain less elements in these cases:
+A batch is a list of `size` elements but it may contain fewer elements in these cases:
 - upstream is exhausted
 - an exception occurred upstream
 - more than `seconds` have elapsed since the last batch.
