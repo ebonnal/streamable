@@ -135,12 +135,12 @@ class Stream(Iterable[T]):
 
         return self.accept(explanation.ExplanationVisitor(colored))
 
-    def filter(self, predicate: Callable[[T], Any]) -> "Stream[T]":
+    def filter(self, predicate: Callable[[T], Any] = bool) -> "Stream[T]":
         """
         Filter the elements of the stream based on the given predicate.
 
         Args:
-            predicate (Callable[[T], Any]): Keep element if `predicate(elem)` is Truthy.
+            predicate (Callable[[T], Any], optional): Keep element if `predicate(elem)` is Truthy (default keeps Truthy elements).
 
         Returns:
             Stream[T]: A stream of upstream elements satisfying the predicate.

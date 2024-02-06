@@ -423,6 +423,11 @@ class TestStream(unittest.TestCase):
             list(filter(predicate, src())),
             msg="`filter` must act like builtin filter",
         )
+        self.assertListEqual(
+            list(Stream(src).filter()),
+            list(filter(None, src())),
+            msg="`filter` without predicate must act like builtin filter with None predicate.",
+        )
 
     def test_limit(self) -> None:
         self.assertEqual(
