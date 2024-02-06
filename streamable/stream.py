@@ -135,12 +135,12 @@ class Stream(Iterable[T]):
 
         return self.accept(explanation.ExplanationVisitor(colored))
 
-    def filter(self, predicate: Callable[[T], bool]) -> "Stream[T]":
+    def filter(self, predicate: Callable[[T], Any]) -> "Stream[T]":
         """
         Filter the elements of the stream based on the given predicate.
 
         Args:
-            predicate (Callable[[T], bool]): The function that decides whether an element should be kept or not.
+            predicate (Callable[[T], Any]): Keep element if `predicate(elem)` is Truthy.
 
         Returns:
             Stream[T]: A stream of upstream elements satisfying the predicate.
@@ -341,7 +341,7 @@ class CatchStream(Stream[T]):
 
 
 class FilterStream(Stream[T]):
-    def __init__(self, upstream: Stream[T], predicate: Callable[[T], bool]):
+    def __init__(self, upstream: Stream[T], predicate: Callable[[T], Any]):
         self.upstream: Stream[T] = upstream
         self.predicate = predicate
 

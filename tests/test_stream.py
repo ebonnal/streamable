@@ -415,8 +415,8 @@ class TestStream(unittest.TestCase):
             )
 
     def test_filter(self) -> None:
-        def predicate(x) -> bool:
-            return x % 2 == 1
+        def predicate(x) -> Any:
+            return x % 2
 
         self.assertListEqual(
             list(Stream(src).filter(predicate)),

@@ -34,7 +34,7 @@ Applying an operation:
 odd_square_strings: Stream[str] = (
     integers
     .map(lambda x: x ** 2)
-    .filter(lambda x: x % 2 == 1)
+    .filter(lambda x: x % 2)
     .map(str)
 )
 ```
