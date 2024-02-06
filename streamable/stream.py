@@ -95,7 +95,7 @@ class Stream(Iterable[T]):
         raise_at_exhaustion: bool = False,
     ) -> "Stream[T]":
         """
-        Catches the upstream exceptions which are satisfying the provided `predicate`.
+        Catch the upstream exceptions which are satisfying the provided `predicate`.
 
         Args:
             predicate (Callable[[Exception], Any], optional): The exception will be catched if `predicate(exception)` is Truthy (all exceptions catched by default).
@@ -270,7 +270,7 @@ class Stream(Iterable[T]):
 
     def observe(self, what: str = "elements", colored: bool = False) -> "Stream[T]":
         """
-        Logs the progress of any iteration over this stream's elements.
+        Log the progress of any iteration over this stream's elements.
 
         A logarithmic scale is used to prevent logs flood:
         - a 1st log is produced for the yield of the 1st element
