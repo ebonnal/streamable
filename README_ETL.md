@@ -91,7 +91,8 @@ def reverse_etl_example():
             .foreach(requests.Response.raise_for_status)
             .observe("integrated user batches")
             .catch(raise_at_exhaustion=True)
-            .exhaust(explain=True)
+            .explain()
+            .exhaust()
         )
     
     post_users(users_updated_in_interval())

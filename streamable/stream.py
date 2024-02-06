@@ -61,6 +61,15 @@ class Stream(Iterable[T]):
 
         return self.accept(IterationVisitor[T]())
 
+    def exhaust(self) -> int:
+        """
+        Iterate over the stream until exhaustion and count the elements yielded.
+
+        Returns:
+            int: The number of elements that have been yielded by the stream.
+        """
+        return sum(1 for _ in self)
+
     def __repr__(self) -> str:
         return f"Stream(source={get_name(self._source)})"
 
@@ -106,25 +115,17 @@ class Stream(Iterable[T]):
         """
         return CatchStream(self, predicate, raise_at_exhaustion=raise_at_exhaustion)
 
-    def exhaust(self, explain: bool = False) -> int:
+    def explain(self, colored: bool = False) -> "Stream[T]":
         """
-        Iterates over the stream until exhaustion.
+        Log this stream's explanation (INFO level)
+        """
+        LOGGER.info(self.explanation(colored))
+        return self
 
-        Args:
-            explain (bool, optional): Set to True to print the explain plan before the iteration (default in False).
+    def explanation(self, colored: bool = False) -> str:
+        """
         Returns:
-            int: The number of elements that have been yielded by the stream.
-        """
-        if explain:
-            LOGGER.info(self.explain())
-        yields = 0
-        for _ in self:
-            yields += 1
-        return yields
-
-    def explain(self, colored: bool = False) -> str:
-        """
-        Returns a friendly representation of this stream operations.
+            str: A pretty representation of this stream's operations.
         """
         from streamable.visitors import explanation
 

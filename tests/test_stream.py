@@ -84,7 +84,7 @@ class TestStream(unittest.TestCase):
         ):
             Stream(range(N))  # type: ignore
 
-    def test_explain(self) -> None:
+    def test_explanation(self) -> None:
         class CustomCallable:
             def __call__(self, x: int) -> int:
                 return x
@@ -102,20 +102,20 @@ class TestStream(unittest.TestCase):
             .observe("stream #1 elements")
             .catch(lambda e: isinstance(e, (ValueError, TypeError)))
         )
-        explanation_1 = complex_stream.explain()
-        explanation_2 = complex_stream.explain()
+        explanation_1 = complex_stream.explanation()
+        explanation_2 = complex_stream.explanation()
         self.assertEqual(
             explanation_1,
             explanation_2,
             msg="Stream.explain() must be deterministic.",
         )
-        colored_explanation = complex_stream.explain(colored=True)
+        colored_explanation = complex_stream.explanation(colored=True)
         self.assertNotEqual(
             explanation_1,
             colored_explanation,
             msg="Stream.explain(colored=True) must different from non colored one.",
         )
-        explanation_3 = complex_stream.map(str).explain()
+        explanation_3 = complex_stream.map(str).explanation()
         self.assertNotEqual(
             explanation_1,
             explanation_3,
@@ -123,6 +123,14 @@ class TestStream(unittest.TestCase):
         )
 
         print(colored_explanation)
+
+    def test_explain(self) -> None:
+        stream = Stream(src)
+        self.assertEqual(
+            stream.explain(),
+            stream,
+            msg="explain` should return self",
+        )
 
     def test_iter(self) -> None:
         self.assertIsInstance(
@@ -741,15 +749,13 @@ class TestStream(unittest.TestCase):
             l.append(x)
 
         self.assertEqual(
-            Stream(src).foreach(effect).exhaust(),
+            Stream(lambda: map(effect, src())).exhaust(),
             N,
-            msg="`exhaust` should return the number of iterated elements.",
+            msg="`__len__` should return the number of iterated elements.",
         )
         self.assertListEqual(
-            l, list(src()), msg="`exhaust` should iterate over the entire stream."
+            l, list(src()), msg="`__len__` should iterate over the entire stream."
         )
-
-        Stream(src).foreach(effect).exhaust(explain=True)
 
     def test_multiple_iterations(self):
         stream = Stream(lambda: map(identity, src()))
