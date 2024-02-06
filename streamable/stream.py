@@ -231,8 +231,8 @@ class Stream(Iterable[T]):
         concurrency: int = 1,
     ) -> "Stream[T]":
         """
-        Call `func` on upstream elements, discarding the result and yielding upstream elements unchanged and in order.
-        If `func(elem)` throws an exception, then this exception will be thrown when iterating over the stream and `elem` will not be yielded.
+        Call `func` on upstream elements and yield them in order.
+        If `func(elem)` throws an exception then it will be thrown and `elem` will not be yielded.
 
         Args:
             func (Callable[[T], Any]): The function to be applied to each element.
@@ -262,7 +262,7 @@ class Stream(Iterable[T]):
         concurrency: int = 1,
     ) -> "Stream[U]":
         """
-        Apply `func` to the upstream elements and yield the results in order.
+        Apply `func` on upstream elements and yield the results in order.
 
         Args:
             func (Callable[[T], R]): The function to be applied to each element.
