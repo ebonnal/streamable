@@ -57,7 +57,7 @@ for i in odd_squares:
 # 📒 ***Operations***
 
 ## `.map`
-Defines the application of a function on parent elements.
+Defines the application of a function on elements.
 ```python
 integer_strings: Stream[str] = integers.map(str)
 ```
@@ -65,7 +65,7 @@ integer_strings: Stream[str] = integers.map(str)
 It has an optional `concurrency` parameter to execute the function concurrently while preserving the order (threads).
 
 ## `.foreach`
-Defines the application of a function on parent elements like `.map`, but the parent elements are forwarded instead of the result of the function.
+Defines the application of a function on elements like `.map` but yields the elements instead of the results.
 
 ```python
 printed_integers: Stream[int] = integers.foreach(print)
@@ -74,7 +74,7 @@ printed_integers: Stream[int] = integers.foreach(print)
 It has an optional `concurrency` parameter to execute the function concurrently while preserving the order (threads).
 
 ## `.filter`
-Defines the filtering of parent elements based on a predicate function.
+Defines the filtering elements based on a predicate function.
 
 ```python
 pair_integers: Stream[int] = integers.filter(lambda x: x % 2 == 0)
@@ -82,7 +82,7 @@ pair_integers: Stream[int] = integers.filter(lambda x: x % 2 == 0)
 
 ## `.batch`
 
-Defines the grouping of parent elements into batches.
+Defines the grouping of elements into batches.
 
 ```python
 integer_batches: Stream[List[int]] = integers.batch(size=100, seconds=60)
@@ -95,17 +95,17 @@ A batch is a list of `size` elements but it may contain fewer elements in these 
 
 ## `.flatten`
 
-Defines the ungrouping of parent elements assuming that they are `Iterable`s.
+Defines the ungrouping of elements assuming that they are `Iterable`s.
 
 ```python
 integers: Stream[int] = integer_batches.flatten()
 ```
 
-It has an optional `concurrency` parameter to flatten several parent iterables concurrently (threads).
+It has an optional `concurrency` parameter to flatten several iterables concurrently (threads).
 
 ## `.slow`
 
-Defines a maximum rate at which parent elements are yielded.
+Defines a maximum rate at which elements are yielded.
 
 ```python
 slowed_integers: Stream[int] = integers.slow(frequency=2)
@@ -122,8 +122,7 @@ inverse_floats: Stream[float] = integers.map(lambda x: 1 / x)
 safe_inverse_floats: Stream[float] = inverse_floats.catch(lambda ex: isinstance(ex, ZeroDivisionError))
 ```
 
-It has optional parameters:
-- `raise_at_exhaustion`: to raise the first catched exception at upstream's exhaustion.
+It has an optional `raise_at_exhaustion` parameter to raise the first catched exception when iteration ends.
 
 ## `.observe`
 
@@ -148,7 +147,7 @@ INFO: after 0:00:04.500547, 0 error and 10 `integers from 0 to 9` yielded.
 The amount of logs will never be overwhelming because they are produced logarithmically e.g. the 11th log will be produced when the iteration reaches the 1024th element.
 
 ## `.limit`
-Defines a limitation on the number of parent elements yielded.
+Defines a limitation on the number of elements yielded.
 
 ```python
 ten_first_integers: Stream[int] = integers.limit(count=10)
