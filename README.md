@@ -29,8 +29,8 @@ Instantiate a `Stream[T]` by providing a function that returns a fresh `Iterable
 ```python
 odd_square_strings: Stream[str] = (
     integers
-    .map(lambda x: x ** 2)
-    .filter(lambda x: x % 2)
+    .map(lambda n: n ** 2)
+    .filter(lambda n: n % 2)
     .map(str)
 )
 ```
@@ -77,7 +77,7 @@ It has an optional `concurrency` parameter to execute the function concurrently 
 Filters elements based on a predicate function.
 
 ```python
-pair_integers: Stream[int] = integers.filter(lambda x: x % 2 == 0)
+pair_integers: Stream[int] = integers.filter(lambda n: n % 2 == 0)
 ```
 
 ## `.batch`
@@ -108,7 +108,7 @@ It has an optional `concurrency` parameter to flatten several iterables concurre
 Limits the rate at which elements are yielded up to a maximum `frequency` (elements per second).
 
 ```python
-slowed_integers: Stream[int] = integers.slow(frequency=2)
+slow_integers: Stream[int] = integers.slow(frequency=2)
 ```
 
 ## `.catch`
@@ -116,8 +116,11 @@ slowed_integers: Stream[int] = integers.slow(frequency=2)
 Catches exceptions that satisfy a predicate function.
 
 ```python
-inverse_floats: Stream[float] = integers.map(lambda x: 1 / x)
-safe_inverse_floats: Stream[float] = inverse_floats.catch(lambda ex: isinstance(ex, ZeroDivisionError))
+safe_inverse_floats: Stream[float] = (
+    integers
+    .map(lambda n: 1 / n)
+    .catch(lambda ex: isinstance(ex, ZeroDivisionError))
+)
 ```
 
 It has an optional `raise_at_exhaustion` parameter to raise the first catched exception when iteration ends.
@@ -128,7 +131,7 @@ Logs the progress of iterations over this stream.
 
 With
 ```python
-observed_slowed_integers: Stream[int] = slowed_integers.observe(what="integers from 0 to 9")
+observed_slow_integers: Stream[int] = slow_integers.observe(what="integers from 0 to 9")
 ```
 
 you should get:
@@ -162,15 +165,18 @@ This is a **typed module**, you can [`mypy`](https://github.com/python/mypy) it.
 ## supported Python versions
 **Compatible with Python `3.7` or newer** (unittested for: `3.7.17`, `3.8.18`, `3.9.18`, `3.10.13`, `3.11.7`, `3.12.1`).
 
-## multi lines
-You can enclose operations in parentheses instead of using trailing backslashes `\`.
+## go to line
+Tip: enclose operations in parentheses to avoid trailing backslashes `\`.
 
 ```python
-(
+stream: Stream[str] = (
     Stream(lambda: range(10))
-    .map(lambda x: 1 / x)
-    .catch(ZeroDivisionError)
-    .exhaust()
+    .map(str)
+    .batch(2)
+    .foreach(print)
+    .flatten()
+    .filter()
+    .catch()
 )
 ```
 
