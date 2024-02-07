@@ -148,7 +148,7 @@ The amount of logs will never be overwhelming because they are produced logarith
 Limits the number of elements yielded.
 
 ```python
-ten_first_integers: Stream[int] = integers.limit(count=10)
+five_first_integers: Stream[int] = integers.limit(count=5)
 ```
 
 
