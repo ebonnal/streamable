@@ -57,7 +57,7 @@ for i in odd_squares:
 # 📒 ***Operations***
 
 ## `.map`
-Defines the application of a function on elements.
+Applies a function on elements.
 ```python
 integer_strings: Stream[str] = integers.map(str)
 ```
@@ -65,7 +65,7 @@ integer_strings: Stream[str] = integers.map(str)
 It has an optional `concurrency` parameter to execute the function concurrently while preserving the order (threads).
 
 ## `.foreach`
-Defines the application of a function on elements like `.map` but yields the elements instead of the results.
+Applies a function on elements like `.map` but yields the elements instead of the results.
 
 ```python
 printed_integers: Stream[int] = integers.foreach(print)
@@ -74,7 +74,7 @@ printed_integers: Stream[int] = integers.foreach(print)
 It has an optional `concurrency` parameter to execute the function concurrently while preserving the order (threads).
 
 ## `.filter`
-Defines the filtering elements based on a predicate function.
+Filters elements based on a predicate function.
 
 ```python
 pair_integers: Stream[int] = integers.filter(lambda x: x % 2 == 0)
@@ -82,7 +82,7 @@ pair_integers: Stream[int] = integers.filter(lambda x: x % 2 == 0)
 
 ## `.batch`
 
-Defines the grouping of elements into batches.
+Groups elements into batches.
 
 ```python
 integer_batches: Stream[List[int]] = integers.batch(size=100, seconds=60)
@@ -95,7 +95,7 @@ A batch is a list of `size` elements but it may contain fewer elements in these 
 
 ## `.flatten`
 
-Defines the ungrouping of elements assuming that they are `Iterable`s.
+Ungroups elements assuming that they are `Iterable`s.
 
 ```python
 integers: Stream[int] = integer_batches.flatten()
@@ -105,17 +105,15 @@ It has an optional `concurrency` parameter to flatten several iterables concurre
 
 ## `.slow`
 
-Defines a maximum rate at which elements are yielded.
+Limits the rate at which elements are yielded up to a maximum `frequency` (elements per second).
 
 ```python
 slowed_integers: Stream[int] = integers.slow(frequency=2)
 ```
 
-The `frequency` is expressed in elements per second.
-
 ## `.catch`
 
-Defines the catching of exceptions satisfying a predicate function.
+Catches exceptions that satisfy a predicate function.
 
 ```python
 inverse_floats: Stream[float] = integers.map(lambda x: 1 / x)
@@ -126,7 +124,7 @@ It has an optional `raise_at_exhaustion` parameter to raise the first catched ex
 
 ## `.observe`
 
-Defines the logging of the progress of any iteration over this stream.
+Logs the progress of iterations over this stream.
 
 With
 ```python
@@ -147,7 +145,7 @@ INFO: after 0:00:04.500547, 0 error and 10 `integers from 0 to 9` yielded.
 The amount of logs will never be overwhelming because they are produced logarithmically e.g. the 11th log will be produced when the iteration reaches the 1024th element.
 
 ## `.limit`
-Defines a limitation on the number of elements yielded.
+Limits the number of elements yielded.
 
 ```python
 ten_first_integers: Stream[int] = integers.limit(count=10)
