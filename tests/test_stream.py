@@ -84,6 +84,33 @@ class TestStream(unittest.TestCase):
         ):
             Stream(range(N))  # type: ignore
 
+        self.assertIs(
+            Stream(src)
+            .batch(100)
+            .flatten()
+            .map(identity)
+            .filter()
+            .foreach(identity)
+            .catch()
+            .observe()
+            .slow(1)
+            .source,
+            src,
+            msg="`source` must be propagated by operations",
+        )
+
+        with self.assertRaises(
+            AttributeError,
+            msg="attribute `source` must be read-only",
+        ):
+            Stream(src).source = src  # type: ignore
+
+        with self.assertRaises(
+            AttributeError,
+            msg="attribute `upstream` must be read-only",
+        ):
+            Stream(src).upstream = Stream(src)  # type: ignore
+
     def test_explanation(self) -> None:
         class CustomCallable:
             def __call__(self, x: int) -> int:

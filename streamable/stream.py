@@ -46,9 +46,23 @@ class Stream(Iterable[T]):
         if not callable(source):
             raise TypeError(f"`source` must be a callable but got a {type(source)}")
         self._source = source
+        self._upstream: "Optional[Stream]" = None
 
-    upstream: "Optional[Stream]" = None
-    "Optional[Stream]: Parent stream if any."
+    @property
+    def upstream(self) -> "Optional[Stream]":
+        """
+        Returns:
+            Optional[Stream]: Parent stream if any.
+        """
+        return self._upstream
+
+    @property
+    def source(self) -> Callable[[], Iterable]:
+        """
+        Returns:
+            Callable[[], Iterable]: Function to be called at iteration to get the stream's source iterable.
+        """
+        return self._source
 
     def __add__(self, other: "Stream[T]") -> "Stream[T]":
         """
@@ -303,9 +317,27 @@ class Stream(Iterable[T]):
         return SlowStream(self, frequency)
 
 
-class BatchStream(Stream[List[T]]):
+class DownStream(Stream[U], Generic[T, U]):
+    """
+    Stream that has an upstream.
+    """
+
+    def __init__(self, upstream: Stream[T]):
+        Stream.__init__(self, upstream.source)
+        self._upstream: Stream[T] = upstream
+
+    @property
+    def upstream(self) -> Stream[T]:
+        """
+        Returns:
+            Optional[Stream]: Parent stream.
+        """
+        return self._upstream
+
+
+class BatchStream(DownStream[T, List[T]]):
     def __init__(self, upstream: Stream[T], size: int, seconds: float):
-        self.upstream: Stream[T] = upstream
+        super().__init__(upstream)
         self.size = size
         self.seconds = seconds
 
@@ -316,14 +348,14 @@ class BatchStream(Stream[List[T]]):
         return f"BatchStream(upstream={get_name(self.upstream)}, size={self.size}, seconds={self.seconds})"
 
 
-class CatchStream(Stream[T]):
+class CatchStream(DownStream[T, T]):
     def __init__(
         self,
         upstream: Stream[T],
         predicate: Callable[[Exception], Any],
         raise_at_exhaustion: bool,
     ):
-        self.upstream: Stream[T] = upstream
+        super().__init__(upstream)
         self.predicate = predicate
         self.raise_at_exhaustion = raise_at_exhaustion
 
@@ -334,9 +366,9 @@ class CatchStream(Stream[T]):
         return f"CatchStream(upstream={get_name(self.upstream)}, predicate={get_name(self.predicate)}, raise_at_exhaustion={self.raise_at_exhaustion})"
 
 
-class FilterStream(Stream[T]):
+class FilterStream(DownStream[T, T]):
     def __init__(self, upstream: Stream[T], predicate: Callable[[T], Any]):
-        self.upstream: Stream[T] = upstream
+        super().__init__(upstream)
         self.predicate = predicate
 
     def accept(self, visitor: "Visitor[V]") -> V:
@@ -346,9 +378,9 @@ class FilterStream(Stream[T]):
         return f"FilterStream(upstream={get_name(self.upstream)}, predicate={get_name(self.predicate)})"
 
 
-class FlattenStream(Stream[T]):
+class FlattenStream(DownStream[Iterable[T], T]):
     def __init__(self, upstream: Stream[Iterable[T]], concurrency: int) -> None:
-        self.upstream: Stream[Iterable[T]] = upstream
+        super().__init__(upstream)
         self.concurrency = concurrency
 
     def accept(self, visitor: "Visitor[V]") -> V:
@@ -358,9 +390,9 @@ class FlattenStream(Stream[T]):
         return f"FlattenStream(upstream={get_name(self.upstream)}, concurrency={self.concurrency})"
 
 
-class ForeachStream(Stream[T]):
+class ForeachStream(DownStream[T, T]):
     def __init__(self, upstream: Stream[T], func: Callable[[T], Any], concurrency: int):
-        self.upstream: Stream[T] = upstream
+        super().__init__(upstream)
         self.func = func
         self.concurrency = concurrency
 
@@ -371,9 +403,9 @@ class ForeachStream(Stream[T]):
         return f"ForeachStream(upstream={get_name(self.upstream)}, func={get_name(self.func)}, concurrency={self.concurrency})"
 
 
-class LimitStream(Stream[T]):
+class LimitStream(DownStream[T, T]):
     def __init__(self, upstream: Stream[T], count: int) -> None:
-        self.upstream: Stream[T] = upstream
+        super().__init__(upstream)
         self.count = count
 
     def accept(self, visitor: "Visitor[V]") -> V:
@@ -383,9 +415,9 @@ class LimitStream(Stream[T]):
         return f"LimitStream(upstream={get_name(self.upstream)}, count={self.count})"
 
 
-class MapStream(Stream[U], Generic[T, U]):
+class MapStream(DownStream[T, U]):
     def __init__(self, upstream: Stream[T], func: Callable[[T], U], concurrency: int):
-        self.upstream: Stream[T] = upstream
+        super().__init__(upstream)
         self.func = func
         self.concurrency = concurrency
 
@@ -396,9 +428,9 @@ class MapStream(Stream[U], Generic[T, U]):
         return f"MapStream(upstream={get_name(self.upstream)}, func={get_name(self.func)}, concurrency={self.concurrency})"
 
 
-class ObserveStream(Stream[T]):
+class ObserveStream(DownStream[T, T]):
     def __init__(self, upstream: Stream[T], what: str, colored: bool):
-        self.upstream: Stream[T] = upstream
+        super().__init__(upstream)
         self.what = what
         self.colored = colored
 
@@ -409,9 +441,9 @@ class ObserveStream(Stream[T]):
         return f"ObserveStream(upstream={get_name(self.upstream)}, what='{self.what}', colored={self.colored})"
 
 
-class SlowStream(Stream[T]):
+class SlowStream(DownStream[T, T]):
     def __init__(self, upstream: Stream[T], frequency: float):
-        self.upstream: Stream[T] = upstream
+        super().__init__(upstream)
         self.frequency = frequency
 
     def accept(self, visitor: "Visitor[V]") -> V:
