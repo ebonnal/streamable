@@ -22,13 +22,9 @@ from streamable import Stream
 integers: Stream[int] = Stream(lambda: range(10))
 ```
 
-Instantiate a `Stream` by providing a function that returns a fresh `Iterable` (the data source).
+Instantiate a `Stream[T]` by providing a function that returns a fresh `Iterable[T]` (the data source).
 
 ## 4. operate
-
-Applying an operation:
-- is ***lazy*** i.e. it does not iterate over the source
-- returns a ***child*** stream without modifying the parent
 
 ```python
 odd_square_strings: Stream[str] = (
@@ -38,6 +34,10 @@ odd_square_strings: Stream[str] = (
     .map(str)
 )
 ```
+
+`Stream` instances are ***immutable***: operations return a new stream.
+
+Operations are ***lazy***: they do not iterate over the source.
 
 ## 5. iterate
 `Stream[T]` extends `Iterable[T]` allowing:
