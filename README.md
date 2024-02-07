@@ -157,15 +157,13 @@ ten_first_integers: Stream[int] = integers.limit(count=10)
 # 📦 ***Notes Box***
 
 ## typing
-This module is **typed**, you can [`mypy`](https://github.com/python/mypy) it !
+This is a **typed module**, you can [`mypy`](https://github.com/python/mypy) it.
 
 ## supported Python versions
-This module is **compatible with Python `3.7` or newer**.
-
-It is unittested for: `3.7.17`, `3.8.18`, `3.9.18`, `3.10.13`, `3.11.7`, `3.12.1`
+**Compatible with Python `3.7` or newer** (unittested for: `3.7.17`, `3.8.18`, `3.9.18`, `3.10.13`, `3.11.7`, `3.12.1`).
 
 ## multi lines
-You may find it convenient to enclose your operations in parentheses instead of using trailing backslashes `\`.
+You can enclose operations in parentheses instead of using trailing backslashes `\`.
 
 ```python
 (
@@ -177,18 +175,20 @@ You may find it convenient to enclose your operations in parentheses instead of 
 ```
 
 ## functions
-`Stream`'s methods are also exposed as functions:
+The `Stream`'s methods are also exposed as functions:
 ```python
 from streamable.functions import slow
+
 iterator: Iterator[int] = ...
-slowed_iterator: Iterator[int] = slow(iterator)
+slow_iterator: Iterator[int] = slow(iterator)
 ```
 
 ## set logging level
 ```python
 import logging
+
 logging.getLogger("streamable").setLevel(logging.WARNING)
 ```
 
 ## visitor pattern
-A `Stream` exposes an `.accept` method and you can implement your custom [***visitor***](https://en.wikipedia.org/wiki/Visitor_pattern) by extending the `streamable.visit.Visitor` class.
+The `Stream` class exposes an `.accept` method and you can implement a [***visitor***](https://en.wikipedia.org/wiki/Visitor_pattern) by extending the `streamable.visitor.Visitor` class.
