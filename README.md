@@ -42,13 +42,13 @@ Operations are ***lazy***: they do not iterate over the source.
 ## 5. iterate
 `Stream[T]` extends `Iterable[T]` allowing:
 ```python
-set(odd_squares)
+set(odd_square_strings)
 ```
 ```python
-sum(odd_squares)
+sum(odd_square_strings)
 ```
 ```python
-for i in odd_squares:
+for i in odd_square_strings:
     ...
 ```
 
@@ -163,7 +163,7 @@ five_first_integers: Stream[int] = integers.limit(count=5)
 This is a **typed module**, you can [`mypy`](https://github.com/python/mypy) it.
 
 ## supported Python versions
-**Compatible with Python `3.7` or newer** (unittested for: `3.7.17`, `3.8.18`, `3.9.18`, `3.10.13`, `3.11.7`, `3.12.1`).
+Compatible with **Python `3.7` or newer** (unittested for: `3.7.17`, `3.8.18`, `3.9.18`, `3.10.13`, `3.11.7`, `3.12.1`).
 
 ## go to line
 Tip: enclose operations in parentheses to avoid trailing backslashes `\`.
