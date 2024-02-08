@@ -9,7 +9,6 @@ python -m pip install -r .github/workflows/requirements.txt
 
 ### unittest
 ```bash
-python -m pip install -r tests/requirements.txt
 coverage run -m unittest && coverage report
 ```
 
