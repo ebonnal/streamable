@@ -1,13 +1,9 @@
 import unittest
-from typing import Iterable, Iterator, List, TypeVar
+from typing import Callable, Iterable, Iterator, List, TypeVar, cast
 
 from streamable.functions import batch, catch, flatten, limit, map, observe, slow
 
 T = TypeVar("T")
-
-
-def identity(x: T) -> T:
-    return x
 
 
 # size of the test collections
@@ -21,9 +17,10 @@ def src() -> Iterable[int]:
 class TestFunctions(unittest.TestCase):
     def test_signatures(self) -> None:
         it = iter(src())
-        mapped_it_1: Iterator[int] = map(identity, it)
-        mapped_it_2: Iterator[int] = map(identity, it, concurrency=1)
-        mapped_it_3: Iterator[int] = map(identity, it, concurrency=2)
+        func = cast(Callable[[int], int], ...)
+        mapped_it_1: Iterator[int] = map(func, it)
+        mapped_it_2: Iterator[int] = map(func, it, concurrency=1)
+        mapped_it_3: Iterator[int] = map(func, it, concurrency=2)
         batched_it_1: Iterator[List[int]] = batch(it, size=1)
         batched_it_2: Iterator[List[int]] = batch(it, size=1, seconds=0.1)
         batched_it_3: Iterator[List[int]] = batch(it, size=1, seconds=2)

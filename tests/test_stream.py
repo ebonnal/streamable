@@ -113,15 +113,14 @@ class TestStream(unittest.TestCase):
 
     def test_explanation(self) -> None:
         class CustomCallable:
-            def __call__(self, x: int) -> int:
-                return x
+            pass
 
         complex_stream: Stream[int] = (
             Stream(src)
             .limit(1024)
             .filter(lambda _: True)
-            .map(lambda _: _)
-            .map(CustomCallable())
+            .foreach(lambda _: _)
+            .map(cast(Callable[[Any], Any], CustomCallable()))
             .batch(100)
             .observe("batches")
             .flatten(concurrency=4)

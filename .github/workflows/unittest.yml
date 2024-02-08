@@ -5,6 +5,7 @@ on:
     paths:
       - 'streamable/**'
       - 'tests/**'
+      - '.github/workflows/unittest.yml'
 
 jobs:
   unittest:
@@ -20,7 +21,7 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-
+          
       - name: unittest
         run: |
           python -m pip install -r tests/requirements.txt

@@ -5,3 +5,5 @@ tmp*
 build
 dist
 .mypy_cache
+htmlcov
+.coverage

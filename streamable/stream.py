@@ -25,10 +25,10 @@ from streamable._util import (
     validate_slow_frequency,
 )
 
-if TYPE_CHECKING:
-    import builtins
-
-    from streamable.visitor import Visitor
+# fmt: off
+if TYPE_CHECKING: import builtins
+if TYPE_CHECKING: from streamable.visitor import Visitor
+# fmt: on
 
 U = TypeVar("U")
 T = TypeVar("T")
@@ -157,68 +157,61 @@ class Stream(Iterable[T]):
         """
         return FilterStream(self, predicate)
 
+    # fmt: off
     @overload
     def flatten(
         self: "Stream[Iterable[U]]",
         concurrency: int = 1,
-    ) -> "Stream[U]":
-        ...
+    ) -> "Stream[U]": ...
 
     @overload
     def flatten(
         self: "Stream[Collection[U]]",
         concurrency: int = 1,
-    ) -> "Stream[U]":
-        ...
+    ) -> "Stream[U]": ...
 
     @overload
     def flatten(
         self: "Stream[Stream[U]]",
         concurrency: int = 1,
-    ) -> "Stream[U]":
-        ...
+    ) -> "Stream[U]": ...
 
     @overload
     def flatten(
         self: "Stream[Iterator[U]]",
         concurrency: int = 1,
-    ) -> "Stream[U]":
-        ...
+    ) -> "Stream[U]": ...
 
     @overload
     def flatten(
         self: "Stream[List[U]]",
         concurrency: int = 1,
-    ) -> "Stream[U]":
-        ...
+    ) -> "Stream[U]": ...
 
     @overload
     def flatten(
         self: "Stream[Sequence[U]]",
         concurrency: int = 1,
-    ) -> "Stream[U]":
-        ...
+    ) -> "Stream[U]": ...
 
     @overload
     def flatten(
         self: "Stream[builtins.map[U]]",
         concurrency: int = 1,
-    ) -> "Stream[U]":
-        ...
+    ) -> "Stream[U]": ...
 
     @overload
     def flatten(
         self: "Stream[builtins.filter[U]]",
         concurrency: int = 1,
-    ) -> "Stream[U]":
-        ...
+    ) -> "Stream[U]": ...
 
     @overload
     def flatten(
         self: "Stream[Set[U]]",
         concurrency: int = 1,
-    ) -> "Stream[U]":
-        ...
+    ) -> "Stream[U]": ...
+    # fmt: off
 
     def flatten(
         self: "Stream[Iterable[U]]",

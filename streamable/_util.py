@@ -1,6 +1,6 @@
 import logging
 import sys
-from typing import Any, Callable, Iterable, Iterator, Type, TypeVar, Union
+from typing import Any, Callable, Type, TypeVar
 
 LOGGER = logging.getLogger("streamable")
 LOGGER.propagate = False
@@ -33,15 +33,6 @@ def map_exception(
             raise target() from e
 
     return wrap
-
-
-def iterate(it: Union[Iterator[T], Iterable[T]]) -> None:
-    for _ in it:
-        pass
-
-
-def identity(obj: T) -> T:
-    return obj
 
 
 def validate_iterable(expected_iterator: Any) -> bool:
@@ -104,8 +95,6 @@ def bold(s: str) -> str:
 
 
 def get_name(o: object):
-    if o is None:
-        return "None"
     try:
         return o.__name__  # type: ignore
     except AttributeError:
