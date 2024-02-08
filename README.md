@@ -28,9 +28,8 @@ Instantiate a `Stream[T]` by providing a function that returns a fresh `Iterable
 ## 4. operate
 
 ```python
-odd_square_strings: Stream[str] = (
+odd_integer_strings: Stream[str] = (
     integers
-    .map(lambda n: n ** 2)
     .filter(lambda n: n % 2)
     .map(str)
 )
@@ -43,13 +42,13 @@ Operations are ***lazy***: they do not iterate over the source.
 ## 5. iterate
 `Stream[T]` extends `Iterable[T]` allowing:
 ```python
-set(odd_square_strings)
+set(odd_integer_strings)
 ```
 ```python
-sum(odd_square_strings)
+sum(odd_integer_strings)
 ```
 ```python
-for i in odd_square_strings:
+for odd_integer_string in odd_integer_strings:
     ...
 ```
 
