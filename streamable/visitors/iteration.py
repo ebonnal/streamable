@@ -29,7 +29,9 @@ class IterationVisitor(Visitor[Iterator[T]]):
 
     def visit_filter_stream(self, stream: FilterStream[T]) -> Iterator[T]:
         return filter(
-            _util.map_exception(stream.predicate, StopIteration, RuntimeError),
+            _util.raise_from(
+                stream.predicate, StopIteration, functions.WrappedStopIteration
+            ),
             cast(Iterable[T], stream.upstream.accept(self)),
         )
 

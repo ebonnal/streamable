@@ -23,7 +23,7 @@ def sidify(func: Callable[[T], Any]) -> Callable[[T], T]:
     return wrap
 
 
-def map_exception(
+def raise_from(
     func: Callable[[T], R], source: Type[Exception], target: Type[Exception]
 ) -> Callable[[T], R]:
     def wrap(arg):

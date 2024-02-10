@@ -6,6 +6,7 @@ from typing import Any, Callable, Iterable, Iterator, List, Set, Type, TypeVar, 
 from parameterized import parameterized  # type: ignore
 
 from streamable import Stream
+from streamable.functions import WrappedStopIteration
 
 T = TypeVar("T")
 
@@ -269,7 +270,7 @@ class TestStream(unittest.TestCase):
             [raised_exc, catched_exc, concurrency, method]
             for raised_exc, catched_exc in [
                 (TestError, TestError),
-                (StopIteration, RuntimeError),
+                (StopIteration, WrappedStopIteration),
             ]
             for concurrency in [1, 2]
             for method in [Stream.foreach, Stream.map]
@@ -390,7 +391,7 @@ class TestStream(unittest.TestCase):
             [raised_exc, catched_exc, concurrency]
             for raised_exc, catched_exc in [
                 (TestError, TestError),
-                (StopIteration, RuntimeError),
+                (StopIteration, WrappedStopIteration),
             ]
             for concurrency in [1, 2]
         ]
@@ -421,7 +422,7 @@ class TestStream(unittest.TestCase):
                 .catch(catched_exc)
             ),
             set(range(0, n_iterables, 2)),
-            msg="At any concurrency the `flatten` method should be resilient to exceptions thrown by iterators, especially it should remap StopIteration one to RuntimeError.",
+            msg="At any concurrency the `flatten` method should be resilient to exceptions thrown by iterators, especially it should remap StopIteration one to WrappedStopIteration.",
         )
 
     @parameterized.expand([[concurrency] for concurrency in [2, 4]])
@@ -658,6 +659,27 @@ class TestStream(unittest.TestCase):
             ),
             [[1, 2], [0, 4], [3, 5, 6, 7], [8], [9]],
             msg="`group` called with a `by` function must cogroup elements and yield the largest groups when `seconds` is reached event though it's not the oldest.",
+        )
+
+        stream_iter = iter(
+            Stream(src).group(
+                size=3, by=lambda n: throw(StopIteration) if n == 2 else n
+            )
+        )
+        self.assertEqual(
+            [next(stream_iter), next(stream_iter)],
+            [[0], [1]],
+            msg="`group` should yield incomplete groups when `by` raises",
+        )
+        with self.assertRaises(
+            WrappedStopIteration,
+            msg="`group` should raise and skip `elem` if `by(elem)` raises",
+        ):
+            next(stream_iter)
+        self.assertEqual(
+            next(stream_iter),
+            [3],
+            msg="`group` should continue yielding after `by`'s exception has been raised.",
         )
 
     def test_slow(self) -> None:
