@@ -85,7 +85,7 @@ pair_integers: Stream[int] = integers.filter(lambda n: n % 2 == 0)
 Groups elements.
 
 ```python
-integer_parity_groups: Stream[List[int]] = integers.group(size=100, seconds=4, by=lambda i: i % 2)
+parity_groups: Stream[List[int]] = integers.group(size=100, seconds=4, by=lambda i: i % 2)
 ```
 
 A group is a list of `size` elements for which `by` returns the same value, but it may contain fewer elements in these cases:
@@ -100,7 +100,7 @@ All the parameters are optional.
 Ungroups elements assuming that they are `Iterable`s.
 
 ```python
-integers: Stream[int] = integer_groups.flatten()
+integers: Stream[int] = parity_groups.flatten()
 ```
 
 It has an optional `concurrency` parameter to flatten several iterables concurrently (threads).
