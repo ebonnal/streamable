@@ -2,11 +2,11 @@
 # 🔧 ***Use case in Data Engineering***
 
 Data Engineers often need to write Python jobs to:
-- **ETL**: *Extract* the data from a source API -> *Transform* it -> *Load* it into the data warehouse
+- **ETL**: *Extract* the data from a source -> *Transform* it -> *Load* it into the data warehouse
 - **EL**: the same but with minimal transformation
-- **Reverse ETL**: *Extract* data from the data warehouse -> *Transform* it -> *Load* it into a destination API
+- **Reverse ETL**: *Extract* data from the data warehouse -> *Transform* it -> *Load* it into a destination
 
-These scripts are scheduled to run periodically (using a jobs orchestrator like *Airflow/DAGster/Prefect*) and if they only manipulate the data produced or updated during their period they should not end up manipulating huge volumes. At worst if you are an *Amazon*-sized business you may need to process 10 millions payment transactions every 10 minutes.
+These scripts are scheduled to **run periodically** using a job orchestrator like *Airflow/DAGster/Prefect* and they typically process a relatively small amount of data updated within specific time intervals.
 
 Some of these jobs are often very similar across companies and that is where tools like *Airbyte* shine by allowing to connect common sources and destinations to tackle most of the **EL** needs. When it's not enough Data Engineers write custom jobs.
 
@@ -16,7 +16,7 @@ These jobs typically:
   - a custom `Iterator` that loops over the pages of a REST API and yields responses
   - ...
 
-- **transforms** elements (may involve calls to APIs)
+- **transform** elements (may involve calls to APIs)
 
 - post into a **destination** using:
   - a client library
@@ -35,6 +35,8 @@ These jobs typically:
 
 - **log** the job's progress.
 
+The memory footprint of these jobs can be limited by an `Iterator`-based implementation: the source yields elements in small sets that are then processed on-the-fly and never collected.
+
 In this journey one can leverage the expressive interface provided by `streamable` to produce jobs that are easy to read and to maintain.
 
 Here is the basic structure of a reverse ETL job that uses `streamable` and is scheduled via Airflow:
@@ -50,7 +52,7 @@ from airflow.sensors.base import PokeReturnValue
 def reverse_etl_example():
 
     @task.sensor(poke_interval=60)
-    def users_updated_in_interval(
+    def users_query(
         data_interval_start = cast(datetime, ...),
         data_interval_end = cast(datetime, ...),
     ) -> PokeReturnValue:
@@ -67,7 +69,7 @@ def reverse_etl_example():
         )
 
     @task
-    def post_users(users_updated_in_interval: str):
+    def post_users(users_query: str):
         """
         Iterates over users from BigQuery and POST them concurrently by batch of 100 into a third party.
         The rate limit (16 requests/s) of the third party is respected.
@@ -78,7 +80,7 @@ def reverse_etl_example():
         from streamable import Stream
 
         (
-            Stream(bigquery.Client(...).query(users_updated_in_interval).result)
+            Stream(bigquery.Client(...).query(users_query).result)
             .map(dict)
             .observe("users")
             .batch(size=100)
@@ -95,7 +97,7 @@ def reverse_etl_example():
             .exhaust()
         )
     
-    post_users(users_updated_in_interval())
+    post_users(users_query())
 
 _ = reverse_etl_example()
 
