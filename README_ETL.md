@@ -3,31 +3,23 @@
 
 Data Engineers often need to write Python jobs to:
 - **ETL**: *Extract* the data from a source -> *Transform* it -> *Load* it into the data warehouse
-- **EL**: the same but with minimal transformation
+- **EL**: the same but with minimal transformation (tools like *Airbyte* allow to connect common sources and destinations)
 - **Reverse ETL**: *Extract* data from the data warehouse -> *Transform* it -> *Load* it into a destination
 
-These scripts are scheduled to **run periodically** using a job orchestrator like *Airflow/DAGster/Prefect* and they typically process a relatively small amount of data updated within specific time intervals.
-
-Some of these jobs are often very similar across companies and that is where tools like *Airbyte* shine by allowing to connect common sources and destinations to tackle most of the **EL** needs. When it's not enough Data Engineers write custom jobs.
+These jobs are scheduled to **run periodically** using a job orchestrator like *Airflow/DAGster/Prefect* and they typically process a relatively small amount of data updated within specific time intervals.
 
 These jobs typically:
-- define a data **source** using:
-  - a client library: e.g. the `stripe` or `google.cloud.bigquery` modules
-  - a custom `Iterator` that loops over the pages of a REST API and yields responses
-  - ...
+- define a data **source** using client libraries (`elasticsearch`, `psycopg`, `google.cloud.storage`, `google.cloud.bigquery`, AWS's `boto3`, ...) or looping over the pages of a REST API using `requests`.
 
-- **transform** elements (may involve calls to APIs)
+- **transform** elements, may involve calling external APIs.
 
-- post into a **destination** using:
-  - a client library
-  - the `requests` module
-  - ...
+- post into a **destination** using essentially the same library options mentioned for sources.
 
-- group elements to transform or POST them by **batch**.
+- group elements to transform or post them by **batch**.
 
-- **rate limit** the calls made to APIs to respect the request quotas and avoid `HTTP 429 (Too Many Requests)` errors.
+- **rate limit** the calls made to APIs to respect the request quotas and avoid `HTTP 429 (Too Many Requests)`.
 
-- Make API calls **concurrently** using threads or `asyncio`.
+- Make API calls **concurrently** using few threads or `asyncio`.
 
 - **retry** calls in case of failure.
 
@@ -35,7 +27,7 @@ These jobs typically:
 
 - **log** the job's progress.
 
-The memory footprint of these jobs can be limited by an `Iterator`-based implementation: the source yields elements in small sets that are then processed on-the-fly and never collected.
+The memory footprint of these jobs can be limited by an `Iterator`-based implementation: the source yields elements in small sets that are then processed on-the-fly and never collected all together.
 
 In this journey one can leverage the expressive interface provided by `streamable` to produce jobs that are easy to read and to maintain.
 
