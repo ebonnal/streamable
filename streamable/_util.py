@@ -1,6 +1,6 @@
 import logging
 import sys
-from typing import Any, Callable, Type, TypeVar
+from typing import Any, Callable, Optional, Type, TypeVar
 
 LOGGER = logging.getLogger("streamable")
 LOGGER.propagate = False
@@ -56,14 +56,14 @@ def validate_concurrency(concurrency: int):
         )
 
 
-def validate_batch_size(size: int):
-    if size < 1:
-        raise ValueError(f"batch's size should be >= 1 but got {size}.")
+def validate_group_size(size: Optional[int]):
+    if size is not None and size < 1:
+        raise ValueError(f"group's size should be None or >= 1 but got {size}.")
 
 
-def validate_batch_seconds(seconds: float):
+def validate_group_seconds(seconds: float):
     if seconds <= 0:
-        raise ValueError(f"batch's seconds should be > 0 but got {seconds}.")
+        raise ValueError(f"group's seconds should be > 0 but got {seconds}.")
 
 
 def validate_slow_frequency(frequency: float):

@@ -15,7 +15,7 @@ These jobs typically:
 
 - post into a **destination** using essentially the same library options mentioned for sources.
 
-- group elements to transform or post them by **batch**.
+- **group** elements to transform or post them by **batches**.
 
 - **rate limit** the calls made to APIs to respect the request quotas and avoid `HTTP 429 (Too Many Requests)`.
 
@@ -63,7 +63,7 @@ def reverse_etl_example():
     @task
     def post_users(users_query: str):
         """
-        Iterates over users from BigQuery and POST them concurrently by batch of 100 into a third party.
+        Iterates over users from BigQuery and POST them concurrently by group of 100 into a third party.
         The rate limit (16 requests/s) of the third party is respected.
         If any exception happened the task will finally raise it.
         """
@@ -75,15 +75,15 @@ def reverse_etl_example():
             Stream(bigquery.Client(...).query(users_query).result)
             .map(dict)
             .observe("users")
-            .batch(size=100)
-            .observe("user batches")
+            .group(size=100)
+            .observe("user groups")
             .slow(frequency=16)
             .map(lambda users:
                 requests.post("https://third.party/users", json=users, headers=cast(dict, ...)),
                 concurrency=3,
             )
             .foreach(requests.Response.raise_for_status)
-            .observe("integrated user batches")
+            .observe("integrated user groups")
             .catch(raise_at_exhaustion=True)
             .explain()
             .exhaust()

@@ -42,15 +42,13 @@ Operations are ***lazy***: they do not iterate over the source.
 ## 5. iterate
 `Stream[T]` extends `Iterable[T]` allowing:
 ```python
+>>> list(odd_integer_strings)
+['1', '3', '5', '7', '9']
 >>> set(odd_integer_strings)
 {'9', '1', '5', '3', '7'}
-```
-```python
 >>> from functools import reduce
 >>> reduce(int.__add__, integers)
 45
-```
-```python
 >>> for odd_integer_string in odd_integer_strings: ...
 ```
 
@@ -64,7 +62,7 @@ Applies a function on elements.
 integer_strings: Stream[str] = integers.map(str)
 ```
 
-It has an optional `concurrency` parameter to execute the function concurrently while preserving the order (threads).
+It has an optional `concurrency: int` parameter to execute the function concurrently while preserving the order (threads).
 
 ## `.foreach`
 Applies a function on elements like `.map` but yields the elements instead of the results.
@@ -73,7 +71,7 @@ Applies a function on elements like `.map` but yields the elements instead of th
 printed_integers: Stream[int] = integers.foreach(print)
 ```
 
-It has an optional `concurrency` parameter to execute the function concurrently while preserving the order (threads).
+It has an optional `concurrency: int` parameter to execute the function concurrently while preserving the order (threads).
 
 ## `.filter`
 Filters elements based on a predicate function.
@@ -82,25 +80,27 @@ Filters elements based on a predicate function.
 pair_integers: Stream[int] = integers.filter(lambda n: n % 2 == 0)
 ```
 
-## `.batch`
+## `.group`
 
-Groups elements into batches.
+Groups elements.
 
 ```python
-integer_batches: Stream[List[int]] = integers.batch(size=100, seconds=60)
+integer_parity_groups: Stream[List[int]] = integers.group(size=100, seconds=4, by=lambda i: i % 2)
 ```
 
-A batch is a list of `size` elements but it may contain fewer elements in these cases:
+A group is a list of `size` elements for which `by` returns the same value, but it may contain fewer elements in these cases:
+- `seconds` have elapsed since the last yield of a group
 - upstream is exhausted
-- an exception occurred upstream
-- more than `seconds` have elapsed since the last batch.
+- upstream raises an exception
+
+All the parameters are optional.
 
 ## `.flatten`
 
 Ungroups elements assuming that they are `Iterable`s.
 
 ```python
-integers: Stream[int] = integer_batches.flatten()
+integers: Stream[int] = integer_groups.flatten()
 ```
 
 It has an optional `concurrency` parameter to flatten several iterables concurrently (threads).
@@ -174,7 +174,7 @@ Tip: enclose operations in parentheses to avoid trailing backslashes `\`.
 stream: Stream[str] = (
     Stream(lambda: range(10))
     .map(str)
-    .batch(2)
+    .group(2)
     .foreach(print)
     .flatten()
     .filter()

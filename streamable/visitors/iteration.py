@@ -2,11 +2,11 @@ from typing import Iterable, Iterator, TypeVar, cast
 
 from streamable import _util, functions
 from streamable.stream import (
-    BatchStream,
     CatchStream,
     FilterStream,
     FlattenStream,
     ForeachStream,
+    GroupStream,
     LimitStream,
     MapStream,
     ObserveStream,
@@ -20,16 +20,6 @@ U = TypeVar("U")
 
 
 class IterationVisitor(Visitor[Iterator[T]]):
-    def visit_batch_stream(self, stream: BatchStream[U]) -> Iterator[T]:
-        return cast(
-            Iterator[T],
-            functions.batch(
-                stream.upstream.accept(IterationVisitor[U]()),
-                stream.size,
-                stream.seconds,
-            ),
-        )
-
     def visit_catch_stream(self, stream: CatchStream[T]) -> Iterator[T]:
         return functions.catch(
             stream.upstream.accept(self),
@@ -56,6 +46,17 @@ class IterationVisitor(Visitor[Iterator[T]]):
                 _util.sidify(stream.func),
                 stream.concurrency,
             )
+        )
+
+    def visit_group_stream(self, stream: GroupStream[U]) -> Iterator[T]:
+        return cast(
+            Iterator[T],
+            functions.group(
+                stream.upstream.accept(IterationVisitor[U]()),
+                stream.size,
+                stream.seconds,
+                stream.by,
+            ),
         )
 
     def visit_limit_stream(self, stream: LimitStream[T]) -> Iterator[T]:

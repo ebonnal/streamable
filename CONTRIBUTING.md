@@ -15,7 +15,7 @@ python -m unittest
 
 ## check code coverage
 ```bash
-coverage run -m unittest && coverage report
+python -m coverage run -m unittest && coverage report
 ```
 
 ## check typing

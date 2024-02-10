@@ -18,9 +18,9 @@ from typing import (
 from streamable._util import (
     LOGGER,
     get_name,
-    validate_batch_seconds,
-    validate_batch_size,
     validate_concurrency,
+    validate_group_seconds,
+    validate_group_size,
     validate_limit_count,
     validate_slow_frequency,
 )
@@ -92,25 +92,6 @@ class Stream(Iterable[T]):
         Entry point to visit this stream (en.wikipedia.org/wiki/Visitor_pattern).
         """
         return visitor.visit_stream(self)
-
-    def batch(self, size: int, seconds: float = float("inf")) -> "Stream[List[T]]":
-        """
-        Yield upstream elements grouped in lists.
-        A list will have ` size` elements unless:
-        - an exception occurs upstream={get_object_name(self.upstream)}, the batch prior to the exception is yielded uncomplete.
-        - the time elapsed since the last yield of a batch is greater than `seconds`.
-        - upstream is exhausted.
-
-        Args:
-            size (int): Maximum number of elements per batch.
-            seconds (float, optional): Maximum number of seconds between two yields (default is infinity).
-
-        Returns:
-            Stream[List[T]]: A stream of upstream elements batched into lists.
-        """
-        validate_batch_size(size)
-        validate_batch_seconds(seconds)
-        return BatchStream(self, size, seconds)
 
     def catch(
         self,
@@ -246,6 +227,26 @@ class Stream(Iterable[T]):
         validate_concurrency(concurrency)
         return ForeachStream(self, func, concurrency)
 
+    def group(self, size: Optional[int] = None, seconds: float = float("inf"), by: Optional[Callable[[T], Any]] = None) -> "Stream[List[T]]":
+        """
+        Yield upstream elements grouped in lists.
+        A list will have ` size` elements unless:
+        - an exception occurs upstream={get_object_name(self.upstream)}, the group prior to the exception is yielded uncomplete.
+        - the time elapsed since the last yield of a group is greater than `seconds`.
+        - upstream is exhausted.
+
+        Args:
+            size (Optional[int], optional): Maximum number of elements per group (default is infinity).
+            seconds (float, optional): Maximum number of seconds between two yields (default is infinity).
+            by (Optional[Callable[[T], Any]], optional): to cogroup elements for which this function returns to the same value. (default does not cogroup).
+
+        Returns:
+            Stream[List[T]]: A stream of upstream elements grouped into lists.
+        """
+        validate_group_size(size)
+        validate_group_seconds(seconds)
+        return GroupStream(self, size, seconds, by)
+
     def limit(self, count: int) -> "Stream[T]":
         """
         Truncate to first `count` elements.
@@ -323,22 +324,9 @@ class DownStream(Stream[U], Generic[T, U]):
     def upstream(self) -> Stream[T]:
         """
         Returns:
-            Optional[Stream]: Parent stream.
+            Stream: Parent stream.
         """
         return self._upstream
-
-
-class BatchStream(DownStream[T, List[T]]):
-    def __init__(self, upstream: Stream[T], size: int, seconds: float):
-        super().__init__(upstream)
-        self.size = size
-        self.seconds = seconds
-
-    def accept(self, visitor: "Visitor[V]") -> V:
-        return visitor.visit_batch_stream(self)
-
-    def __repr__(self) -> str:
-        return f"BatchStream(upstream={get_name(self.upstream)}, size={self.size}, seconds={self.seconds})"
 
 
 class CatchStream(DownStream[T, T]):
@@ -394,6 +382,26 @@ class ForeachStream(DownStream[T, T]):
 
     def __repr__(self) -> str:
         return f"ForeachStream(upstream={get_name(self.upstream)}, func={get_name(self.func)}, concurrency={self.concurrency})"
+
+
+class GroupStream(DownStream[T, List[T]]):
+    def __init__(
+        self,
+        upstream: Stream[T],
+        size: Optional[int],
+        seconds: float,
+        by: Optional[Callable[[T], Any]],
+    ):
+        super().__init__(upstream)
+        self.size = size
+        self.seconds = seconds
+        self.by = by
+
+    def accept(self, visitor: "Visitor[V]") -> V:
+        return visitor.visit_group_stream(self)
+
+    def __repr__(self) -> str:
+        return f"GroupStream(upstream={get_name(self.upstream)}, size={self.size}, seconds={self.seconds}, by={self.by})"
 
 
 class LimitStream(DownStream[T, T]):

@@ -1,7 +1,7 @@
 import unittest
 from typing import Callable, Iterable, Iterator, List, TypeVar, cast
 
-from streamable.functions import batch, catch, flatten, limit, map, observe, slow
+from streamable.functions import catch, flatten, group, limit, map, observe, slow
 
 T = TypeVar("T")
 
@@ -21,12 +21,12 @@ class TestFunctions(unittest.TestCase):
         mapped_it_1: Iterator[int] = map(func, it)
         mapped_it_2: Iterator[int] = map(func, it, concurrency=1)
         mapped_it_3: Iterator[int] = map(func, it, concurrency=2)
-        batched_it_1: Iterator[List[int]] = batch(it, size=1)
-        batched_it_2: Iterator[List[int]] = batch(it, size=1, seconds=0.1)
-        batched_it_3: Iterator[List[int]] = batch(it, size=1, seconds=2)
-        flattened_batched_it_1: Iterator[int] = flatten(batched_it_1)
-        flattened_batched_it_2: Iterator[int] = flatten(batched_it_1, concurrency=1)
-        flattened_batched_it_3: Iterator[int] = flatten(batched_it_1, concurrency=2)
+        grouped_it_1: Iterator[List[int]] = group(it, size=1)
+        grouped_it_2: Iterator[List[int]] = group(it, size=1, seconds=0.1)
+        grouped_it_3: Iterator[List[int]] = group(it, size=1, seconds=2)
+        flattened_grouped_it_1: Iterator[int] = flatten(grouped_it_1)
+        flattened_grouped_it_2: Iterator[int] = flatten(grouped_it_1, concurrency=1)
+        flattened_grouped_it_3: Iterator[int] = flatten(grouped_it_1, concurrency=2)
         catched_it_1: Iterator[int] = catch(it, lambda ex: None)
         catched_it_2: Iterator[int] = catch(
             it, lambda ex: None, raise_at_exhaustion=True

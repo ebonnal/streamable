@@ -2,11 +2,11 @@ import unittest
 from typing import Any, cast
 
 from streamable.stream import (
-    BatchStream,
     CatchStream,
     FilterStream,
     FlattenStream,
     ForeachStream,
+    GroupStream,
     LimitStream,
     MapStream,
     ObserveStream,
@@ -23,7 +23,7 @@ class TestVisitor(unittest.TestCase):
         with self.assertRaises(NotImplementedError):
             visitor.visit_any(stream)
         with self.assertRaises(NotImplementedError):
-            visitor.visit_batch_stream(cast(BatchStream, ...))
+            visitor.visit_group_stream(cast(GroupStream, ...))
         with self.assertRaises(NotImplementedError):
             visitor.visit_catch_stream(cast(CatchStream, ...))
         with self.assertRaises(NotImplementedError):

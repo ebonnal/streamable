@@ -64,6 +64,16 @@ def pair_src() -> Iterable[int]:
     return range(0, N, 2)
 
 
+def range_raising_at_exhaustion(
+    start: int, end: int, step: int, exception: Exception
+) -> Iterator[int]:
+    yield from range(start, end, step)
+    raise exception
+
+
+src_raising_at_exhaustion = lambda: range_raising_at_exhaustion(0, N, 1, TestError())
+
+
 class TestStream(unittest.TestCase):
     def test_init(self) -> None:
         stream = Stream(src)
@@ -86,7 +96,7 @@ class TestStream(unittest.TestCase):
 
         self.assertIs(
             Stream(src)
-            .batch(100)
+            .group(100)
             .flatten()
             .map(identity)
             .filter()
@@ -118,11 +128,11 @@ class TestStream(unittest.TestCase):
         complex_stream: Stream[int] = (
             Stream(src)
             .limit(1024)
-            .filter(lambda _: True)
+            .filter()
             .foreach(lambda _: _)
             .map(cast(Callable[[Any], Any], CustomCallable()))
-            .batch(100)
-            .observe("batches")
+            .group(100)
+            .observe("groups")
             .flatten(concurrency=4)
             .slow(64)
             .observe("stream #1 elements")
@@ -429,7 +439,7 @@ class TestStream(unittest.TestCase):
         for stream in [
             Stream(remembering_src).map(identity, concurrency=concurrency),
             Stream(remembering_src).foreach(identity, concurrency=concurrency),
-            Stream(remembering_src).batch(1).flatten(concurrency=concurrency),
+            Stream(remembering_src).group(1).flatten(concurrency=concurrency),
         ]:
             yielded_elems = []
             iterator = iter(stream)
@@ -514,34 +524,34 @@ class TestStream(unittest.TestCase):
             msg="`limit` must not stop iteration when encountering exceptions",
         )
 
-    def test_batch(self) -> None:
+    def test_group(self) -> None:
         # behavior with invalid arguments
         for seconds in [-1, 0]:
             with self.assertRaises(
                 ValueError,
-                msg="`batch` should raise error when called with `seconds` <= 0.",
+                msg="`group` should raise error when called with `seconds` <= 0.",
             ):
-                list(Stream(lambda: [1]).batch(size=100, seconds=seconds)),
+                list(Stream(lambda: [1]).group(size=100, seconds=seconds)),
         for size in [-1, 0]:
             with self.assertRaises(
                 ValueError,
-                msg="`batch` should raise error when called with `size` < 1.",
+                msg="`group` should raise error when called with `size` < 1.",
             ):
-                list(Stream(lambda: [1]).batch(size=size)),
+                list(Stream(lambda: [1]).group(size=size)),
 
-        # batch size
+        # group size
         self.assertListEqual(
-            list(Stream(lambda: range(6)).batch(size=4)),
+            list(Stream(lambda: range(6)).group(size=4)),
             [[0, 1, 2, 3], [4, 5]],
             msg="",
         )
         self.assertListEqual(
-            list(Stream(lambda: range(6)).batch(size=2)),
+            list(Stream(lambda: range(6)).group(size=2)),
             [[0, 1], [2, 3], [4, 5]],
             msg="",
         )
         self.assertListEqual(
-            list(Stream(lambda: []).batch(size=2)),
+            list(Stream(lambda: []).group(size=2)),
             [],
             msg="",
         )
@@ -550,11 +560,11 @@ class TestStream(unittest.TestCase):
         def f(i):
             return i / (10 - i)
 
-        stream_iterator = iter(Stream(lambda: map(f, src())).batch(100))
+        stream_iterator = iter(Stream(lambda: map(f, src())).group(100))
         self.assertListEqual(
             next(stream_iterator),
             list(map(f, range(10))),
-            msg="when encountering upstream exception, `batch` should yield the current accumulated batch...",
+            msg="when encountering upstream exception, `group` should yield the current accumulated group...",
         )
 
         with self.assertRaises(
@@ -566,27 +576,88 @@ class TestStream(unittest.TestCase):
         self.assertListEqual(
             next(stream_iterator),
             list(map(f, range(11, 111))),
-            msg="... and restarting a fresh batch to yield after that.",
+            msg="... and restarting a fresh group to yield after that.",
         )
 
         # behavior of the `seconds` parameter
         self.assertListEqual(
             list(
-                Stream(lambda: map(slow_identity, src())).batch(
+                Stream(lambda: map(slow_identity, src())).group(
                     size=100, seconds=0.9 * slow_identity_duration
                 )
             ),
             list(map(lambda e: [e], src())),
-            msg="`batch` should yield each upstream element alone in a single-element batch if `seconds` inferior to the upstream yield period",
+            msg="`group` should yield each upstream element alone in a single-element group if `seconds` inferior to the upstream yield period",
         )
         self.assertListEqual(
             list(
-                Stream(lambda: map(slow_identity, src())).batch(
+                Stream(lambda: map(slow_identity, src())).group(
                     size=100, seconds=1.8 * slow_identity_duration
                 )
             ),
             list(map(lambda e: [e, e + 1], pair_src())),
-            msg="`batch` should yield upstream elements in a two-element batch if `seconds` inferior to twice the upstream yield period",
+            msg="`group` should yield upstream elements in a two-element group if `seconds` inferior to twice the upstream yield period",
+        )
+
+        self.assertListEqual(
+            next(iter(Stream(src).group())),
+            list(src()),
+            msg="`group` without arguments should group the elements all together",
+        )
+
+        # test by
+        stream_iter = iter(Stream(src).group(size=2, by=lambda n: n % 2))
+        self.assertListEqual(
+            [next(stream_iter), next(stream_iter)],
+            [[0, 2], [1, 3]],
+            msg="`group` called with a `by` function must cogroup elements.",
+        )
+
+        self.assertListEqual(
+            next(
+                iter(
+                    Stream(src_raising_at_exhaustion).group(
+                        size=10, by=lambda n: n % 4 != 0
+                    )
+                )
+            ),
+            [1, 2, 3, 5, 6, 7, 9, 10, 11, 13],
+            msg="`group` called with a `by` function and a `size` should yield the first batch becoming full.",
+        )
+
+        self.assertListEqual(
+            list(Stream(src).group(by=lambda n: n % 2)),
+            [list(range(0, N, 2)), list(range(1, N, 2))],
+            msg="`group` called with a `by` function and an infinite size must cogroup elements and yield groups starting with the group containing the oldest element.",
+        )
+
+        self.assertListEqual(
+            list(Stream(lambda: range(10)).group(by=lambda n: n % 4 == 0)),
+            [[0, 4, 8], [1, 2, 3, 5, 6, 7, 9]],
+            msg="`group` called with a `by` function and reaching exhaustion must cogroup elements and yield uncomplete groups starting with the group containing the oldest element, even though it's not the largest.",
+        )
+
+        stream_iter = iter(Stream(src_raising_at_exhaustion).group(by=lambda n: n % 2))
+        self.assertListEqual(
+            [next(stream_iter), next(stream_iter)],
+            [list(range(0, N, 2)), list(range(1, N, 2))],
+            msg="`group` called with a `by` function and encountering an exception must cogroup elements and yield uncomplete groups starting with the group containing the oldest element.",
+        )
+        with self.assertRaises(
+            TestError,
+            msg="`group` called with a `by` function and encountering an exception must raise it after all groups have been yielded",
+        ):
+            next(stream_iter)
+
+        # test seconds + by
+        self.assertListEqual(
+            list(
+                Stream(lambda: map(slow_identity, range(10))).group(
+                    seconds=slow_identity_duration * 2.90, by=lambda n: n % 4 == 0
+                )
+            ),
+            [[1, 2], [0, 4], [3, 5, 6, 7], [8], [9]],
+            msg="`group` called with a `by` function must cogroup elements and yield the largest groups when `seconds` is reached event though it's not the oldest.",
         )
 
     def test_slow(self) -> None:
@@ -748,14 +819,14 @@ class TestStream(unittest.TestCase):
             .observe("chars")
             .map(int)
             .observe("ints", colored=True)
-            .batch(2)
+            .group(2)
             .observe("ints_pairs")
         )
 
         self.assertListEqual(
             list(value_error_rainsing_stream.catch(ValueError)),
             [[1, 2], [3], [5, 6], [7]],
-            msg="This can break due to `batch`/`map`/`catch`, check other breaking tests to determine quickly if it's an issue with `observe`.",
+            msg="This can break due to `group`/`map`/`catch`, check other breaking tests to determine quickly if it's an issue with `observe`.",
         )
 
         with self.assertRaises(
