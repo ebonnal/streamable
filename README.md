@@ -42,14 +42,16 @@ Operations are ***lazy***: they do not iterate over the source.
 ## 5. iterate
 `Stream[T]` extends `Iterable[T]` allowing:
 ```python
-set(odd_integer_strings)
+>>> set(odd_integer_strings)
+{'9', '1', '5', '3', '7'}
 ```
 ```python
-sum(odd_integer_strings)
+>>> from functools import reduce
+>>> reduce(int.__add__, integers)
+45
 ```
 ```python
-for odd_integer_string in odd_integer_strings:
-    ...
+>>> for odd_integer_string in odd_integer_strings: ...
 ```
 
 ---
@@ -198,3 +200,9 @@ logging.getLogger("streamable").setLevel(logging.WARNING)
 
 ## visitor pattern
 The `Stream` class exposes an `.accept` method and you can implement a [***visitor***](https://en.wikipedia.org/wiki/Visitor_pattern) by extending the `streamable.visitor.Visitor` class.
+
+## Extract-Transform-Load
+
+One can leverage this module to write **readable** custom ETL jobs, especially those dealing with third party APIs.
+
+Check the [**README dedicated to ETL**](README_ETL.md).
