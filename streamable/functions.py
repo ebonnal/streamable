@@ -141,11 +141,10 @@ class _GroupingIterator(Iterator[List[T]]):
         try:
             self._group_next_elem()
 
-            while (
-                not (full_group := self._pop_full_group())
-                and not self._seconds_have_elapsed()
-            ):
+            full_group: Optional[List[T]] = self._pop_full_group()
+            while not full_group and not self._seconds_have_elapsed():
                 self._group_next_elem()
+                full_group = self._pop_full_group()
 
             if full_group:
                 return self._return_group(full_group)
