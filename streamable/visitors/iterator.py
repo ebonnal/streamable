@@ -19,7 +19,7 @@ T = TypeVar("T")
 U = TypeVar("U")
 
 
-class IterationVisitor(Visitor[Iterator[T]]):
+class IteratorVisitor(Visitor[Iterator[T]]):
     def visit_catch_stream(self, stream: CatchStream[T]) -> Iterator[T]:
         return functions.catch(
             stream.upstream.accept(self),
@@ -29,7 +29,7 @@ class IterationVisitor(Visitor[Iterator[T]]):
 
     def visit_filter_stream(self, stream: FilterStream[T]) -> Iterator[T]:
         return filter(
-            _util.raise_from(
+            _util.reraise_as(
                 stream.predicate, StopIteration, functions.WrappedStopIteration
             ),
             cast(Iterable[T], stream.upstream.accept(self)),
@@ -37,7 +37,7 @@ class IterationVisitor(Visitor[Iterator[T]]):
 
     def visit_flatten_stream(self, stream: FlattenStream[T]) -> Iterator[T]:
         return functions.flatten(
-            stream.upstream.accept(IterationVisitor[Iterable]()),
+            stream.upstream.accept(IteratorVisitor[Iterable]()),
             concurrency=stream.concurrency,
         )
 
@@ -54,7 +54,7 @@ class IterationVisitor(Visitor[Iterator[T]]):
         return cast(
             Iterator[T],
             functions.group(
-                stream.upstream.accept(IterationVisitor[U]()),
+                stream.upstream.accept(IteratorVisitor[U]()),
                 stream.size,
                 stream.seconds,
                 stream.by,
@@ -67,18 +67,18 @@ class IterationVisitor(Visitor[Iterator[T]]):
             stream.count,
         )
 
+    def visit_map_stream(self, stream: MapStream[U, T]) -> Iterator[T]:
+        return functions.map(
+            stream.func,
+            stream.upstream.accept(IteratorVisitor[U]()),
+            concurrency=stream.concurrency,
+        )
+
     def visit_observe_stream(self, stream: ObserveStream[T]) -> Iterator[T]:
         return functions.observe(
             stream.upstream.accept(self),
             stream.what,
             stream.colored,
-        )
-
-    def visit_map_stream(self, stream: MapStream[U, T]) -> Iterator[T]:
-        return functions.map(
-            stream.func,
-            stream.upstream.accept(IterationVisitor[U]()),
-            concurrency=stream.concurrency,
         )
 
     def visit_slow_stream(self, stream: SlowStream[T]) -> Iterator[T]:

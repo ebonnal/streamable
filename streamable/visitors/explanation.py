@@ -22,25 +22,70 @@ class ExplanationVisitor(Visitor[str]):
         if self.colored:
             self.linking_symbol = _util.colorize_in_grey(self.linking_symbol)
 
-    def visit_any(self, stream: stream.Stream) -> str:
+    def _explanation(self, stream: stream.Stream, attributes_repr: str) -> str:
         explanation = self.header
 
         if self.header:
             explanation += "\n"
             self.header = ""
 
-        stream_repr = repr(stream)
+        name = stream.__class__.__name__
         if self.colored:
-            name, rest = stream_repr.split("(", maxsplit=1)
-            stream_repr = _util.colorize_in_red(name) + "(" + rest
+            name = _util.colorize_in_red(name)
+
+        stream_repr = f"{name}({attributes_repr})"
 
         explanation += self.linking_symbol + stream_repr + "\n"
 
-        upstream = stream.upstream
-        if upstream is not None:
+        if stream.upstream is not None:
             explanation += textwrap.indent(
-                upstream.accept(self),
+                stream.upstream.accept(self),
                 prefix=" " * self.margin_step,
             )
 
         return explanation
+
+    def visit_stream(self, stream: stream.Stream) -> str:
+        return self._explanation(stream, f"source={_util.get_name(stream.source)}")
+
+    def visit_catch_stream(self, stream: stream.CatchStream) -> str:
+        return self._explanation(
+            stream,
+            f"predicate={_util.get_name(stream.predicate)}, raise_at_exhaustion={stream.raise_at_exhaustion}",
+        )
+
+    def visit_filter_stream(self, stream: stream.FilterStream) -> str:
+        return self._explanation(
+            stream, f"predicate={_util.get_name(stream.predicate)}"
+        )
+
+    def visit_flatten_stream(self, stream: stream.FlattenStream) -> str:
+        return self._explanation(stream, f"concurrency={stream.concurrency}")
+
+    def visit_foreach_stream(self, stream: stream.ForeachStream) -> str:
+        return self._explanation(
+            stream,
+            f"func={_util.get_name(stream.func)}, concurrency={stream.concurrency}",
+        )
+
+    def visit_group_stream(self, stream: stream.GroupStream) -> str:
+        return self._explanation(
+            stream, f"size={stream.size}, seconds={stream.seconds}, by={stream.by}"
+        )
+
+    def visit_limit_stream(self, stream: stream.LimitStream) -> str:
+        return self._explanation(stream, f"count={stream.count}")
+
+    def visit_map_stream(self, stream: stream.MapStream) -> str:
+        return self._explanation(
+            stream,
+            f"func={_util.get_name(stream.func)}, concurrency={stream.concurrency}",
+        )
+
+    def visit_observe_stream(self, stream: stream.ObserveStream) -> str:
+        return self._explanation(
+            stream, f"what='{stream.what}', colored={stream.colored}"
+        )
+
+    def visit_slow_stream(self, stream: stream.SlowStream) -> str:
+        return self._explanation(stream, f"frequency={stream.frequency}")

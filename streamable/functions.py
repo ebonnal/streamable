@@ -351,7 +351,7 @@ def catch(
     predicate: Callable[[Exception], Any] = bool,
     raise_at_exhaustion: bool = False,
 ) -> Iterator[T]:
-    predicate = _util.raise_from(
+    predicate = _util.reraise_as(
         predicate, source=StopIteration, target=WrappedStopIteration
     )
     return _CatchingIterator(
@@ -388,7 +388,7 @@ def group(
     if by is None:
         by = lambda _: None
     else:
-        by = _util.raise_from(by, StopIteration, WrappedStopIteration)
+        by = _util.reraise_as(by, StopIteration, WrappedStopIteration)
     if size is None:
         size = cast(int, float("inf"))
     return _GroupingIterator(iterator, size, seconds, by)
@@ -398,7 +398,7 @@ def map(
     func: Callable[[T], U], iterator: Iterator[T], concurrency: int = 1
 ) -> Iterator[U]:
     _util.validate_concurrency(concurrency)
-    func = _util.raise_from(func, StopIteration, WrappedStopIteration)
+    func = _util.reraise_as(func, StopIteration, WrappedStopIteration)
     if concurrency == 1:
         return builtins.map(func, iterator)
     else:

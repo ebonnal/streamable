@@ -17,7 +17,6 @@ from typing import (
 
 from streamable._util import (
     LOGGER,
-    get_name,
     validate_concurrency,
     validate_group_seconds,
     validate_group_size,
@@ -71,9 +70,9 @@ class Stream(Iterable[T]):
         return cast(Stream[T], Stream([self, other].__iter__).flatten())
 
     def __iter__(self) -> Iterator[T]:
-        from streamable.visitors.iteration import IterationVisitor
+        from streamable.visitors.iterator import IteratorVisitor
 
-        return self.accept(IterationVisitor[T]())
+        return self.accept(IteratorVisitor[T]())
 
     def exhaust(self) -> int:
         """
@@ -83,9 +82,6 @@ class Stream(Iterable[T]):
             int: The number of elements that have been yielded by the stream.
         """
         return sum(1 for _ in self)
-
-    def __repr__(self) -> str:
-        return f"Stream(source={get_name(self._source)})"
 
     def accept(self, visitor: "Visitor[V]") -> V:
         """
@@ -343,9 +339,6 @@ class CatchStream(DownStream[T, T]):
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_catch_stream(self)
 
-    def __repr__(self) -> str:
-        return f"CatchStream(upstream={get_name(self.upstream)}, predicate={get_name(self.predicate)}, raise_at_exhaustion={self.raise_at_exhaustion})"
-
 
 class FilterStream(DownStream[T, T]):
     def __init__(self, upstream: Stream[T], predicate: Callable[[T], Any]):
@@ -354,9 +347,6 @@ class FilterStream(DownStream[T, T]):
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_filter_stream(self)
-
-    def __repr__(self) -> str:
-        return f"FilterStream(upstream={get_name(self.upstream)}, predicate={get_name(self.predicate)})"
 
 
 class FlattenStream(DownStream[Iterable[T], T]):
@@ -367,9 +357,6 @@ class FlattenStream(DownStream[Iterable[T], T]):
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_flatten_stream(self)
 
-    def __repr__(self) -> str:
-        return f"FlattenStream(upstream={get_name(self.upstream)}, concurrency={self.concurrency})"
-
 
 class ForeachStream(DownStream[T, T]):
     def __init__(self, upstream: Stream[T], func: Callable[[T], Any], concurrency: int):
@@ -379,9 +366,6 @@ class ForeachStream(DownStream[T, T]):
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_foreach_stream(self)
-
-    def __repr__(self) -> str:
-        return f"ForeachStream(upstream={get_name(self.upstream)}, func={get_name(self.func)}, concurrency={self.concurrency})"
 
 
 class GroupStream(DownStream[T, List[T]]):
@@ -400,9 +384,6 @@ class GroupStream(DownStream[T, List[T]]):
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_group_stream(self)
 
-    def __repr__(self) -> str:
-        return f"GroupStream(upstream={get_name(self.upstream)}, size={self.size}, seconds={self.seconds}, by={self.by})"
-
 
 class LimitStream(DownStream[T, T]):
     def __init__(self, upstream: Stream[T], count: int) -> None:
@@ -411,9 +392,6 @@ class LimitStream(DownStream[T, T]):
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_limit_stream(self)
-
-    def __repr__(self) -> str:
-        return f"LimitStream(upstream={get_name(self.upstream)}, count={self.count})"
 
 
 class MapStream(DownStream[T, U]):
@@ -425,9 +403,6 @@ class MapStream(DownStream[T, U]):
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_map_stream(self)
 
-    def __repr__(self) -> str:
-        return f"MapStream(upstream={get_name(self.upstream)}, func={get_name(self.func)}, concurrency={self.concurrency})"
-
 
 class ObserveStream(DownStream[T, T]):
     def __init__(self, upstream: Stream[T], what: str, colored: bool):
@@ -438,9 +413,6 @@ class ObserveStream(DownStream[T, T]):
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_observe_stream(self)
 
-    def __repr__(self) -> str:
-        return f"ObserveStream(upstream={get_name(self.upstream)}, what='{self.what}', colored={self.colored})"
-
 
 class SlowStream(DownStream[T, T]):
     def __init__(self, upstream: Stream[T], frequency: float):
@@ -449,6 +421,3 @@ class SlowStream(DownStream[T, T]):
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_slow_stream(self)
-
-    def __repr__(self) -> str:
-        return f"SlowStream(upstream={get_name(self.upstream)}, frequency={self.frequency})"
