@@ -161,6 +161,12 @@ five_first_integers: Stream[int] = integers.limit(count=5)
 
 # 📦 ***Notes Box***
 
+## Extract-Transform-Load
+
+One can leverage this module to write **readable** custom ETL jobs, especially those dealing with third party APIs.
+
+Check the [**README dedicated to ETL**](README_ETL.md).
+
 ## typing
 This is a **typed module**, you can [`mypy`](https://github.com/python/mypy) it.
 
@@ -199,10 +205,21 @@ logging.getLogger("streamable").setLevel(logging.WARNING)
 ```
 
 ## visitor pattern
-The `Stream` class exposes an `.accept` method and you can implement a [***visitor***](https://en.wikipedia.org/wiki/Visitor_pattern) by extending the `streamable.visitor.Visitor` class.
+The `Stream` class exposes an `.accept` method and you can implement a [***visitor***](https://en.wikipedia.org/wiki/Visitor_pattern) by extending the `streamable.visitor.Visitor` class:
 
-## Extract-Transform-Load
+```python
+from streamable.visitor import Visitor
 
-One can leverage this module to write **readable** custom ETL jobs, especially those dealing with third party APIs.
+class DepthVisitor(Visitor[int]):
+    def visit_stream(self, stream: Stream) -> int:
+        if not stream.upstream:
+            return 1
+        return 1 + stream.upstream.accept(self)
 
-Check the [**README dedicated to ETL**](README_ETL.md).
+def stream_depth(stream: Stream) -> int:
+    return stream.accept(DepthVisitor())
+```
+```python
+>>> stream_depth(odd_integer_strings)
+3
+```
