@@ -47,8 +47,9 @@ Operations are ***lazy***: they do not iterate over the source.
 >>> set(odd_integer_strings)
 {'9', '1', '5', '3', '7'}
 >>> from functools import reduce
->>> reduce(int.__add__, integers)
-45
+>>> from operator import mul
+>>> reduce(mul, integers)
+945
 >>> for odd_integer_string in odd_integer_strings: ...
 ```
 
