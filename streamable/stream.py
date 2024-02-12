@@ -226,10 +226,10 @@ class Stream(Iterable[T]):
     def group(self, size: Optional[int] = None, seconds: float = float("inf"), by: Optional[Callable[[T], Any]] = None) -> "Stream[List[T]]":
         """
         Yield upstream elements grouped in lists.
-        A list will have ` size` elements unless:
-        - an exception occurs upstream={get_object_name(self.upstream)}, the group prior to the exception is yielded uncomplete.
-        - the time elapsed since the last yield of a group is greater than `seconds`.
-        - upstream is exhausted.
+        A group is a list of `size` elements for which `by` returns the same value, but it may contain fewer elements in these cases:
+        - `seconds` have elapsed since the last yield of a group
+        - upstream is exhausted
+        - upstream raises an exception
 
         Args:
             size (Optional[int], optional): Maximum number of elements per group (default is infinity).
