@@ -403,7 +403,7 @@ class TestStream(unittest.TestCase):
         concurrency: int,
     ) -> None:
         class odd_iterable(Iterable[int]):
-            def __init__(self, i, pair_exception: Type[Exception]):
+            def __init__(self, i, pair_exception: Type[Exception]) -> None:
                 self.i = i
                 self.pair_exception = pair_exception
 

@@ -312,7 +312,7 @@ class DownStream(Stream[U], Generic[T, U]):
     Stream that has an upstream.
     """
 
-    def __init__(self, upstream: Stream[T]):
+    def __init__(self, upstream: Stream[T]) -> None:
         Stream.__init__(self, upstream.source)
         self._upstream: Stream[T] = upstream
 
@@ -331,7 +331,7 @@ class CatchStream(DownStream[T, T]):
         upstream: Stream[T],
         predicate: Callable[[Exception], Any],
         raise_at_exhaustion: bool,
-    ):
+    ) -> None:
         super().__init__(upstream)
         self.predicate = predicate
         self.raise_at_exhaustion = raise_at_exhaustion
@@ -341,7 +341,7 @@ class CatchStream(DownStream[T, T]):
 
 
 class FilterStream(DownStream[T, T]):
-    def __init__(self, upstream: Stream[T], predicate: Callable[[T], Any]):
+    def __init__(self, upstream: Stream[T], predicate: Callable[[T], Any]) -> None:
         super().__init__(upstream)
         self.predicate = predicate
 
@@ -359,7 +359,9 @@ class FlattenStream(DownStream[Iterable[T], T]):
 
 
 class ForeachStream(DownStream[T, T]):
-    def __init__(self, upstream: Stream[T], func: Callable[[T], Any], concurrency: int):
+    def __init__(
+        self, upstream: Stream[T], func: Callable[[T], Any], concurrency: int
+    ) -> None:
         super().__init__(upstream)
         self.func = func
         self.concurrency = concurrency
@@ -375,7 +377,7 @@ class GroupStream(DownStream[T, List[T]]):
         size: Optional[int],
         seconds: float,
         by: Optional[Callable[[T], Any]],
-    ):
+    ) -> None:
         super().__init__(upstream)
         self.size = size
         self.seconds = seconds
@@ -395,7 +397,9 @@ class LimitStream(DownStream[T, T]):
 
 
 class MapStream(DownStream[T, U]):
-    def __init__(self, upstream: Stream[T], func: Callable[[T], U], concurrency: int):
+    def __init__(
+        self, upstream: Stream[T], func: Callable[[T], U], concurrency: int
+    ) -> None:
         super().__init__(upstream)
         self.func = func
         self.concurrency = concurrency
@@ -405,7 +409,7 @@ class MapStream(DownStream[T, U]):
 
 
 class ObserveStream(DownStream[T, T]):
-    def __init__(self, upstream: Stream[T], what: str, colored: bool):
+    def __init__(self, upstream: Stream[T], what: str, colored: bool) -> None:
         super().__init__(upstream)
         self.what = what
         self.colored = colored
@@ -415,7 +419,7 @@ class ObserveStream(DownStream[T, T]):
 
 
 class SlowStream(DownStream[T, T]):
-    def __init__(self, upstream: Stream[T], frequency: float):
+    def __init__(self, upstream: Stream[T], frequency: float) -> None:
         super().__init__(upstream)
         self.frequency = frequency
 

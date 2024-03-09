@@ -248,7 +248,7 @@ class _RaisingIterator(Iterator[T]):
     def __init__(
         self,
         iterator: Iterator[Union[T, ExceptionContainer]],
-    ):
+    ) -> None:
         self.iterator = iterator
 
     def __next__(self) -> T:
@@ -267,7 +267,7 @@ class _ConcurrentMappingIterable(
         func: Callable[[T], U],
         concurrency: int,
         buffer_size: int,
-    ):
+    ) -> None:
         self.iterator = iterator
         self.func = func
         self.concurrency = concurrency
@@ -302,7 +302,7 @@ class _ConcurrentFlatteningIterable(
         iterables_iterator: Iterator[Iterable[T]],
         concurrency: int,
         buffer_size: int,
-    ):
+    ) -> None:
         self.iterables_iterator = iterables_iterator
         self.concurrency = concurrency
         self.buffer_size = buffer_size
