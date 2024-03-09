@@ -1,13 +1,14 @@
 import builtins
 import itertools
 import time
+from collections import deque
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime
-from queue import Queue
 from typing import (
     Any,
     Callable,
+    Deque,
     Dict,
     Iterable,
     Iterator,
@@ -274,21 +275,21 @@ class _ConcurrentMappingIterable(
 
     def __iter__(self) -> Iterator[Union[U, _RaisingIterator.ExceptionContainer]]:
         with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
-            futures: "Queue[Future]" = Queue(maxsize=self.buffer_size)
+            futures: Deque[Future] = deque()
             # queue and yield (FIFO)
             while True:
-                # queue tasks up to queue's maxsize
-                while not futures.full():
+                # queue tasks up to buffer_size
+                while len(futures) < self.buffer_size:
                     try:
                         elem = next(self.iterator)
                     except StopIteration:
                         # the upstream iterator is exhausted
                         break
-                    futures.put(executor.submit(self.func, elem))
-                if futures.empty():
+                    futures.append(executor.submit(self.func, elem))
+                if not len(futures):
                     break
                 try:
-                    yield futures.get().result()
+                    yield futures.popleft().result()
                 except Exception as e:
                     yield _RaisingIterator.ExceptionContainer(e)
 
@@ -308,13 +309,11 @@ class _ConcurrentFlatteningIterable(
 
     def __iter__(self) -> Iterator[Union[T, _RaisingIterator.ExceptionContainer]]:
         with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
-            iterator_and_future_pairs: "Queue[Tuple[Iterator[T], Future]]" = Queue(
-                maxsize=self.buffer_size
-            )
+            iterator_and_future_pairs: Deque[Tuple[Iterator[T], Future]] = deque()
             # queue and yield (FIFO)
             while True:
-                # queue tasks up to queue's maxsize
-                while not iterator_and_future_pairs.full():
+                # queue tasks up to buffer_size
+                while len(iterator_and_future_pairs) < self.buffer_size:
                     try:
                         iterable = next(self.iterables_iterator)
                     except StopIteration:
@@ -323,11 +322,11 @@ class _ConcurrentFlatteningIterable(
                     future = executor.submit(
                         cast(Callable[[Iterable[T]], T], next), iterator
                     )
-                    iterator_and_future_pairs.put((iterator, future))
+                    iterator_and_future_pairs.append((iterator, future))
 
-                if iterator_and_future_pairs.empty():
+                if not len(iterator_and_future_pairs):
                     break
-                iterator, future = iterator_and_future_pairs.get()
+                iterator, future = iterator_and_future_pairs.popleft()
                 try:
                     yield future.result()
                 except StopIteration:
