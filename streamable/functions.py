@@ -286,7 +286,7 @@ class _ConcurrentMappingIterable(
                         # the upstream iterator is exhausted
                         break
                     futures.append(executor.submit(self.func, elem))
-                if not len(futures):
+                if not futures:
                     break
                 try:
                     yield futures.popleft().result()
@@ -324,7 +324,7 @@ class _ConcurrentFlatteningIterable(
                     )
                     iterator_and_future_pairs.append((iterator, future))
 
-                if not len(iterator_and_future_pairs):
+                if not iterator_and_future_pairs:
                     break
                 iterator, future = iterator_and_future_pairs.popleft()
                 try:
