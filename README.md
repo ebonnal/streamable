@@ -63,7 +63,7 @@ Applies a function on elements.
 integer_strings: Stream[str] = integers.map(str)
 ```
 
-It has an optional `concurrency: int` parameter to execute the function concurrently while preserving the order (threads).
+It has an optional `concurrency: int` parameter to execute the function concurrently (threads) while preserving the order.
 
 ## `.foreach`
 Applies a function on elements like `.map` but yields the elements instead of the results.
@@ -72,7 +72,7 @@ Applies a function on elements like `.map` but yields the elements instead of th
 printed_integers: Stream[int] = integers.foreach(print)
 ```
 
-It has an optional `concurrency: int` parameter to execute the function concurrently while preserving the order (threads).
+It has an optional `concurrency: int` parameter to execute the function concurrently (threads) while preserving the order.
 
 ## `.filter`
 Filters elements based on a predicate function.
