@@ -559,12 +559,13 @@ class TestStream(unittest.TestCase):
 
         # behavior with exceptions
         def f(i):
-            return i / (10 - i)
+            return i / (110 - i)
 
         stream_iterator = iter(Stream(lambda: map(f, src())).group(100))
+        next(stream_iterator)
         self.assertListEqual(
             next(stream_iterator),
-            list(map(f, range(10))),
+            list(map(f, range(100, 110))),
             msg="when encountering upstream exception, `group` should yield the current accumulated group...",
         )
 
@@ -576,7 +577,7 @@ class TestStream(unittest.TestCase):
 
         self.assertListEqual(
             next(stream_iterator),
-            list(map(f, range(11, 111))),
+            list(map(f, range(111, 211))),
             msg="... and restarting a fresh group to yield after that.",
         )
 
