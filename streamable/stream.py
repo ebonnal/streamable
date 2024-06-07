@@ -37,6 +37,13 @@ V = TypeVar("V")
 
 
 class Stream(Iterable[T]):
+    # fmt: off
+    @overload
+    def __init__(self, source: Iterable[T]) -> None: ...
+    @overload
+    def __init__(self, source: Callable[[], Iterable[T]]) -> None: ...
+    # fmt: on
+
     def __init__(self, source: Union[Iterable[T], Callable[[], Iterable[T]]]) -> None:
         """
         Initialize a Stream with a data source.
