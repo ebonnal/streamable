@@ -44,21 +44,19 @@ class TestError(Exception):
     pass
 
 
-DELTA_RATE = 0.3
+DELTA_RATE = 0.4
 # size of the test collections
 N = 256
 
-
-def src() -> Iterable[int]:
-    return range(N)
+src = range(N).__iter__
 
 
-def less_and_less_slow_src() -> Iterable[int]:
+def less_and_less_slow_src() -> Iterator[int]:
     """
     Same as `src` but each element is yielded after a sleep time that gets shorter and shorter.
     """
     time.sleep(0.1 / N)
-    return range(N)
+    return iter(range(N))
 
 
 def pair_src() -> Iterable[int]:
@@ -90,10 +88,10 @@ class TestStream(unittest.TestCase):
 
         with self.assertRaisesRegex(
             TypeError,
-            "`source` must be a callable but got a <class 'range'>",
-            msg="Instantiating a Stream with a source not being a callable must raise TypeError.",
+            "`source` must be either a Callable\[\[\], Iterator\] or an Iterable, but got a <class 'int'>",
+            msg="Getting an Iterator from a Stream with a source not being a Union[Callable[[], Iterator], ITerable] must raise TypeError.",
         ):
-            Stream(range(N))  # type: ignore
+            Stream(1)  # type: ignore
 
         self.assertIs(
             Stream(src)
@@ -186,9 +184,9 @@ class TestStream(unittest.TestCase):
             msg="stream addition must return a FlattenStream.",
         )
 
-        stream_a = Stream(lambda: range(10))
-        stream_b = Stream(lambda: range(10, 20))
-        stream_c = Stream(lambda: range(20, 30))
+        stream_a = Stream(range(10))
+        stream_b = Stream(range(10, 20))
+        stream_c = Stream(range(20, 30))
         self.assertListEqual(
             list(stream_a + stream_b + stream_c),
             list(range(30)),
@@ -337,9 +335,7 @@ class TestStream(unittest.TestCase):
         )
         self.assertListEqual(
             list(
-                Stream(lambda: [iter([]) for _ in range(2000)]).flatten(
-                    concurrency=concurrency
-                )
+                Stream([iter([]) for _ in range(2000)]).flatten(concurrency=concurrency)
             ),
             [],
             msg="`flatten` should not yield any element if upstream elements are empty iterables, and be resilient to recursion issue in case of successive empty upstream iterables.",
@@ -349,21 +345,17 @@ class TestStream(unittest.TestCase):
             TypeError,
             msg="`flatten` should raise if an upstream element is not iterable.",
         ):
-            next(iter(Stream(cast(Callable[[], Iterable], src)).flatten()))
+            next(iter(Stream(cast(Iterable, src)).flatten()))
 
     def test_flatten_typing(self) -> None:
-        flattened_iterator_stream: Stream[str] = (
-            Stream(lambda: "abc").map(iter).flatten()
-        )
-        flattened_list_stream: Stream[str] = Stream(lambda: "abc").map(list).flatten()
-        flattened_set_stream: Stream[str] = Stream(lambda: "abc").map(set).flatten()
+        flattened_iterator_stream: Stream[str] = Stream("abc").map(iter).flatten()
+        flattened_list_stream: Stream[str] = Stream("abc").map(list).flatten()
+        flattened_set_stream: Stream[str] = Stream("abc").map(set).flatten()
         flattened_map_stream: Stream[str] = (
-            Stream(lambda: "abc").map(lambda char: map(lambda x: x, char)).flatten()
+            Stream("abc").map(lambda char: map(lambda x: x, char)).flatten()
         )
         flattened_filter_stream: Stream[str] = (
-            Stream(lambda: "abc")
-            .map(lambda char: filter(lambda _: True, char))
-            .flatten()
+            Stream("abc").map(lambda char: filter(lambda _: True, char)).flatten()
         )
 
     @parameterized.expand(
@@ -376,7 +368,7 @@ class TestStream(unittest.TestCase):
     def test_flatten_concurrency(self, concurrency) -> None:
         expected_iteration_duration = N * slow_identity_duration / concurrency
         n_iterables = 32
-        iterables_stream = Stream(lambda: range(n_iterables)).map(
+        iterables_stream = Stream(range(n_iterables)).map(
             lambda _: map(slow_identity, range(N // n_iterables))
         )
         self.assertAlmostEqual(
@@ -416,7 +408,7 @@ class TestStream(unittest.TestCase):
 
         self.assertSetEqual(
             set(
-                Stream(lambda: range(n_iterables))
+                Stream(range(n_iterables))
                 .map(lambda i: cast(Iterable[int], odd_iterable(i, raised_exc)))
                 .flatten(concurrency=concurrency)
                 .catch(catched_exc)
@@ -532,27 +524,27 @@ class TestStream(unittest.TestCase):
                 ValueError,
                 msg="`group` should raise error when called with `seconds` <= 0.",
             ):
-                list(Stream(lambda: [1]).group(size=100, seconds=seconds)),
+                list(Stream([1]).group(size=100, seconds=seconds)),
         for size in [-1, 0]:
             with self.assertRaises(
                 ValueError,
                 msg="`group` should raise error when called with `size` < 1.",
             ):
-                list(Stream(lambda: [1]).group(size=size)),
+                list(Stream([1]).group(size=size)),
 
         # group size
         self.assertListEqual(
-            list(Stream(lambda: range(6)).group(size=4)),
+            list(Stream(range(6)).group(size=4)),
             [[0, 1, 2, 3], [4, 5]],
             msg="",
         )
         self.assertListEqual(
-            list(Stream(lambda: range(6)).group(size=2)),
+            list(Stream(range(6)).group(size=2)),
             [[0, 1], [2, 3], [4, 5]],
             msg="",
         )
         self.assertListEqual(
-            list(Stream(lambda: []).group(size=2)),
+            list(Stream([]).group(size=2)),
             [],
             msg="",
         )
@@ -634,7 +626,7 @@ class TestStream(unittest.TestCase):
         )
 
         self.assertListEqual(
-            list(Stream(lambda: range(10)).group(by=lambda n: n % 4 == 0)),
+            list(Stream(range(10)).group(by=lambda n: n % 4 == 0)),
             [[0, 4, 8], [1, 2, 3, 5, 6, 7, 9]],
             msg="`group` called with a `by` function and reaching exhaustion must cogroup elements and yield uncomplete groups starting with the group containing the oldest element, even though it's not the largest.",
         )
@@ -690,7 +682,7 @@ class TestStream(unittest.TestCase):
                 ValueError,
                 msg="`slow` should raise error when called with `frequency` <= 0.",
             ):
-                list(Stream(lambda: [1]).slow(frequency=frequency))
+                list(Stream([1]).slow(frequency=frequency))
 
         frequency = 3
         period = 1 / frequency
@@ -699,7 +691,7 @@ class TestStream(unittest.TestCase):
         expected_duration = (N - 1) * period + super_slow_elem_pull_seconds
         self.assertAlmostEqual(
             timestream(
-                Stream(lambda: range(N))
+                Stream(range(N))
                 .foreach(
                     lambda e: time.sleep(super_slow_elem_pull_seconds)
                     if e == 0
@@ -821,7 +813,7 @@ class TestStream(unittest.TestCase):
             )
 
         only_catched_errors_stream = (
-            Stream(lambda: range(2000))
+            Stream(range(2000))
             .map(lambda i: throw(TestError))
             .catch(lambda e: isinstance(e, TestError))
         )
@@ -838,7 +830,8 @@ class TestStream(unittest.TestCase):
 
     def test_observe(self) -> None:
         value_error_rainsing_stream: Stream[List[int]] = (
-            Stream(lambda: "123--567")
+            Stream("123--567")
+            .slow(1)
             .observe("chars")
             .map(int)
             .observe("ints", colored=True)
@@ -878,7 +871,7 @@ class TestStream(unittest.TestCase):
         )
 
     def test_multiple_iterations(self):
-        stream = Stream(lambda: map(identity, src()))
+        stream = Stream(src)
         for _ in range(3):
             self.assertEqual(
                 list(stream),

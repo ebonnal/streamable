@@ -35,16 +35,16 @@ def reraise_as(
     return wrap
 
 
-def validate_iterable(expected_iterator: Any) -> bool:
+def validate_iterable(expected_iterable: Any) -> bool:
     """
     Raises:
-        TypeError: If the expected_iterator does not implement __iter__ and __next__ methods.
+        TypeError: If the expected_iterable does not implement __iter__ and __next__ methods.
     """
     try:
-        expected_iterator.__iter__
+        expected_iterable.__iter__
     except AttributeError:
         raise TypeError(
-            f"Provided object is not an iterator because it does not implement the __iter__ methods."
+            f"Provided object is not an iterable because it does not implement the __iter__ methods."
         )
     return True
 

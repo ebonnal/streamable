@@ -20,10 +20,10 @@ from streamable import Stream
 ## 3. init
 
 ```python
-integers: Stream[int] = Stream(lambda: range(10))
+integers: Stream[int] = Stream(range(10))
 ```
 
-Instantiate a `Stream[T]` by providing a function that returns a fresh `Iterable[T]` (the data source).
+Instantiate a `Stream[T]` from an `Iterable[T]` (the data source).
 
 ## 4. operate
 
@@ -179,7 +179,7 @@ Tip: enclose operations in parentheses to avoid trailing backslashes `\`.
 
 ```python
 stream: Stream[str] = (
-    Stream(lambda: range(10))
+    Stream(range(10))
     .map(str)
     .group(2)
     .foreach(print)

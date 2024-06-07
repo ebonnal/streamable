@@ -85,6 +85,6 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         return functions.slow(stream.upstream.accept(self), stream.frequency)
 
     def visit_stream(self, stream: Stream[T]) -> Iterator[T]:
-        iterable = stream._source()
+        iterable = stream._source() if callable(stream._source) else stream._source
         _util.validate_iterable(iterable)
         return iter(iterable)

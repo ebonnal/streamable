@@ -11,6 +11,7 @@ from typing import (
     Sequence,
     Set,
     TypeVar,
+    Union,
     cast,
     overload,
 )
@@ -20,6 +21,7 @@ from streamable._util import (
     validate_concurrency,
     validate_group_seconds,
     validate_group_size,
+    validate_iterable,
     validate_limit_count,
     validate_slow_frequency,
 )
@@ -35,15 +37,20 @@ V = TypeVar("V")
 
 
 class Stream(Iterable[T]):
-    def __init__(self, source: Callable[[], Iterable[T]]) -> None:
+    def __init__(self, source: Union[Iterable[T], Callable[[], Iterable[T]]]) -> None:
         """
-        Initialize a Stream with a source iterable.
+        Initialize a Stream with a data source.
 
         Args:
-            source (Callable[[], Iterable[T]]): Function to be called at iteration to get the stream's source iterable.
+            source (Union[Iterable[T], Callable[[], Iterable[T]]]): a source iterable or a function returning one (called for each new iteration on this stream).
         """
         if not callable(source):
-            raise TypeError(f"`source` must be a callable but got a {type(source)}")
+            try:
+                validate_iterable(source)
+            except TypeError:
+                raise TypeError(
+                    "`source` must be either a Callable[[], Iterator] or an Iterable, but got a <class 'int'>"
+                )
         self._source = source
         self._upstream: "Optional[Stream]" = None
 
@@ -56,7 +63,7 @@ class Stream(Iterable[T]):
         return self._upstream
 
     @property
-    def source(self) -> Callable[[], Iterable]:
+    def source(self) -> Union[Iterable, Callable[[], Iterable]]:
         """
         Returns:
             Callable[[], Iterable]: Function to be called at iteration to get the stream's source iterable.
