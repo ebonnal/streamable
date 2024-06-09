@@ -870,7 +870,7 @@ class TestStream(unittest.TestCase):
             l, list(src()), msg="`__len__` should iterate over the entire stream."
         )
 
-    def test_multiple_iterations(self):
+    def test_multiple_iterations(self) -> None:
         stream = Stream(src)
         for _ in range(3):
             self.assertEqual(
