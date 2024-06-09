@@ -1,7 +1,20 @@
+import asyncio
 import time
 import timeit
 import unittest
-from typing import Any, Callable, Iterable, Iterator, List, Set, Type, TypeVar, cast
+from typing import (
+    Any,
+    Callable,
+    Coroutine,
+    Iterable,
+    Iterator,
+    List,
+    Set,
+    Tuple,
+    Type,
+    TypeVar,
+    cast,
+)
 
 from parameterized import parameterized  # type: ignore
 
@@ -11,12 +24,14 @@ from streamable.functions import WrappedStopIteration
 T = TypeVar("T")
 
 
-def timestream(stream: Stream):
-    def iterate():
-        for _ in stream:
-            pass
+def timestream(stream: Stream[T]) -> Tuple[float, List[T]]:
+    res: List[T] = []
 
-    return timeit.timeit(iterate, number=1)
+    def iterate():
+        nonlocal res
+        res = list(stream)
+
+    return timeit.timeit(iterate, number=1), res
 
 
 # simulates an I/0 bound function
@@ -28,16 +43,52 @@ def slow_identity(x: T) -> T:
     return x
 
 
+async def async_slow_identity(x: T) -> T:
+    await asyncio.sleep(slow_identity_duration)
+    return x
+
+
 def identity(x: T) -> T:
     return x
+
+
+# fmt: off
+async def async_identity(x: T) -> T: return x
+# fmt: on
 
 
 def square(x):
     return x**2
 
 
+async def async_square(x):
+    return x**2
+
+
 def throw(exc: Type[Exception]):
     raise exc()
+
+
+def throw_func(exc: Type[Exception]) -> Callable[[Any], None]:
+    return lambda _: throw(exc)
+
+
+def async_throw_func(exc: Type[Exception]) -> Callable[[Any], Coroutine]:
+    async def f(_: Any) -> None:
+        raise exc
+
+    return f
+
+
+def throw_for_odd_func(exc):
+    return lambda i: throw(exc) if i % 2 == 1 else i
+
+
+def async_throw_for_odd_func(exc):
+    async def f(i):
+        return throw(exc) if i % 2 == 1 else i
+
+    return f
 
 
 class TestError(Exception):
@@ -48,19 +99,18 @@ DELTA_RATE = 0.4
 # size of the test collections
 N = 256
 
-src = range(N).__iter__
+src = range(N)
+
+pair_src = range(0, N, 2)
 
 
 def less_and_less_slow_src() -> Iterator[int]:
     """
     Same as `src` but each element is yielded after a sleep time that gets shorter and shorter.
     """
-    time.sleep(0.1 / N)
-    return iter(range(N))
-
-
-def pair_src() -> Iterable[int]:
-    return range(0, N, 2)
+    for i, elem in enumerate(src):
+        time.sleep(0.1 / (i + 1))
+        yield elem
 
 
 def range_raising_at_exhaustion(
@@ -98,8 +148,10 @@ class TestStream(unittest.TestCase):
             .group(100)
             .flatten()
             .map(identity)
+            .amap(async_identity)
             .filter()
             .foreach(identity)
+            .aforeach(async_identity)
             .catch()
             .observe()
             .slow(1)
@@ -129,7 +181,9 @@ class TestStream(unittest.TestCase):
             .limit(1024)
             .filter()
             .foreach(lambda _: _)
+            .aforeach(async_identity)
             .map(cast(Callable[[Any], Any], CustomCallable()))
+            .amap(async_identity)
             .group(100)
             .observe("groups")
             .flatten(concurrency=4)
@@ -196,6 +250,7 @@ class TestStream(unittest.TestCase):
     @parameterized.expand(
         [
             [Stream.map, [identity]],
+            [Stream.amap, [async_identity]],
             [Stream.foreach, [identity]],
             [Stream.flatten, []],
         ]
@@ -229,7 +284,7 @@ class TestStream(unittest.TestCase):
     def test_map(self, concurrency) -> None:
         self.assertListEqual(
             list(Stream(less_and_less_slow_src).map(square, concurrency=concurrency)),
-            list(map(square, src())),
+            list(map(square, src)),
             msg="At any concurrency the `map` method should act as the builtin map function, transforming elements while preserving input elements order.",
         )
 
@@ -254,24 +309,35 @@ class TestStream(unittest.TestCase):
 
         self.assertListEqual(
             res,
-            list(src()),
+            list(src),
             msg="At any concurrency the `foreach` method should return the upstream elements in order.",
         )
         self.assertSetEqual(
             side_collection,
-            set(map(square, src())),
+            set(map(square, src)),
             msg="At any concurrency the `foreach` method should call func on upstream elements (in any order).",
         )
 
     @parameterized.expand(
         [
-            [raised_exc, catched_exc, concurrency, method]
+            [
+                raised_exc,
+                catched_exc,
+                concurrency,
+                method,
+                throw_func_,
+                throw_for_odd_func_,
+            ]
             for raised_exc, catched_exc in [
                 (TestError, TestError),
-                (StopIteration, WrappedStopIteration),
+                (StopIteration, (WrappedStopIteration, RuntimeError)),
             ]
             for concurrency in [1, 2]
-            for method in [Stream.foreach, Stream.map]
+            for method, throw_func_, throw_for_odd_func_ in [
+                (Stream.foreach, throw_func, throw_for_odd_func),
+                (Stream.map, throw_func, throw_for_odd_func),
+                (Stream.amap, async_throw_func, async_throw_for_odd_func),
+            ]
         ]
     )
     def test_map_or_foreach_with_exception(
@@ -280,36 +346,42 @@ class TestStream(unittest.TestCase):
         catched_exc: Type[Exception],
         concurrency: int,
         method: Callable[[Stream, Callable[[Any], int], int], Stream],
+        throw_func: Callable[[Exception], Callable[[Any], int]],
+        throw_for_odd_func: Callable[[Exception], Callable[[Any], int]],
     ) -> None:
         with self.assertRaises(
             catched_exc,
             msg="At any concurrency, `map`and `foreach` must raise",
         ):
-            list(method(Stream(src), lambda _: throw(raised_exc), concurrency))
+            list(method(Stream(src), throw_func(raised_exc), concurrency))  # type: ignore
 
         self.assertListEqual(
             list(
-                method(
-                    Stream(src),
-                    lambda i: throw(raised_exc) if i % 2 == 1 else i,
-                    concurrency,
-                ).catch(catched_exc)
+                method(Stream(src), throw_for_odd_func(raised_exc), concurrency).catch(  # type: ignore
+                    lambda exc: isinstance(exc, catched_exc)
+                )
             ),
-            list(pair_src()),
+            list(pair_src),
             msg="At any concurrency, `map`and `foreach` must not stop after one exception occured.",
         )
 
     @parameterized.expand(
         [
-            [method, concurrency]
-            for method in [Stream.foreach, Stream.map]
+            [method, func, concurrency]
+            for method, func in [
+                (Stream.foreach, slow_identity),
+                (Stream.map, slow_identity),
+                (Stream.amap, async_slow_identity),
+            ]
             for concurrency in [1, 2, 4]
         ]
     )
-    def test_map_and_foreach_concurrency(self, method, concurrency) -> None:
+    def test_map_and_foreach_concurrency(self, method, func, concurrency) -> None:
         expected_iteration_duration = N * slow_identity_duration / concurrency
+        duration, res = timestream(method(Stream(src), func, concurrency=concurrency))
+        self.assertListEqual(res, list(src))
         self.assertAlmostEqual(
-            timestream(method(Stream(src), slow_identity, concurrency=concurrency)),
+            duration,
             expected_iteration_duration,
             delta=expected_iteration_duration * DELTA_RATE,
             msg="Increasing the concurrency of mapping should decrease proportionnally the iteration's duration.",
@@ -371,8 +443,9 @@ class TestStream(unittest.TestCase):
         iterables_stream = Stream(range(n_iterables)).map(
             lambda _: map(slow_identity, range(N // n_iterables))
         )
+        duration, _ = timestream(iterables_stream.flatten(concurrency=concurrency))
         self.assertAlmostEqual(
-            timestream(iterables_stream.flatten(concurrency=concurrency)),
+            duration,
             expected_iteration_duration,
             delta=expected_iteration_duration * DELTA_RATE,
             msg="Increasing the concurrency of mapping should decrease proportionnally the iteration's duration.",
@@ -425,7 +498,7 @@ class TestStream(unittest.TestCase):
 
         def remembering_src() -> Iterator[int]:
             nonlocal yielded_elems
-            for elem in src():
+            for elem in src:
                 yielded_elems.append(elem)
                 yield elem
 
@@ -456,19 +529,19 @@ class TestStream(unittest.TestCase):
 
         self.assertListEqual(
             list(Stream(src).filter(predicate)),
-            list(filter(predicate, src())),
+            list(filter(predicate, src)),
             msg="`filter` must act like builtin filter",
         )
         self.assertListEqual(
             list(Stream(src).filter()),
-            list(filter(None, src())),
+            list(filter(None, src)),
             msg="`filter` without predicate must act like builtin filter with None predicate.",
         )
 
     def test_limit(self) -> None:
         self.assertEqual(
             list(Stream(src).limit(N * 2)),
-            list(src()),
+            list(src),
             msg="`limit` must be ok with count >= stream length",
         )
         self.assertEqual(
@@ -502,7 +575,7 @@ class TestStream(unittest.TestCase):
         n_iterations = 0
         count = N // 2
         raising_stream_iterator = iter(
-            Stream(lambda: map(lambda x: x / 0, src())).limit(count)
+            Stream(lambda: map(lambda x: x / 0, src)).limit(count)
         )
         while True:
             try:
@@ -553,7 +626,7 @@ class TestStream(unittest.TestCase):
         def f(i):
             return i / (110 - i)
 
-        stream_iterator = iter(Stream(lambda: map(f, src())).group(100))
+        stream_iterator = iter(Stream(lambda: map(f, src)).group(100))
         next(stream_iterator)
         self.assertListEqual(
             next(stream_iterator),
@@ -576,26 +649,26 @@ class TestStream(unittest.TestCase):
         # behavior of the `seconds` parameter
         self.assertListEqual(
             list(
-                Stream(lambda: map(slow_identity, src())).group(
+                Stream(lambda: map(slow_identity, src)).group(
                     size=100, seconds=0.9 * slow_identity_duration
                 )
             ),
-            list(map(lambda e: [e], src())),
+            list(map(lambda e: [e], src)),
             msg="`group` should yield each upstream element alone in a single-element group if `seconds` inferior to the upstream yield period",
         )
         self.assertListEqual(
             list(
-                Stream(lambda: map(slow_identity, src())).group(
+                Stream(lambda: map(slow_identity, src)).group(
                     size=100, seconds=1.8 * slow_identity_duration
                 )
             ),
-            list(map(lambda e: [e, e + 1], pair_src())),
+            list(map(lambda e: [e, e + 1], pair_src)),
             msg="`group` should yield upstream elements in a two-element group if `seconds` inferior to twice the upstream yield period",
         )
 
         self.assertListEqual(
             next(iter(Stream(src).group())),
-            list(src()),
+            list(src),
             msg="`group` without arguments should group the elements all together",
         )
 
@@ -689,16 +762,15 @@ class TestStream(unittest.TestCase):
         super_slow_elem_pull_seconds = 1
         N = 10
         expected_duration = (N - 1) * period + super_slow_elem_pull_seconds
+        duration, _ = timestream(
+            Stream(range(N))
+            .foreach(
+                lambda e: time.sleep(super_slow_elem_pull_seconds) if e == 0 else None
+            )
+            .slow(frequency=frequency)
+        )
         self.assertAlmostEqual(
-            timestream(
-                Stream(range(N))
-                .foreach(
-                    lambda e: time.sleep(super_slow_elem_pull_seconds)
-                    if e == 0
-                    else None
-                )
-                .slow(frequency=frequency)
-            ),
+            duration,
             expected_duration,
             delta=0.1 * expected_duration,
             msg="avoid bursts after very slow particular upstream elements",
@@ -748,8 +820,8 @@ class TestStream(unittest.TestCase):
         def f(i):
             return i / (3 - i)
 
-        stream = Stream(lambda: map(f, src()))
-        safe_src = list(src())
+        stream = Stream(lambda: map(f, src))
+        safe_src = list(src)
         del safe_src[3]
         self.assertListEqual(
             list(stream.catch(lambda e: isinstance(e, ZeroDivisionError))),
@@ -862,12 +934,12 @@ class TestStream(unittest.TestCase):
             l.append(x)
 
         self.assertEqual(
-            Stream(lambda: map(effect, src())).exhaust(),
+            Stream(lambda: map(effect, src)).exhaust(),
             N,
             msg="`__len__` should return the number of iterated elements.",
         )
         self.assertListEqual(
-            l, list(src()), msg="`__len__` should iterate over the entire stream."
+            l, list(src), msg="`__len__` should iterate over the entire stream."
         )
 
     def test_multiple_iterations(self) -> None:
@@ -875,6 +947,54 @@ class TestStream(unittest.TestCase):
         for _ in range(3):
             self.assertEqual(
                 list(stream),
-                list(src()),
+                list(src),
                 msg="The first iteration over a stream should yield the same elements as any subsequent iteration on the same stream, even if it is based on a `source` returning an iterator that only support 1 iteration.",
             )
+
+    @parameterized.expand(
+        [
+            [1],
+            [100],
+        ]
+    )
+    def test_amap(self, concurrency) -> None:
+        self.assertListEqual(
+            list(
+                Stream(less_and_less_slow_src).amap(
+                    async_square, concurrency=concurrency
+                )
+            ),
+            list(map(square, src)),
+            msg="At any concurrency the `amap` method should act as the builtin map function, transforming elements while preserving input elements order.",
+        )
+        stream = Stream(src).amap(identity)  # type: ignore
+        with self.assertRaisesRegex(
+            TypeError,
+            "The `func` passed to `amap` or `aforeach` must return a Coroutine object, but got a <class 'int'>.",
+            msg="`amap` should raise a TypeError if a non async function is passed to it.",
+        ):
+            next(iter(stream))
+
+    @parameterized.expand(
+        [
+            [1],
+            [100],
+        ]
+    )
+    def test_aforeach(self, concurrency) -> None:
+        self.assertListEqual(
+            list(
+                Stream(less_and_less_slow_src).aforeach(
+                    async_square, concurrency=concurrency
+                )
+            ),
+            list(src),
+            msg="At any concurrency the `foreach` method must preserve input elements order.",
+        )
+        stream = Stream(src).aforeach(identity)  # type: ignore
+        with self.assertRaisesRegex(
+            TypeError,
+            "`func` is expected to return a Coroutine but got a <class 'int'>.",
+            msg="`aforeach` should raise a TypeError if a non async function is passed to it.",
+        ):
+            next(iter(stream))

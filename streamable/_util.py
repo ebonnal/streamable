@@ -1,6 +1,6 @@
 import logging
 import sys
-from typing import Any, Callable, Optional, Type, TypeVar
+from typing import Any, Callable, Coroutine, Optional, Type, TypeVar
 
 LOGGER = logging.getLogger("streamable")
 LOGGER.propagate = False
@@ -16,8 +16,23 @@ R = TypeVar("R")
 
 
 def sidify(func: Callable[[T], Any]) -> Callable[[T], T]:
-    def wrap(arg):
+    def wrap(arg: T):
         func(arg)
+        return arg
+
+    return wrap
+
+
+def async_sidify(
+    func: Callable[[T], Coroutine]
+) -> Callable[[T], Coroutine[Any, Any, T]]:
+    async def wrap(arg: T) -> T:
+        coroutine = func(arg)
+        if not isinstance(coroutine, Coroutine):
+            raise TypeError(
+                f"`func` is expected to return a Coroutine but got a {type(coroutine)}."
+            )
+        await coroutine
         return arg
 
     return wrap

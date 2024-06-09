@@ -2,6 +2,8 @@ from typing import Iterable, Iterator, TypeVar, cast
 
 from streamable import _util, functions
 from streamable.stream import (
+    AForeachStream,
+    AMapStream,
     CatchStream,
     FilterStream,
     FlattenStream,
@@ -50,6 +52,15 @@ class IteratorVisitor(Visitor[Iterator[T]]):
             )
         )
 
+    def visit_aforeach_stream(self, stream: AForeachStream[T]) -> Iterator[T]:
+        return self.visit_amap_stream(
+            AMapStream(
+                stream.upstream,
+                _util.async_sidify(stream.func),
+                stream.concurrency,
+            )
+        )
+
     def visit_group_stream(self, stream: GroupStream[U]) -> Iterator[T]:
         return cast(
             Iterator[T],
@@ -69,6 +80,13 @@ class IteratorVisitor(Visitor[Iterator[T]]):
 
     def visit_map_stream(self, stream: MapStream[U, T]) -> Iterator[T]:
         return functions.map(
+            stream.func,
+            stream.upstream.accept(IteratorVisitor[U]()),
+            concurrency=stream.concurrency,
+        )
+
+    def visit_amap_stream(self, stream: AMapStream[U, T]) -> Iterator[T]:
+        return functions.amap(
             stream.func,
             stream.upstream.accept(IteratorVisitor[U]()),
             concurrency=stream.concurrency,

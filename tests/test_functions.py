@@ -1,5 +1,5 @@
 import unittest
-from typing import Callable, Iterable, Iterator, List, TypeVar, cast
+from typing import Callable, Iterator, List, TypeVar, cast
 
 from streamable.functions import catch, flatten, group, limit, map, observe, slow
 
@@ -10,13 +10,12 @@ T = TypeVar("T")
 N = 256
 
 
-def src() -> Iterable[int]:
-    return range(N)
+src = range(N)
 
 
 class TestFunctions(unittest.TestCase):
     def test_signatures(self) -> None:
-        it = iter(src())
+        it = iter(src)
         func = cast(Callable[[int], int], ...)
         mapped_it_1: Iterator[int] = map(func, it)
         mapped_it_2: Iterator[int] = map(func, it, concurrency=1)

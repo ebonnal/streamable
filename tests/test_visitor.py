@@ -2,6 +2,8 @@ import unittest
 from typing import cast
 
 from streamable.stream import (
+    AForeachStream,
+    AMapStream,
     CatchStream,
     FilterStream,
     FlattenStream,
@@ -28,8 +30,10 @@ class TestVisitor(unittest.TestCase):
         visitor.visit_filter_stream(cast(FilterStream, ...))
         visitor.visit_flatten_stream(cast(FlattenStream, ...))
         visitor.visit_foreach_stream(cast(ForeachStream, ...))
+        visitor.visit_aforeach_stream(cast(AForeachStream, ...))
         visitor.visit_limit_stream(cast(LimitStream, ...))
         visitor.visit_map_stream(cast(MapStream, ...))
+        visitor.visit_amap_stream(cast(AMapStream, ...))
         visitor.visit_observe_stream(cast(ObserveStream, ...))
         visitor.visit_slow_stream(cast(SlowStream, ...))
         visitor.visit_stream(cast(Stream, ...))

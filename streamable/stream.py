@@ -3,6 +3,7 @@ from typing import (
     Any,
     Callable,
     Collection,
+    Coroutine,
     Generic,
     Iterable,
     Iterator,
@@ -237,6 +238,24 @@ class Stream(Iterable[T]):
         validate_concurrency(concurrency)
         return ForeachStream(self, func, concurrency)
 
+    def aforeach(
+        self,
+        func: Callable[[T], Coroutine],
+        concurrency: int = 1,
+    ) -> "Stream[T]":
+        """
+        Call the asynchronous `func` on upstream elements and yield them in order.
+        If the `func(elem)` coroutine throws an exception then it will be thrown and `elem` will not be yielded.
+
+        Args:
+            func (Callable[[T], Any]): The asynchronous function to be applied to each element.
+            concurrency (int): How many asyncio tasks will run at the same time.
+        Returns:
+            Stream[T]: A stream of upstream elements, unchanged.
+        """
+        validate_concurrency(concurrency)
+        return AForeachStream(self, func, concurrency)
+
     def group(
         self,
         size: Optional[int] = None,
@@ -291,6 +310,23 @@ class Stream(Iterable[T]):
         """
         validate_concurrency(concurrency)
         return MapStream(self, func, concurrency)
+
+    def amap(
+        self,
+        func: Callable[[T], Coroutine[Any, Any, U]],
+        concurrency: int = 1,
+    ) -> "Stream[U]":
+        """
+        Apply an asynchronous `func` on upstream elements and yield the results in order.
+
+        Args:
+            func (Callable[[T], Coroutine[Any, Any, U]]): The asynchronous function to be applied to each element.
+            concurrency (int): How many asyncio tasks will run at the same time.
+        Returns:
+            Stream[R]: A stream of results of `func` applied to upstream elements.
+        """
+        validate_concurrency(concurrency)
+        return AMapStream(self, func, concurrency)
 
     def observe(self, what: str = "elements", colored: bool = False) -> "Stream[T]":
         """
@@ -389,6 +425,18 @@ class ForeachStream(DownStream[T, T]):
         return visitor.visit_foreach_stream(self)
 
 
+class AForeachStream(DownStream[T, T]):
+    def __init__(
+        self, upstream: Stream[T], func: Callable[[T], Coroutine], concurrency: int
+    ) -> None:
+        super().__init__(upstream)
+        self.func = func
+        self.concurrency = concurrency
+
+    def accept(self, visitor: "Visitor[V]") -> V:
+        return visitor.visit_aforeach_stream(self)
+
+
 class GroupStream(DownStream[T, List[T]]):
     def __init__(
         self,
@@ -425,6 +473,21 @@ class MapStream(DownStream[T, U]):
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_map_stream(self)
+
+
+class AMapStream(DownStream[T, U]):
+    def __init__(
+        self,
+        upstream: Stream[T],
+        func: Callable[[T], Coroutine[Any, Any, U]],
+        concurrency: int,
+    ) -> None:
+        super().__init__(upstream)
+        self.func = func
+        self.concurrency = concurrency
+
+    def accept(self, visitor: "Visitor[V]") -> V:
+        return visitor.visit_amap_stream(self)
 
 
 class ObserveStream(DownStream[T, T]):

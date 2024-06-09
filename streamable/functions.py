@@ -1,3 +1,4 @@
+import asyncio
 import builtins
 import itertools
 import time
@@ -8,6 +9,7 @@ from datetime import datetime
 from typing import (
     Any,
     Callable,
+    Coroutine,
     Deque,
     Dict,
     Iterable,
@@ -294,6 +296,53 @@ class _ConcurrentMappingIterable(
                     yield _RaisingIterator.ExceptionContainer(e)
 
 
+class _AsyncConcurrentMappingIterable(
+    Iterable[Union[U, _RaisingIterator.ExceptionContainer]]
+):
+    _LOOP = asyncio.get_event_loop()
+
+    def __init__(
+        self,
+        iterator: Iterator[T],
+        func: Callable[[T], Coroutine[Any, Any, U]],
+        buffer_size: int,
+    ) -> None:
+        self.iterator = iterator
+        self.func = func
+        self.buffer_size = buffer_size
+
+    async def _safe_func(
+        self, elem: T
+    ) -> Union[U, _RaisingIterator.ExceptionContainer]:
+        try:
+            coroutine = self.func(elem)
+            if not isinstance(coroutine, Coroutine):
+                raise TypeError(
+                    f"The `func` passed to `amap` or `aforeach` must return a Coroutine object, but got a {type(coroutine)}."
+                )
+            return await coroutine
+        except Exception as e:
+            return _RaisingIterator.ExceptionContainer(e)
+
+    def __iter__(self) -> Iterator[Union[U, _RaisingIterator.ExceptionContainer]]:
+        awaitables: Deque[
+            asyncio.Task[Union[U, _RaisingIterator.ExceptionContainer]]
+        ] = deque()
+        # queue and yield (FIFO)
+        while True:
+            # queue tasks up to buffer_size
+            while len(awaitables) < self.buffer_size:
+                try:
+                    elem = next(self.iterator)
+                except StopIteration:
+                    # the upstream iterator is exhausted
+                    break
+                awaitables.append(self._LOOP.create_task(self._safe_func(elem)))
+            if not awaitables:
+                break
+            yield self._LOOP.run_until_complete(awaitables.popleft())
+
+
 class _ConcurrentFlatteningIterable(
     Iterable[Union[T, _RaisingIterator.ExceptionContainer]]
 ):
@@ -411,6 +460,23 @@ def map(
                 )
             )
         )
+
+
+def amap(
+    func: Callable[[T], Coroutine[Any, Any, U]],
+    iterator: Iterator[T],
+    concurrency: int = 1,
+) -> Iterator[U]:
+    _util.validate_concurrency(concurrency)
+    return _RaisingIterator(
+        iter(
+            _AsyncConcurrentMappingIterable(
+                iterator,
+                _util.reraise_as(func, StopIteration, WrappedStopIteration),
+                buffer_size=concurrency,
+            )
+        )
+    )
 
 
 def limit(iterator: Iterator[T], count: int) -> Iterator[T]:

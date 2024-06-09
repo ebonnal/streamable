@@ -65,6 +65,8 @@ integer_strings: Stream[str] = integers.map(str)
 
 It has an optional `concurrency: int` parameter to execute the function concurrently (threads) while preserving the order.
 
+There is also an async counterpart operation called `.amap` to run coroutines concurrently (`asyncio`).
+
 ## `.foreach`
 Applies a function on elements like `.map` but yields the elements instead of the results.
 
@@ -73,6 +75,8 @@ printed_integers: Stream[int] = integers.foreach(print)
 ```
 
 It has an optional `concurrency: int` parameter to execute the function concurrently (threads) while preserving the order.
+
+There is also an async counterpart operation called `.aforeach` to run coroutines concurrently (`asyncio`).
 
 ## `.filter`
 Filters elements based on a predicate function.
@@ -187,6 +191,37 @@ stream: Stream[str] = (
     .filter()
     .catch()
 )
+```
+
+## `asyncio` support
+The majority of the use cases should find convenient the threads-based concurrency available when using `.map` or `.foreach`, but as an alternative there are the `.amap` and `.aforeach` operations that **allow to apply `async` functions** concurrently on your stream:
+
+```python
+import asyncio
+import time
+
+async def slow_async_square(n: int) -> int:
+    await asyncio.sleep(3)
+    return n ** 2
+
+def slow_str(n: int) -> str:
+    time.sleep(3)
+    return str(n)
+
+print(
+    ", ".join(
+        integers
+        # coroutines-based concurrency
+        .amap(slow_async_square, concurrency=8)
+        # threads-based concurrency
+        .map(slow_str, concurrency=8)
+        .limit(5)
+    )
+)
+```
+this prints (in 6s):
+```bash
+0, 1, 4, 9, 16
 ```
 
 ## functions

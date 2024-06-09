@@ -1,6 +1,21 @@
 import textwrap
+from typing import cast
 
 from streamable import _util, stream
+from streamable.stream import (
+    AForeachStream,
+    AMapStream,
+    CatchStream,
+    FilterStream,
+    FlattenStream,
+    ForeachStream,
+    GroupStream,
+    LimitStream,
+    MapStream,
+    ObserveStream,
+    SlowStream,
+    Stream,
+)
 from streamable.visitor import Visitor
 
 
@@ -45,47 +60,50 @@ class ExplanationVisitor(Visitor[str]):
 
         return explanation
 
-    def visit_stream(self, stream: stream.Stream) -> str:
+    def visit_stream(self, stream: Stream) -> str:
         return self._explanation(stream, f"source={_util.get_name(stream.source)}")
 
-    def visit_catch_stream(self, stream: stream.CatchStream) -> str:
+    def visit_catch_stream(self, stream: CatchStream) -> str:
         return self._explanation(
             stream,
             f"predicate={_util.get_name(stream.predicate)}, raise_at_exhaustion={stream.raise_at_exhaustion}",
         )
 
-    def visit_filter_stream(self, stream: stream.FilterStream) -> str:
+    def visit_filter_stream(self, stream: FilterStream) -> str:
         return self._explanation(
             stream, f"predicate={_util.get_name(stream.predicate)}"
         )
 
-    def visit_flatten_stream(self, stream: stream.FlattenStream) -> str:
+    def visit_flatten_stream(self, stream: FlattenStream) -> str:
         return self._explanation(stream, f"concurrency={stream.concurrency}")
 
-    def visit_foreach_stream(self, stream: stream.ForeachStream) -> str:
-        return self._explanation(
-            stream,
-            f"func={_util.get_name(stream.func)}, concurrency={stream.concurrency}",
-        )
+    def visit_foreach_stream(self, stream: ForeachStream) -> str:
+        return self.visit_map_stream(cast(MapStream, stream))
 
-    def visit_group_stream(self, stream: stream.GroupStream) -> str:
+    def visit_aforeach_stream(self, stream: AForeachStream) -> str:
+        return self.visit_map_stream(cast(MapStream, stream))
+
+    def visit_group_stream(self, stream: GroupStream) -> str:
         return self._explanation(
             stream, f"size={stream.size}, seconds={stream.seconds}, by={stream.by}"
         )
 
-    def visit_limit_stream(self, stream: stream.LimitStream) -> str:
+    def visit_limit_stream(self, stream: LimitStream) -> str:
         return self._explanation(stream, f"count={stream.count}")
 
-    def visit_map_stream(self, stream: stream.MapStream) -> str:
+    def visit_map_stream(self, stream: MapStream) -> str:
         return self._explanation(
             stream,
             f"func={_util.get_name(stream.func)}, concurrency={stream.concurrency}",
         )
 
-    def visit_observe_stream(self, stream: stream.ObserveStream) -> str:
+    def visit_amap_stream(self, stream: AMapStream) -> str:
+        return self.visit_map_stream(cast(MapStream, stream))
+
+    def visit_observe_stream(self, stream: ObserveStream) -> str:
         return self._explanation(
             stream, f"what='{stream.what}', colored={stream.colored}"
         )
 
-    def visit_slow_stream(self, stream: stream.SlowStream) -> str:
+    def visit_slow_stream(self, stream: SlowStream) -> str:
         return self._explanation(stream, f"frequency={stream.frequency}")
