@@ -1,10 +1,22 @@
-# `streamable`: *fluent iteration*
-
+# ༄ `streamable`: *fluent iteration*
 [![Actions Status](https://github.com/ebonnal/streamable/workflows/unittest/badge.svg)](https://github.com/ebonnal/streamable/actions)
 [![codecov](https://codecov.io/gh/ebonnal/streamable/graph/badge.svg?token=S62T0JQK9N)](https://codecov.io/gh/ebonnal/streamable)
 [![Actions Status](https://github.com/ebonnal/streamable/workflows/typing/badge.svg)](https://github.com/ebonnal/streamable/actions)
 [![Actions Status](https://github.com/ebonnal/streamable/workflows/lint/badge.svg)](https://github.com/ebonnal/streamable/actions)
 [![Actions Status](https://github.com/ebonnal/streamable/workflows/PyPI/badge.svg)](https://github.com/ebonnal/streamable/actions)
+
+---
+
+**TL;DR:**
+-  ***typed***: the `Stream[T]` class extends `Iterable[T]`
+-  ***light***: `pip install streamable` with no dependency
+-  ***robust***: extensively unittested with 100% coverage
+- ***lazy***: evaluation at iteration and single scan of the source.
+- ***concurrent***: threads-based or `asyncio`-based
+- ***versatile***: includes grouping by key/period/size, exceptions catching, iteration rate limiting and progress logging, ...
+
+---
+
 
 ## 1. install
 
@@ -23,7 +35,7 @@ from streamable import Stream
 integers: Stream[int] = Stream(range(10))
 ```
 
-Instantiate a `Stream[T]` from an `Iterable[T]` (the data source).
+Instantiate a `Stream[T]` from an `Iterable[T]`.
 
 ## 4. operate
 
@@ -35,12 +47,14 @@ odd_integer_strings: Stream[str] = (
 )
 ```
 
-`Stream` instances are ***immutable***: operations return a new stream.
+- `Stream` instances are ***immutable***: calling an operation returns a new stream.
 
-Operations are ***lazy***: they do not iterate over the source.
+- Operations are ***lazy***: they are only evaluated at iteration time.
+
+- During the iteration each source element is pulled only once and then forgotten after being processed.
 
 ## 5. iterate
-`Stream[T]` extends `Iterable[T]` allowing:
+`Stream[T]` extends `Iterable[T]`:
 ```python
 >>> list(odd_integer_strings)
 ['1', '3', '5', '7', '9']
@@ -63,9 +77,9 @@ Applies a function on elements.
 integer_strings: Stream[str] = integers.map(str)
 ```
 
-It has an optional `concurrency: int` parameter to execute the function concurrently (threads) while preserving the order.
+It has an optional `concurrency: int` parameter to execute the function concurrently (threads-based) while preserving the order.
 
-There is also an async counterpart operation called `.amap` to run coroutines concurrently (`asyncio`).
+It has a sibling operation called `.amap` to apply an async function concurrently (see section ***`asyncio` support***).
 
 ## `.foreach`
 Applies a function on elements like `.map` but yields the elements instead of the results.
@@ -73,10 +87,9 @@ Applies a function on elements like `.map` but yields the elements instead of th
 ```python
 printed_integers: Stream[int] = integers.foreach(print)
 ```
+It has an optional `concurrency: int` parameter to execute the function concurrently (threads-based) while preserving the order.
 
-It has an optional `concurrency: int` parameter to execute the function concurrently (threads) while preserving the order.
-
-There is also an async counterpart operation called `.aforeach` to run coroutines concurrently (`asyncio`).
+It has a sibling operation called `.aforeach` to apply an async function concurrently (see section ***`asyncio` support***).
 
 ## `.filter`
 Filters elements based on a predicate function.
