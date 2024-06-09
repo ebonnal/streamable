@@ -1,6 +1,6 @@
 import logging
 import sys
-from typing import Any, Callable, Optional, Type, TypeVar
+from typing import Any, AsyncIterable, Awaitable, Callable, Iterable, Optional, Type, TypeVar, Union
 
 LOGGER = logging.getLogger("streamable")
 LOGGER.propagate = False
@@ -38,15 +38,22 @@ def reraise_as(
 def validate_iterable(expected_iterable: Any) -> bool:
     """
     Raises:
-        TypeError: If the expected_iterable does not implement __iter__ and __next__ methods.
+        TypeError: If the expected_iterable does not implement __iter__ method.
     """
-    try:
-        expected_iterable.__iter__
-    except AttributeError:
+    if not isinstance(expected_iterable, Iterable):
         raise TypeError(
-            f"Provided object is not an iterable because it does not implement the __iter__ methods."
+            f"Provided object of {type(expected_iterable)} is not an iterable because it does not implement the __iter__ method."
         )
-    return True
+
+def validate_aiterable(expected_aiterable: Any) -> bool:
+    """
+    Raises:
+        TypeError: If the expected_iterable does not implement __aiter__ method.
+    """
+    if not isinstance(expected_aiterable, AsyncIterable):
+        raise TypeError(
+            f"Provided object is not an async iterable because it does not implement the __aiter__ method."
+        )
 
 
 def validate_concurrency(concurrency: int):
@@ -99,3 +106,55 @@ def get_name(o: object):
         return o.__name__  # type: ignore
     except AttributeError:
         return o.__class__.__name__ + "(...)"
+
+# async
+
+import asyncio
+from typing import AsyncIterator, Iterator, TypeVar
+
+T = TypeVar("T")
+U = TypeVar("U")
+
+class AsyncIteratorToIterator(Iterator[T]):
+    """
+    Wraps an async iterator as a regular iterator.
+    """
+
+    def __init__(self, async_iterator: AsyncIterator[T]):
+        self.async_iterator = async_iterator
+    
+    def __iter__(self) -> Iterator[T]:
+        return self
+
+    def __next__(self) -> T:
+        try:
+            return asyncio.run(anext(self.async_iterator))
+        except StopAsyncIteration:
+            raise StopIteration()
+
+def running_coroutine(func: Union[Callable[[T], U], Callable[[T], Awaitable[U]]]) -> Callable[[T], U]:
+    """
+    Takes a function `func` and returns a function that does the same as `func` except when func would have returned
+    an Awaitable, in that case it runs it and returns the result instead.
+    """
+    def f(arg: T):
+        res = func(arg)
+        if isinstance(res, Awaitable):
+            return asyncio.run(res)
+        return res
+    return f
+
+# def as_returning_coroutine(func: Union[Callable[[T], U], Callable[[T], Awaitable[U]]]) -> Callable[[T], Awaitable[U]]:
+#     """
+#     Takes a function `func` and returns a function that does the same as `func` except when it does not return
+#     an awaitable, in that case it returns the result wrapped as an Awaitable.
+#     """
+#     return func
+#     # async def f(arg: T):
+#     #     res = func(arg)
+#     #     if not isinstance(res, Awaitable):
+#     #         async def const():
+#     #             return res
+#     #         return const()
+#     #     return res
+#     # return f

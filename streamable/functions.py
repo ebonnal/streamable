@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import (
     Any,
+    AsyncIterator,
+    Awaitable,
     Callable,
     Deque,
     Dict,
@@ -425,3 +427,20 @@ def observe(iterator: Iterator[T], what: str, colored: bool = False) -> Iterator
 def slow(iterator: Iterator[T], frequency: float) -> Iterator[T]:
     _util.validate_slow_frequency(frequency)
     return _SlowingIterator(iterator, frequency)
+
+# async
+class _AsyncMappingIterator(AsyncIterator[T]):
+    def __init__(self, func: Callable[[T], Awaitable[U]], aiterator: AsyncIterator[T]) -> None:
+        self.func = func
+        self.aiterator = aiterator
+    
+    def __aiter__(self) -> AsyncIterator[T]:
+        return self
+
+    async def __anext__(self) -> Awaitable[T]:
+        return await self.func(await anext(self.aiterator))
+
+def amap(
+    func: Callable[[T], Awaitable[U]], aiterator: AsyncIterator[T]
+) -> AsyncIterator[U]:
+    return _AsyncMappingIterator(func, aiterator)

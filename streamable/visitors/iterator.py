@@ -1,6 +1,7 @@
-from typing import Iterable, Iterator, TypeVar, cast
+from typing import AsyncIterable, Callable, Iterable, Iterator, TypeVar, cast
 
 from streamable import _util, functions
+
 from streamable.stream import (
     CatchStream,
     FilterStream,
@@ -69,7 +70,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
 
     def visit_map_stream(self, stream: MapStream[U, T]) -> Iterator[T]:
         return functions.map(
-            stream.func,
+            _util.running_coroutine(stream.func),
             stream.upstream.accept(IteratorVisitor[U]()),
             concurrency=stream.concurrency,
         )
@@ -85,6 +86,12 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         return functions.slow(stream.upstream.accept(self), stream.frequency)
 
     def visit_stream(self, stream: Stream[T]) -> Iterator[T]:
-        iterable = stream._source() if callable(stream._source) else stream._source
+        if isinstance(stream._source, Callable):
+            iterable = stream._source()
+        else:
+            iterable = stream._source
+        if isinstance(iterable, AsyncIterable):
+            iterable = _util.AsyncIteratorToIterator(iterable)
+
         _util.validate_iterable(iterable)
         return iter(iterable)

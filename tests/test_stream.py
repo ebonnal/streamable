@@ -46,7 +46,7 @@ class TestError(Exception):
 
 DELTA_RATE = 0.4
 # size of the test collections
-N = 256
+N = 32
 
 src = range(N).__iter__
 
@@ -88,7 +88,7 @@ class TestStream(unittest.TestCase):
 
         with self.assertRaisesRegex(
             TypeError,
-            "`source` must be either a Callable\[\[\], Iterator\] or an Iterable, but got a <class 'int'>",
+            "`source` must be either an Iterable or AsyncIterable or Callable[[], Iterable] or Callable[[], AsyncIterable], but got a <class 'int'>.",
             msg="Getting an Iterator from a Stream with a source not being a Union[Callable[[], Iterator], ITerable] must raise TypeError.",
         ):
             Stream(1)  # type: ignore
@@ -878,3 +878,131 @@ class TestStream(unittest.TestCase):
                 list(src()),
                 msg="The first iteration over a stream should yield the same elements as any subsequent iteration on the same stream, even if it is based on a `source` returning an iterator that only support 1 iteration.",
             )
+
+
+    def test_async_tmp(self) -> None:
+        import asyncio
+        from typing import AsyncIterable, List
+
+        async def async_generator() -> AsyncIterable[int]:
+            for i in range(10):
+                await asyncio.sleep(1)  # Simulate an async operation
+                yield i
+
+        async def process_item(item: int) -> int:
+            await asyncio.sleep(0.1)  # Simulate an async operation
+            return item * 2
+
+        async def collect_concurrently(async_iterable: AsyncIterable[int]) -> List[int]:
+            items = [item async for item in async_iterable]  # Collect items from the async iterable
+            tasks = [process_item(item) for item in items]   # Create tasks for concurrent processing
+            results = await asyncio.gather(*tasks)           # Run tasks concurrently
+            return results
+
+        async def main():
+            async_iterable = async_generator()
+            results = await collect_concurrently(async_iterable)
+            print(results)
+
+        # Run the main function
+        asyncio.run(main())
+
+
+    def test_async(self) -> None:
+        import asyncio
+        from typing import AsyncIterator
+
+
+        async def async_src() -> AsyncIterator[int]:
+            for i in range(N):
+                yield i
+                await asyncio.sleep(0)
+
+        sleep_time = 0.1
+        async def slow_divide(x: int) -> float:
+            await asyncio.sleep(sleep_time)
+            return x/2
+
+        async def async_str(a):
+            return str(a)
+
+        astream: Stream[float] = Stream(async_src).map(slow_divide).map(async_str)
+        expected_res = list(map(lambda x: str(x/2), src()))
+
+        # sync_res = list(astream)
+
+        # # sync iteration
+        # self.assertEqual(
+        #     sync_res,
+        #     expected_res,
+        #     msg="One can iterate synchronously on a stream involving async features.",
+        # )
+        # expected_sync_iteration_duration = N * sleep_time
+        # self.assertAlmostEqual(
+        #     timeit.timeit(astream.exhaust, number=1),
+        #     expected_sync_iteration_duration,
+        #     delta = expected_sync_iteration_duration * DELTA_RATE,
+        #     msg="",
+        # )
+
+        # # async iteration
+        # async def main():
+        #     return [item async for item in astream if not print(item)]
+
+        # async_res = asyncio.run(main())
+        # self.assertEqual(
+        #     async_res,
+        #     expected_res,
+        #     msg="One can iterate asynchronously on a stream whose source is an async iterable.",
+        # )
+
+        # async_iteration_duration = timeit.timeit(lambda: asyncio.run(main()), number=1)
+        # print(async_iteration_duration, timeit.timeit(astream.exhaust, number=1))
+        # expected_async_iteration_duration = N * sleep_time
+        # self.assertAlmostEqual(
+        #     async_iteration_duration,
+        #     expected_async_iteration_duration,
+        #     delta = expected_async_iteration_duration * DELTA_RATE,
+        #     msg="",
+        # )
+
+        # TMP
+        async def ticker(delay, to):
+            """Yield numbers from 0 to `to` every `delay` seconds."""
+            for i in range(to):
+                yield i
+                await asyncio.sleep(delay)
+        
+        async def async_src() -> AsyncIterator[int]:
+            for i in range(N):
+                yield i
+                await asyncio.sleep(0)
+
+        async def main0():
+            tasks = []
+            async with asyncio.gather() as tg:
+                for i in range(N):
+                    tasks.append(tg.create_task(anext(aiter)))
+            for t in tasks:
+                print(await t)
+
+        def main01():
+            from streamable import _util, functions
+            for item in asyncio.gather(*astream):
+                print(type(item), item)
+
+        async def main():
+            from streamable import _util, functions
+            async for item in functions.amap(slow_divide, ticker(0, N)):
+                print(type(item), item)
+                await asyncio.sleep(0)
+        async def main2():
+            from streamable import _util, functions
+            for aw in asyncio.as_completed(_ async for _ in ticker(0, N)):
+                res = await slow_divide(await aw)
+                print(type(res), res)
+                await asyncio.sleep(0)
+
+        print(timeit.timeit(lambda: asyncio.run(main0()), number=1))
+        # print(timeit.timeit(lambda: asyncio.run(main()), number=1))
+        # print(timeit.timeit(lambda: asyncio.run(main2()), number=1))

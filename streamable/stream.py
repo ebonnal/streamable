@@ -1,6 +1,8 @@
 from typing import (
     TYPE_CHECKING,
     Any,
+    AsyncIterable,
+    Awaitable,
     Callable,
     Collection,
     Generic,
@@ -36,28 +38,29 @@ T = TypeVar("T")
 V = TypeVar("V")
 
 
-class Stream(Iterable[T]):
+class Stream(Iterable[T], AsyncIterable[T]):
     # fmt: off
     @overload
     def __init__(self, source: Iterable[T]) -> None: ...
     @overload
     def __init__(self, source: Callable[[], Iterable[T]]) -> None: ...
+    @overload
+    def __init__(self, source: AsyncIterable[T]) -> None: ...
+    @overload
+    def __init__(self, source: Callable[[], AsyncIterable[T]]) -> None: ...
     # fmt: on
 
-    def __init__(self, source: Union[Iterable[T], Callable[[], Iterable[T]]]) -> None:
+    def __init__(self, source: Union[Iterable[T], Callable[[], Iterable[T]], AsyncIterable[T], Callable[[], AsyncIterable[T]]]) -> None:
         """
         Initialize a Stream with a data source.
 
         Args:
             source (Union[Iterable[T], Callable[[], Iterable[T]]]): a source iterable or a function returning one (called for each new iteration on this stream).
         """
-        if not callable(source):
-            try:
-                validate_iterable(source)
-            except TypeError:
-                raise TypeError(
-                    "`source` must be either a Callable[[], Iterator] or an Iterable, but got a <class 'int'>"
-                )
+        if not isinstance(source, (Callable, Iterable, AsyncIterable)):
+            raise TypeError(
+                f"`source` must be either an Iterable or AsyncIterable or Callable[[], Iterable] or Callable[[], AsyncIterable], but got a {type(source)}."
+            )
         self._source = source
         self._upstream: "Optional[Stream]" = None
 
@@ -87,6 +90,11 @@ class Stream(Iterable[T]):
         from streamable.visitors.iterator import IteratorVisitor
 
         return self.accept(IteratorVisitor[T]())
+
+    def __aiter__(self) -> Iterator[T]:
+        from streamable.visitors.aiterator import AsyncIteratorVisitor
+
+        return self.accept(AsyncIteratorVisitor[T]())
 
     def exhaust(self) -> int:
         """
@@ -202,7 +210,7 @@ class Stream(Iterable[T]):
         self: "Stream[Set[U]]",
         concurrency: int = 1,
     ) -> "Stream[U]": ...
-    # fmt: off
+    # fmt: on
 
     def flatten(
         self: "Stream[Iterable[U]]",
@@ -269,6 +277,14 @@ class Stream(Iterable[T]):
         """
         validate_limit_count(count)
         return LimitStream(self, count)
+
+    # fmt: off
+    @overload
+    def map(
+        self,
+        func: Callable[[T], Awaitable[U]],
+    ) -> "Stream[U]": ...
+    # fmt: on
 
     def map(
         self,
