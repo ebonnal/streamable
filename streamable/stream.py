@@ -202,7 +202,7 @@ class Stream(Iterable[T]):
         self: "Stream[Set[U]]",
         concurrency: int = 1,
     ) -> "Stream[U]": ...
-    # fmt: off
+    # fmt: on
 
     def flatten(
         self: "Stream[Iterable[U]]",
@@ -237,7 +237,12 @@ class Stream(Iterable[T]):
         validate_concurrency(concurrency)
         return ForeachStream(self, func, concurrency)
 
-    def group(self, size: Optional[int] = None, seconds: float = float("inf"), by: Optional[Callable[[T], Any]] = None) -> "Stream[List[T]]":
+    def group(
+        self,
+        size: Optional[int] = None,
+        seconds: float = float("inf"),
+        by: Optional[Callable[[T], Any]] = None,
+    ) -> "Stream[List[T]]":
         """
         Yield upstream elements grouped in lists.
         A group is a list of `size` elements for which `by` returns the same value, but it may contain fewer elements in these cases:
