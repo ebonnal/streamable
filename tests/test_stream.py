@@ -504,7 +504,9 @@ class TestStream(unittest.TestCase):
 
         for stream in [
             Stream(remembering_src).map(identity, concurrency=concurrency),
+            Stream(remembering_src).amap(async_identity, concurrency=concurrency),
             Stream(remembering_src).foreach(identity, concurrency=concurrency),
+            Stream(remembering_src).aforeach(async_identity, concurrency=concurrency),
             Stream(remembering_src).group(1).flatten(concurrency=concurrency),
         ]:
             yielded_elems = []
@@ -519,8 +521,8 @@ class TestStream(unittest.TestCase):
             time.sleep(0.5)
             self.assertEqual(
                 len(yielded_elems),
-                concurrency,
-                msg=f"after the first call to `next` a concurrent {type(stream)} should have pulled only {concurrency} (=concurrency) upstream elements.",
+                concurrency + 1,
+                msg=f"after the first call to `next` a concurrent {type(stream)} should have pulled only {concurrency + 1} (== concurrency + 1) upstream elements.",
             )
 
     def test_filter(self) -> None:

@@ -278,8 +278,15 @@ class _ConcurrentMappingIterable(
     def __iter__(self) -> Iterator[Union[U, _RaisingIterator.ExceptionContainer]]:
         with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
             futures: Deque[Future] = deque()
-            # queue and yield (FIFO)
+            element_to_yield: List[Union[U, _RaisingIterator.ExceptionContainer]] = []
+            # wait, queue, yield (FIFO)
             while True:
+                if futures:
+                    try:
+                        element_to_yield.append(futures.popleft().result())
+                    except Exception as e:
+                        element_to_yield.append(_RaisingIterator.ExceptionContainer(e))
+
                 # queue tasks up to buffer_size
                 while len(futures) < self.buffer_size:
                     try:
@@ -288,12 +295,10 @@ class _ConcurrentMappingIterable(
                         # the upstream iterator is exhausted
                         break
                     futures.append(executor.submit(self.func, elem))
+                if element_to_yield:
+                    yield element_to_yield.pop()
                 if not futures:
                     break
-                try:
-                    yield futures.popleft().result()
-                except Exception as e:
-                    yield _RaisingIterator.ExceptionContainer(e)
 
 
 class _AsyncConcurrentMappingIterable(
@@ -328,8 +333,13 @@ class _AsyncConcurrentMappingIterable(
         awaitables: Deque[
             asyncio.Task[Union[U, _RaisingIterator.ExceptionContainer]]
         ] = deque()
-        # queue and yield (FIFO)
+        element_to_yield: List[Union[U, _RaisingIterator.ExceptionContainer]] = []
+        # wait, queue, yield (FIFO)
         while True:
+            if awaitables:
+                element_to_yield.append(
+                    self._LOOP.run_until_complete(awaitables.popleft())
+                )
             # queue tasks up to buffer_size
             while len(awaitables) < self.buffer_size:
                 try:
@@ -338,9 +348,10 @@ class _AsyncConcurrentMappingIterable(
                     # the upstream iterator is exhausted
                     break
                 awaitables.append(self._LOOP.create_task(self._safe_func(elem)))
+            if element_to_yield:
+                yield element_to_yield.pop()
             if not awaitables:
                 break
-            yield self._LOOP.run_until_complete(awaitables.popleft())
 
 
 class _ConcurrentFlatteningIterable(
@@ -356,11 +367,26 @@ class _ConcurrentFlatteningIterable(
         self.concurrency = concurrency
         self.buffer_size = buffer_size
 
+    def _requeue(self, iterator: Iterator[T]) -> None:
+        self.iterables_iterator = itertools.chain(self.iterables_iterator, [iterator])
+
     def __iter__(self) -> Iterator[Union[T, _RaisingIterator.ExceptionContainer]]:
         with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
             iterator_and_future_pairs: Deque[Tuple[Iterator[T], Future]] = deque()
-            # queue and yield (FIFO)
+            element_to_yield: List[Union[T, _RaisingIterator.ExceptionContainer]] = []
+            # wait, queue, yield (FIFO)
             while True:
+                if iterator_and_future_pairs:
+                    iterator, future = iterator_and_future_pairs.popleft()
+                    try:
+                        element_to_yield.append(future.result())
+                        self._requeue(iterator)
+                    except StopIteration:
+                        pass
+                    except Exception as e:
+                        element_to_yield.append(_RaisingIterator.ExceptionContainer(e))
+                        self._requeue(iterator)
+
                 # queue tasks up to buffer_size
                 while len(iterator_and_future_pairs) < self.buffer_size:
                     try:
@@ -372,19 +398,10 @@ class _ConcurrentFlatteningIterable(
                         cast(Callable[[Iterable[T]], T], next), iterator
                     )
                     iterator_and_future_pairs.append((iterator, future))
-
+                if element_to_yield:
+                    yield element_to_yield.pop()
                 if not iterator_and_future_pairs:
                     break
-                iterator, future = iterator_and_future_pairs.popleft()
-                try:
-                    yield future.result()
-                except StopIteration:
-                    continue
-                except Exception as e:
-                    yield _RaisingIterator.ExceptionContainer(e)
-                self.iterables_iterator = itertools.chain(
-                    self.iterables_iterator, [iterator]
-                )
 
 
 # functions
