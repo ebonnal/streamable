@@ -69,6 +69,7 @@ def reverse_etl_example():
         """
         from google.cloud import bigquery
         import requests
+        import tenacity
         from streamable import Stream
 
         (
@@ -79,7 +80,11 @@ def reverse_etl_example():
             .observe("user groups")
             .slow(frequency=16)
             .map(lambda users:
-                requests.post("https://third.party/users", json=users, headers=cast(dict, ...)),
+                retry(wait=wait_fixed(1), stop=stop_after_attempt(3))(requests.post)(
+                    "https://third.party/users",
+                    json=users,
+                    headers=cast(dict, ...)
+                ),
                 concurrency=3,
             )
             .foreach(requests.Response.raise_for_status)
