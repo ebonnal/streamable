@@ -304,8 +304,6 @@ class _ConcurrentMappingIterable(
 class _AsyncConcurrentMappingIterable(
     Iterable[Union[U, _RaisingIterator.ExceptionContainer]]
 ):
-    _LOOP = asyncio.get_event_loop()
-
     def __init__(
         self,
         iterator: Iterator[T],
@@ -330,6 +328,7 @@ class _AsyncConcurrentMappingIterable(
             return _RaisingIterator.ExceptionContainer(e)
 
     def __iter__(self) -> Iterator[Union[U, _RaisingIterator.ExceptionContainer]]:
+        loop = asyncio.get_event_loop()
         awaitables: Deque[
             asyncio.Task[Union[U, _RaisingIterator.ExceptionContainer]]
         ] = deque()
@@ -337,9 +336,7 @@ class _AsyncConcurrentMappingIterable(
         # wait, queue, yield (FIFO)
         while True:
             if awaitables:
-                element_to_yield.append(
-                    self._LOOP.run_until_complete(awaitables.popleft())
-                )
+                element_to_yield.append(loop.run_until_complete(awaitables.popleft()))
             # queue tasks up to buffer_size
             while len(awaitables) < self.buffer_size:
                 try:
@@ -347,7 +344,7 @@ class _AsyncConcurrentMappingIterable(
                 except StopIteration:
                     # the upstream iterator is exhausted
                     break
-                awaitables.append(self._LOOP.create_task(self._safe_func(elem)))
+                awaitables.append(loop.create_task(self._safe_func(elem)))
             if element_to_yield:
                 yield element_to_yield.pop()
             if not awaitables:
