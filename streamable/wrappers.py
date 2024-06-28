@@ -187,7 +187,7 @@ class ObservingIterator(Iterator[T]):
         self._n_errors = 0
         self._last_log_after_n_calls = 0
         self._start_time = time.time()
-        _util.LOGGER.info("iteration over '%s' will be observed.", self.what)
+        _util.get_logger().info("iteration over '%s' will be observed.", self.what)
 
     def _log(self) -> None:
         errors_summary = f"{self._n_errors} error"
@@ -203,7 +203,9 @@ class ObservingIterator(Iterator[T]):
 
         elapsed_time = f"after {datetime.fromtimestamp(time.time()) - datetime.fromtimestamp(self._start_time)}"
 
-        _util.LOGGER.info("%s, %s and %s", elapsed_time, errors_summary, yields_summary)
+        _util.get_logger().info(
+            "%s, %s and %s", elapsed_time, errors_summary, yields_summary
+        )
 
     def _n_calls(self) -> int:
         return self._n_yields + self._n_errors

@@ -18,7 +18,7 @@ from typing import (
 )
 
 from streamable._util import (
-    LOGGER,
+    get_logger,
     validate_concurrency,
     validate_group_seconds,
     validate_group_size,
@@ -125,7 +125,7 @@ class Stream(Iterable[T]):
         """
         Log this stream's explanation (INFO level)
         """
-        LOGGER.info(self.explanation(colored))
+        get_logger().info(self.explanation(colored))
         return self
 
     def explanation(self, colored: bool = False) -> str:

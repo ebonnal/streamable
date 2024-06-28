@@ -2,13 +2,20 @@ import logging
 import sys
 from typing import Any, Callable, Coroutine, Optional, Type, TypeVar
 
-LOGGER = logging.getLogger("streamable")
-LOGGER.propagate = False
-handler = logging.StreamHandler()
-formatter = logging.Formatter("%(asctime)s: %(levelname)s: %(message)s")
-handler.setFormatter(formatter)
-LOGGER.addHandler(handler)
-LOGGER.setLevel(logging.INFO)
+_logger: Optional[logging.Logger] = None
+
+
+def get_logger() -> logging.Logger:
+    global _logger
+    if not _logger:
+        _logger = logging.getLogger("streamable")
+        _logger.propagate = False
+        _handler = logging.StreamHandler()
+        _formatter = logging.Formatter("%(asctime)s: %(levelname)s: %(message)s")
+        _handler.setFormatter(_formatter)
+        _logger.addHandler(_handler)
+        _logger.setLevel(logging.INFO)
+    return _logger
 
 
 T = TypeVar("T")
