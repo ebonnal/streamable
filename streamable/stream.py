@@ -57,7 +57,7 @@ class Stream(Iterable[T]):
                 validate_iterable(source)
             except TypeError:
                 raise TypeError(
-                    "`source` must be either a Callable[[], Iterator] or an Iterable, but got a <class 'int'>"
+                    "`source` must be either a Callable[[], Iterable] or an Iterable, but got a <class 'int'>"
                 )
         self._source = source
         self._upstream: "Optional[Stream]" = None
