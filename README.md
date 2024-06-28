@@ -179,35 +179,14 @@ five_first_integers: Stream[int] = integers.limit(count=5)
 
 # 📦 ***Notes Box***
 
-## Extract-Transform-Load
-
-One can leverage this module to write **readable** custom ETL jobs, especially those dealing with third party APIs.
-
-Check the [**README dedicated to ETL**](README_ETL.md).
-
 ## typing
-This is a **typed module**, you can [`mypy`](https://github.com/python/mypy) it.
+This is a **fully typed library** (you can [`mypy`](https://github.com/python/mypy) it).
 
 ## supported Python versions
-Compatible with **Python `3.7` or newer** (unittested for: `3.7.17`, `3.8.18`, `3.9.18`, `3.10.13`, `3.11.7`, `3.12.1`).
+Compatible with **Python `3.7+`** (unittested for: `3.7.17`, `3.8.18`, `3.9.18`, `3.10.13`, `3.11.7`, `3.12.1`).
 
-## go to line
-Tip: enclose operations in parentheses to avoid trailing backslashes `\`.
-
-```python
-stream: Stream[str] = (
-    Stream(range(10))
-    .map(str)
-    .group(2)
-    .foreach(print)
-    .flatten()
-    .filter()
-    .catch()
-)
-```
-
-## `asyncio` support
-The majority of the use cases should find convenient the threads-based concurrency available when using `.map` or `.foreach`, but as an alternative there are the `.amap` and `.aforeach` operations that **allow to apply `async` functions** concurrently on your stream:
+## support for `asyncio`
+As an alternative to the threads-based concurrency available for `.map` and `.foreach` operations (via the `concurrency` parameter), one can use `.amap` and `.aforeach` operations to **apply `async` functions** concurrently on a stream:
 
 ```python
 import asyncio
@@ -237,7 +216,35 @@ this prints (in 6s):
 0, 1, 4, 9, 16
 ```
 
-## functions
+## CPU-bound tasks
+For CPU-bound tasks, consider using the [`pypy`](https://github.com/pypy/pypy) interpreter whose *Just In Time* (JIT) compilation should drastically improve performances, e.g. this snippet:
+```python
+# cpu_bound_script.py
+from streamable import Stream
+print(
+    sum(
+        Stream(range(1, 100_000_000))
+        .map(lambda n: 1/n)
+    )
+)
+```
+is run **30 times faster** by [`pypy`](https://github.com/pypy/pypy) compared to standard *CPython* interpreter:
+
+```bash
+% time python3 cpu_bound_script.py
+18.997896403852554
+python3 -c   10.31s user 0.02s system 99% cpu 10.394 total
+
+% time pypy3 cpu_bound_script.py
+18.997896403852554
+pypy3 -c   0.28s user 0.05s system 81% cpu 0.304 total
+```
+
+## Extract-Transform-Load tasks
+
+One can leverage this library to write elegant ETL scripts, check the [**README dedicated to ETL**](README_ETL.md).
+
+## streamable's functions
 The `Stream`'s methods are also exposed as functions:
 ```python
 from streamable.functions import slow
@@ -246,7 +253,7 @@ iterator: Iterator[int] = ...
 slow_iterator: Iterator[int] = slow(iterator)
 ```
 
-## set logging level
+## change logging level
 ```python
 import logging
 
@@ -271,4 +278,19 @@ def stream_depth(stream: Stream) -> int:
 ```python
 >>> stream_depth(odd_integer_strings)
 3
+```
+
+## go to line
+Style tip: Enclose operations in parentheses to keep lines short without needing trailing backslashes `\`.
+
+```python
+stream: Stream[str] = (
+    Stream(range(10))
+    .map(str)
+    .group(2)
+    .foreach(print)
+    .flatten()
+    .filter()
+    .catch()
+)
 ```
