@@ -24,7 +24,7 @@ from typing import (
 T = TypeVar("T")
 U = TypeVar("U")
 
-from streamable import _util
+from streamable import util
 
 
 class CatchingIterator(Iterator[T]):
@@ -72,7 +72,7 @@ class FlatteningIterator(Iterator[U]):
         except StopIteration:
             while True:
                 elem = next(self.iterator)
-                _util.validate_iterable(elem)
+                util.validate_iterable(elem)
                 self._current_iterator_elem = iter(elem)
                 try:
                     return next(self._current_iterator_elem)
@@ -187,7 +187,7 @@ class ObservingIterator(Iterator[T]):
         self._n_errors = 0
         self._last_log_after_n_calls = 0
         self._start_time = time.time()
-        _util.get_logger().info("iteration over '%s' will be observed.", self.what)
+        util.get_logger().info("iteration over '%s' will be observed.", self.what)
 
     def _log(self) -> None:
         errors_summary = f"{self._n_errors} error"
@@ -195,15 +195,15 @@ class ObservingIterator(Iterator[T]):
             errors_summary += "s"
         if self.colored and self._n_errors > 0:
             # colorize the error summary in red if any
-            errors_summary = _util.bold(_util.colorize_in_red(errors_summary))
+            errors_summary = util.bold(util.colorize_in_red(errors_summary))
 
         yields_summary = f"{self._n_yields} `{self.what}` yielded"
         if self.colored:
-            yields_summary = _util.bold(yields_summary)
+            yields_summary = util.bold(yields_summary)
 
         elapsed_time = f"after {datetime.fromtimestamp(time.time()) - datetime.fromtimestamp(self._start_time)}"
 
-        _util.get_logger().info(
+        util.get_logger().info(
             "%s, %s and %s", elapsed_time, errors_summary, yields_summary
         )
 

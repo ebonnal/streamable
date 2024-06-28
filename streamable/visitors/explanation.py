@@ -1,7 +1,7 @@
 import textwrap
 from typing import cast
 
-from streamable import _util, stream
+from streamable import stream, util
 from streamable.stream import (
     AForeachStream,
     AMapStream,
@@ -33,9 +33,9 @@ class ExplanationVisitor(Visitor[str]):
         self.linking_symbol = "└" + "─" * (self.margin_step - 1) + "•"
 
         if self.colored:
-            self.header = _util.bold(self.header)
+            self.header = util.bold(self.header)
         if self.colored:
-            self.linking_symbol = _util.colorize_in_grey(self.linking_symbol)
+            self.linking_symbol = util.colorize_in_grey(self.linking_symbol)
 
     def _explanation(self, stream: stream.Stream, attributes_repr: str) -> str:
         explanation = self.header
@@ -46,7 +46,7 @@ class ExplanationVisitor(Visitor[str]):
 
         name = stream.__class__.__name__
         if self.colored:
-            name = _util.colorize_in_red(name)
+            name = util.colorize_in_red(name)
 
         stream_repr = f"{name}({attributes_repr})"
 
@@ -61,18 +61,16 @@ class ExplanationVisitor(Visitor[str]):
         return explanation
 
     def visit_stream(self, stream: Stream) -> str:
-        return self._explanation(stream, f"source={_util.get_name(stream.source)}")
+        return self._explanation(stream, f"source={util.get_name(stream.source)}")
 
     def visit_catch_stream(self, stream: CatchStream) -> str:
         return self._explanation(
             stream,
-            f"predicate={_util.get_name(stream.predicate)}, raise_at_exhaustion={stream.raise_at_exhaustion}",
+            f"predicate={util.get_name(stream.predicate)}, raise_at_exhaustion={stream.raise_at_exhaustion}",
         )
 
     def visit_filter_stream(self, stream: FilterStream) -> str:
-        return self._explanation(
-            stream, f"predicate={_util.get_name(stream.predicate)}"
-        )
+        return self._explanation(stream, f"predicate={util.get_name(stream.predicate)}")
 
     def visit_flatten_stream(self, stream: FlattenStream) -> str:
         return self._explanation(stream, f"concurrency={stream.concurrency}")
@@ -94,7 +92,7 @@ class ExplanationVisitor(Visitor[str]):
     def visit_map_stream(self, stream: MapStream) -> str:
         return self._explanation(
             stream,
-            f"func={_util.get_name(stream.func)}, concurrency={stream.concurrency}",
+            f"func={util.get_name(stream.func)}, concurrency={stream.concurrency}",
         )
 
     def visit_amap_stream(self, stream: AMapStream) -> str:

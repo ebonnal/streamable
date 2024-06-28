@@ -27,7 +27,7 @@ from streamable.wrappers import (
 T = TypeVar("T")
 U = TypeVar("U")
 
-from streamable import _util
+from streamable import util
 
 
 class WrappedStopIteration(Exception):
@@ -39,7 +39,7 @@ def catch(
     predicate: Callable[[Exception], Any] = bool,
     raise_at_exhaustion: bool = False,
 ) -> Iterator[T]:
-    predicate = _util.reraise_as(
+    predicate = util.reraise_as(
         predicate, source=StopIteration, target=WrappedStopIteration
     )
     return CatchingIterator(
@@ -50,7 +50,7 @@ def catch(
 
 
 def flatten(iterator: Iterator[Iterable[T]], concurrency: int = 1) -> Iterator[T]:
-    _util.validate_concurrency(concurrency)
+    util.validate_concurrency(concurrency)
     if concurrency == 1:
         return FlatteningIterator(iterator)
     else:
@@ -71,12 +71,12 @@ def group(
     seconds: float = float("inf"),
     by: Optional[Callable[[T], Any]] = None,
 ) -> Iterator[List[T]]:
-    _util.validate_group_size(size)
-    _util.validate_group_seconds(seconds)
+    util.validate_group_size(size)
+    util.validate_group_seconds(seconds)
     if by is None:
         by = lambda _: None
     else:
-        by = _util.reraise_as(by, StopIteration, WrappedStopIteration)
+        by = util.reraise_as(by, StopIteration, WrappedStopIteration)
     if size is None:
         size = cast(int, float("inf"))
     return GroupingIterator(iterator, size, seconds, by)
@@ -85,8 +85,8 @@ def group(
 def map(
     func: Callable[[T], U], iterator: Iterator[T], concurrency: int = 1
 ) -> Iterator[U]:
-    _util.validate_concurrency(concurrency)
-    func = _util.reraise_as(func, StopIteration, WrappedStopIteration)
+    util.validate_concurrency(concurrency)
+    func = util.reraise_as(func, StopIteration, WrappedStopIteration)
     if concurrency == 1:
         return builtins.map(func, iterator)
     else:
@@ -107,12 +107,12 @@ def amap(
     iterator: Iterator[T],
     concurrency: int = 1,
 ) -> Iterator[U]:
-    _util.validate_concurrency(concurrency)
+    util.validate_concurrency(concurrency)
     return RaisingIterator(
         iter(
             AsyncConcurrentMappingIterable(
                 iterator,
-                _util.reraise_as(func, StopIteration, WrappedStopIteration),
+                util.reraise_as(func, StopIteration, WrappedStopIteration),
                 buffer_size=concurrency,
             )
         )
@@ -120,7 +120,7 @@ def amap(
 
 
 def limit(iterator: Iterator[T], count: int) -> Iterator[T]:
-    _util.validate_limit_count(count)
+    util.validate_limit_count(count)
     return LimitingIterator(iterator, count)
 
 
@@ -129,5 +129,5 @@ def observe(iterator: Iterator[T], what: str, colored: bool = False) -> Iterator
 
 
 def slow(iterator: Iterator[T], frequency: float) -> Iterator[T]:
-    _util.validate_slow_frequency(frequency)
+    util.validate_slow_frequency(frequency)
     return SlowingIterator(iterator, frequency)

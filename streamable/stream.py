@@ -17,7 +17,7 @@ from typing import (
     overload,
 )
 
-from streamable._util import (
+from streamable.util import (
     get_logger,
     validate_concurrency,
     validate_group_seconds,
