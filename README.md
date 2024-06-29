@@ -217,7 +217,7 @@ this prints (in 6s):
 ```
 
 ## CPU-bound tasks
-For CPU-bound tasks, consider using the [`pypy`](https://github.com/pypy/pypy) interpreter whose *Just In Time* (JIT) compilation should drastically improve performances, e.g. this snippet:
+For CPU-bound tasks, consider using the [`PyPy`](https://github.com/pypy/pypy) interpreter whose *Just In Time* (JIT) compilation should drastically improve performances, e.g. this snippet:
 ```python
 # cpu_bound_script.py
 from streamable import Stream
@@ -228,7 +228,7 @@ print(
     )
 )
 ```
-is run **30 times faster** by [`pypy`](https://github.com/pypy/pypy) compared to standard *CPython* interpreter:
+is run **30 times faster** by [`PyPy`](https://github.com/pypy/pypy) compared to standard *CPython* interpreter:
 
 ```bash
 % time python3 cpu_bound_script.py
