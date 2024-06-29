@@ -138,7 +138,7 @@ class TestStream(unittest.TestCase):
 
         with self.assertRaisesRegex(
             TypeError,
-            "`source` must be either a Callable\[\[\], Iterator\] or an Iterable, but got a <class 'int'>",
+            "`source` must be either a Callable\[\[\], Iterable\] or an Iterable, but got a <class 'int'>",
             msg="Getting an Iterator from a Stream with a source not being a Union[Callable[[], Iterator], ITerable] must raise TypeError.",
         ):
             Stream(1)  # type: ignore
