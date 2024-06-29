@@ -233,11 +233,11 @@ is run **30 times faster** by [`pypy`](https://github.com/pypy/pypy) compared to
 ```bash
 % time python3 cpu_bound_script.py
 18.997896403852554
-python3 -c   10.31s user 0.02s system 99% cpu 10.394 total
+python3 cpu_bound_script.py  10.31s user 0.02s system 99% cpu 10.394 total
 
 % time pypy3 cpu_bound_script.py
 18.997896403852554
-pypy3 -c   0.28s user 0.05s system 81% cpu 0.304 total
+pypy3 cpu_bound_script.py  0.29s user 0.02s system 98% cpu 0.317 total
 ```
 
 ## Extract-Transform-Load tasks
