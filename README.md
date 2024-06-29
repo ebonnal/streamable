@@ -217,7 +217,7 @@ this prints (in 6s):
 ```
 
 ## CPU-bound tasks
-For CPU-bound tasks, consider using the [`PyPy`](https://github.com/pypy/pypy) interpreter whose *Just In Time* (JIT) compilation should drastically improve performances, e.g. this snippet:
+For CPU-bound tasks, consider using the [`PyPy`](https://github.com/pypy/pypy) interpreter whose *Just In Time* (JIT) compilation should drastically improve performances, e.g. this snippet is run **30 times faster** by [`PyPy`](https://github.com/pypy/pypy) compared to standard *CPython* interpreter:
 ```python
 # cpu_bound_script.py
 from streamable import Stream
@@ -228,17 +228,8 @@ print(
     )
 )
 ```
-is run **30 times faster** by [`PyPy`](https://github.com/pypy/pypy) compared to standard *CPython* interpreter:
 
-```bash
-% time python3 cpu_bound_script.py
-18.997896403852554
-python3 cpu_bound_script.py  10.31s user 0.02s system 99% cpu 10.394 total
-
-% time pypy3 cpu_bound_script.py
-18.997896403852554
-pypy3 cpu_bound_script.py  0.29s user 0.02s system 98% cpu 0.317 total
-```
+[Check this gross comparison: CPython/PyPy-interpreted streamable vs Java vs C.](https://github.com/ebonnal/streamable/issues/10)
 
 ## Extract-Transform-Load tasks
 
