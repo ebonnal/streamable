@@ -18,10 +18,11 @@ from streamable.wrappers import (
     ConcurrentMappingIterable,
     FlatteningIterator,
     GroupingIterator,
-    LimitingIterator,
     ObservingIterator,
     RaisingIterator,
     SlowingIterator,
+    TruncatingOnCountIterator,
+    TruncatingOnPredicateIterator,
 )
 
 T = TypeVar("T")
@@ -119,11 +120,6 @@ def amap(
     )
 
 
-def limit(iterator: Iterator[T], count: int) -> Iterator[T]:
-    util.validate_limit_count(count)
-    return LimitingIterator(iterator, count)
-
-
 def observe(iterator: Iterator[T], what: str, colored: bool = False) -> Iterator[T]:
     return ObservingIterator(iterator, what, colored)
 
@@ -131,3 +127,16 @@ def observe(iterator: Iterator[T], what: str, colored: bool = False) -> Iterator
 def slow(iterator: Iterator[T], frequency: float) -> Iterator[T]:
     util.validate_slow_frequency(frequency)
     return SlowingIterator(iterator, frequency)
+
+
+def truncate(
+    iterator: Iterator[T],
+    count: Optional[int] = None,
+    when: Optional[Callable[[T], bool]] = None,
+) -> Iterator[T]:
+    util.validate_truncate_args(count, when)
+    if count is not None:
+        iterator = TruncatingOnCountIterator(iterator, count)
+    if when is not None:
+        iterator = TruncatingOnPredicateIterator(iterator, when)
+    return iterator

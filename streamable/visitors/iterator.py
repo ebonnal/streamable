@@ -9,11 +9,11 @@ from streamable.stream import (
     FlattenStream,
     ForeachStream,
     GroupStream,
-    LimitStream,
     MapStream,
     ObserveStream,
     SlowStream,
     Stream,
+    TruncateStream,
 )
 from streamable.visitor import Visitor
 
@@ -70,10 +70,11 @@ class IteratorVisitor(Visitor[Iterator[T]]):
             ),
         )
 
-    def visit_limit_stream(self, stream: LimitStream[T]) -> Iterator[T]:
-        return functions.limit(
+    def visit_truncate_stream(self, stream: TruncateStream[T]) -> Iterator[T]:
+        return functions.truncate(
             stream.upstream.accept(self),
             stream.count,
+            stream.when,
         )
 
     def visit_map_stream(self, stream: MapStream[U, T]) -> Iterator[T]:

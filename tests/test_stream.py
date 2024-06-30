@@ -178,7 +178,7 @@ class TestStream(unittest.TestCase):
 
         complex_stream: Stream[int] = (
             Stream(src)
-            .limit(1024)
+            .truncate(1024, when=lambda _: False)
             .filter()
             .foreach(lambda _: _)
             .aforeach(async_identity)
@@ -540,44 +540,50 @@ class TestStream(unittest.TestCase):
             msg="`filter` without predicate must act like builtin filter with None predicate.",
         )
 
-    def test_limit(self) -> None:
+    def test_truncate(self) -> None:
+        with self.assertRaisesRegexp(
+            ValueError,
+            "`count` and `when` can't be both None.",
+        ):
+            Stream(src).truncate()
+
         self.assertEqual(
-            list(Stream(src).limit(N * 2)),
+            list(Stream(src).truncate(N * 2)),
             list(src),
-            msg="`limit` must be ok with count >= stream length",
+            msg="`truncate` must be ok with count >= stream length",
         )
         self.assertEqual(
-            list(Stream(src).limit(2)),
+            list(Stream(src).truncate(2)),
             [0, 1],
-            msg="`limit` must be ok with count >= 1",
+            msg="`truncate` must be ok with count >= 1",
         )
         self.assertEqual(
-            list(Stream(src).limit(1)),
+            list(Stream(src).truncate(1)),
             [0],
-            msg="`limit` must be ok with count == 1",
+            msg="`truncate` must be ok with count == 1",
         )
         self.assertEqual(
-            list(Stream(src).limit(0)),
+            list(Stream(src).truncate(0)),
             [],
-            msg="`limit` must be ok with count == 0",
+            msg="`truncate` must be ok with count == 0",
         )
 
         with self.assertRaises(
             ValueError,
-            msg="`limit` must raise ValueError if `count` is negative",
+            msg="`truncate` must raise ValueError if `count` is negative",
         ):
-            Stream(src).limit(-1)
+            Stream(src).truncate(-1)
 
         with self.assertRaises(
             ValueError,
-            msg="`limit` must raise ValueError if `count` is float('inf')",
+            msg="`truncate` must raise ValueError if `count` is float('inf')",
         ):
-            Stream(src).limit(cast(int, float("inf")))
+            Stream(src).truncate(cast(int, float("inf")))
 
         n_iterations = 0
         count = N // 2
         raising_stream_iterator = iter(
-            Stream(lambda: map(lambda x: x / 0, src)).limit(count)
+            Stream(lambda: map(lambda x: x / 0, src)).truncate(count)
         )
         while True:
             try:
@@ -589,7 +595,37 @@ class TestStream(unittest.TestCase):
         self.assertEqual(
             n_iterations,
             count,
-            msg="`limit` must not stop iteration when encountering exceptions",
+            msg="`truncate` must not stop iteration when encountering exceptions",
+        )
+
+        iter_truncated_on_predicate = iter(Stream(src).truncate(when=lambda n: n == 5))
+        self.assertEqual(
+            list(iter_truncated_on_predicate),
+            list(Stream(src).truncate(5)),
+            msg="`when` n == 5 must be equivalent to `count` = 5",
+        )
+        with self.assertRaises(
+            StopIteration,
+            msg="After exhaustion a call to __next__ on a truncated iterator must raise StopIteration",
+        ):
+            next(iter_truncated_on_predicate)
+
+        with self.assertRaises(
+            ZeroDivisionError,
+            msg="an exception raised by `when` must be raised",
+        ):
+            list(Stream(src).truncate(when=lambda _: 1 / 0))
+
+        self.assertEqual(
+            list(Stream(src).truncate(6, when=lambda n: n == 5)),
+            list(range(5)),
+            msg="`when` and `count` argument can be set at the same time, and the truncation should happen as soon as one or the other is satisfied.",
+        )
+
+        self.assertEqual(
+            list(Stream(src).truncate(5, when=lambda n: n == 6)),
+            list(range(5)),
+            msg="`when` and `count` argument can be set at the same time, and the truncation should happen as soon as one or the other is satisfied.",
         )
 
     def test_group(self) -> None:

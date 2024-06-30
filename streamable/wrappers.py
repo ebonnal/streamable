@@ -163,7 +163,7 @@ class GroupingIterator(Iterator[List[T]]):
             return next(self)
 
 
-class LimitingIterator(Iterator[T]):
+class TruncatingOnCountIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], count: int) -> None:
         self.iterator = iterator
         self.count = count
@@ -176,6 +176,22 @@ class LimitingIterator(Iterator[T]):
             return next(self.iterator)
         finally:
             self._n_yields += 1
+
+
+class TruncatingOnPredicateIterator(Iterator[T]):
+    def __init__(self, iterator: Iterator[T], when: Callable[[T], bool]) -> None:
+        self.iterator = iterator
+        self.when = when
+        self.satisfied = False
+
+    def __next__(self):
+        if self.satisfied:
+            raise StopIteration()
+        elem = next(self.iterator)
+        if self.when(elem):
+            self.satisfied = True
+            return next(self)
+        return elem
 
 
 class ObservingIterator(Iterator[T]):

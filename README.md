@@ -167,13 +167,16 @@ INFO: after 0:00:04.500547, 0 error and 10 `integers` yielded.
 
 The amount of logs will never be overwhelming because they are produced logarithmically e.g. the 11th log will be produced when the iteration reaches the 1024th element.
 
-## `.limit`
-Limits the number of elements yielded.
+## `.truncate`
+Stops iteration as soon as the `when` predicate is satisfied or `count` elements have been yielded.
 
 ```python
-five_first_integers: Stream[int] = integers.limit(5)
+five_first_integers: Stream[int] = integers.truncate(5)
 ```
-
+is equivalent to:
+```python
+five_first_integers: Stream[int] = integers.truncate(when=lambda n: n == 5)
+```
 
 ---
 
@@ -207,7 +210,7 @@ print(
         .amap(slow_async_square, concurrency=8)
         # threads-based concurrency
         .map(slow_str, concurrency=8)
-        .limit(5)
+        .truncate(5)
     )
 )
 ```

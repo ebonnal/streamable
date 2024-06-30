@@ -10,11 +10,11 @@ from streamable.stream import (
     FlattenStream,
     ForeachStream,
     GroupStream,
-    LimitStream,
     MapStream,
     ObserveStream,
     SlowStream,
     Stream,
+    TruncateStream,
 )
 from streamable.visitor import Visitor
 
@@ -86,11 +86,14 @@ class ExplanationVisitor(Visitor[str]):
 
     def visit_group_stream(self, stream: GroupStream) -> str:
         return self._explanation(
-            stream, f"size={stream.size}, seconds={stream.seconds}, by={stream.by}"
+            stream,
+            f"size={stream.size}, seconds={stream.seconds}, by={util.get_name(stream.by)}",
         )
 
-    def visit_limit_stream(self, stream: LimitStream) -> str:
-        return self._explanation(stream, f"count={stream.count}")
+    def visit_truncate_stream(self, stream: TruncateStream) -> str:
+        return self._explanation(
+            stream, f"count={stream.count}, when={util.get_name(stream.when)}"
+        )
 
     def visit_map_stream(self, stream: MapStream) -> str:
         return self._explanation(

@@ -80,28 +80,31 @@ def validate_concurrency(concurrency: int):
 
 def validate_group_size(size: Optional[int]):
     if size is not None and size < 1:
-        raise ValueError(f"group's size should be None or >= 1 but got {size}.")
+        raise ValueError(f"`size` should be None or >= 1 but got {size}.")
 
 
 def validate_group_seconds(seconds: float):
     if seconds <= 0:
-        raise ValueError(f"group's seconds should be > 0 but got {seconds}.")
+        raise ValueError(f"`seconds` should be > 0 but got {seconds}.")
 
 
 def validate_slow_frequency(frequency: float):
     if frequency <= 0:
         raise ValueError(
-            f"frequency is the maximum number of elements to yield per second, it must be > 0  but got {frequency}."
+            f"`frequency` is the maximum number of elements to yield per second, it must be > 0  but got {frequency}."
         )
 
 
-def validate_limit_count(count: int):
-    if count < 0:
-        raise ValueError(f"limit's count must be positive but got {count}.")
-    if count >= sys.maxsize:
-        raise ValueError(
-            f"limit's count must be less than sys.maxsize but got {count}."
-        )
+def validate_truncate_args(
+    count: Optional[int] = None, when: Optional[Callable[[T], bool]] = None
+):
+    if count is None:
+        if when is None:
+            raise ValueError(f"`count` and `when` can't be both None.")
+    elif count < 0:
+        raise ValueError(f"`count` must be positive but got {count}.")
+    elif count >= sys.maxsize:
+        raise ValueError(f"`count` must be less than sys.maxsize but got {count}.")
 
 
 def colorize_in_red(s: str) -> str:
@@ -116,7 +119,9 @@ def bold(s: str) -> str:
     return f"\033[1m{s}\033[0m"
 
 
-def get_name(o: object):
+def get_name(o: object) -> str:
+    if o is None:
+        return "None"
     try:
         return o.__name__  # type: ignore
     except AttributeError:

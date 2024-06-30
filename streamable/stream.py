@@ -23,8 +23,8 @@ from streamable.util import (
     validate_group_seconds,
     validate_group_size,
     validate_iterable,
-    validate_limit_count,
     validate_slow_frequency,
+    validate_truncate_args,
 )
 
 # fmt: off
@@ -281,19 +281,6 @@ class Stream(Iterable[T]):
         validate_group_seconds(seconds)
         return GroupStream(self, size, seconds, by)
 
-    def limit(self, count: int) -> "Stream[T]":
-        """
-        Stops an iteration when `count` elements have been yielded.
-
-        Args:
-            count (int): The maximum number of elements to yield.
-
-        Returns:
-            Stream[T]: A stream of `count` upstream elements.
-        """
-        validate_limit_count(count)
-        return LimitStream(self, count)
-
     def map(
         self,
         transformation: Callable[[T], U],
@@ -360,6 +347,22 @@ class Stream(Iterable[T]):
         """
         validate_slow_frequency(frequency)
         return SlowStream(self, frequency)
+
+    def truncate(
+        self, count: Optional[int] = None, when: Optional[Callable[[T], bool]] = None
+    ) -> "Stream[T]":
+        """
+        Stops an iteration as soon as the `when` predicate is satisfied or `count` elements have been yielded.
+
+        Args:
+            count (int): The maximum number of elements to yield.
+            when (Optional[Callable[[T], bool]], optional): Predicate function whose satisfaction stops an iteration.
+
+        Returns:
+            Stream[T]: A stream of at most `count` upstream elements not satisfying the `when` predicate.
+        """
+        validate_truncate_args(count, when)
+        return TruncateStream(self, count, when)
 
 
 class DownStream(Stream[U], Generic[T, U]):
@@ -454,15 +457,6 @@ class GroupStream(DownStream[T, List[T]]):
         return visitor.visit_group_stream(self)
 
 
-class LimitStream(DownStream[T, T]):
-    def __init__(self, upstream: Stream[T], count: int) -> None:
-        super().__init__(upstream)
-        self.count = count
-
-    def accept(self, visitor: "Visitor[V]") -> V:
-        return visitor.visit_limit_stream(self)
-
-
 class MapStream(DownStream[T, U]):
     def __init__(
         self, upstream: Stream[T], transformation: Callable[[T], U], concurrency: int
@@ -507,3 +501,18 @@ class SlowStream(DownStream[T, T]):
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_slow_stream(self)
+
+
+class TruncateStream(DownStream[T, T]):
+    def __init__(
+        self,
+        upstream: Stream[T],
+        count: Optional[int] = None,
+        when: Optional[Callable[[T], bool]] = None,
+    ) -> None:
+        super().__init__(upstream)
+        self.count = count
+        self.when = when
+
+    def accept(self, visitor: "Visitor[V]") -> V:
+        return visitor.visit_truncate_stream(self)

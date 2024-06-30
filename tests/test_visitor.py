@@ -9,11 +9,11 @@ from streamable.stream import (
     FlattenStream,
     ForeachStream,
     GroupStream,
-    LimitStream,
     MapStream,
     ObserveStream,
     SlowStream,
     Stream,
+    TruncateStream,
 )
 from streamable.visitor import Visitor
 
@@ -31,7 +31,7 @@ class TestVisitor(unittest.TestCase):
         visitor.visit_flatten_stream(cast(FlattenStream, ...))
         visitor.visit_foreach_stream(cast(ForeachStream, ...))
         visitor.visit_aforeach_stream(cast(AForeachStream, ...))
-        visitor.visit_limit_stream(cast(LimitStream, ...))
+        visitor.visit_truncate_stream(cast(TruncateStream, ...))
         visitor.visit_map_stream(cast(MapStream, ...))
         visitor.visit_amap_stream(cast(AMapStream, ...))
         visitor.visit_observe_stream(cast(ObserveStream, ...))
