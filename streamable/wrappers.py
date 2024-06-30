@@ -82,7 +82,11 @@ class FlatteningIterator(Iterator[U]):
 
 class GroupingIterator(Iterator[List[T]]):
     def __init__(
-        self, iterator: Iterator[T], size: int, seconds: float, by: Callable[[T], Any]
+        self,
+        iterator: Iterator[T],
+        size: int,
+        seconds: float,
+        by: Optional[Callable[[T], Any]],
     ) -> None:
         self.iterator = iterator
         self.size = size
@@ -93,9 +97,13 @@ class GroupingIterator(Iterator[List[T]]):
         self._last_yielded_group_at = time.time()
         self._groups_by: Dict[Any, List[T]] = {}
 
+    def _group_key(self, elem: T) -> Any:
+        if self.by:
+            return self.by(elem)
+
     def _group_next_elem(self) -> None:
         elem = next(self.iterator)
-        key = self.by(elem)
+        key = self._group_key(elem)
         if key in self._groups_by:
             self._groups_by[key].append(elem)
         else:
@@ -179,7 +187,7 @@ class TruncatingOnCountIterator(Iterator[T]):
 
 
 class TruncatingOnPredicateIterator(Iterator[T]):
-    def __init__(self, iterator: Iterator[T], when: Callable[[T], bool]) -> None:
+    def __init__(self, iterator: Iterator[T], when: Callable[[T], Any]) -> None:
         self.iterator = iterator
         self.when = when
         self.satisfied = False

@@ -96,7 +96,7 @@ def validate_slow_frequency(frequency: float):
 
 
 def validate_truncate_args(
-    count: Optional[int] = None, when: Optional[Callable[[T], bool]] = None
+    count: Optional[int] = None, when: Optional[Callable[[T], Any]] = None
 ):
     if count is None:
         if when is None:

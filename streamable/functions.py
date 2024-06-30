@@ -72,9 +72,7 @@ def group(
 ) -> Iterator[List[T]]:
     util.validate_group_size(size)
     util.validate_group_seconds(seconds)
-    if by is None:
-        by = lambda _: None
-    else:
+    if by is not None:
         by = util.reraise_as(by, StopIteration, WrappedStopIteration)
     if size is None:
         size = cast(int, float("inf"))
@@ -132,7 +130,7 @@ def slow(iterator: Iterator[T], frequency: float) -> Iterator[T]:
 def truncate(
     iterator: Iterator[T],
     count: Optional[int] = None,
-    when: Optional[Callable[[T], bool]] = None,
+    when: Optional[Callable[[T], Any]] = None,
 ) -> Iterator[T]:
     util.validate_truncate_args(count, when)
     if count is not None:

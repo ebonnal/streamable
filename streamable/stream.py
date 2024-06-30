@@ -349,14 +349,14 @@ class Stream(Iterable[T]):
         return SlowStream(self, frequency)
 
     def truncate(
-        self, count: Optional[int] = None, when: Optional[Callable[[T], bool]] = None
+        self, count: Optional[int] = None, when: Optional[Callable[[T], Any]] = None
     ) -> "Stream[T]":
         """
         Stops an iteration as soon as the `when` predicate is satisfied or `count` elements have been yielded.
 
         Args:
             count (int): The maximum number of elements to yield.
-            when (Optional[Callable[[T], bool]], optional): Predicate function whose satisfaction stops an iteration.
+            when (Optional[Callable[[T], Any]], optional): Predicate function whose satisfaction stops an iteration, i.e. only elements for which `when(elem)` is Falsy will be yielded.
 
         Returns:
             Stream[T]: A stream of at most `count` upstream elements not satisfying the `when` predicate.
@@ -508,7 +508,7 @@ class TruncateStream(DownStream[T, T]):
         self,
         upstream: Stream[T],
         count: Optional[int] = None,
-        when: Optional[Callable[[T], bool]] = None,
+        when: Optional[Callable[[T], Any]] = None,
     ) -> None:
         super().__init__(upstream)
         self.count = count
