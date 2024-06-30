@@ -229,7 +229,7 @@ print(
 )
 ```
 
-[Check this gross comparison: CPython/PyPy-interpreted streamable vs Java vs C.](https://github.com/ebonnal/streamable/issues/10)
+[Few rough runtime orders of magnitude: CPython vs PyPy vs Java vs C vs Rust.](https://github.com/ebonnal/streamable/issues/10)
 
 ## Extract-Transform-Load tasks
 
