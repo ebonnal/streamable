@@ -541,7 +541,7 @@ class TestStream(unittest.TestCase):
         )
 
     def test_truncate(self) -> None:
-        with self.assertRaisesRegexp(
+        with self.assertRaisesRegex(
             ValueError,
             "`count` and `when` can't be both None.",
         ):
