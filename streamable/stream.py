@@ -47,7 +47,7 @@ class Stream(Iterable[T]):
 
     def __init__(self, source: Union[Iterable[T], Callable[[], Iterable[T]]]) -> None:
         """
-        Initialize a Stream with a data source.
+        Initializes a Stream with a data source.
 
         Args:
             source (Union[Iterable[T], Callable[[], Iterable[T]]]): a source iterable or a function returning one (called for each new iteration on this stream).
@@ -91,7 +91,7 @@ class Stream(Iterable[T]):
 
     def exhaust(self) -> int:
         """
-        Iterate over the stream until exhaustion and count the elements yielded.
+        Iterates over the stream until exhaustion and counts the elements yielded.
 
         Returns:
             int: The number of elements that have been yielded by the stream.
@@ -110,7 +110,7 @@ class Stream(Iterable[T]):
         raise_at_exhaustion: bool = False,
     ) -> "Stream[T]":
         """
-        Catch the upstream exceptions which are satisfying the provided `when` predicate.
+        Catches the upstream exceptions which are satisfying the provided `when` predicate.
 
         Args:
             when (Callable[[Exception], Any], optional): The exception will be catched if `when(exception)` is Truthy (all exceptions catched by default).
@@ -123,7 +123,7 @@ class Stream(Iterable[T]):
 
     def explain(self, colored: bool = False) -> "Stream[T]":
         """
-        Log this stream's explanation (INFO level)
+        Logs this stream's explanation (INFO level)
         """
         get_logger().info(self.explanation(colored))
         return self
@@ -139,7 +139,7 @@ class Stream(Iterable[T]):
 
     def filter(self, keep: Callable[[T], Any] = bool) -> "Stream[T]":
         """
-        Filter the elements of the stream based on the `keep` predicate.
+        Yields only upstream elements satisfying the `keep` predicate.
 
         Args:
             keep (Callable[[T], Any], optional): An element will be kept if `keep(elem)` is Truthy (default keeps Truthy elements).
@@ -210,7 +210,7 @@ class Stream(Iterable[T]):
         concurrency: int = 1,
     ) -> "Stream[U]":
         """
-        Iterate over upstream elements, assumed to be iterables, and individually yield the sub-elements.
+        Iterates over upstream elements, assumed to be iterables, and individually yields the sub-elements.
 
         Args:
             concurrency (int): The number of threads used to concurrently flatten the upstream iterables (default is 1, meaning no concurrency).
@@ -226,7 +226,7 @@ class Stream(Iterable[T]):
         concurrency: int = 1,
     ) -> "Stream[T]":
         """
-        Yield upstream element after having called `effect` on it.
+        For each upstream element, yields it after having called `effect` on it.
         If `effect(elem)` throws an exception then it will be thrown and `elem` will not be yielded.
 
         Args:
@@ -244,7 +244,7 @@ class Stream(Iterable[T]):
         concurrency: int = 1,
     ) -> "Stream[T]":
         """
-        Yield upstream element after having called the asynchronous `effect` on it.
+        For each upstream element, yields it after having called the asynchronous `effect` on it.
         If the `effect(elem)` coroutine throws an exception then it will be thrown and `elem` will not be yielded.
 
         Args:
@@ -263,7 +263,7 @@ class Stream(Iterable[T]):
         by: Optional[Callable[[T], Any]] = None,
     ) -> "Stream[List[T]]":
         """
-        Yield upstream elements grouped in lists.
+        Yields upstream elements grouped into lists.
         A group is a list of `size` elements for which `by` returns the same value, but it may contain fewer elements in these cases:
         - `seconds` have elapsed since the last yield of a group
         - upstream is exhausted
@@ -283,7 +283,7 @@ class Stream(Iterable[T]):
 
     def limit(self, count: int) -> "Stream[T]":
         """
-        Truncate to first `count` elements.
+        Truncates the upstream to its first `count` elements.
 
         Args:
             count (int): The maximum number of elements to yield.
@@ -300,7 +300,7 @@ class Stream(Iterable[T]):
         concurrency: int = 1,
     ) -> "Stream[U]":
         """
-        Apply `transformation` on upstream elements and yield the results.
+        Applies `transformation` on upstream elements and yields the results.
 
         Args:
             transformation (Callable[[T], R]): The function to be applied to each element.
@@ -317,7 +317,7 @@ class Stream(Iterable[T]):
         concurrency: int = 1,
     ) -> "Stream[U]":
         """
-        Apply the asynchrounous `transformation` on upstream elements and yield the results in order.
+        Applies the asynchrounous `transformation` on upstream elements and yields the results in order.
 
         Args:
             transformation (Callable[[T], Coroutine[Any, Any, U]]): The asynchronous function to be applied to each element.
@@ -330,7 +330,7 @@ class Stream(Iterable[T]):
 
     def observe(self, what: str = "elements", colored: bool = False) -> "Stream[T]":
         """
-        Log the progress of any iteration over this stream's elements.
+        Logs the progress of the iterations over this stream.
 
         A logarithmic scale is used to prevent logs flood:
         - a 1st log is produced for the yield of the 1st element
@@ -350,7 +350,7 @@ class Stream(Iterable[T]):
 
     def slow(self, frequency: float) -> "Stream[T]":
         """
-        Slow down the iteration down to a maximum `frequency`, more precisely an element will only be yielded if a period of 1/frequency seconds has elapsed since the last yield.
+        Slows the iteration down to a maximum `frequency`, more precisely an element will only be yielded if a period of `1/frequency` seconds has elapsed since the last yield.
 
         Args:
             frequency (float): Maximum yields per second.
