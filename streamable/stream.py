@@ -283,7 +283,7 @@ class Stream(Iterable[T]):
 
     def limit(self, count: int) -> "Stream[T]":
         """
-        Truncates the upstream to its first `count` elements.
+        Stops an iteration when `count` elements have been yielded.
 
         Args:
             count (int): The maximum number of elements to yield.
