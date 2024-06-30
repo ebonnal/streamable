@@ -66,20 +66,23 @@ class ExplanationVisitor(Visitor[str]):
     def visit_catch_stream(self, stream: CatchStream) -> str:
         return self._explanation(
             stream,
-            f"predicate={util.get_name(stream.predicate)}, raise_at_exhaustion={stream.raise_at_exhaustion}",
+            f"when={util.get_name(stream.when)}, raise_at_exhaustion={stream.raise_at_exhaustion}",
         )
 
     def visit_filter_stream(self, stream: FilterStream) -> str:
-        return self._explanation(stream, f"predicate={util.get_name(stream.predicate)}")
+        return self._explanation(stream, f"keep={util.get_name(stream.keep)}")
 
     def visit_flatten_stream(self, stream: FlattenStream) -> str:
         return self._explanation(stream, f"concurrency={stream.concurrency}")
 
     def visit_foreach_stream(self, stream: ForeachStream) -> str:
-        return self.visit_map_stream(cast(MapStream, stream))
+        return self._explanation(
+            stream,
+            f"effect={util.get_name(stream.effect)}, concurrency={stream.concurrency}",
+        )
 
     def visit_aforeach_stream(self, stream: AForeachStream) -> str:
-        return self.visit_map_stream(cast(MapStream, stream))
+        return self.visit_foreach_stream(cast(ForeachStream, stream))
 
     def visit_group_stream(self, stream: GroupStream) -> str:
         return self._explanation(
@@ -92,7 +95,7 @@ class ExplanationVisitor(Visitor[str]):
     def visit_map_stream(self, stream: MapStream) -> str:
         return self._explanation(
             stream,
-            f"func={util.get_name(stream.func)}, concurrency={stream.concurrency}",
+            f"transformation={util.get_name(stream.transformation)}, concurrency={stream.concurrency}",
         )
 
     def visit_amap_stream(self, stream: AMapStream) -> str:

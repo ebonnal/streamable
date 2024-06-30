@@ -80,7 +80,7 @@ class Stream(Iterable[T]):
 
     def __add__(self, other: "Stream[T]") -> "Stream[T]":
         """
-        a + b is syntax suger for Stream(lambda: [a, b]).flatten().
+        `a + b` returns a stream yielding all elements of `a`, followed by all elements of `b`.
         """
         return cast(Stream[T], Stream([self, other].__iter__).flatten())
 
@@ -106,20 +106,20 @@ class Stream(Iterable[T]):
 
     def catch(
         self,
-        predicate: Callable[[Exception], Any] = bool,
+        when: Callable[[Exception], Any] = bool,
         raise_at_exhaustion: bool = False,
     ) -> "Stream[T]":
         """
-        Catch the upstream exceptions which are satisfying the provided `predicate`.
+        Catch the upstream exceptions which are satisfying the provided `when` predicate.
 
         Args:
-            predicate (Callable[[Exception], Any], optional): The exception will be catched if `predicate(exception)` is Truthy (all exceptions catched by default).
+            when (Callable[[Exception], Any], optional): The exception will be catched if `when(exception)` is Truthy (all exceptions catched by default).
             raise_at_exhaustion (bool, optional): Set to True if you want the first catched exception to be raised when upstream is exhausted (default is False).
 
         Returns:
             Stream[T]: A stream of upstream elements catching the eligible exceptions.
         """
-        return CatchStream(self, predicate, raise_at_exhaustion=raise_at_exhaustion)
+        return CatchStream(self, when, raise_at_exhaustion=raise_at_exhaustion)
 
     def explain(self, colored: bool = False) -> "Stream[T]":
         """
@@ -137,17 +137,17 @@ class Stream(Iterable[T]):
 
         return self.accept(explanation.ExplanationVisitor(colored))
 
-    def filter(self, predicate: Callable[[T], Any] = bool) -> "Stream[T]":
+    def filter(self, keep: Callable[[T], Any] = bool) -> "Stream[T]":
         """
-        Filter the elements of the stream based on the given predicate.
+        Filter the elements of the stream based on the `keep` predicate.
 
         Args:
-            predicate (Callable[[T], Any], optional): Keep element if `predicate(elem)` is Truthy (default keeps Truthy elements).
+            keep (Callable[[T], Any], optional): An element will be kept if `keep(elem)` is Truthy (default keeps Truthy elements).
 
         Returns:
-            Stream[T]: A stream of upstream elements satisfying the predicate.
+            Stream[T]: A stream of upstream elements satisfying the `keep` predicate.
         """
-        return FilterStream(self, predicate)
+        return FilterStream(self, keep)
 
     # fmt: off
     @overload
@@ -222,39 +222,39 @@ class Stream(Iterable[T]):
 
     def foreach(
         self,
-        func: Callable[[T], Any],
+        effect: Callable[[T], Any],
         concurrency: int = 1,
     ) -> "Stream[T]":
         """
-        Call `func` on upstream elements and yield them in order.
-        If `func(elem)` throws an exception then it will be thrown and `elem` will not be yielded.
+        Yield upstream element after having called `effect` on it.
+        If `effect(elem)` throws an exception then it will be thrown and `elem` will not be yielded.
 
         Args:
-            func (Callable[[T], Any]): The function to be applied to each element.
-            concurrency (int): The number of threads used to concurrently apply the function (default is 1, meaning no concurrency).
+            effect (Callable[[T], Any]): The function to be applied to each element as a side effect.
+            concurrency (int): The number of threads used to concurrently apply the `effect` (default is 1, meaning no concurrency).
         Returns:
             Stream[T]: A stream of upstream elements, unchanged.
         """
         validate_concurrency(concurrency)
-        return ForeachStream(self, func, concurrency)
+        return ForeachStream(self, effect, concurrency)
 
     def aforeach(
         self,
-        func: Callable[[T], Coroutine],
+        effect: Callable[[T], Coroutine],
         concurrency: int = 1,
     ) -> "Stream[T]":
         """
-        Call the asynchronous `func` on upstream elements and yield them in order.
-        If the `func(elem)` coroutine throws an exception then it will be thrown and `elem` will not be yielded.
+        Yield upstream element after having called the asynchronous `effect` on it.
+        If the `effect(elem)` coroutine throws an exception then it will be thrown and `elem` will not be yielded.
 
         Args:
-            func (Callable[[T], Any]): The asynchronous function to be applied to each element.
+            effect (Callable[[T], Any]): The asynchronous function to be applied to each element as a side effect.
             concurrency (int): How many asyncio tasks will run at the same time.
         Returns:
             Stream[T]: A stream of upstream elements, unchanged.
         """
         validate_concurrency(concurrency)
-        return AForeachStream(self, func, concurrency)
+        return AForeachStream(self, effect, concurrency)
 
     def group(
         self,
@@ -296,37 +296,37 @@ class Stream(Iterable[T]):
 
     def map(
         self,
-        func: Callable[[T], U],
+        transformation: Callable[[T], U],
         concurrency: int = 1,
     ) -> "Stream[U]":
         """
-        Apply `func` on upstream elements and yield the results in order.
+        Apply `transformation` on upstream elements and yield the results.
 
         Args:
-            func (Callable[[T], R]): The function to be applied to each element.
-            concurrency (int): The number of threads used to concurrently apply the function (default is 1, meaning no concurrency).
+            transformation (Callable[[T], R]): The function to be applied to each element.
+            concurrency (int): The number of threads used to concurrently apply `transformation` (default is 1, meaning no concurrency).
         Returns:
-            Stream[R]: A stream of results of `func` applied to upstream elements.
+            Stream[R]: A stream of results of `transformation` applied to upstream elements.
         """
         validate_concurrency(concurrency)
-        return MapStream(self, func, concurrency)
+        return MapStream(self, transformation, concurrency)
 
     def amap(
         self,
-        func: Callable[[T], Coroutine[Any, Any, U]],
+        transformation: Callable[[T], Coroutine[Any, Any, U]],
         concurrency: int = 1,
     ) -> "Stream[U]":
         """
-        Apply an asynchronous `func` on upstream elements and yield the results in order.
+        Apply the asynchrounous `transformation` on upstream elements and yield the results in order.
 
         Args:
-            func (Callable[[T], Coroutine[Any, Any, U]]): The asynchronous function to be applied to each element.
+            transformation (Callable[[T], Coroutine[Any, Any, U]]): The asynchronous function to be applied to each element.
             concurrency (int): How many asyncio tasks will run at the same time.
         Returns:
-            Stream[R]: A stream of results of `func` applied to upstream elements.
+            Stream[R]: A stream of results of `transformation` applied to upstream elements.
         """
         validate_concurrency(concurrency)
-        return AMapStream(self, func, concurrency)
+        return AMapStream(self, transformation, concurrency)
 
     def observe(self, what: str = "elements", colored: bool = False) -> "Stream[T]":
         """
@@ -384,11 +384,11 @@ class CatchStream(DownStream[T, T]):
     def __init__(
         self,
         upstream: Stream[T],
-        predicate: Callable[[Exception], Any],
+        when: Callable[[Exception], Any],
         raise_at_exhaustion: bool,
     ) -> None:
         super().__init__(upstream)
-        self.predicate = predicate
+        self.when = when
         self.raise_at_exhaustion = raise_at_exhaustion
 
     def accept(self, visitor: "Visitor[V]") -> V:
@@ -396,9 +396,9 @@ class CatchStream(DownStream[T, T]):
 
 
 class FilterStream(DownStream[T, T]):
-    def __init__(self, upstream: Stream[T], predicate: Callable[[T], Any]) -> None:
+    def __init__(self, upstream: Stream[T], keep: Callable[[T], Any]) -> None:
         super().__init__(upstream)
-        self.predicate = predicate
+        self.keep = keep
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_filter_stream(self)
@@ -415,10 +415,10 @@ class FlattenStream(DownStream[Iterable[T], T]):
 
 class ForeachStream(DownStream[T, T]):
     def __init__(
-        self, upstream: Stream[T], func: Callable[[T], Any], concurrency: int
+        self, upstream: Stream[T], effect: Callable[[T], Any], concurrency: int
     ) -> None:
         super().__init__(upstream)
-        self.func = func
+        self.effect = effect
         self.concurrency = concurrency
 
     def accept(self, visitor: "Visitor[V]") -> V:
@@ -427,10 +427,10 @@ class ForeachStream(DownStream[T, T]):
 
 class AForeachStream(DownStream[T, T]):
     def __init__(
-        self, upstream: Stream[T], func: Callable[[T], Coroutine], concurrency: int
+        self, upstream: Stream[T], effect: Callable[[T], Coroutine], concurrency: int
     ) -> None:
         super().__init__(upstream)
-        self.func = func
+        self.effect = effect
         self.concurrency = concurrency
 
     def accept(self, visitor: "Visitor[V]") -> V:
@@ -465,10 +465,10 @@ class LimitStream(DownStream[T, T]):
 
 class MapStream(DownStream[T, U]):
     def __init__(
-        self, upstream: Stream[T], func: Callable[[T], U], concurrency: int
+        self, upstream: Stream[T], transformation: Callable[[T], U], concurrency: int
     ) -> None:
         super().__init__(upstream)
-        self.func = func
+        self.transformation = transformation
         self.concurrency = concurrency
 
     def accept(self, visitor: "Visitor[V]") -> V:
@@ -479,11 +479,11 @@ class AMapStream(DownStream[T, U]):
     def __init__(
         self,
         upstream: Stream[T],
-        func: Callable[[T], Coroutine[Any, Any, U]],
+        transformation: Callable[[T], Coroutine[Any, Any, U]],
         concurrency: int,
     ) -> None:
         super().__init__(upstream)
-        self.func = func
+        self.transformation = transformation
         self.concurrency = concurrency
 
     def accept(self, visitor: "Visitor[V]") -> V:

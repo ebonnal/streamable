@@ -31,11 +31,11 @@ class CatchingIterator(Iterator[T]):
     def __init__(
         self,
         iterator: Iterator[T],
-        predicate: Callable[[Exception], Any],
+        when: Callable[[Exception], Any],
         raise_at_exhaustion: bool,
     ) -> None:
         self.iterator = iterator
-        self.predicate = predicate
+        self.when = when
         self.raise_at_exhaustion = raise_at_exhaustion
         self._first_catched_error: Optional[Exception] = None
         self._first_error_has_been_raised = False
@@ -54,7 +54,7 @@ class CatchingIterator(Iterator[T]):
                     raise self._first_catched_error
                 raise
             except Exception as exception:
-                if self.predicate(exception):
+                if self.when(exception):
                     if self._first_catched_error is None:
                         self._first_catched_error = exception
                 else:
@@ -265,12 +265,12 @@ class ConcurrentMappingIterable(Iterable[Union[U, RaisingIterator.ExceptionConta
     def __init__(
         self,
         iterator: Iterator[T],
-        func: Callable[[T], U],
+        transformation: Callable[[T], U],
         concurrency: int,
         buffer_size: int,
     ) -> None:
         self.iterator = iterator
-        self.func = func
+        self.transformation = transformation
         self.concurrency = concurrency
         self.buffer_size = buffer_size
 
@@ -293,7 +293,7 @@ class ConcurrentMappingIterable(Iterable[Union[U, RaisingIterator.ExceptionConta
                     except StopIteration:
                         # the upstream iterator is exhausted
                         break
-                    futures.append(executor.submit(self.func, elem))
+                    futures.append(executor.submit(self.transformation, elem))
                 if element_to_yield:
                     yield element_to_yield.pop()
                 if not futures:
@@ -306,19 +306,21 @@ class AsyncConcurrentMappingIterable(
     def __init__(
         self,
         iterator: Iterator[T],
-        func: Callable[[T], Coroutine[Any, Any, U]],
+        transformation: Callable[[T], Coroutine[Any, Any, U]],
         buffer_size: int,
     ) -> None:
         self.iterator = iterator
-        self.func = func
+        self.transformation = transformation
         self.buffer_size = buffer_size
 
-    async def _safe_func(self, elem: T) -> Union[U, RaisingIterator.ExceptionContainer]:
+    async def _safe_transformation(
+        self, elem: T
+    ) -> Union[U, RaisingIterator.ExceptionContainer]:
         try:
-            coroutine = self.func(elem)
+            coroutine = self.transformation(elem)
             if not isinstance(coroutine, Coroutine):
                 raise TypeError(
-                    f"The `func` passed to `amap` or `aforeach` must return a Coroutine object, but got a {type(coroutine)}."
+                    f"The function is expected to be an async function, i.e. it must be a function returning a Coroutine object, but returned a {type(coroutine)}."
                 )
             return await coroutine
         except Exception as e:
@@ -341,7 +343,7 @@ class AsyncConcurrentMappingIterable(
                 except StopIteration:
                     # the upstream iterator is exhausted
                     break
-                awaitables.append(loop.create_task(self._safe_func(elem)))
+                awaitables.append(loop.create_task(self._safe_transformation(elem)))
             if element_to_yield:
                 yield element_to_yield.pop()
             if not awaitables:

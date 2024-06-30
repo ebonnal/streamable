@@ -37,7 +37,7 @@ def async_sidify(
         coroutine = func(arg)
         if not isinstance(coroutine, Coroutine):
             raise TypeError(
-                f"`func` is expected to return a Coroutine but got a {type(coroutine)}."
+                f"The function is expected to be an async function, i.e. it must be a function returning a Coroutine object, but returned a {type(coroutine)}."
             )
         await coroutine
         return arg

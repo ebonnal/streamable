@@ -25,15 +25,13 @@ class IteratorVisitor(Visitor[Iterator[T]]):
     def visit_catch_stream(self, stream: CatchStream[T]) -> Iterator[T]:
         return functions.catch(
             stream.upstream.accept(self),
-            stream.predicate,
+            stream.when,
             raise_at_exhaustion=stream.raise_at_exhaustion,
         )
 
     def visit_filter_stream(self, stream: FilterStream[T]) -> Iterator[T]:
         return filter(
-            util.reraise_as(
-                stream.predicate, StopIteration, functions.WrappedStopIteration
-            ),
+            util.reraise_as(stream.keep, StopIteration, functions.WrappedStopIteration),
             cast(Iterable[T], stream.upstream.accept(self)),
         )
 
@@ -47,7 +45,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         return self.visit_map_stream(
             MapStream(
                 stream.upstream,
-                util.sidify(stream.func),
+                util.sidify(stream.effect),
                 stream.concurrency,
             )
         )
@@ -56,7 +54,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         return self.visit_amap_stream(
             AMapStream(
                 stream.upstream,
-                util.async_sidify(stream.func),
+                util.async_sidify(stream.effect),
                 stream.concurrency,
             )
         )
@@ -80,14 +78,14 @@ class IteratorVisitor(Visitor[Iterator[T]]):
 
     def visit_map_stream(self, stream: MapStream[U, T]) -> Iterator[T]:
         return functions.map(
-            stream.func,
+            stream.transformation,
             stream.upstream.accept(IteratorVisitor[U]()),
             concurrency=stream.concurrency,
         )
 
     def visit_amap_stream(self, stream: AMapStream[U, T]) -> Iterator[T]:
         return functions.amap(
-            stream.func,
+            stream.transformation,
             stream.upstream.accept(IteratorVisitor[U]()),
             concurrency=stream.concurrency,
         )

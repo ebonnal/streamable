@@ -36,15 +36,13 @@ class WrappedStopIteration(Exception):
 
 def catch(
     iterator: Iterator[T],
-    predicate: Callable[[Exception], Any] = bool,
+    when: Callable[[Exception], Any] = bool,
     raise_at_exhaustion: bool = False,
 ) -> Iterator[T]:
-    predicate = util.reraise_as(
-        predicate, source=StopIteration, target=WrappedStopIteration
-    )
+    when = util.reraise_as(when, source=StopIteration, target=WrappedStopIteration)
     return CatchingIterator(
         iterator,
-        predicate,
+        when,
         raise_at_exhaustion=raise_at_exhaustion,
     )
 
@@ -83,18 +81,20 @@ def group(
 
 
 def map(
-    func: Callable[[T], U], iterator: Iterator[T], concurrency: int = 1
+    transformation: Callable[[T], U], iterator: Iterator[T], concurrency: int = 1
 ) -> Iterator[U]:
     util.validate_concurrency(concurrency)
-    func = util.reraise_as(func, StopIteration, WrappedStopIteration)
+    transformation = util.reraise_as(
+        transformation, StopIteration, WrappedStopIteration
+    )
     if concurrency == 1:
-        return builtins.map(func, iterator)
+        return builtins.map(transformation, iterator)
     else:
         return RaisingIterator(
             iter(
                 ConcurrentMappingIterable(
                     iterator,
-                    func,
+                    transformation,
                     concurrency=concurrency,
                     buffer_size=concurrency,
                 )
@@ -103,7 +103,7 @@ def map(
 
 
 def amap(
-    func: Callable[[T], Coroutine[Any, Any, U]],
+    transformation: Callable[[T], Coroutine[Any, Any, U]],
     iterator: Iterator[T],
     concurrency: int = 1,
 ) -> Iterator[U]:
@@ -112,7 +112,7 @@ def amap(
         iter(
             AsyncConcurrentMappingIterable(
                 iterator,
-                util.reraise_as(func, StopIteration, WrappedStopIteration),
+                util.reraise_as(transformation, StopIteration, WrappedStopIteration),
                 buffer_size=concurrency,
             )
         )

@@ -526,12 +526,12 @@ class TestStream(unittest.TestCase):
             )
 
     def test_filter(self) -> None:
-        def predicate(x) -> Any:
+        def keep(x) -> Any:
             return x % 2
 
         self.assertListEqual(
-            list(Stream(src).filter(predicate)),
-            list(filter(predicate, src)),
+            list(Stream(src).filter(keep)),
+            list(filter(keep, src)),
             msg="`filter` must act like builtin filter",
         )
         self.assertListEqual(
@@ -828,7 +828,7 @@ class TestStream(unittest.TestCase):
         self.assertListEqual(
             list(stream.catch(lambda e: isinstance(e, ZeroDivisionError))),
             list(map(f, safe_src)),
-            msg="If the exception type matches the `predicate`, then the impacted element should be ignored.",
+            msg="If the exception type matches the `when`, then the impacted element should be ignored.",
         )
         self.assertListEqual(
             list(stream.catch()),
@@ -972,7 +972,7 @@ class TestStream(unittest.TestCase):
         stream = Stream(src).amap(identity)  # type: ignore
         with self.assertRaisesRegex(
             TypeError,
-            "The `func` passed to `amap` or `aforeach` must return a Coroutine object, but got a <class 'int'>.",
+            "The function is expected to be an async function, i.e. it must be a function returning a Coroutine object, but returned a <class 'int'>.",
             msg="`amap` should raise a TypeError if a non async function is passed to it.",
         ):
             next(iter(stream))
@@ -996,7 +996,7 @@ class TestStream(unittest.TestCase):
         stream = Stream(src).aforeach(identity)  # type: ignore
         with self.assertRaisesRegex(
             TypeError,
-            "`func` is expected to return a Coroutine but got a <class 'int'>.",
+            "The function is expected to be an async function, i.e. it must be a function returning a Coroutine object, but returned a <class 'int'>.",
             msg="`aforeach` should raise a TypeError if a non async function is passed to it.",
         ):
             next(iter(stream))

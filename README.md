@@ -92,7 +92,7 @@ It has an optional `concurrency: int` parameter to execute the function concurre
 It has a sibling operation called `.aforeach` to apply an async function concurrently (see section ***`asyncio` support***).
 
 ## `.filter`
-Filters elements based on a predicate function.
+Keeps only elements satisfying a predicate function.
 
 ```python
 pair_integers: Stream[int] = integers.filter(lambda n: n % 2 == 0)
