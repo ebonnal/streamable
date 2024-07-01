@@ -32,11 +32,11 @@ class CatchingIterator(Iterator[T]):
         self,
         iterator: Iterator[T],
         when: Callable[[Exception], Any],
-        raise_at_exhaustion: bool,
+        raise_after_exhaustion: bool,
     ) -> None:
         self.iterator = iterator
         self.when = when
-        self.raise_at_exhaustion = raise_at_exhaustion
+        self.raise_after_exhaustion = raise_after_exhaustion
         self._first_catched_error: Optional[Exception] = None
         self._first_error_has_been_raised = False
 
@@ -47,7 +47,7 @@ class CatchingIterator(Iterator[T]):
             except StopIteration:
                 if (
                     self._first_catched_error is not None
-                    and self.raise_at_exhaustion
+                    and self.raise_after_exhaustion
                     and not self._first_error_has_been_raised
                 ):
                     self._first_error_has_been_raised = True

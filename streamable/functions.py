@@ -38,13 +38,13 @@ class WrappedStopIteration(Exception):
 def catch(
     iterator: Iterator[T],
     when: Callable[[Exception], Any] = bool,
-    raise_at_exhaustion: bool = False,
+    raise_after_exhaustion: bool = False,
 ) -> Iterator[T]:
     when = util.reraise_as(when, source=StopIteration, target=WrappedStopIteration)
     return CatchingIterator(
         iterator,
         when,
-        raise_at_exhaustion=raise_at_exhaustion,
+        raise_after_exhaustion=raise_after_exhaustion,
     )
 
 

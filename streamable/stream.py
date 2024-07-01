@@ -107,19 +107,19 @@ class Stream(Iterable[T]):
     def catch(
         self,
         when: Callable[[Exception], Any] = bool,
-        raise_at_exhaustion: bool = False,
+        raise_after_exhaustion: bool = False,
     ) -> "Stream[T]":
         """
         Catches the upstream exceptions which are satisfying the provided `when` predicate.
 
         Args:
             when (Callable[[Exception], Any], optional): The exception will be catched if `when(exception)` is Truthy (all exceptions catched by default).
-            raise_at_exhaustion (bool, optional): Set to True if you want the first catched exception to be raised when upstream is exhausted (default is False).
+            raise_after_exhaustion (bool, optional): Set to True if you want the first catched exception to be raised when upstream is exhausted (default is False).
 
         Returns:
             Stream[T]: A stream of upstream elements catching the eligible exceptions.
         """
-        return CatchStream(self, when, raise_at_exhaustion=raise_at_exhaustion)
+        return CatchStream(self, when, raise_after_exhaustion=raise_after_exhaustion)
 
     def explain(self, colored: bool = False) -> "Stream[T]":
         """
@@ -388,11 +388,11 @@ class CatchStream(DownStream[T, T]):
         self,
         upstream: Stream[T],
         when: Callable[[Exception], Any],
-        raise_at_exhaustion: bool,
+        raise_after_exhaustion: bool,
     ) -> None:
         super().__init__(upstream)
         self.when = when
-        self.raise_at_exhaustion = raise_at_exhaustion
+        self.raise_after_exhaustion = raise_after_exhaustion
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_catch_stream(self)

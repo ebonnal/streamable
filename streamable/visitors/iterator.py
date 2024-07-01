@@ -26,7 +26,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         return functions.catch(
             stream.upstream.accept(self),
             stream.when,
-            raise_at_exhaustion=stream.raise_at_exhaustion,
+            raise_after_exhaustion=stream.raise_after_exhaustion,
         )
 
     def visit_filter_stream(self, stream: FilterStream[T]) -> Iterator[T]:

@@ -893,9 +893,9 @@ class TestStream(unittest.TestCase):
 
         erroring_stream: Stream[int] = Stream(lambda: map(lambda f: f(), functions))
         for catched_erroring_stream in [
-            erroring_stream.catch(raise_at_exhaustion=True),
+            erroring_stream.catch(raise_after_exhaustion=True),
             erroring_stream.catch(
-                lambda e: isinstance(e, Exception), raise_at_exhaustion=True
+                lambda e: isinstance(e, Exception), raise_after_exhaustion=True
             ),
         ]:
             erroring_stream_iterator = iter(catched_erroring_stream)
@@ -907,13 +907,13 @@ class TestStream(unittest.TestCase):
             n_yields = 1
             with self.assertRaises(
                 TestError,
-                msg="`catch` should raise the first error encountered when `raise_at_exhaustion` is True.",
+                msg="`catch` should raise the first error encountered when `raise_after_exhaustion` is True.",
             ):
                 for _ in erroring_stream_iterator:
                     n_yields += 1
             with self.assertRaises(
                 StopIteration,
-                msg="`catch` with `raise_at_exhaustion`=True should finally raise StopIteration to avoid infinite recursion if there is another catch downstream.",
+                msg="`catch` with `raise_after_exhaustion`=True should finally raise StopIteration to avoid infinite recursion if there is another catch downstream.",
             ):
                 next(erroring_stream_iterator)
             self.assertEqual(

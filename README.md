@@ -143,7 +143,7 @@ safe_inverse_floats: Stream[float] = (
 )
 ```
 
-It has an optional `raise_at_exhaustion` parameter to raise the first catched exception when iteration ends.
+It has an optional `raise_after_exhaustion` parameter to raise the first catched exception when an iteration ends.
 
 ## `.observe`
 
