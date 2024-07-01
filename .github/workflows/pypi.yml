@@ -2,10 +2,8 @@ name: PyPI
 
 on:
   push:
-    branches:
-      - main
-    paths:
-      - 'version.py'
+    tags:
+      - 'v*'
 jobs:
   pypi:
     runs-on: ubuntu-latest
