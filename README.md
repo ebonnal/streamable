@@ -278,10 +278,20 @@ Style tip: Enclose operations in parentheses to keep lines short without needing
 stream: Stream[str] = (
     Stream(range(10))
     .map(str)
-    .group(2)
     .foreach(print)
     .flatten()
-    .filter()
-    .catch()
+    .truncate(10)
 )
+```
+
+## explain
+```python
+print(stream.explanation())
+```
+```
+└─•TruncateStream(count=10, when=None)
+  └─•FlattenStream(concurrency=1)
+    └─•ForeachStream(effect=print, concurrency=1)
+      └─•MapStream(transformation=str, concurrency=1)
+        └─•Stream(source=range(...))
 ```
