@@ -11,7 +11,7 @@ from typing import (
     cast,
 )
 
-from streamable.wrappers import (
+from streamable.iterators import (
     AsyncConcurrentMappingIterable,
     CatchingIterator,
     ConcurrentFlatteningIterable,
@@ -118,8 +118,8 @@ def amap(
     )
 
 
-def observe(iterator: Iterator[T], what: str, colored: bool = False) -> Iterator[T]:
-    return ObservingIterator(iterator, what, colored)
+def observe(iterator: Iterator[T], what: str) -> Iterator[T]:
+    return ObservingIterator(iterator, what)
 
 
 def slow(iterator: Iterator[T], frequency: float) -> Iterator[T]:

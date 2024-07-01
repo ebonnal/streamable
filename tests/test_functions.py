@@ -31,6 +31,5 @@ class TestFunctions(unittest.TestCase):
             iterator, lambda ex: None, raise_after_exhaustion=True
         )
         observed_it_1: Iterator[int] = observe(iterator, what="objects")
-        observed_it_2: Iterator[int] = observe(iterator, what="objects", colored=True)
         slowed_it_1: Iterator[int] = slow(iterator, frequency=1)
         truncated_it_1: Iterator[int] = truncate(iterator, count=1)

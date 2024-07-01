@@ -22,35 +22,15 @@ from streamable.visitor import Visitor
 class ExplanationVisitor(Visitor[str]):
     def __init__(
         self,
-        colored: bool = False,
         margin_step: int = 2,
-        header: str = "",
     ) -> None:
-        self.colored = colored
-        self.header = header
         self.margin_step = margin_step
-
         self.linking_symbol = "└" + "─" * (self.margin_step - 1) + "•"
 
-        if self.colored:
-            self.header = util.bold(self.header)
-        if self.colored:
-            self.linking_symbol = util.colorize_in_grey(self.linking_symbol)
-
     def _explanation(self, stream: stream.Stream, attributes_repr: str) -> str:
-        explanation = self.header
-
-        if self.header:
-            explanation += "\n"
-            self.header = ""
-
         name = stream.__class__.__name__
-        if self.colored:
-            name = util.colorize_in_red(name)
-
         stream_repr = f"{name}({attributes_repr})"
-
-        explanation += self.linking_symbol + stream_repr + "\n"
+        explanation = self.linking_symbol + stream_repr + "\n"
 
         if stream.upstream is not None:
             explanation += textwrap.indent(
@@ -105,9 +85,7 @@ class ExplanationVisitor(Visitor[str]):
         return self.visit_map_stream(cast(MapStream, stream))
 
     def visit_observe_stream(self, stream: ObserveStream) -> str:
-        return self._explanation(
-            stream, f"what='{stream.what}', colored={stream.colored}"
-        )
+        return self._explanation(stream, f"what='{stream.what}'")
 
     def visit_slow_stream(self, stream: SlowStream) -> str:
         return self._explanation(stream, f"frequency={stream.frequency}")

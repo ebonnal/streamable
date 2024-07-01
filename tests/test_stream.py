@@ -198,20 +198,15 @@ class TestStream(unittest.TestCase):
             explanation_2,
             msg="Stream.explain() must be deterministic.",
         )
-        colored_explanation = complex_stream.explanation(colored=True)
+
+        explanation_2 = complex_stream.map(str).explanation()
         self.assertNotEqual(
             explanation_1,
-            colored_explanation,
-            msg="Stream.explain(colored=True) must different from non colored one.",
-        )
-        explanation_3 = complex_stream.map(str).explanation()
-        self.assertNotEqual(
-            explanation_1,
-            explanation_3,
+            explanation_2,
             msg="explanation of different streams must be different",
         )
 
-        print(colored_explanation)
+        print(explanation_1)
 
     def test_explain(self) -> None:
         stream = Stream(src)
@@ -944,7 +939,7 @@ class TestStream(unittest.TestCase):
             .slow(1)
             .observe("chars")
             .map(int)
-            .observe("ints", colored=True)
+            .observe("ints")
             .group(2)
             .observe("int pairs")
         )

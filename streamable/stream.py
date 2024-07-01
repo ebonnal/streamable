@@ -121,21 +121,21 @@ class Stream(Iterable[T]):
         """
         return CatchStream(self, when, raise_after_exhaustion=raise_after_exhaustion)
 
-    def explain(self, colored: bool = False) -> "Stream[T]":
+    def explain(self) -> "Stream[T]":
         """
         Logs this stream's explanation (INFO level)
         """
-        get_logger().info("explanation:\n%s", self.explanation(colored))
+        get_logger().info("explanation:\n%s", self.explanation())
         return self
 
-    def explanation(self, colored: bool = False) -> str:
+    def explanation(self) -> str:
         """
         Returns:
             str: A pretty representation of this stream's operations.
         """
         from streamable.visitors import explanation
 
-        return self.accept(explanation.ExplanationVisitor(colored))
+        return self.accept(explanation.ExplanationVisitor())
 
     def filter(self, keep: Callable[[T], Any] = bool) -> "Stream[T]":
         """
@@ -315,7 +315,7 @@ class Stream(Iterable[T]):
         validate_concurrency(concurrency)
         return AMapStream(self, transformation, concurrency)
 
-    def observe(self, what: str = "elements", colored: bool = False) -> "Stream[T]":
+    def observe(self, what: str = "elements") -> "Stream[T]":
         """
         Logs the progress of the iterations over this stream.
 
@@ -328,12 +328,11 @@ class Stream(Iterable[T]):
 
         Args:
             what (str): (plural) name representing the objects yielded.
-            colored (bool): whether or not to use ascii colorization.
 
         Returns:
             Stream[T]: A stream of upstream elements whose iteration is logged for observability.
         """
-        return ObserveStream(self, what, colored)
+        return ObserveStream(self, what)
 
     def slow(self, frequency: float) -> "Stream[T]":
         """
@@ -485,10 +484,9 @@ class AMapStream(DownStream[T, U]):
 
 
 class ObserveStream(DownStream[T, T]):
-    def __init__(self, upstream: Stream[T], what: str, colored: bool) -> None:
+    def __init__(self, upstream: Stream[T], what: str) -> None:
         super().__init__(upstream)
         self.what = what
-        self.colored = colored
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_observe_stream(self)

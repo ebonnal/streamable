@@ -203,10 +203,9 @@ class TruncatingOnPredicateIterator(Iterator[T]):
 
 
 class ObservingIterator(Iterator[T]):
-    def __init__(self, iterator: Iterator[T], what: str, colored: bool) -> None:
+    def __init__(self, iterator: Iterator[T], what: str) -> None:
         self.iterator = iterator
         self.what = what
-        self.colored = colored
         self._n_yields = 0
         self._n_errors = 0
         self._last_log_after_n_calls = 0
@@ -214,15 +213,7 @@ class ObservingIterator(Iterator[T]):
 
     def _log(self) -> None:
         errors_summary = f"errors={self._n_errors}"
-
-        if self.colored and self._n_errors > 0:
-            # colorize the error summary in red if any
-            errors_summary = util.bold(util.colorize_in_red(errors_summary))
-
         yields_summary = f"{self._n_yields} {self.what} yielded"
-        if self.colored:
-            yields_summary = util.bold(yields_summary)
-
         elapsed_time = f"duration={datetime.fromtimestamp(time.time()) - datetime.fromtimestamp(self._start_time)}"
 
         util.get_logger().info(

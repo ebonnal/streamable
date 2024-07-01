@@ -95,7 +95,6 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         return functions.observe(
             stream.upstream.accept(self),
             stream.what,
-            stream.colored,
         )
 
     def visit_slow_stream(self, stream: SlowStream[T]) -> Iterator[T]:
