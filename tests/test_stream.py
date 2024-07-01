@@ -946,7 +946,7 @@ class TestStream(unittest.TestCase):
             .map(int)
             .observe("ints", colored=True)
             .group(2)
-            .observe("ints_pairs")
+            .observe("int pairs")
         )
 
         self.assertListEqual(

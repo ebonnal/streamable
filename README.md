@@ -149,20 +149,17 @@ It has an optional `raise_at_exhaustion` parameter to raise the first catched ex
 
 Logs the progress of iterations over this stream.
 
-With
+If you iterate on
 ```python
 observed_slow_integers: Stream[int] = slow_integers.observe(what="integers")
 ```
-
-you should get:
-
+you will get these logs:
 ```
-INFO: iteration over 'integers' will be observed.
-INFO: after 0:00:00.000283, 0 error and 1 `integers` yielded.
-INFO: after 0:00:00.501373, 0 error and 2 `integers` yielded.
-INFO: after 0:00:01.501346, 0 error and 4 `integers` yielded.
-INFO: after 0:00:03.500864, 0 error and 8 `integers` yielded.
-INFO: after 0:00:04.500547, 0 error and 10 `integers` yielded.
+INFO: [duration=0:00:00.502155 errors=0] 1 integers yielded
+INFO: [duration=0:00:01.006336 errors=0] 2 integers yielded
+INFO: [duration=0:00:02.011921 errors=0] 4 integers yielded
+INFO: [duration=0:00:04.029666 errors=0] 8 integers yielded
+INFO: [duration=0:00:05.039571 errors=0] 10 integers yielded
 ```
 
 The amount of logs will never be overwhelming because they are produced logarithmically e.g. the 11th log will be produced when the iteration reaches the 1024th element.

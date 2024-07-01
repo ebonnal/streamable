@@ -211,24 +211,22 @@ class ObservingIterator(Iterator[T]):
         self._n_errors = 0
         self._last_log_after_n_calls = 0
         self._start_time = time.time()
-        util.get_logger().info("iteration over '%s' will be observed.", self.what)
 
     def _log(self) -> None:
-        errors_summary = f"{self._n_errors} error"
-        if self._n_errors > 1:
-            errors_summary += "s"
+        errors_summary = f"errors={self._n_errors}"
+
         if self.colored and self._n_errors > 0:
             # colorize the error summary in red if any
             errors_summary = util.bold(util.colorize_in_red(errors_summary))
 
-        yields_summary = f"{self._n_yields} `{self.what}` yielded"
+        yields_summary = f"{self._n_yields} {self.what} yielded"
         if self.colored:
             yields_summary = util.bold(yields_summary)
 
-        elapsed_time = f"after {datetime.fromtimestamp(time.time()) - datetime.fromtimestamp(self._start_time)}"
+        elapsed_time = f"duration={datetime.fromtimestamp(time.time()) - datetime.fromtimestamp(self._start_time)}"
 
         util.get_logger().info(
-            "%s, %s and %s", elapsed_time, errors_summary, yields_summary
+            "[%s %s] %s", elapsed_time, errors_summary, yields_summary
         )
 
     def _n_calls(self) -> int:
