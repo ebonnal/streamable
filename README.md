@@ -35,14 +35,17 @@ from streamable import Stream
 ```
 
 ## 3. init
+Instantiate a `Stream[T]` from an `Iterable[T]`.
 
 ```python
 integers: Stream[int] = Stream(range(10))
 ```
 
-Instantiate a `Stream[T]` from an `Iterable[T]`.
 
 ## 4. operate
+- `Stream`s are ***immutable***: applying an operation returns a new stream.
+
+- Operations are ***lazy***: only evaluated at iteration time.
 
 ```python
 odd_integer_strings: Stream[str] = (
@@ -52,24 +55,32 @@ odd_integer_strings: Stream[str] = (
 )
 ```
 
-- `Stream` instances are ***immutable***: calling an operation returns a new stream.
-
-- Operations are ***lazy***: they are only evaluated at iteration time.
-
-- During the iteration each source element is pulled only once and then forgotten after being processed.
 
 ## 5. iterate
-`Stream[T]` extends `Iterable[T]`:
+- Iterate over a `Stream[T]` as you would over any other `Iterable[T]`.
+- Source elements are ***processed on-the-fly***.
+
+### collect it
 ```python
 >>> list(odd_integer_strings)
 ['1', '3', '5', '7', '9']
 >>> set(odd_integer_strings)
 {'9', '1', '5', '3', '7'}
+```
+
+### reduce it
+```python
+>>> sum(integers)
+45
 >>> from functools import reduce
->>> from operator import mul
->>> reduce(mul, integers)
-945
->>> for odd_integer_string in odd_integer_strings: ...
+>>> reduce(str.__add__, odd_integer_strings)
+'13579'
+```
+
+### loop it
+```python
+for odd_integer_string in odd_integer_strings:
+    ...
 ```
 
 ---
