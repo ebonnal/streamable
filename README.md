@@ -7,13 +7,18 @@
 
 ---
 
-**TL;DR:**
--  ***typed***: the `Stream[T]` class extends `Iterable[T]`
--  ***light***: `pip install streamable` with no dependency
--  ***robust***: extensively unittested with 100% coverage
-- ***lazy***: evaluation at iteration and single scan of the source.
-- ***concurrent***: threads-based or `asyncio`-based
-- ***versatile***: includes grouping by key/period/size, exceptions catching, iteration rate limiting and progress logging, ...
+## TL;DR:
+### 🇹 typed
+The `Stream[T]` class extends `Iterable[T]`
+### 🪶 light 
+`pip install streamable` with no dependency
+### 🛡️ robust
+Unittested with 100% coverage
+### 💤 lazy
+Operations are only evaluated during iteration
+### 🔄 concurrent
+Threads-based or `asyncio`-based
+
 
 ---
 
