@@ -235,20 +235,13 @@ print(
 
 One can leverage this library to write elegant ETL scripts, check the [**README dedicated to ETL**](README_ETL.md).
 
-## streamable's functions
+## as functions
 The `Stream`'s methods are also exposed as functions:
 ```python
 from streamable.functions import slow
 
 iterator: Iterator[int] = ...
 slow_iterator: Iterator[int] = slow(iterator)
-```
-
-## change logging level
-```python
-import logging
-
-logging.getLogger("streamable").setLevel(logging.WARNING)
 ```
 
 ## visitor pattern
@@ -294,4 +287,11 @@ print(stream.explanation())
     └─•ForeachStream(effect=print, concurrency=1)
       └─•MapStream(transformation=str, concurrency=1)
         └─•Stream(source=range(...))
+```
+
+## change logging level
+```python
+import logging
+
+logging.getLogger("streamable").setLevel(logging.WARNING)
 ```
