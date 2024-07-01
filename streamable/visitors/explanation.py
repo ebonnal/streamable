@@ -24,7 +24,7 @@ class ExplanationVisitor(Visitor[str]):
         self,
         colored: bool = False,
         margin_step: int = 2,
-        header: str = "Stream's plan:",
+        header: str = "",
     ) -> None:
         self.colored = colored
         self.header = header

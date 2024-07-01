@@ -125,7 +125,7 @@ class Stream(Iterable[T]):
         """
         Logs this stream's explanation (INFO level)
         """
-        get_logger().info(self.explanation(colored))
+        get_logger().info("explanation:\n%s", self.explanation(colored))
         return self
 
     def explanation(self, colored: bool = False) -> str:
