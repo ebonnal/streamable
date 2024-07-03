@@ -11,7 +11,7 @@ from typing import (
     cast,
 )
 
-from streamable.iterators import (
+from streamable.iters import (
     AsyncConcurrentMappingIterable,
     CatchingIterator,
     ConcurrentFlatteningIterable,
