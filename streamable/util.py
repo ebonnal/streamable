@@ -105,12 +105,3 @@ def validate_truncate_args(
         raise ValueError(f"`count` must be positive but got {count}.")
     elif count >= sys.maxsize:
         raise ValueError(f"`count` must be less than sys.maxsize but got {count}.")
-
-
-def get_name(o: object) -> str:
-    if o is None:
-        return "None"
-    try:
-        return o.__name__  # type: ignore
-    except AttributeError:
-        return o.__class__.__name__ + "(...)"

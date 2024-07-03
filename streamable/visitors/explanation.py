@@ -1,7 +1,7 @@
 import textwrap
 from typing import cast
 
-from streamable import stream, util
+from streamable import stream
 from streamable.stream import (
     AForeachStream,
     AMapStream,
@@ -17,6 +17,15 @@ from streamable.stream import (
     TruncateStream,
 )
 from streamable.visitor import Visitor
+
+
+def get_name(o: object) -> str:
+    if o is None:
+        return "None"
+    try:
+        return o.__name__  # type: ignore
+    except AttributeError:
+        return o.__class__.__name__ + "(...)"
 
 
 class ExplanationVisitor(Visitor[str]):
@@ -41,16 +50,16 @@ class ExplanationVisitor(Visitor[str]):
         return explanation
 
     def visit_stream(self, stream: Stream) -> str:
-        return self._explanation(stream, f"source={util.get_name(stream.source)}")
+        return self._explanation(stream, f"source={get_name(stream.source)}")
 
     def visit_catch_stream(self, stream: CatchStream) -> str:
         return self._explanation(
             stream,
-            f"when={util.get_name(stream.when)}, raise_after_exhaustion={stream.raise_after_exhaustion}",
+            f"when={get_name(stream.when)}, raise_after_exhaustion={stream.raise_after_exhaustion}",
         )
 
     def visit_filter_stream(self, stream: FilterStream) -> str:
-        return self._explanation(stream, f"keep={util.get_name(stream.keep)}")
+        return self._explanation(stream, f"keep={get_name(stream.keep)}")
 
     def visit_flatten_stream(self, stream: FlattenStream) -> str:
         return self._explanation(stream, f"concurrency={stream.concurrency}")
@@ -58,7 +67,7 @@ class ExplanationVisitor(Visitor[str]):
     def visit_foreach_stream(self, stream: ForeachStream) -> str:
         return self._explanation(
             stream,
-            f"effect={util.get_name(stream.effect)}, concurrency={stream.concurrency}",
+            f"effect={get_name(stream.effect)}, concurrency={stream.concurrency}",
         )
 
     def visit_aforeach_stream(self, stream: AForeachStream) -> str:
@@ -67,18 +76,18 @@ class ExplanationVisitor(Visitor[str]):
     def visit_group_stream(self, stream: GroupStream) -> str:
         return self._explanation(
             stream,
-            f"size={stream.size}, seconds={stream.seconds}, by={util.get_name(stream.by)}",
+            f"size={stream.size}, seconds={stream.seconds}, by={get_name(stream.by)}",
         )
 
     def visit_truncate_stream(self, stream: TruncateStream) -> str:
         return self._explanation(
-            stream, f"count={stream.count}, when={util.get_name(stream.when)}"
+            stream, f"count={stream.count}, when={get_name(stream.when)}"
         )
 
     def visit_map_stream(self, stream: MapStream) -> str:
         return self._explanation(
             stream,
-            f"transformation={util.get_name(stream.transformation)}, concurrency={stream.concurrency}",
+            f"transformation={get_name(stream.transformation)}, concurrency={stream.concurrency}",
         )
 
     def visit_amap_stream(self, stream: AMapStream) -> str:
