@@ -15,7 +15,7 @@ These jobs typically:
 
 - post into a **destination** using essentially the same library options mentioned for sources.
 
-- **group** elements to transform or post them by **batches**.
+- **group** elements to transform or post them in **batches**.
 
 - **rate limit** the calls made to APIs to respect the request quotas and avoid `HTTP 429 (Too Many Requests)`.
 
