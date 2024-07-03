@@ -1,19 +1,14 @@
 # Contributor's cheat sheet
-## setup
+
 ```bash
 git clone git@github.com:ebonnal/streamable
 cd streamable
 python -m venv .venv
 source .venv/bin/activate
-python -m pip install -r .github/workflows/requirements.txt
+python -m pip install -r requirements-dev.txt
 ```
 
-## unittest
-```bash
-python -m unittest
-```
-
-## check code coverage
+## unittest and check coverage
 ```bash
 python -m coverage run -m unittest && coverage report
 ```
