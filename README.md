@@ -8,17 +8,13 @@
 ---
 
 ## TL;DR:
-### 🇹 typed
-The `Stream[T]` class extends `Iterable[T]`
-### 🪶 light 
-`pip install streamable` with no dependency
-### 🛡️ robust
-Unittested with 100% coverage
-### 💤 lazy
-Operations are only evaluated during iteration
-### 🔄 concurrent
-Threads-based or `asyncio`-based
-
+|||
+|--|--|
+|🇹 typed|The `Stream[T]` class extends `Iterable[T]`|
+|🪶 light|`pip install streamable` with no additional dependencies|
+|🛡️ robust|Extensively unittested with 100% coverage|
+|💤 lazy|Operations are only evaluated during iteration|
+|🔄 concurrent|Threads-based or `asyncio`-based concurrency for I/O bound tasks|
 
 ---
 
@@ -202,7 +198,7 @@ This is a **fully typed library** (you can [`mypy`](https://github.com/python/my
 Compatible with **Python `3.7+`** (unittested for: `3.7.17`, `3.8.18`, `3.9.18`, `3.10.13`, `3.11.7`, `3.12.1`).
 
 ## support for `asyncio`
-As an alternative to the threads-based concurrency available for `.map` and `.foreach` operations (via the `concurrency` parameter), one can use `.amap` and `.aforeach` operations to **apply `async` functions** concurrently on a stream:
+As an alternative to the threads-based concurrency available for `.map` and `.foreach` operations (via their `concurrency` parameter), one can use `.amap` and `.aforeach` operations to **apply `async` functions** concurrently on a stream:
 
 ```python
 import asyncio
