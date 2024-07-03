@@ -155,7 +155,7 @@ Catches exceptions that satisfy a predicate function.
 safe_inverse_floats: Stream[float] = (
     integers
     .map(lambda n: 1 / n)
-    .catch(lambda ex: isinstance(ex, ZeroDivisionError))
+    .catch(lambda error: isinstance(error, ZeroDivisionError))
 )
 ```
 
