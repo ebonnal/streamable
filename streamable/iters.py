@@ -38,28 +38,23 @@ class CatchingIterator(Iterator[T]):
         self.iterator = iterator
         self.kind = kind
         self.finally_raise = finally_raise
-        self._first_catched_error: Optional[Exception] = None
-        self._first_error_has_been_raised = False
+        self._to_be_finally_raised: Optional[Exception] = None
 
     def __next__(self) -> T:
-        while True:
-            try:
-                return next(self.iterator)
-            except StopIteration:
-                if (
-                    self._first_catched_error is not None
-                    and self.finally_raise
-                    and not self._first_error_has_been_raised
-                ):
-                    self._first_error_has_been_raised = True
-                    raise self._first_catched_error
-                raise
-            except Exception as exception:
-                if isinstance(exception, self.kind):
-                    if self._first_catched_error is None:
-                        self._first_catched_error = exception
-                else:
-                    raise exception
+        try:
+            return next(self.iterator)
+        except StopIteration:
+            if self.finally_raise and self._to_be_finally_raised:
+                exception = self._to_be_finally_raised
+                self._to_be_finally_raised = None
+                raise exception
+            raise
+        except Exception as exception:
+            if isinstance(exception, self.kind):
+                if self._to_be_finally_raised is None:
+                    self._to_be_finally_raised = exception
+                return next(self)
+            raise
 
 
 class FlatteningIterator(Iterator[U]):
