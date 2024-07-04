@@ -16,6 +16,7 @@ from typing import (
     List,
     Optional,
     Tuple,
+    Type,
     TypeVar,
     Union,
     cast,
@@ -31,12 +32,12 @@ class CatchingIterator(Iterator[T]):
     def __init__(
         self,
         iterator: Iterator[T],
-        when: Callable[[Exception], Any],
-        raise_after_exhaustion: bool,
+        kind: Type[Exception],
+        finally_raise: bool,
     ) -> None:
         self.iterator = iterator
-        self.when = when
-        self.raise_after_exhaustion = raise_after_exhaustion
+        self.kind = kind
+        self.finaly_raise = finally_raise
         self._first_catched_error: Optional[Exception] = None
         self._first_error_has_been_raised = False
 
@@ -47,14 +48,14 @@ class CatchingIterator(Iterator[T]):
             except StopIteration:
                 if (
                     self._first_catched_error is not None
-                    and self.raise_after_exhaustion
+                    and self.finaly_raise
                     and not self._first_error_has_been_raised
                 ):
                     self._first_error_has_been_raised = True
                     raise self._first_catched_error
                 raise
             except Exception as exception:
-                if self.when(exception):
+                if isinstance(exception, self.kind):
                     if self._first_catched_error is None:
                         self._first_catched_error = exception
                 else:
@@ -73,7 +74,9 @@ class FlatteningIterator(Iterator[U]):
             while True:
                 elem = next(self.iterator)
                 util.validate_iterable(elem)
-                self._current_iterator_elem = iter(elem)
+                self._current_iterator_elem = util.reraise_as(
+                    iter, StopIteration, util.NoopStopIteration
+                )(elem)
                 try:
                     return next(self._current_iterator_elem)
                 except StopIteration:
@@ -402,7 +405,13 @@ class ConcurrentFlatteningIterable(
                         iterable = next(self.iterables_iterator)
                     except StopIteration:
                         break
-                    iterator = iter(iterable)
+                    try:
+                        iterator = util.reraise_as(
+                            iter, StopIteration, util.NoopStopIteration
+                        )(iterable)
+                    except Exception as e:
+                        yield RaisingIterator.ExceptionContainer(e)
+                        continue
                     future = executor.submit(
                         cast(Callable[[Iterable[T]], T], next), iterator
                     )

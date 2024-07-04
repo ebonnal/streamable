@@ -11,6 +11,7 @@ from typing import (
     Optional,
     Sequence,
     Set,
+    Type,
     TypeVar,
     Union,
     cast,
@@ -106,20 +107,20 @@ class Stream(Iterable[T]):
 
     def catch(
         self,
-        when: Callable[[Exception], Any] = bool,
-        raise_after_exhaustion: bool = False,
+        kind: Type[Exception] = Exception,
+        finally_raise: bool = False,
     ) -> "Stream[T]":
         """
-        Catches the upstream exceptions which are satisfying the provided `when` predicate.
+        Catches the upstream exceptions if they are instances of `kind`.
 
         Args:
-            when (Callable[[Exception], Any], optional): The exception will be catched if `when(exception)` is Truthy (all exceptions catched by default).
-            raise_after_exhaustion (bool, optional): Set to True if you want the first catched exception to be raised when upstream is exhausted (default is False).
+            kind (Type[Exception], optional): The type of exceptions to catch (default is all non-exit exceptions).
+            finally_raise (bool, optional): If True the first catched exception is raised when upstream's iteration ends (default is False).
 
         Returns:
             Stream[T]: A stream of upstream elements catching the eligible exceptions.
         """
-        return CatchStream(self, when, raise_after_exhaustion=raise_after_exhaustion)
+        return CatchStream(self, kind, finally_raise)
 
     def explain(self) -> "Stream[T]":
         """
@@ -231,7 +232,7 @@ class Stream(Iterable[T]):
 
         Args:
             effect (Callable[[T], Any]): The function to be applied to each element as a side effect.
-            concurrency (int): The number of threads used to concurrently apply the `effect` (default is 1, meaning no concurrency).
+            concurrency (int): The number of threads used to concurrently apply the `effect` (default is 1, meaning no concurrency). Preserves the upstream order.
         Returns:
             Stream[T]: A stream of upstream elements, unchanged.
         """
@@ -249,7 +250,7 @@ class Stream(Iterable[T]):
 
         Args:
             effect (Callable[[T], Any]): The asynchronous function to be applied to each element as a side effect.
-            concurrency (int): How many asyncio tasks will run at the same time.
+            concurrency (int): How many asyncio tasks will run at the same time. Preserves the upstream order.
         Returns:
             Stream[T]: A stream of upstream elements, unchanged.
         """
@@ -291,7 +292,7 @@ class Stream(Iterable[T]):
 
         Args:
             transformation (Callable[[T], R]): The function to be applied to each element.
-            concurrency (int): The number of threads used to concurrently apply `transformation` (default is 1, meaning no concurrency).
+            concurrency (int): The number of threads used to concurrently apply `transformation` (default is 1, meaning no concurrency). Preserves the upstream order.
         Returns:
             Stream[R]: A stream of results of `transformation` applied to upstream elements.
         """
@@ -308,7 +309,7 @@ class Stream(Iterable[T]):
 
         Args:
             transformation (Callable[[T], Coroutine[Any, Any, U]]): The asynchronous function to be applied to each element.
-            concurrency (int): How many asyncio tasks will run at the same time.
+            concurrency (int): How many asyncio tasks will run at the same time. Preserves the upstream order.
         Returns:
             Stream[R]: A stream of results of `transformation` applied to upstream elements.
         """
@@ -330,7 +331,7 @@ class Stream(Iterable[T]):
             what (str): (plural) name representing the objects yielded.
 
         Returns:
-            Stream[T]: A stream of upstream elements whose iteration is logged for observability.
+            Stream[T]: A stream of upstream elements whose iteration's progress is logged.
         """
         return ObserveStream(self, what)
 
@@ -386,12 +387,12 @@ class CatchStream(DownStream[T, T]):
     def __init__(
         self,
         upstream: Stream[T],
-        when: Callable[[Exception], Any],
-        raise_after_exhaustion: bool,
+        kind: Type[Exception],
+        finally_raise: bool,
     ) -> None:
         super().__init__(upstream)
-        self.when = when
-        self.raise_after_exhaustion = raise_after_exhaustion
+        self.kind = kind
+        self.finally_raise = finally_raise
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_catch_stream(self)

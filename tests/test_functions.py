@@ -26,10 +26,8 @@ class TestFunctions(unittest.TestCase):
         flattened_grouped_it_1: Iterator[int] = flatten(grouped_it_1)
         flattened_grouped_it_2: Iterator[int] = flatten(grouped_it_1, concurrency=1)
         flattened_grouped_it_3: Iterator[int] = flatten(grouped_it_1, concurrency=2)
-        catched_it_1: Iterator[int] = catch(iterator, lambda ex: None)
-        catched_it_2: Iterator[int] = catch(
-            iterator, lambda ex: None, raise_after_exhaustion=True
-        )
+        catched_it_1: Iterator[int] = catch(iterator, Exception)
+        catched_it_2: Iterator[int] = catch(iterator, Exception, finally_raise=True)
         observed_it_1: Iterator[int] = observe(iterator, what="objects")
         slowed_it_1: Iterator[int] = slow(iterator, frequency=1)
         truncated_it_1: Iterator[int] = truncate(iterator, count=1)

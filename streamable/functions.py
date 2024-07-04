@@ -7,6 +7,7 @@ from typing import (
     Iterator,
     List,
     Optional,
+    Type,
     TypeVar,
     cast,
 )
@@ -29,22 +30,18 @@ T = TypeVar("T")
 U = TypeVar("U")
 
 from streamable import util
-
-
-class WrappedStopIteration(Exception):
-    pass
+from streamable.util import NoopStopIteration
 
 
 def catch(
     iterator: Iterator[T],
-    when: Callable[[Exception], Any] = bool,
-    raise_after_exhaustion: bool = False,
+    kind: Type[Exception] = Exception,
+    finally_raise: bool = False,
 ) -> Iterator[T]:
-    when = util.reraise_as(when, source=StopIteration, target=WrappedStopIteration)
     return CatchingIterator(
         iterator,
-        when,
-        raise_after_exhaustion=raise_after_exhaustion,
+        kind,
+        finally_raise=finally_raise,
     )
 
 
@@ -73,7 +70,7 @@ def group(
     util.validate_group_size(size)
     util.validate_group_seconds(seconds)
     if by is not None:
-        by = util.reraise_as(by, StopIteration, WrappedStopIteration)
+        by = util.reraise_as(by, StopIteration, NoopStopIteration)
     if size is None:
         size = cast(int, float("inf"))
     return GroupingIterator(iterator, size, seconds, by)
@@ -83,9 +80,7 @@ def map(
     transformation: Callable[[T], U], iterator: Iterator[T], concurrency: int = 1
 ) -> Iterator[U]:
     util.validate_concurrency(concurrency)
-    transformation = util.reraise_as(
-        transformation, StopIteration, WrappedStopIteration
-    )
+    transformation = util.reraise_as(transformation, StopIteration, NoopStopIteration)
     if concurrency == 1:
         return builtins.map(transformation, iterator)
     else:
@@ -111,7 +106,7 @@ def amap(
         iter(
             AsyncConcurrentMappingIterable(
                 iterator,
-                util.reraise_as(transformation, StopIteration, WrappedStopIteration),
+                util.reraise_as(transformation, StopIteration, NoopStopIteration),
                 buffer_size=concurrency,
             )
         )

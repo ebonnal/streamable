@@ -84,9 +84,11 @@ for odd_integer_string in odd_integer_strings:
 # 📒 ***Operations***
 
 ## `.map`
-Applies a function on elements.
+Applies a transformation on elements:
 ```python
-integer_strings: Stream[str] = integers.map(str)
+negative_integer_strings: Stream[str] = integers.map(lambda n: -n).map(str)
+
+assert list(integer_strings) == ['0', '-1', '-2', '-3', '-4', '-5', '-6', '-7', '-8', '-9']
 ```
 
 It has an optional `concurrency: int` parameter to execute the function concurrently (threads-based) while preserving the order.
@@ -94,76 +96,116 @@ It has an optional `concurrency: int` parameter to execute the function concurre
 It has a sibling operation called `.amap` to apply an async function concurrently (see section ***`asyncio` support***).
 
 ## `.foreach`
-Applies a function on elements like `.map` but yields the elements instead of the results.
+Applies a side effect on elements:
 
 ```python
-printed_integers: Stream[int] = integers.foreach(print)
+self_printing_integers: Stream[int] = integers.foreach(print)
+
+assert list(self_printing_integers) == list(integers)  # will trigger the printing of the integers
 ```
+
 It has an optional `concurrency: int` parameter to execute the function concurrently (threads-based) while preserving the order.
 
 It has a sibling operation called `.aforeach` to apply an async function concurrently (see section ***`asyncio` support***).
 
 ## `.filter`
-Keeps only elements satisfying a predicate function.
+Keeps only the elements that satisfy a condition:
 
 ```python
 pair_integers: Stream[int] = integers.filter(lambda n: n % 2 == 0)
+
+assert list(pair_integers) == [0, 2, 4, 6, 8]
+```
+
+## `.slow`
+
+Limits the rate at which elements are yielded up to a maximum number of elements per second:
+
+```python
+slow_integers: Stream[int] = integers.slow(frequency=5)
+
+assert list(slow_integers) == list(integers)  # takes 10 / 5 = 2 seconds
 ```
 
 ## `.group`
 
-Groups elements.
+Groups elements into `List`s:
 
 ```python
-parity_groups: Stream[List[int]] = integers.group(size=100, seconds=4, by=lambda i: i % 2)
+integers_5_by_5: Stream[List[int]] = integers.group(size=5)
+
+assert list(integers_5_by_5) == [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]]
+```
+```python
+integers_by_parity: Stream[List[int]] = integers.group(by=lambda n: n % 2)
+
+assert list(integers_by_parity) == [[0, 2, 4, 6, 8], [1, 3, 5, 7, 9]]
+```
+```python
+integers_within_1s: Stream[List[int]] = integers.slow(frequency=2).group(seconds=1)
+
+assert list(integers_within_1s) == [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]]
 ```
 
-A group is a list of `size` elements for which `by` returns the same value, but it may contain fewer elements in these cases:
-- `seconds` have elapsed since the last yield of a group
-- upstream is exhausted
-- upstream raises an exception
+Combine the `size`/`by`/`seconds` parameters:
+```python
+integers_2_by_2_by_parity: Stream[List[int]] = integers.group(by=lambda n: n % 2, size=2)
 
-All the parameters are optional.
+assert list(integers_2_by_2_by_parity) == [[0, 2], [1, 3], [4, 6], [5, 7], [8], [9]]
+```
 
 ## `.flatten`
 
 Ungroups elements assuming that they are `Iterable`s.
 
 ```python
-integers: Stream[int] = parity_groups.flatten()
+pair_then_odd_integers: Stream[int] = integers_by_parity.flatten()
+
+assert pair_then_odd_integers == [0, 2, 4, 6, 8, 1, 3, 5, 7, 9]
 ```
 
-It has an optional `concurrency` parameter to flatten several iterables concurrently (threads).
+It has an optional `concurrency: int` parameter to flatten several iterables concurrently (threads).
 
-## `.slow`
-
-Limits the rate at which elements are yielded up to a maximum `frequency` (elements per second).
-
-```python
-slow_integers: Stream[int] = integers.slow(frequency=2)
-```
 
 ## `.catch`
 
-Catches exceptions that satisfy a predicate function.
+Catches a given type of exceptions:
 
 ```python
 safe_inverse_floats: Stream[float] = (
     integers
-    .map(lambda n: 1 / n)
-    .catch(lambda error: isinstance(error, ZeroDivisionError))
+    .map(lambda n: round(1 / n, 2))
+    .catch(ZeroDivisionError)
 )
+
+assert list(safe_inverse_floats) == [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
 ```
 
-It has an optional `raise_after_exhaustion` parameter to raise the first catched exception when an iteration ends.
+It has an optional `finally_raise: bool` parameter to raise the first catched exception when upstream's iteration ends.
+
+## `.truncate`
+Stops the iteration:
+- after a given number of yielded elements:
+```python
+five_first_integers: Stream[int] = integers.truncate(5)
+
+assert list(five_first_integers) == [0, 1, 2, 3, 4]
+```
+
+- as soon as a condition is satisfied:
+```python
+five_first_integers: Stream[int] = integers.truncate(when=lambda n: n == 5)
+
+assert list(five_first_integers) == [0, 1, 2, 3, 4]
+```
 
 ## `.observe`
 
-Logs the progress of iterations over this stream.
+Logs the progress of iterations over this stream:
 
 If you iterate on
 ```python
-observed_slow_integers: Stream[int] = slow_integers.observe(what="integers")
+observed_slow_integers: Stream[int] = slow_integers.observe("integers")
 ```
 you will get these logs:
 ```
@@ -175,17 +217,6 @@ INFO: [duration=0:00:05.039571 errors=0] 10 integers yielded
 ```
 
 The amount of logs will never be overwhelming because they are produced logarithmically e.g. the 11th log will be produced when the iteration reaches the 1024th element.
-
-## `.truncate`
-Stops iteration as soon as the `when` predicate is satisfied or `count` elements have been yielded.
-
-```python
-five_first_integers: Stream[int] = integers.truncate(5)
-```
-is equivalent to:
-```python
-five_first_integers: Stream[int] = integers.truncate(when=lambda n: n == 5)
-```
 
 ---
 
