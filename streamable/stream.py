@@ -20,7 +20,6 @@ from typing import (
 
 from streamable.util import (
     friendly_string,
-    get_logger,
     validate_concurrency,
     validate_group_seconds,
     validate_group_size,
@@ -263,13 +262,6 @@ class Stream(Iterable[T]):
         validate_group_size(size)
         validate_group_seconds(seconds)
         return GroupStream(self, size, seconds, by)
-
-    def inform(self) -> "Stream[T]":
-        """
-        Logs `repr(self)` (INFO level)
-        """
-        get_logger().info("\n%s\n", repr(self))
-        return self
 
     def map(
         self,
