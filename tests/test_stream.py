@@ -731,7 +731,7 @@ class TestStream(unittest.TestCase):
         self.assertListEqual(
             list(
                 Stream(lambda: map(slow_identity, src)).group(
-                    size=100, seconds=1.8 * slow_identity_duration
+                    size=100, seconds=2 * slow_identity_duration
                 )
             ),
             list(map(lambda e: [e, e + 1], pair_src)),
