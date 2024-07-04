@@ -22,7 +22,7 @@ from parameterized import parameterized  # type: ignore
 from streamable import Stream
 from streamable.functions import NoopStopIteration
 
-sys.setrecursionlimit(10000)
+sys.setrecursionlimit(1_000_000)
 
 T = TypeVar("T")
 
