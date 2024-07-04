@@ -12,8 +12,8 @@ from streamable.stream import (
     GroupStream,
     MapStream,
     ObserveStream,
-    SlowStream,
     Stream,
+    ThrottleStream,
     TruncateStream,
 )
 from streamable.visitor import Visitor
@@ -96,5 +96,5 @@ class ExplanationVisitor(Visitor[str]):
     def visit_observe_stream(self, stream: ObserveStream) -> str:
         return self._explanation(stream, f"what='{stream.what}'")
 
-    def visit_slow_stream(self, stream: SlowStream) -> str:
-        return self._explanation(stream, f"frequency={stream.frequency}")
+    def visit_throttle_stream(self, stream: ThrottleStream) -> str:
+        return self._explanation(stream, f"per_second={stream.per_second}")

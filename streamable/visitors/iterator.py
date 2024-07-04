@@ -11,8 +11,8 @@ from streamable.stream import (
     GroupStream,
     MapStream,
     ObserveStream,
-    SlowStream,
     Stream,
+    ThrottleStream,
     TruncateStream,
 )
 from streamable.visitor import Visitor
@@ -97,8 +97,8 @@ class IteratorVisitor(Visitor[Iterator[T]]):
             stream.what,
         )
 
-    def visit_slow_stream(self, stream: SlowStream[T]) -> Iterator[T]:
-        return functions.slow(stream.upstream.accept(self), stream.frequency)
+    def visit_throttle_stream(self, stream: ThrottleStream[T]) -> Iterator[T]:
+        return functions.throttle(stream.upstream.accept(self), stream.per_second)
 
     def visit_stream(self, stream: Stream[T]) -> Iterator[T]:
         if isinstance(stream.source, Iterable):

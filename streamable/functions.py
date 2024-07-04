@@ -21,7 +21,7 @@ from streamable.iters import (
     GroupingIterator,
     ObservingIterator,
     RaisingIterator,
-    SlowingIterator,
+    ThrottlingIterator,
     TruncatingOnCountIterator,
     TruncatingOnPredicateIterator,
 )
@@ -117,9 +117,9 @@ def observe(iterator: Iterator[T], what: str) -> Iterator[T]:
     return ObservingIterator(iterator, what)
 
 
-def slow(iterator: Iterator[T], frequency: float) -> Iterator[T]:
-    util.validate_slow_frequency(frequency)
-    return SlowingIterator(iterator, frequency)
+def throttle(iterator: Iterator[T], per_second: float) -> Iterator[T]:
+    util.validate_throttle_per_second(per_second)
+    return ThrottlingIterator(iterator, per_second)
 
 
 def truncate(

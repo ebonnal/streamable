@@ -81,10 +81,10 @@ def validate_group_seconds(seconds: float):
         raise ValueError(f"`seconds` should be > 0 but got {seconds}.")
 
 
-def validate_slow_frequency(frequency: float):
-    if frequency <= 0:
+def validate_throttle_per_second(per_second: float):
+    if per_second <= 0:
         raise ValueError(
-            f"`frequency` is the maximum number of elements to yield per second, it must be > 0  but got {frequency}."
+            f"`per_second` is the maximum number of elements to yield per second, it must be > 0  but got {per_second}."
         )
 
 

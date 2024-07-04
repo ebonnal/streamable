@@ -42,5 +42,5 @@ class Visitor(ABC, Generic[V]):
     def visit_amap_stream(self, stream: stream.AMapStream) -> V:
         return self.visit_stream(stream)
 
-    def visit_slow_stream(self, stream: stream.SlowStream) -> V:
+    def visit_throttle_stream(self, stream: stream.ThrottleStream) -> V:
         return self.visit_stream(stream)

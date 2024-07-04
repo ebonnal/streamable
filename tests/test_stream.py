@@ -150,7 +150,7 @@ class TestStream(unittest.TestCase):
             .aforeach(async_identity)
             .catch()
             .observe()
-            .slow(1)
+            .throttle(1)
             .source,
             src,
             msg="`source` must be propagated by operations",
@@ -183,7 +183,7 @@ class TestStream(unittest.TestCase):
             .group(100)
             .observe("groups")
             .flatten(concurrency=4)
-            .slow(64)
+            .throttle(64)
             .observe("stream #1 elements")
             .catch(TypeError, finally_raise=True)
         )
@@ -820,17 +820,17 @@ class TestStream(unittest.TestCase):
             msg="`group` should continue yielding after `by`'s exception has been raised.",
         )
 
-    def test_slow(self) -> None:
+    def test_throttle(self) -> None:
         # behavior with invalid arguments
-        for frequency in [-0.01, 0]:
+        for per_second in [-0.01, 0]:
             with self.assertRaises(
                 ValueError,
-                msg="`slow` should raise error when called with `frequency` <= 0.",
+                msg="`throttle` should raise error when called with `per_second` <= 0.",
             ):
-                list(Stream([1]).slow(frequency=frequency))
+                list(Stream([1]).throttle(per_second=per_second))
 
-        frequency = 3
-        period = 1 / frequency
+        per_second = 3
+        period = 1 / per_second
         super_slow_elem_pull_seconds = 1
         N = 10
         expected_duration = (N - 1) * period + super_slow_elem_pull_seconds
@@ -839,7 +839,7 @@ class TestStream(unittest.TestCase):
             .foreach(
                 lambda e: time.sleep(super_slow_elem_pull_seconds) if e == 0 else None
             )
-            .slow(frequency=frequency)
+            .throttle(per_second=per_second)
         )
         self.assertAlmostEqual(
             duration,
@@ -848,21 +848,21 @@ class TestStream(unittest.TestCase):
             msg="avoid bursts after very slow particular upstream elements",
         )
 
-        # float or int frequency
-        for frequency in [0.9, 2, 50]:
+        # float or int per_second
+        for per_second in [0.9, 2, 50]:
             self.assertEqual(
                 next(
                     iter(
                         Stream(src)
-                        .slow(frequency=frequency)
-                        .slow(frequency=frequency * 2)
+                        .throttle(per_second=per_second)
+                        .throttle(per_second=per_second * 2)
                     )
                 ),
                 0,
-                msg="`slow` should avoid 'ValueError: sleep length must be non-negative'",
+                msg="`throttle` should avoid 'ValueError: sleep length must be non-negative'",
             )
 
-            stream_iterator = iter(Stream(src).slow(frequency=frequency))
+            stream_iterator = iter(Stream(src).throttle(per_second=per_second))
             start_time = time.time()
             a = next(stream_iterator)
             b = next(stream_iterator)
@@ -870,22 +870,22 @@ class TestStream(unittest.TestCase):
             end_time = time.time()
 
             self.assertEqual(
-                a, 0, msg="`slow` must forward upstream elements unchanged"
+                a, 0, msg="`throttle` must forward upstream elements unchanged"
             )
             self.assertEqual(
-                b, 1, msg="`slow` must forward upstream elements unchanged"
+                b, 1, msg="`throttle` must forward upstream elements unchanged"
             )
             self.assertEqual(
-                c, 2, msg="`slow` must forward upstream elements unchanged"
+                c, 2, msg="`throttle` must forward upstream elements unchanged"
             )
 
-            period = 1 / frequency
+            period = 1 / per_second
             expected_duration = 3 * period
             self.assertAlmostEqual(
                 end_time - start_time,
                 expected_duration,
                 delta=0.3 * expected_duration,
-                msg="`slow` must respect the frequency set.",
+                msg="`throttle` must respect the per_second set.",
             )
 
     def test_catch(self) -> None:
@@ -992,7 +992,7 @@ class TestStream(unittest.TestCase):
     def test_observe(self) -> None:
         value_error_rainsing_stream: Stream[List[int]] = (
             Stream("123--567")
-            .slow(1)
+            .throttle(1)
             .observe("chars")
             .map(int)
             .observe("ints")

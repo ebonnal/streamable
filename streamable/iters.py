@@ -232,10 +232,10 @@ class ObservingIterator(Iterator[T]):
                 self._last_log_after_n_calls = self._n_calls()
 
 
-class SlowingIterator(Iterator[T]):
-    def __init__(self, iterator: Iterator[T], frequency: float) -> None:
+class ThrottlingIterator(Iterator[T]):
+    def __init__(self, iterator: Iterator[T], per_second: float) -> None:
         self.iterator = iterator
-        self.period = 1 / frequency
+        self.period = 1 / per_second
 
     def __next__(self) -> T:
         start_time = time.time()

@@ -78,7 +78,7 @@ def reverse_etl_example():
             .observe("users")
             .group(size=100)
             .observe("user groups")
-            .slow(frequency=16)
+            .throttle(per_second=16)
             .map(lambda users:
                 retry(wait=wait_fixed(1), stop=stop_after_attempt(3))(requests.post)(
                     "https://third.party/users",

@@ -23,7 +23,7 @@ from streamable.util import (
     validate_concurrency,
     validate_group_seconds,
     validate_group_size,
-    validate_slow_frequency,
+    validate_throttle_per_second,
     validate_truncate_args,
 )
 
@@ -327,18 +327,18 @@ class Stream(Iterable[T]):
         """
         return ObserveStream(self, what)
 
-    def slow(self, frequency: float) -> "Stream[T]":
+    def throttle(self, per_second: float) -> "Stream[T]":
         """
-        Slows the iteration down to a maximum `frequency`, more precisely an element will only be yielded if a period of `1/frequency` seconds has elapsed since the last yield.
+        Slows the iteration down to a maximum number of yields `per_second`, more precisely an element will only be yielded if a period of `1 / per_second` seconds has elapsed since the last yield.
 
         Args:
-            frequency (float): Maximum yields per second.
+            per_second (float): Maximum number of yields per second.
 
         Returns:
-            Stream[T]: A stream yielding upstream elements at a maximum `frequency`.
+            Stream[T]: A stream yielding upstream elements at a maximum `per_second`.
         """
-        validate_slow_frequency(frequency)
-        return SlowStream(self, frequency)
+        validate_throttle_per_second(per_second)
+        return ThrottleStream(self, per_second)
 
     def truncate(
         self, count: Optional[int] = None, when: Optional[Callable[[T], Any]] = None
@@ -485,13 +485,13 @@ class ObserveStream(DownStream[T, T]):
         return visitor.visit_observe_stream(self)
 
 
-class SlowStream(DownStream[T, T]):
-    def __init__(self, upstream: Stream[T], frequency: float) -> None:
+class ThrottleStream(DownStream[T, T]):
+    def __init__(self, upstream: Stream[T], per_second: float) -> None:
         super().__init__(upstream)
-        self.frequency = frequency
+        self.per_second = per_second
 
     def accept(self, visitor: "Visitor[V]") -> V:
-        return visitor.visit_slow_stream(self)
+        return visitor.visit_throttle_stream(self)
 
 
 class TruncateStream(DownStream[T, T]):

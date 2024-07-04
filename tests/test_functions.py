@@ -1,7 +1,7 @@
 import unittest
 from typing import Callable, Iterator, List, TypeVar, cast
 
-from streamable.functions import catch, flatten, group, map, observe, slow, truncate
+from streamable.functions import catch, flatten, group, map, observe, throttle, truncate
 
 T = TypeVar("T")
 
@@ -29,5 +29,5 @@ class TestFunctions(unittest.TestCase):
         catched_it_1: Iterator[int] = catch(iterator, Exception)
         catched_it_2: Iterator[int] = catch(iterator, Exception, finally_raise=True)
         observed_it_1: Iterator[int] = observe(iterator, what="objects")
-        slowed_it_1: Iterator[int] = slow(iterator, frequency=1)
+        throttleed_it_1: Iterator[int] = throttle(iterator, per_second=1)
         truncated_it_1: Iterator[int] = truncate(iterator, count=1)

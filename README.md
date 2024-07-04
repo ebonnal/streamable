@@ -118,12 +118,12 @@ pair_integers: Stream[int] = integers.filter(lambda n: n % 2 == 0)
 assert list(pair_integers) == [0, 2, 4, 6, 8]
 ```
 
-## `.slow`
+## `.throttle`
 
-Limits the rate at which elements are yielded up to a maximum number of elements per second:
+Limits the rate at which elements are yielded:
 
 ```python
-slow_integers: Stream[int] = integers.slow(frequency=5)
+slow_integers: Stream[int] = integers.throttle(per_second=5)
 
 assert list(slow_integers) == list(integers)  # takes 10 / 5 = 2 seconds
 ```
@@ -143,7 +143,7 @@ integers_by_parity: Stream[List[int]] = integers.group(by=lambda n: n % 2)
 assert list(integers_by_parity) == [[0, 2, 4, 6, 8], [1, 3, 5, 7, 9]]
 ```
 ```python
-integers_within_1s: Stream[List[int]] = integers.slow(frequency=2).group(seconds=1)
+integers_within_1s: Stream[List[int]] = integers.throttle(per_second=2).group(seconds=1)
 
 assert list(integers_within_1s) == [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]]
 ```
@@ -206,7 +206,7 @@ Logs the progress of iterations over this stream:
 
 If you iterate on
 ```python
-observed_slow_integers: Stream[int] = slow_integers.observe("integers")
+observed_throttle_integers: Stream[int] = throttle_integers.observe("integers")
 ```
 you will get these logs:
 ```
@@ -233,11 +233,11 @@ As an alternative to the threads-based concurrency available for `.map` and `.fo
 import asyncio
 import time
 
-async def slow_async_square(n: int) -> int:
+async def throttle_async_square(n: int) -> int:
     await asyncio.sleep(3)
     return n ** 2
 
-def slow_str(n: int) -> str:
+def throttle_str(n: int) -> str:
     time.sleep(3)
     return str(n)
 
@@ -245,9 +245,9 @@ print(
     ", ".join(
         integers
         # coroutines-based concurrency
-        .amap(slow_async_square, concurrency=8)
+        .amap(throttle_async_square, concurrency=8)
         # threads-based concurrency
-        .map(slow_str, concurrency=8)
+        .map(throttle_str, concurrency=8)
         .truncate(5)
     )
 )
@@ -312,8 +312,8 @@ def stream_depth(stream: Stream) -> int:
 ## import as functions
 The `Stream`'s methods are also exposed as functions:
 ```python
-from streamable.functions import slow
+from streamable.functions import throttle
 
 iterator: Iterator[int] = ...
-slow_iterator: Iterator[int] = slow(iterator)
+throttle_iterator: Iterator[int] = throttle(iterator)
 ```

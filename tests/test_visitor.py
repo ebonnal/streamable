@@ -11,8 +11,8 @@ from streamable.stream import (
     GroupStream,
     MapStream,
     ObserveStream,
-    SlowStream,
     Stream,
+    ThrottleStream,
     TruncateStream,
 )
 from streamable.visitor import Visitor
@@ -35,5 +35,5 @@ class TestVisitor(unittest.TestCase):
         visitor.visit_map_stream(cast(MapStream, ...))
         visitor.visit_amap_stream(cast(AMapStream, ...))
         visitor.visit_observe_stream(cast(ObserveStream, ...))
-        visitor.visit_slow_stream(cast(SlowStream, ...))
+        visitor.visit_throttle_stream(cast(ThrottleStream, ...))
         visitor.visit_stream(cast(Stream, ...))
