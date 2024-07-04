@@ -139,13 +139,6 @@ class TestStream(unittest.TestCase):
             msg="The `upstream` attribute of a base Stream's instance must be None.",
         )
 
-        with self.assertRaisesRegex(
-            TypeError,
-            "`source` must be either a Callable\[\[\], Iterable\] or an Iterable, but got a <class 'int'>",
-            msg="Getting an Iterator from a Stream with a source not being a Union[Callable[[], Iterator], ITerable] must raise TypeError.",
-        ):
-            Stream(1)  # type: ignore
-
         self.assertIs(
             Stream(src)
             .group(100)
@@ -174,6 +167,21 @@ class TestStream(unittest.TestCase):
             msg="attribute `upstream` must be read-only",
         ):
             Stream(src).upstream = Stream(src)  # type: ignore
+
+    def test_iter(self):
+        with self.assertRaisesRegex(
+            TypeError,
+            "`source` must be either a Callable\[\[\], Iterable\] or an Iterable, but got a int",
+            msg="Getting an Iterator from a Stream with a source not being a Union[Callable[[], Iterator], ITerable] must raise TypeError.",
+        ):
+            iter(Stream(1))  # type: ignore
+
+        with self.assertRaisesRegex(
+            TypeError,
+            "`source` must be either a Callable\[\[\], Iterable\] or an Iterable, but got a Callable\[\[\], int\]",
+            msg="Getting an Iterator from a Stream with a source not being a Union[Callable[[], Iterator], ITerable] must raise TypeError.",
+        ):
+            iter(Stream(lambda: 1))  # type: ignore
 
     def test_explanation(self) -> None:
         class CustomCallable:

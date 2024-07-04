@@ -101,6 +101,16 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         return functions.slow(stream.upstream.accept(self), stream.frequency)
 
     def visit_stream(self, stream: Stream[T]) -> Iterator[T]:
-        iterable = stream._source() if callable(stream._source) else stream._source
-        util.validate_iterable(iterable)
+        if isinstance(stream.source, Iterable):
+            iterable = stream.source
+        elif callable(stream.source):
+            iterable = stream.source()
+            if not isinstance(iterable, Iterable):
+                raise TypeError(
+                    f"`source` must be either a Callable[[], Iterable] or an Iterable, but got a Callable[[], {type(iterable).__name__}]"
+                )
+        else:
+            raise TypeError(
+                f"`source` must be either a Callable[[], Iterable] or an Iterable, but got a {type(stream.source).__name__}"
+            )
         return iter(iterable)

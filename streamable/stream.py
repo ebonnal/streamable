@@ -23,7 +23,6 @@ from streamable.util import (
     validate_concurrency,
     validate_group_seconds,
     validate_group_size,
-    validate_iterable,
     validate_slow_frequency,
     validate_truncate_args,
 )
@@ -53,13 +52,6 @@ class Stream(Iterable[T]):
         Args:
             source (Union[Iterable[T], Callable[[], Iterable[T]]]): a source iterable or a function returning one (called for each new iteration on this stream).
         """
-        if not callable(source):
-            try:
-                validate_iterable(source)
-            except TypeError:
-                raise TypeError(
-                    "`source` must be either a Callable[[], Iterable] or an Iterable, but got a <class 'int'>"
-                )
         self._source = source
         self._upstream: "Optional[Stream]" = None
 

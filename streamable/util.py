@@ -61,20 +61,6 @@ def reraise_as(
     return wrap
 
 
-def validate_iterable(expected_iterable: Any) -> bool:
-    """
-    Raises:
-        TypeError: If the expected_iterable does not implement __iter__ and __next__ methods.
-    """
-    try:
-        expected_iterable.__iter__
-    except AttributeError:
-        raise TypeError(
-            f"Provided object is not an iterable because it does not implement the __iter__ methods."
-        )
-    return True
-
-
 def validate_concurrency(concurrency: int):
     if concurrency < 1:
         raise ValueError(
