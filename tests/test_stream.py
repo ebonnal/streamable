@@ -165,7 +165,7 @@ class TestStream(unittest.TestCase):
         ):
             Stream(src).upstream = Stream(src)  # type: ignore
 
-    def test_explanation(self) -> None:
+    def test_repr(self) -> None:
         class CustomCallable:
             pass
 
@@ -184,15 +184,9 @@ class TestStream(unittest.TestCase):
             .observe("stream #1 elements")
             .catch(TypeError, finally_raise=True)
         )
-        explanation_1 = complex_stream.explanation()
-        explanation_2 = complex_stream.explanation()
-        self.assertEqual(
-            explanation_1,
-            explanation_2,
-            msg="Stream.explain() must be deterministic.",
-        )
+        explanation_1 = repr(complex_stream)
 
-        explanation_2 = complex_stream.map(str).explanation()
+        explanation_2 = repr(complex_stream.map(str))
         self.assertNotEqual(
             explanation_1,
             explanation_2,
@@ -200,14 +194,6 @@ class TestStream(unittest.TestCase):
         )
 
         print(explanation_1)
-
-    def test_explain(self) -> None:
-        stream = Stream(src)
-        self.assertEqual(
-            stream.explain(),
-            stream,
-            msg="explain` should return self",
-        )
 
     def test_iter(self) -> None:
         self.assertIsInstance(
@@ -1019,13 +1005,14 @@ class TestStream(unittest.TestCase):
             nonlocal l
             l.append(x)
 
-        self.assertEqual(
-            Stream(lambda: map(effect, src)).exhaust(),
-            N,
-            msg="`__len__` should return the number of iterated elements.",
+        stream = Stream(lambda: map(effect, src))
+        self.assertIs(
+            stream.exhaust(),
+            stream,
+            msg="`exhaust` should return self.",
         )
         self.assertListEqual(
-            l, list(src), msg="`__len__` should iterate over the entire stream."
+            l, list(src), msg="`exhaust` should iterate over the entire stream."
         )
 
     def test_multiple_iterations(self) -> None:

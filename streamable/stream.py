@@ -19,6 +19,7 @@ from typing import (
 )
 
 from streamable.util import (
+    friendly_string,
     get_logger,
     validate_concurrency,
     validate_group_seconds,
@@ -82,14 +83,19 @@ class Stream(Iterable[T]):
 
         return self.accept(IteratorVisitor[T]())
 
-    def exhaust(self) -> int:
+    def __repr__(self) -> str:
+        return f"Stream({friendly_string(self.source)})"
+
+    def exhaust(self) -> "Stream[T]":
         """
-        Iterates over the stream until exhaustion and counts the elements yielded.
+        Iterates over self until exhaustion.
 
         Returns:
-            int: The number of elements that have been yielded by the stream.
+            Stream[T]: self.
         """
-        return sum(1 for _ in self)
+        for _ in self:
+            pass
+        return self
 
     def accept(self, visitor: "Visitor[V]") -> V:
         """
@@ -113,22 +119,6 @@ class Stream(Iterable[T]):
             Stream[T]: A stream of upstream elements catching the eligible exceptions.
         """
         return CatchStream(self, kind, finally_raise)
-
-    def explain(self) -> "Stream[T]":
-        """
-        Logs this stream's explanation (INFO level)
-        """
-        get_logger().info("explanation:\n%s", self.explanation())
-        return self
-
-    def explanation(self) -> str:
-        """
-        Returns:
-            str: A pretty representation of this stream's operations.
-        """
-        from streamable.visitors import explanation
-
-        return self.accept(explanation.ExplanationVisitor())
 
     def filter(self, keep: Callable[[T], Any] = bool) -> "Stream[T]":
         """
@@ -274,6 +264,13 @@ class Stream(Iterable[T]):
         validate_group_seconds(seconds)
         return GroupStream(self, size, seconds, by)
 
+    def inform(self) -> "Stream[T]":
+        """
+        Logs `repr(self)` (INFO level)
+        """
+        get_logger().info("\n%s\n", repr(self))
+        return self
+
     def map(
         self,
         transformation: Callable[[T], U],
@@ -389,6 +386,12 @@ class CatchStream(DownStream[T, T]):
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_catch_stream(self)
 
+    def __repr__(self) -> str:
+        call = (
+            f"catch({friendly_string(self.kind)}, finally_raise={self.finally_raise})"
+        )
+        return f"{repr(self.upstream)}\\\n.{call}"
+
 
 class FilterStream(DownStream[T, T]):
     def __init__(self, upstream: Stream[T], keep: Callable[[T], Any]) -> None:
@@ -398,6 +401,10 @@ class FilterStream(DownStream[T, T]):
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_filter_stream(self)
 
+    def __repr__(self) -> str:
+        call = f"filter({friendly_string(self.keep)})"
+        return f"{repr(self.upstream)}\\\n.{call}"
+
 
 class FlattenStream(DownStream[Iterable[T], T]):
     def __init__(self, upstream: Stream[Iterable[T]], concurrency: int) -> None:
@@ -406,6 +413,10 @@ class FlattenStream(DownStream[Iterable[T], T]):
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_flatten_stream(self)
+
+    def __repr__(self) -> str:
+        call = f"flatten(concurrency={self.concurrency})"
+        return f"{repr(self.upstream)}\\\n.{call}"
 
 
 class ForeachStream(DownStream[T, T]):
@@ -419,6 +430,12 @@ class ForeachStream(DownStream[T, T]):
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_foreach_stream(self)
 
+    def __repr__(self) -> str:
+        call = (
+            f"foreach({friendly_string(self.effect)}, concurrency={self.concurrency})"
+        )
+        return f"{repr(self.upstream)}\\\n.{call}"
+
 
 class AForeachStream(DownStream[T, T]):
     def __init__(
@@ -430,6 +447,12 @@ class AForeachStream(DownStream[T, T]):
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_aforeach_stream(self)
+
+    def __repr__(self) -> str:
+        call = (
+            f"aforeach({friendly_string(self.effect)}, concurrency={self.concurrency})"
+        )
+        return f"{repr(self.upstream)}\\\n.{call}"
 
 
 class GroupStream(DownStream[T, List[T]]):
@@ -448,6 +471,10 @@ class GroupStream(DownStream[T, List[T]]):
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_group_stream(self)
 
+    def __repr__(self) -> str:
+        call = f"group(size={self.size}, by={friendly_string(self.by)}, seconds={self.seconds})"
+        return f"{repr(self.upstream)}\\\n.{call}"
+
 
 class MapStream(DownStream[T, U]):
     def __init__(
@@ -459,6 +486,10 @@ class MapStream(DownStream[T, U]):
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_map_stream(self)
+
+    def __repr__(self) -> str:
+        call = f"map({friendly_string(self.transformation)}, concurrency={self.concurrency})"
+        return f"{repr(self.upstream)}\\\n.{call}"
 
 
 class AMapStream(DownStream[T, U]):
@@ -475,6 +506,10 @@ class AMapStream(DownStream[T, U]):
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_amap_stream(self)
 
+    def __repr__(self) -> str:
+        call = f"amap({friendly_string(self.transformation)}, concurrency={self.concurrency})"
+        return f"{repr(self.upstream)}\\\n.{call}"
+
 
 class ObserveStream(DownStream[T, T]):
     def __init__(self, upstream: Stream[T], what: str) -> None:
@@ -484,6 +519,10 @@ class ObserveStream(DownStream[T, T]):
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_observe_stream(self)
 
+    def __repr__(self) -> str:
+        call = f"""observe("{self.what}")"""
+        return f"{repr(self.upstream)}\\\n.{call}"
+
 
 class ThrottleStream(DownStream[T, T]):
     def __init__(self, upstream: Stream[T], per_second: float) -> None:
@@ -492,6 +531,10 @@ class ThrottleStream(DownStream[T, T]):
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_throttle_stream(self)
+
+    def __repr__(self) -> str:
+        call = f"throttle(per_second={self.per_second})"
+        return f"{repr(self.upstream)}\\\n.{call}"
 
 
 class TruncateStream(DownStream[T, T]):
@@ -507,3 +550,7 @@ class TruncateStream(DownStream[T, T]):
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_truncate_stream(self)
+
+    def __repr__(self) -> str:
+        call = f"truncate(count={self.count}, when={friendly_string(self.when)})"
+        return f"{repr(self.upstream)}\\\n.{call}"

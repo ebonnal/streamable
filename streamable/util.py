@@ -18,6 +18,17 @@ def get_logger() -> logging.Logger:
     return _logger
 
 
+def friendly_string(o: object) -> str:
+    if o is None:
+        return "None"
+    try:
+        return o.__name__  # type: ignore
+    except AttributeError:
+        if len(repr(o)) < 16:
+            return repr(o)
+        return o.__class__.__name__ + "(...)"
+
+
 T = TypeVar("T")
 R = TypeVar("R")
 

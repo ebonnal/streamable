@@ -35,6 +35,7 @@ Here is the basic structure of a reverse ETL job that uses `streamable` and is s
 
 ```python
 from datetime import datetime
+import logging
 from typing import cast
 
 from airflow.decorators import dag, task
@@ -72,7 +73,7 @@ def reverse_etl_example():
         import tenacity
         from streamable import Stream
 
-        (
+        logging.info(
             Stream(bigquery.Client(...).query(users_query).result)
             .map(dict)
             .observe("users")
@@ -90,7 +91,6 @@ def reverse_etl_example():
             .foreach(requests.Response.raise_for_status)
             .observe("integrated user groups")
             .catch(finally_raise=True)
-            .explain()
             .exhaust()
         )
     

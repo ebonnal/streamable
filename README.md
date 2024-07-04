@@ -272,18 +272,6 @@ print(
 
 [Few rough runtime orders of magnitude: CPython vs PyPy vs Java vs C vs Rust.](https://github.com/ebonnal/streamable/issues/10)
 
-## explain
-```python
-print(stream.explanation())
-```
-```
-└─•TruncateStream(count=10, when=None)
-  └─•FlattenStream(concurrency=1)
-    └─•ForeachStream(effect=print, concurrency=1)
-      └─•MapStream(transformation=str, concurrency=1)
-        └─•Stream(source=range(...))
-```
-
 ## change logging level
 ```python
 logging.getLogger("streamable").setLevel(logging.WARNING)
