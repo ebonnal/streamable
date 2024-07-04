@@ -1,3 +1,4 @@
+import logging
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -20,6 +21,7 @@ from typing import (
 
 from streamable.util import (
     friendly_string,
+    get_logger,
     validate_concurrency,
     validate_group_seconds,
     validate_group_size,
@@ -85,17 +87,6 @@ class Stream(Iterable[T]):
     def __repr__(self) -> str:
         return f"Stream({friendly_string(self.source)})"
 
-    def exhaust(self) -> "Stream[T]":
-        """
-        Iterates over self until exhaustion.
-
-        Returns:
-            Stream[T]: self.
-        """
-        for _ in self:
-            pass
-        return self
-
     def accept(self, visitor: "Visitor[V]") -> V:
         """
         Entry point to visit this stream (en.wikipedia.org/wiki/Visitor_pattern).
@@ -120,6 +111,34 @@ class Stream(Iterable[T]):
             Stream[T]: A stream of upstream elements catching the eligible exceptions.
         """
         return CatchStream(self, kind, when, finally_raise)
+
+    def display(self, level: int = logging.INFO) -> "Stream[T]":
+        """
+        Logs (INFO level) a representation of the stream.
+
+        Args:
+            level (int, optional): The level of the log (default is INFO).
+
+        Returns:
+            Stream[T]: self.
+        """
+        import textwrap
+
+        get_logger().log(
+            level, "(\n%s\n)", textwrap.indent(repr(self).replace("\\", ""), "    ")
+        )
+        return self
+
+    def exhaust(self) -> "Stream[T]":
+        """
+        Iterates over self until exhaustion.
+
+        Returns:
+            Stream[T]: self.
+        """
+        for _ in self:
+            pass
+        return self
 
     def filter(self, keep: Callable[[T], Any] = bool) -> "Stream[T]":
         """

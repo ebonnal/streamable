@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import time
 import timeit
 import unittest
@@ -165,7 +166,7 @@ class TestStream(unittest.TestCase):
         ):
             Stream(src).upstream = Stream(src)  # type: ignore
 
-    def test_repr(self) -> None:
+    def test_repr_and_display(self) -> None:
         class CustomCallable:
             pass
 
@@ -194,6 +195,9 @@ class TestStream(unittest.TestCase):
         )
 
         print(explanation_1)
+
+        complex_stream.display()
+        complex_stream.display(logging.ERROR)
 
     def test_iter(self) -> None:
         self.assertIsInstance(

@@ -91,6 +91,7 @@ def reverse_etl_example():
             .foreach(requests.Response.raise_for_status)
             .observe("integrated user groups")
             .catch(finally_raise=True)
+            .display()
             .exhaust()
         )
     
