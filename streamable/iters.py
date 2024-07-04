@@ -37,7 +37,7 @@ class CatchingIterator(Iterator[T]):
     ) -> None:
         self.iterator = iterator
         self.kind = kind
-        self.finaly_raise = finally_raise
+        self.finally_raise = finally_raise
         self._first_catched_error: Optional[Exception] = None
         self._first_error_has_been_raised = False
 
@@ -48,7 +48,7 @@ class CatchingIterator(Iterator[T]):
             except StopIteration:
                 if (
                     self._first_catched_error is not None
-                    and self.finaly_raise
+                    and self.finally_raise
                     and not self._first_error_has_been_raised
                 ):
                     self._first_error_has_been_raised = True
