@@ -188,13 +188,13 @@ import requests
 from requests.exceptions import ConnectionError
 
 status_codes_ignoring_resolution_errors = (
-    Stream(["https://foo.bar", "https://github.com"])
-    .map(requests.get)
+    Stream(["https://github.com", "https://foo.bar", "https://github.com/foo/bar"])
+    .map(requests.get, concurrency=2)
     .catch(ConnectionError, when=lambda exception: "Failed to resolve" in str(exception))
     .map(lambda response: response.status_code)
 )
 
-assert list(returned_status_codes_ignoring_resolution_errors) == [200]
+assert list(status_codes_ignoring_resolution_errors) == [200, 404]
 ```
 
 It has an optional `finally_raise: bool` parameter to raise the first catched exception when upstream's iteration ends.
