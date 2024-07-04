@@ -67,9 +67,7 @@ class FlatteningIterator(Iterator[U]):
             return next(self._current_iterator_elem)
         except StopIteration:
             iterable_elem = next(self.iterator)
-            self._current_iterator_elem = util.reraise_as(
-                iter, StopIteration, util.NoopStopIteration
-            )(iterable_elem)
+            self._current_iterator_elem = util.stop_remapped_iter(iterable_elem)
             return next(self)
 
 
@@ -396,9 +394,7 @@ class ConcurrentFlatteningIterable(
                     except StopIteration:
                         break
                     try:
-                        iterator = util.reraise_as(
-                            iter, StopIteration, util.NoopStopIteration
-                        )(iterable)
+                        iterator = util.stop_remapped_iter(iterable)
                     except Exception as e:
                         yield RaisingIterator.ExceptionContainer(e)
                         continue

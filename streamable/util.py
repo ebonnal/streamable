@@ -18,10 +18,6 @@ def get_logger() -> logging.Logger:
     return _logger
 
 
-class NoopStopIteration(Exception):
-    pass
-
-
 T = TypeVar("T")
 R = TypeVar("R")
 
@@ -59,6 +55,13 @@ def reraise_as(
             raise target() from e
 
     return wrap
+
+
+class NoopStopIteration(Exception):
+    pass
+
+
+stop_remapped_iter = reraise_as(iter, StopIteration, NoopStopIteration)
 
 
 def validate_concurrency(concurrency: int):
