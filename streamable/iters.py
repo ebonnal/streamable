@@ -41,20 +41,21 @@ class CatchingIterator(Iterator[T]):
         self._to_be_finally_raised: Optional[Exception] = None
 
     def __next__(self) -> T:
-        try:
-            return next(self.iterator)
-        except StopIteration:
-            if self.finally_raise and self._to_be_finally_raised:
-                exception = self._to_be_finally_raised
-                self._to_be_finally_raised = None
-                raise exception
-            raise
-        except Exception as exception:
-            if isinstance(exception, self.kind):
-                if self._to_be_finally_raised is None:
-                    self._to_be_finally_raised = exception
-                return next(self)
-            raise
+        while True:
+            try:
+                return next(self.iterator)
+            except StopIteration:
+                if self.finally_raise and self._to_be_finally_raised:
+                    exception = self._to_be_finally_raised
+                    self._to_be_finally_raised = None
+                    raise exception
+                raise
+            except Exception as exception:
+                if isinstance(exception, self.kind):
+                    if self._to_be_finally_raised is None:
+                        self._to_be_finally_raised = exception
+                    continue
+                raise
 
 
 class FlatteningIterator(Iterator[U]):
@@ -63,12 +64,12 @@ class FlatteningIterator(Iterator[U]):
         self._current_iterator_elem: Iterator[U] = iter([])
 
     def __next__(self) -> U:
-        try:
-            return next(self._current_iterator_elem)
-        except StopIteration:
-            iterable_elem = next(self.iterator)
-            self._current_iterator_elem = util.stop_remapped_iter(iterable_elem)
-            return next(self)
+        while True:
+            try:
+                return next(self._current_iterator_elem)
+            except StopIteration:
+                iterable_elem = next(self.iterator)
+                self._current_iterator_elem = util.stop_remapped_iter(iterable_elem)
 
 
 class GroupingIterator(Iterator[List[T]]):

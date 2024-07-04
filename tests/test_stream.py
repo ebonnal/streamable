@@ -1,5 +1,4 @@
 import asyncio
-import sys
 import time
 import timeit
 import unittest
@@ -21,8 +20,6 @@ from parameterized import parameterized  # type: ignore
 
 from streamable import Stream
 from streamable.functions import NoopStopIteration
-
-sys.setrecursionlimit(1_000_000)
 
 T = TypeVar("T")
 
