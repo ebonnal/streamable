@@ -67,7 +67,7 @@ class FlatteningIterator(Iterator[U]):
             return next(self._current_iterator_elem)
         except StopIteration:
             iterable_elem = next(self.iterator)
-            if not isinstance(iterable_elem, Iterable):
+            if not isinstance(iterable_elem, (Iterator, Iterable)):
                 raise TypeError(
                     f"Elements to flatten must be Iterables, but got a {type(iterable_elem)}"
                 )
