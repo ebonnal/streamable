@@ -33,10 +33,12 @@ class CatchingIterator(Iterator[T]):
         self,
         iterator: Iterator[T],
         kind: Type[Exception],
+        when: Callable[[Exception], Any],
         finally_raise: bool,
     ) -> None:
         self.iterator = iterator
         self.kind = kind
+        self.when = when
         self.finally_raise = finally_raise
         self._to_be_finally_raised: Optional[Exception] = None
 
@@ -51,7 +53,7 @@ class CatchingIterator(Iterator[T]):
                     raise exception
                 raise
             except Exception as exception:
-                if isinstance(exception, self.kind):
+                if isinstance(exception, self.kind) and self.when(exception):
                     if self._to_be_finally_raised is None:
                         self._to_be_finally_raised = exception
                     continue

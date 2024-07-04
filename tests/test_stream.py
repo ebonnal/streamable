@@ -972,6 +972,16 @@ class TestStream(unittest.TestCase):
         ):
             next(iterator)
 
+        with self.assertRaises(
+            TypeError,
+            msg="`catch` does not catch if `when` not satisfied",
+        ):
+            list(
+                Stream(map(throw, [ValueError, TypeError])).catch(
+                    Exception, when=lambda exception: "ValueError" in repr(exception)
+                )
+            )
+
     def test_observe(self) -> None:
         value_error_rainsing_stream: Stream[List[int]] = (
             Stream("123--567")

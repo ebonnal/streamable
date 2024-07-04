@@ -36,11 +36,13 @@ from streamable.util import NoopStopIteration
 def catch(
     iterator: Iterator[T],
     kind: Type[Exception] = Exception,
+    when: Callable[[Exception], Any] = bool,
     finally_raise: bool = False,
 ) -> Iterator[T]:
     return CatchingIterator(
         iterator,
         kind,
+        when,
         finally_raise=finally_raise,
     )
 

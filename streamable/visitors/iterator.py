@@ -26,6 +26,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         return functions.catch(
             stream.upstream.accept(self),
             stream.kind,
+            stream.when,
             finally_raise=stream.finally_raise,
         )
 

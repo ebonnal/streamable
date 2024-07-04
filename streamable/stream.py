@@ -105,19 +105,21 @@ class Stream(Iterable[T]):
     def catch(
         self,
         kind: Type[Exception] = Exception,
+        when: Callable[[Exception], Any] = bool,
         finally_raise: bool = False,
     ) -> "Stream[T]":
         """
-        Catches the upstream exceptions if they are instances of `kind`.
+        Catches the upstream exceptions if they are instances of `kind` and they satisfy the `when` predicate.
 
         Args:
-            kind (Type[Exception], optional): The type of exceptions to catch (default is all non-exit exceptions).
+            kind (Type[Exception], optional): The type of exceptions to catch (default is base Exception).
+            when (Callable[[Exception], Any], optional): An additional condition that must be satisfied (`when(exception)` must be Truthy) to catch the exception (Always satisfied by default).
             finally_raise (bool, optional): If True the first catched exception is raised when upstream's iteration ends (default is False).
 
         Returns:
             Stream[T]: A stream of upstream elements catching the eligible exceptions.
         """
-        return CatchStream(self, kind, finally_raise)
+        return CatchStream(self, kind, when, finally_raise)
 
     def filter(self, keep: Callable[[T], Any] = bool) -> "Stream[T]":
         """
@@ -369,19 +371,19 @@ class CatchStream(DownStream[T, T]):
         self,
         upstream: Stream[T],
         kind: Type[Exception],
+        when: Callable[[Exception], Any],
         finally_raise: bool,
     ) -> None:
         super().__init__(upstream)
         self.kind = kind
+        self.when = when
         self.finally_raise = finally_raise
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_catch_stream(self)
 
     def __repr__(self) -> str:
-        call = (
-            f"catch({friendly_string(self.kind)}, finally_raise={self.finally_raise})"
-        )
+        call = f"catch({friendly_string(self.kind)}, when={friendly_string(self.when)}, finally_raise={self.finally_raise})"
         return f"{repr(self.upstream)}\\\n.{call}"
 
 
