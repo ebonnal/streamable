@@ -99,13 +99,9 @@ It has a sibling operation called `.amap` to apply an async function concurrentl
 Applies a side effect on elements:
 
 ```python
-side_effect_performed = []
+self_printing_integers: Stream[int] = integers.foreach(print)
 
-printed_integers: Stream[int] = integers.foreach(side_effect_performed.append)
-
-assert not side_effect_performed
-assert list(printed_integers) == list(integers)
-assert side_effect_performed
+assert list(self_printing_integers) == list(integers)  # will trigger the printing of the integers
 ```
 
 It has an optional `concurrency: int` parameter to execute the function concurrently (threads-based) while preserving the order.
@@ -121,9 +117,19 @@ pair_integers: Stream[int] = integers.filter(lambda n: n % 2 == 0)
 assert list(pair_integers) == [0, 2, 4, 6, 8]
 ```
 
+## `.slow`
+
+Limits the rate at which elements are yielded up to a maximum number of elements per second:
+
+```python
+slow_integers: Stream[int] = integers.slow(frequency=5)
+
+assert list(slow_integers) == list(integers)  # takes 10 / 5 = 2 seconds
+```
+
 ## `.group`
 
-Groups elements into `Iterator`s:
+Groups elements into `List`s:
 
 ```python
 integers_5_by_5: Stream[List[int]] = integers.group(size=5)
@@ -136,9 +142,9 @@ integers_by_parity: Stream[List[int]] = integers.group(by=lambda n: n % 2)
 assert list(integers_by_parity) == [[0, 2, 4, 6, 8], [1, 3, 5, 7, 9]]
 ```
 ```python
-integers_within_2_seconds: Stream[List[int]] = slow_integers.group(seconds=2)
+integers_within_1s: Stream[List[int]] = integers.slow(frequency=2).group(seconds=1)
 
-assert list(integers_within_2_seconds) == [[0, 1, 2, 3], [4, 5, 6, 7], [8, 9]]
+assert list(integers_within_1s) == [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]]
 ```
 
 Combine the `size`/`by`/`seconds` parameters:
@@ -160,15 +166,6 @@ assert pair_then_odd_integers == [0, 2, 4, 6, 8, 1, 3, 5, 7, 9]
 
 It has an optional `concurrency: int` parameter to flatten several iterables concurrently (threads).
 
-## `.slow`
-
-Limits the rate at which elements are yielded up to a maximum number of elements per second:
-
-```python
-slow_integers: Stream[int] = integers.slow(frequency=2)
-
-assert list(slow_integers) == list(integers) # takes 10 / 2 = 5 seconds
-```
 
 ## `.catch`
 
@@ -184,7 +181,7 @@ safe_inverse_floats: Stream[float] = (
 assert list(safe_inverse_floats) == [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
 ```
 
-It has an optional `finally_raise: bool` parameter to raise the first catched exception when an iteration ends.
+It has an optional `finally_raise: bool` parameter to raise the first catched exception when upstream's iteration ends.
 
 ## `.truncate`
 Stops the iteration:
@@ -195,7 +192,7 @@ five_first_integers: Stream[int] = integers.truncate(5)
 assert list(five_first_integers) == [0, 1, 2, 3, 4]
 ```
 
-- as soon as a predicate is satisfied:
+- as soon as a condition is satisfied:
 ```python
 five_first_integers: Stream[int] = integers.truncate(when=lambda n: n == 5)
 
@@ -286,8 +283,8 @@ The `Stream`'s methods are also exposed as functions:
 ```python
 from streamable.functions import slow
 
-iterator: List[int] = ...
-slow_iterator: List[int] = slow(iterator)
+iterator: Iterator[int] = ...
+slow_iterator: Iterator[int] = slow(iterator)
 ```
 
 ## visitor pattern

@@ -7,3 +7,4 @@ dist
 .mypy_cache
 htmlcov
 .coverage
+streamable.egg-info
