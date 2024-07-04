@@ -73,7 +73,7 @@ def reverse_etl_example():
         import tenacity
         from streamable import Stream
 
-        logging.info(
+        (
             Stream(bigquery.Client(...).query(users_query).result)
             .map(dict)
             .observe("users")
