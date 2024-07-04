@@ -19,7 +19,7 @@ from typing import (
 from parameterized import parameterized  # type: ignore
 
 from streamable import Stream
-from streamable.functions import WrappedStopIteration
+from streamable.functions import NoopStopIteration
 
 T = TypeVar("T")
 
@@ -189,7 +189,7 @@ class TestStream(unittest.TestCase):
             .flatten(concurrency=4)
             .slow(64)
             .observe("stream #1 elements")
-            .catch(lambda e: isinstance(e, (ValueError, TypeError)))
+            .catch(TypeError, finally_raise=True)
         )
         explanation_1 = complex_stream.explanation()
         explanation_2 = complex_stream.explanation()
@@ -325,7 +325,7 @@ class TestStream(unittest.TestCase):
             ]
             for raised_exc, catched_exc in [
                 (TestError, TestError),
-                (StopIteration, (WrappedStopIteration, RuntimeError)),
+                (StopIteration, (NoopStopIteration, RuntimeError)),
             ]
             for concurrency in [1, 2]
             for method, throw_func_, throw_for_odd_func_ in [
@@ -352,9 +352,7 @@ class TestStream(unittest.TestCase):
 
         self.assertListEqual(
             list(
-                method(Stream(src), throw_for_odd_func(raised_exc), concurrency).catch(  # type: ignore
-                    lambda exc: isinstance(exc, catched_exc)
-                )
+                method(Stream(src), throw_for_odd_func(raised_exc), concurrency).catch(catched_exc)  # type: ignore
             ),
             list(pair_src),
             msg="At any concurrency, `map`and `foreach` must not stop after one exception occured.",
@@ -448,41 +446,71 @@ class TestStream(unittest.TestCase):
 
     @parameterized.expand(
         [
-            [raised_exc, catched_exc, concurrency]
-            for raised_exc, catched_exc in [
+            [exception_type, mapped_exception_type, concurrency]
+            for exception_type, mapped_exception_type in [
                 (TestError, TestError),
-                (StopIteration, WrappedStopIteration),
+                (StopIteration, NoopStopIteration),
             ]
             for concurrency in [1, 2]
         ]
     )
     def test_flatten_with_exception(
         self,
-        raised_exc: Type[Exception],
-        catched_exc: Type[Exception],
+        exception_type: Type[Exception],
+        mapped_exception_type: Type[Exception],
         concurrency: int,
     ) -> None:
-        class odd_iterable(Iterable[int]):
-            def __init__(self, i, pair_exception: Type[Exception]) -> None:
-                self.i = i
-                self.pair_exception = pair_exception
+        n_iterables = 5
 
+        class IterableRaisingInIter(Iterable[int]):
             def __iter__(self) -> Iterator[int]:
-                if self.i % 2:
-                    raise self.pair_exception()
-                yield self.i
-
-        n_iterables = 4
+                raise exception_type
 
         self.assertSetEqual(
             set(
-                Stream(range(n_iterables))
-                .map(lambda i: cast(Iterable[int], odd_iterable(i, raised_exc)))
+                Stream(
+                    map(
+                        lambda i: (
+                            IterableRaisingInIter() if i % 2 else range(i, i + 1)
+                        ),
+                        range(n_iterables),
+                    )
+                )
                 .flatten(concurrency=concurrency)
-                .catch(catched_exc)
+                .catch(mapped_exception_type)
             ),
             set(range(0, n_iterables, 2)),
-            msg="At any concurrency the `flatten` method should be resilient to exceptions thrown by iterators, especially it should remap StopIteration one to WrappedStopIteration.",
+            msg="At any concurrency the `flatten` method should be resilient to exceptions thrown by iterators, especially it should remap StopIteration one to PacifiedStopIteration.",
+        )
+
+        class IteratorRaisingInNext(Iterator[int]):
+            def __init__(self) -> None:
+                self.first_next = True
+
+            def __iter__(self) -> Iterator[int]:
+                return self
+
+            def __next__(self) -> int:
+                if not self.first_next:
+                    raise StopIteration
+                self.first_next = False
+                raise exception_type
+
+        self.assertSetEqual(
+            set(
+                Stream(
+                    map(
+                        lambda i: (
+                            IteratorRaisingInNext() if i % 2 else range(i, i + 1)
+                        ),
+                        range(n_iterables),
+                    )
+                )
+                .flatten(concurrency=concurrency)
+                .catch(mapped_exception_type)
+            ),
+            set(range(0, n_iterables, 2)),
+            msg="At any concurrency the `flatten` method should be resilient to exceptions thrown by iterators, especially it should remap StopIteration one to PacifiedStopIteration.",
         )
 
     @parameterized.expand([[concurrency] for concurrency in [2, 4]])
@@ -771,7 +799,7 @@ class TestStream(unittest.TestCase):
             msg="`group` should yield incomplete groups when `by` raises",
         )
         with self.assertRaises(
-            WrappedStopIteration,
+            NoopStopIteration,
             msg="`group` should raise and skip `elem` if `by(elem)` raises",
         ):
             next(stream_iter)
@@ -857,9 +885,9 @@ class TestStream(unittest.TestCase):
         safe_src = list(src)
         del safe_src[3]
         self.assertListEqual(
-            list(stream.catch(lambda e: isinstance(e, ZeroDivisionError))),
+            list(stream.catch(ZeroDivisionError)),
             list(map(f, safe_src)),
-            msg="If the exception type matches the `when`, then the impacted element should be ignored.",
+            msg="If the exception type matches the `kind`, then the impacted element should be ignored.",
         )
         self.assertListEqual(
             list(stream.catch()),
@@ -871,7 +899,7 @@ class TestStream(unittest.TestCase):
             ZeroDivisionError,
             msg="If a non catched exception type occurs, then it should be raised.",
         ):
-            list(stream.catch(lambda e: False))
+            list(stream.catch(TestError))
 
         first_value = 1
         second_value = 2
@@ -888,10 +916,8 @@ class TestStream(unittest.TestCase):
 
         erroring_stream: Stream[int] = Stream(lambda: map(lambda f: f(), functions))
         for catched_erroring_stream in [
-            erroring_stream.catch(raise_after_exhaustion=True),
-            erroring_stream.catch(
-                lambda e: isinstance(e, Exception), raise_after_exhaustion=True
-            ),
+            erroring_stream.catch(finally_raise=True),
+            erroring_stream.catch(Exception, finally_raise=True),
         ]:
             erroring_stream_iterator = iter(catched_erroring_stream)
             self.assertEqual(
@@ -902,13 +928,13 @@ class TestStream(unittest.TestCase):
             n_yields = 1
             with self.assertRaises(
                 TestError,
-                msg="`catch` should raise the first error encountered when `raise_after_exhaustion` is True.",
+                msg="`catch` should raise the first error encountered when `finally_raise` is True.",
             ):
                 for _ in erroring_stream_iterator:
                     n_yields += 1
             with self.assertRaises(
                 StopIteration,
-                msg="`catch` with `raise_after_exhaustion`=True should finally raise StopIteration to avoid infinite recursion if there is another catch downstream.",
+                msg="`catch` with `finally_raise`=True should finally raise StopIteration to avoid infinite recursion if there is another catch downstream.",
             ):
                 next(erroring_stream_iterator)
             self.assertEqual(
@@ -917,11 +943,9 @@ class TestStream(unittest.TestCase):
                 msg="3 elements should have passed been yielded between catched exceptions.",
             )
 
-        only_catched_errors_stream = (
-            Stream(range(2000))
-            .map(lambda i: throw(TestError))
-            .catch(lambda e: isinstance(e, TestError))
-        )
+        only_catched_errors_stream = Stream(
+            map(lambda _: throw(TestError), range(2000))
+        ).catch(TestError)
         self.assertEqual(
             list(only_catched_errors_stream),
             [],
@@ -932,6 +956,27 @@ class TestStream(unittest.TestCase):
             msg="When upstream raise exceptions without yielding any element, then the first call to `next` on a stream catching all errors should raise StopIteration.",
         ):
             next(iter(only_catched_errors_stream))
+
+        iterator = iter(
+            Stream(map(throw, [TestError, ValueError]))
+            .catch(ValueError, finally_raise=True)
+            .catch(TestError, finally_raise=True)
+        )
+        with self.assertRaises(
+            ValueError,
+            msg="With 2 chained `catch`s with `finally_raise=True`, the error catched by the first `catch` is finally raised first (even though it was raised second)...",
+        ):
+            next(iterator)
+        with self.assertRaises(
+            TestError,
+            msg="... and then the error catched by the second `catch` is raised...",
+        ):
+            next(iterator)
+        with self.assertRaises(
+            StopIteration,
+            msg="... and a StopIteration is raised next.",
+        ):
+            next(iterator)
 
     def test_observe(self) -> None:
         value_error_rainsing_stream: Stream[List[int]] = (

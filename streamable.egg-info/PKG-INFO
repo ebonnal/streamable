@@ -1,3 +1,15 @@
+Metadata-Version: 2.1
+Name: streamable
+Version: 0.13.10
+Summary: expressive iteration
+Home-page: http://github.com/ebonnal/streamable
+Author: ebonnal
+Author-email: bonnal.enzo.dev@gmail.com
+License: Apache 2.
+Platform: UNKNOWN
+Description-Content-Type: text/markdown
+License-File: LICENSE
+
 # ༄ `streamable`: *fluent iteration*
 [![Actions Status](https://github.com/ebonnal/streamable/workflows/unittest/badge.svg)](https://github.com/ebonnal/streamable/actions)
 [![codecov](https://codecov.io/gh/ebonnal/streamable/graph/badge.svg?token=S62T0JQK9N)](https://codecov.io/gh/ebonnal/streamable)
@@ -341,3 +353,5 @@ import logging
 
 logging.getLogger("streamable").setLevel(logging.WARNING)
 ```
+
+

@@ -18,6 +18,10 @@ def get_logger() -> logging.Logger:
     return _logger
 
 
+class NoopStopIteration(Exception):
+    pass
+
+
 T = TypeVar("T")
 R = TypeVar("R")
 

@@ -25,13 +25,13 @@ class IteratorVisitor(Visitor[Iterator[T]]):
     def visit_catch_stream(self, stream: CatchStream[T]) -> Iterator[T]:
         return functions.catch(
             stream.upstream.accept(self),
-            stream.when,
-            raise_after_exhaustion=stream.raise_after_exhaustion,
+            stream.kind,
+            finally_raise=stream.finally_raise,
         )
 
     def visit_filter_stream(self, stream: FilterStream[T]) -> Iterator[T]:
         return filter(
-            util.reraise_as(stream.keep, StopIteration, functions.WrappedStopIteration),
+            util.reraise_as(stream.keep, StopIteration, functions.NoopStopIteration),
             cast(Iterable[T], stream.upstream.accept(self)),
         )
 

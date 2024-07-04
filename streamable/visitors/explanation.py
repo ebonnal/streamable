@@ -55,7 +55,7 @@ class ExplanationVisitor(Visitor[str]):
     def visit_catch_stream(self, stream: CatchStream) -> str:
         return self._explanation(
             stream,
-            f"when={get_name(stream.when)}, raise_after_exhaustion={stream.raise_after_exhaustion}",
+            f"kind={get_name(stream.kind)}, finally_raise={stream.finally_raise}",
         )
 
     def visit_filter_stream(self, stream: FilterStream) -> str:
