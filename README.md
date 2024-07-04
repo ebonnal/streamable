@@ -102,7 +102,7 @@ Applies a side effect on elements:
 ```python
 self_printing_integers: Stream[int] = integers.foreach(print)
 
-assert list(self_printing_integers) == list(integers)  # will trigger the printing of the integers
+assert list(self_printing_integers) == list(integers)  # triggers the printing
 ```
 
 It has an optional `concurrency: int` parameter to execute the function concurrently (threads-based) while preserving the order.
