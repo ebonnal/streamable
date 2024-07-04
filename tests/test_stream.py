@@ -168,21 +168,6 @@ class TestStream(unittest.TestCase):
         ):
             Stream(src).upstream = Stream(src)  # type: ignore
 
-    def test_iter(self):
-        with self.assertRaisesRegex(
-            TypeError,
-            "`source` must be either a Callable\[\[\], Iterable\] or an Iterable, but got a int",
-            msg="Getting an Iterator from a Stream with a source not being a Union[Callable[[], Iterator], ITerable] must raise TypeError.",
-        ):
-            iter(Stream(1))  # type: ignore
-
-        with self.assertRaisesRegex(
-            TypeError,
-            "`source` must be either a Callable\[\[\], Iterable\] or an Iterable, but got a Callable\[\[\], int\]",
-            msg="Getting an Iterator from a Stream with a source not being a Union[Callable[[], Iterator], ITerable] must raise TypeError.",
-        ):
-            iter(Stream(lambda: 1))  # type: ignore
-
     def test_explanation(self) -> None:
         class CustomCallable:
             pass
@@ -233,6 +218,20 @@ class TestStream(unittest.TestCase):
             Iterator,
             msg="iter(stream) must return an Iterator.",
         )
+
+        with self.assertRaisesRegex(
+            TypeError,
+            "`source` must be either a Callable\[\[\], Iterable\] or an Iterable, but got a int",
+            msg="Getting an Iterator from a Stream with a source not being a Union[Callable[[], Iterator], ITerable] must raise TypeError.",
+        ):
+            iter(Stream(1))  # type: ignore
+
+        with self.assertRaisesRegex(
+            TypeError,
+            "`source` must be either a Callable\[\[\], Iterable\] or an Iterable, but got a Callable\[\[\], int\]",
+            msg="Getting an Iterator from a Stream with a source not being a Union[Callable[[], Iterator], ITerable] must raise TypeError.",
+        ):
+            iter(Stream(lambda: 1))  # type: ignore
 
     def test_add(self) -> None:
         from streamable.stream import FlattenStream
