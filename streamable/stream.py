@@ -20,7 +20,7 @@ from typing import (
 )
 
 from streamable.util import (
-    friendly_string,
+    friendly_repr,
     get_logger,
     validate_concurrency,
     validate_group_seconds,
@@ -85,7 +85,7 @@ class Stream(Iterable[T]):
         return self.accept(IteratorVisitor[T]())
 
     def __repr__(self) -> str:
-        return f"Stream({friendly_string(self.source)})"
+        return f"Stream({friendly_repr(self.source)})"
 
     def accept(self, visitor: "Visitor[V]") -> V:
         """
@@ -402,7 +402,7 @@ class CatchStream(DownStream[T, T]):
         return visitor.visit_catch_stream(self)
 
     def __repr__(self) -> str:
-        call = f"catch({friendly_string(self.kind)}, when={friendly_string(self.when)}, finally_raise={self.finally_raise})"
+        call = f"catch({friendly_repr(self.kind)}, when={friendly_repr(self.when)}, finally_raise={self.finally_raise})"
         return f"{repr(self.upstream)}\\\n.{call}"
 
 
@@ -415,7 +415,7 @@ class FilterStream(DownStream[T, T]):
         return visitor.visit_filter_stream(self)
 
     def __repr__(self) -> str:
-        call = f"filter({friendly_string(self.keep)})"
+        call = f"filter({friendly_repr(self.keep)})"
         return f"{repr(self.upstream)}\\\n.{call}"
 
 
@@ -444,9 +444,7 @@ class ForeachStream(DownStream[T, T]):
         return visitor.visit_foreach_stream(self)
 
     def __repr__(self) -> str:
-        call = (
-            f"foreach({friendly_string(self.effect)}, concurrency={self.concurrency})"
-        )
+        call = f"foreach({friendly_repr(self.effect)}, concurrency={self.concurrency})"
         return f"{repr(self.upstream)}\\\n.{call}"
 
 
@@ -462,9 +460,7 @@ class AForeachStream(DownStream[T, T]):
         return visitor.visit_aforeach_stream(self)
 
     def __repr__(self) -> str:
-        call = (
-            f"aforeach({friendly_string(self.effect)}, concurrency={self.concurrency})"
-        )
+        call = f"aforeach({friendly_repr(self.effect)}, concurrency={self.concurrency})"
         return f"{repr(self.upstream)}\\\n.{call}"
 
 
@@ -485,7 +481,7 @@ class GroupStream(DownStream[T, List[T]]):
         return visitor.visit_group_stream(self)
 
     def __repr__(self) -> str:
-        call = f"group(size={self.size}, by={friendly_string(self.by)}, seconds={self.seconds})"
+        call = f"group(size={self.size}, by={friendly_repr(self.by)}, seconds={self.seconds})"
         return f"{repr(self.upstream)}\\\n.{call}"
 
 
@@ -501,7 +497,9 @@ class MapStream(DownStream[T, U]):
         return visitor.visit_map_stream(self)
 
     def __repr__(self) -> str:
-        call = f"map({friendly_string(self.transformation)}, concurrency={self.concurrency})"
+        call = (
+            f"map({friendly_repr(self.transformation)}, concurrency={self.concurrency})"
+        )
         return f"{repr(self.upstream)}\\\n.{call}"
 
 
@@ -520,7 +518,7 @@ class AMapStream(DownStream[T, U]):
         return visitor.visit_amap_stream(self)
 
     def __repr__(self) -> str:
-        call = f"amap({friendly_string(self.transformation)}, concurrency={self.concurrency})"
+        call = f"amap({friendly_repr(self.transformation)}, concurrency={self.concurrency})"
         return f"{repr(self.upstream)}\\\n.{call}"
 
 
@@ -565,5 +563,5 @@ class TruncateStream(DownStream[T, T]):
         return visitor.visit_truncate_stream(self)
 
     def __repr__(self) -> str:
-        call = f"truncate(count={self.count}, when={friendly_string(self.when)})"
+        call = f"truncate(count={self.count}, when={friendly_repr(self.when)})"
         return f"{repr(self.upstream)}\\\n.{call}"
