@@ -182,6 +182,21 @@ safe_inverse_floats: Stream[float] = (
 assert list(safe_inverse_floats) == [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
 ```
 
+You can specify an additional `when` condition for the catch:
+```python
+import requests
+from requests.exceptions import ConnectionError
+
+status_codes_ignoring_resolution_errors = (
+    Stream(["https://foo.bar", "https://github.com"])
+    .map(requests.get)
+    .catch(ConnectionError, when=lambda exception: "Failed to resolve" in str(exception))
+    .map(lambda response: response.status_code)
+)
+
+assert list(returned_status_codes_ignoring_resolution_errors) == [200]
+```
+
 It has an optional `finally_raise: bool` parameter to raise the first catched exception when upstream's iteration ends.
 
 ## `.truncate`
