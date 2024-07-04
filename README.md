@@ -258,19 +258,8 @@ this prints (in 6s):
 ```
 
 ## CPU-bound tasks
-For CPU-bound tasks, consider using the [`PyPy`](https://github.com/pypy/pypy) interpreter whose *Just In Time* (JIT) compilation should drastically improve performances, e.g. this snippet is run **50 times faster** by [`PyPy`](https://github.com/pypy/pypy) compared to standard *CPython* interpreter:
-```python
-# cpu_bound_script.py
-from streamable import Stream
-print(
-    sum(
-        Stream(range(1, 1_000_000_000))
-        .map(lambda n: 1/n)
-    )
-)
-```
-
-[Few rough runtime orders of magnitude: CPython vs PyPy vs Java vs C vs Rust.](https://github.com/ebonnal/streamable/issues/10)
+For CPU-bound tasks, consider using the [`PyPy`](https://github.com/pypy/pypy) interpreter whose *Just In Time* (JIT) compilation should drastically improve performances !
+([Few rough runtime orders of magnitude: CPython vs PyPy vs Java vs C vs Rust.](https://github.com/ebonnal/streamable/issues/10))
 
 ## change logging level
 ```python
