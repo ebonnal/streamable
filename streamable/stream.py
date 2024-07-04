@@ -104,7 +104,7 @@ class Stream(Iterable[T]):
 
         Args:
             kind (Type[Exception], optional): The type of exceptions to catch (default is base Exception).
-            when (Callable[[Exception], Any], optional): An additional condition that must be satisfied (`when(exception)` must be Truthy) to catch the exception (Always satisfied by default).
+            when (Callable[[Exception], Any], optional): An additional condition that must be satisfied (`when(exception)` must be Truthy) to catch the exception (always satisfied by default).
             finally_raise (bool, optional): If True the first catched exception is raised when upstream's iteration ends (default is False).
 
         Returns:
