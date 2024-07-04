@@ -1,4 +1,5 @@
-# ༄ `streamable`: *fluent iteration*
+# ༄ `streamable`
+### *fluent iteration*
 [![Actions Status](https://github.com/ebonnal/streamable/workflows/unittest/badge.svg)](https://github.com/ebonnal/streamable/actions)
 [![codecov](https://codecov.io/gh/ebonnal/streamable/graph/badge.svg?token=S62T0JQK9N)](https://codecov.io/gh/ebonnal/streamable)
 [![Actions Status](https://github.com/ebonnal/streamable/workflows/typing/badge.svg)](https://github.com/ebonnal/streamable/actions)
@@ -10,11 +11,11 @@
 ## TL;DR:
 |||
 |--|--|
-|🇹 typed|The `Stream[T]` class extends `Iterable[T]`|
-|🪶 light|`pip install streamable` with no additional dependencies|
-|🛡️ robust|Extensively unittested with 100% coverage|
-|💤 lazy|Operations are only evaluated during iteration|
-|🔄 concurrent|Threads-based or `asyncio`-based concurrency for I/O bound tasks|
+|🇹 *Typed*|`Stream[T]` extends `Iterable[T]`: library ***fully typed***, [`mypy`](https://github.com/python/mypy) it !|
+|💤 *Lazy*|Operations are ***lazily evaluated*** at iteration time|
+|🔄 *Concurrent*|**Threads** or `asyncio`-based concurrency ***for I/O bound tasks***|
+|🛡️ *Robust*|Extensively ***unittested for Python 3.7 to 3.12*** with 100% coverage|
+|🪶 *Light*|`pip install streamable` with ***no additional dependencies***|
 
 ---
 
@@ -221,12 +222,9 @@ The amount of logs will never be overwhelming because they are produced logarith
 ---
 
 # 📦 ***Notes Box***
+## Extract-Transform-Load tasks
 
-## typing
-This is a **fully typed library** (you can [`mypy`](https://github.com/python/mypy) it).
-
-## supported Python versions
-Compatible with **Python `3.7+`** (unittested for: `3.7.17`, `3.8.18`, `3.9.18`, `3.10.13`, `3.11.7`, `3.12.1`).
+One can leverage this library to write elegant ETL scripts, check the [**README dedicated to ETL**](README_ETL.md).
 
 ## support for `asyncio`
 As an alternative to the threads-based concurrency available for `.map` and `.foreach` operations (via their `concurrency` parameter), one can use `.amap` and `.aforeach` operations to **apply `async` functions** concurrently on a stream:
@@ -274,17 +272,21 @@ print(
 
 [Few rough runtime orders of magnitude: CPython vs PyPy vs Java vs C vs Rust.](https://github.com/ebonnal/streamable/issues/10)
 
-## Extract-Transform-Load tasks
-
-One can leverage this library to write elegant ETL scripts, check the [**README dedicated to ETL**](README_ETL.md).
-
-## as functions
-The `Stream`'s methods are also exposed as functions:
+## explain
 ```python
-from streamable.functions import slow
+print(stream.explanation())
+```
+```
+└─•TruncateStream(count=10, when=None)
+  └─•FlattenStream(concurrency=1)
+    └─•ForeachStream(effect=print, concurrency=1)
+      └─•MapStream(transformation=str, concurrency=1)
+        └─•Stream(source=range(...))
+```
 
-iterator: Iterator[int] = ...
-slow_iterator: Iterator[int] = slow(iterator)
+## change logging level
+```python
+logging.getLogger("streamable").setLevel(logging.WARNING)
 ```
 
 ## visitor pattern
@@ -307,34 +309,11 @@ def stream_depth(stream: Stream) -> int:
 3
 ```
 
-## go to line
-Style tip: Enclose operations in parentheses to keep lines short without needing trailing backslashes `\`.
-
+## import as functions
+The `Stream`'s methods are also exposed as functions:
 ```python
-stream: Stream[str] = (
-    Stream(range(10))
-    .map(str)
-    .foreach(print)
-    .flatten()
-    .truncate(10)
-)
-```
+from streamable.functions import slow
 
-## explain
-```python
-print(stream.explanation())
-```
-```
-└─•TruncateStream(count=10, when=None)
-  └─•FlattenStream(concurrency=1)
-    └─•ForeachStream(effect=print, concurrency=1)
-      └─•MapStream(transformation=str, concurrency=1)
-        └─•Stream(source=range(...))
-```
-
-## change logging level
-```python
-import logging
-
-logging.getLogger("streamable").setLevel(logging.WARNING)
+iterator: Iterator[int] = ...
+slow_iterator: Iterator[int] = slow(iterator)
 ```
