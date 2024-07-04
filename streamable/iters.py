@@ -165,16 +165,15 @@ class GroupingIterator(Iterator[List[T]]):
 class TruncatingOnCountIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], count: int) -> None:
         self.iterator = iterator
-        self.count = count
-        self._n_yields = 0
+        self.max_count = count
+        self.count = 0
 
     def __next__(self):
-        if self._n_yields == self.count:
+        if self.count == self.max_count:
             raise StopIteration()
-        try:
-            return next(self.iterator)
-        finally:
-            self._n_yields += 1
+        elem = next(self.iterator)
+        self.count += 1
+        return elem
 
 
 class TruncatingOnPredicateIterator(Iterator[T]):

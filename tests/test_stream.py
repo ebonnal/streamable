@@ -613,23 +613,24 @@ class TestStream(unittest.TestCase):
         ):
             Stream(src).truncate(cast(int, float("inf")))
 
-        n_iterations = 0
         count = N // 2
         raising_stream_iterator = iter(
-            Stream(lambda: map(lambda x: x / 0, src)).truncate(count)
+            Stream(lambda: map(lambda x: round((1 / x) * x**2), src)).truncate(count)
         )
-        while True:
-            try:
-                next(raising_stream_iterator)
-            except ZeroDivisionError:
-                n_iterations += 1
-            except StopIteration:
-                break
-        self.assertEqual(
-            n_iterations,
-            count,
-            msg="`truncate` must not stop iteration when encountering exceptions",
-        )
+
+        with self.assertRaises(
+            ZeroDivisionError,
+            msg="`truncate` must not stop iteration when encountering exceptions and raise them without counting them...",
+        ):
+            next(raising_stream_iterator)
+
+        self.assertEqual(list(raising_stream_iterator), list(range(1, count + 1)))
+
+        with self.assertRaises(
+            StopIteration,
+            msg="... and after reaching the limit it still continues to raise StopIteration on calls to next",
+        ):
+            next(raising_stream_iterator)
 
         iter_truncated_on_predicate = iter(Stream(src).truncate(when=lambda n: n == 5))
         self.assertEqual(
