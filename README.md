@@ -11,11 +11,11 @@
 ## TL;DR:
 |||
 |--|--|
-|🇹 *Typed*|`Stream[T]` extends `Iterable[T]`: library ***fully typed***, [`mypy`](https://github.com/python/mypy) it !|
-|💤 *Lazy*|Operations are ***lazily evaluated*** at iteration time|
-|🔄 *Concurrent*|**Threads** or `asyncio`-based concurrency ***for I/O bound tasks***|
-|🛡️ *Robust*|Extensively ***unittested for Python 3.7 to 3.12*** with 100% coverage|
-|🪶 *Light*|`pip install streamable` with ***no additional dependencies***|
+|🇹 *Typed*|`Stream[T]` extends `Iterable[T]`: library **fully typed**, [`mypy`](https://github.com/python/mypy) it !|
+|💤 *Lazy*|Operations are **lazily evaluated** at iteration time|
+|🔄 *Concurrent*|**Threads** or `asyncio`-based concurrency for I/O bound tasks|
+|🛡️ *Robust*|Extensively unittested for **Python 3.7 to 3.12** with 100% coverage|
+|🪶 *Light*|`pip install streamable` with **no additional dependencies**|
 
 ---
 
