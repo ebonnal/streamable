@@ -1,6 +1,6 @@
-import asyncio
 import itertools
 import time
+from asyncio import Task, get_event_loop
 from collections import defaultdict, deque
 from concurrent.futures import Future, ThreadPoolExecutor
 from datetime import datetime
@@ -276,7 +276,9 @@ class ConcurrentMappingIterable(Iterable[Union[U, RaisingIterator.ExceptionConta
 
     def __iter__(self) -> Iterator[Union[U, RaisingIterator.ExceptionContainer]]:
         with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
-            futures: Deque[Future] = deque()
+            futures: Deque[Future[Union[U, RaisingIterator.ExceptionContainer]]] = (
+                deque()
+            )
             to_yield: List[Union[U, RaisingIterator.ExceptionContainer]] = []
             # wait, queue, yield (FIFO)
             while True:
@@ -327,26 +329,24 @@ class AsyncConcurrentMappingIterable(
             return RaisingIterator.ExceptionContainer(e)
 
     def __iter__(self) -> Iterator[Union[U, RaisingIterator.ExceptionContainer]]:
-        loop = asyncio.get_event_loop()
-        awaitables: Deque[
-            asyncio.Task[Union[U, RaisingIterator.ExceptionContainer]]
-        ] = deque()
+        loop = get_event_loop()
+        tasks: Deque[Task[Union[U, RaisingIterator.ExceptionContainer]]] = deque()
         to_yield: List[Union[U, RaisingIterator.ExceptionContainer]] = []
         # wait, queue, yield (FIFO)
         while True:
-            if awaitables:
-                to_yield.append(loop.run_until_complete(awaitables.popleft()))
+            if tasks:
+                to_yield.append(loop.run_until_complete(tasks.popleft()))
             # queue tasks up to buffer_size
-            while len(awaitables) < self.buffer_size:
+            while len(tasks) < self.buffer_size:
                 try:
                     elem = next(self.iterator)
                 except StopIteration:
                     # the upstream iterator is exhausted
                     break
-                awaitables.append(loop.create_task(self._safe_transformation(elem)))
+                tasks.append(loop.create_task(self._safe_transformation(elem)))
             if to_yield:
                 yield to_yield.pop()
-            if not awaitables:
+            if not tasks:
                 break
 
 
