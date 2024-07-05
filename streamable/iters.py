@@ -1,12 +1,17 @@
+from __future__ import annotations
+
 import itertools
 import time
-from asyncio import Task, get_event_loop
+from abc import ABC, abstractmethod
+from asyncio import AbstractEventLoop, get_event_loop
 from collections import defaultdict, deque
-from concurrent.futures import Future, ThreadPoolExecutor
+from concurrent.futures import Executor, Future, ThreadPoolExecutor
+from contextlib import contextmanager
 from datetime import datetime
 from typing import (
     Any,
     Callable,
+    ContextManager,
     Coroutine,
     DefaultDict,
     Deque,
@@ -25,7 +30,7 @@ from typing import (
 T = TypeVar("T")
 U = TypeVar("U")
 
-from streamable import util
+from streamable.util import NoopStopIteration, get_logger, reraise_as
 
 
 class CatchingIterator(Iterator[T]):
@@ -71,7 +76,9 @@ class FlatteningIterator(Iterator[U]):
                 return next(self._current_iterator_elem)
             except StopIteration:
                 iterable_elem = next(self.iterator)
-                self._current_iterator_elem = util.stop_remapped_iter(iterable_elem)
+                self._current_iterator_elem = reraise_as(
+                    iter, StopIteration, NoopStopIteration
+                )(iterable_elem)
 
 
 class GroupingIterator(Iterator[List[T]]):
@@ -202,7 +209,7 @@ class ObservingIterator(Iterator[T]):
         self._start_time = time.time()
 
     def _log(self) -> None:
-        util.get_logger().info(
+        get_logger().info(
             "[%s %s] %s",
             f"duration={datetime.fromtimestamp(time.time()) - datetime.fromtimestamp(self._start_time)}",
             f"errors={self._n_errors}",
@@ -261,21 +268,31 @@ class RaisingIterator(Iterator[T]):
         return elem
 
 
-class ConcurrentMappingIterable(Iterable[Union[U, RaisingIterator.ExceptionContainer]]):
+class ConcurrentMappingIterable(
+    ABC, Iterable[Union[U, RaisingIterator.ExceptionContainer]]
+):
     def __init__(
         self,
         iterator: Iterator[T],
-        transformation: Callable[[T], U],
-        concurrency: int,
         buffer_size: int,
     ) -> None:
         self.iterator = iterator
-        self.transformation = transformation
-        self.concurrency = concurrency
         self.buffer_size = buffer_size
 
+    @abstractmethod
+    def _context_manager(self) -> ContextManager: ...
+
+    @abstractmethod
+    def _launch_future(
+        self, elem: T
+    ) -> Future[Union[U, RaisingIterator.ExceptionContainer]]: ...
+    @abstractmethod
+    def _get_future_result(
+        self, future: Future[Union[U, RaisingIterator.ExceptionContainer]]
+    ) -> Union[U, RaisingIterator.ExceptionContainer]: ...
+
     def __iter__(self) -> Iterator[Union[U, RaisingIterator.ExceptionContainer]]:
-        with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
+        with self._context_manager():
             futures: Deque[Future[Union[U, RaisingIterator.ExceptionContainer]]] = (
                 deque()
             )
@@ -283,11 +300,7 @@ class ConcurrentMappingIterable(Iterable[Union[U, RaisingIterator.ExceptionConta
             # wait, queue, yield (FIFO)
             while True:
                 if futures:
-                    try:
-                        to_yield.append(futures.popleft().result())
-                    except Exception as e:
-                        to_yield.append(RaisingIterator.ExceptionContainer(e))
-
+                    to_yield.append(self._get_future_result(futures.popleft()))
                 # queue tasks up to buffer_size
                 while len(futures) < self.buffer_size:
                     try:
@@ -295,25 +308,60 @@ class ConcurrentMappingIterable(Iterable[Union[U, RaisingIterator.ExceptionConta
                     except StopIteration:
                         # the upstream iterator is exhausted
                         break
-                    futures.append(executor.submit(self.transformation, elem))
+                    futures.append(self._launch_future(elem))
                 if to_yield:
                     yield to_yield.pop()
                 if not futures:
                     break
 
 
-class AsyncConcurrentMappingIterable(
-    Iterable[Union[U, RaisingIterator.ExceptionContainer]]
-):
+class ThreadConcurrentMappingIterable(ConcurrentMappingIterable[U]):
+    def __init__(
+        self,
+        iterator: Iterator[T],
+        transformation: Callable[[T], U],
+        concurrency: int,
+        buffer_size: int,
+    ) -> None:
+        super().__init__(iterator, buffer_size)
+        self.transformation = transformation
+        self.concurrency = concurrency
+        self.executor: Optional[Executor] = None
+
+    def _context_manager(self) -> ContextManager:
+        self.executor = ThreadPoolExecutor(max_workers=self.concurrency)
+        return self.executor
+
+    def _launch_future(
+        self, elem: T
+    ) -> Future[Union[U, RaisingIterator.ExceptionContainer]]:
+        return cast(Executor, self.executor).submit(self.transformation, elem)
+
+    def _get_future_result(
+        self, future: Future[Union[U, RaisingIterator.ExceptionContainer]]
+    ) -> Union[U, RaisingIterator.ExceptionContainer]:
+        try:
+            return future.result()
+        except Exception as e:
+            return RaisingIterator.ExceptionContainer(e)
+
+
+class AsyncConcurrentMappingIterable(ConcurrentMappingIterable[U]):
     def __init__(
         self,
         iterator: Iterator[T],
         transformation: Callable[[T], Coroutine[Any, Any, U]],
         buffer_size: int,
     ) -> None:
-        self.iterator = iterator
+        super().__init__(iterator, buffer_size)
         self.transformation = transformation
-        self.buffer_size = buffer_size
+        self.loop: Optional[AbstractEventLoop] = None
+
+    @contextmanager
+    def _context_manager(self):
+        self.loop = get_event_loop()
+        yield
+        self.loop = None
 
     async def _safe_transformation(
         self, elem: T
@@ -328,26 +376,15 @@ class AsyncConcurrentMappingIterable(
         except Exception as e:
             return RaisingIterator.ExceptionContainer(e)
 
-    def __iter__(self) -> Iterator[Union[U, RaisingIterator.ExceptionContainer]]:
-        loop = get_event_loop()
-        tasks: Deque[Task[Union[U, RaisingIterator.ExceptionContainer]]] = deque()
-        to_yield: List[Union[U, RaisingIterator.ExceptionContainer]] = []
-        # wait, queue, yield (FIFO)
-        while True:
-            if tasks:
-                to_yield.append(loop.run_until_complete(tasks.popleft()))
-            # queue tasks up to buffer_size
-            while len(tasks) < self.buffer_size:
-                try:
-                    elem = next(self.iterator)
-                except StopIteration:
-                    # the upstream iterator is exhausted
-                    break
-                tasks.append(loop.create_task(self._safe_transformation(elem)))
-            if to_yield:
-                yield to_yield.pop()
-            if not tasks:
-                break
+    def _launch_future(
+        self, elem: T
+    ) -> Future[Union[U, RaisingIterator.ExceptionContainer]]:
+        return self.loop.create_task(self._safe_transformation(elem))  # type: ignore
+
+    def _get_future_result(
+        self, future: Future[Union[U, RaisingIterator.ExceptionContainer]]
+    ) -> Union[U, RaisingIterator.ExceptionContainer]:
+        return self.loop.run_until_complete(future)  # type: ignore
 
 
 class ConcurrentFlatteningIterable(
@@ -390,7 +427,9 @@ class ConcurrentFlatteningIterable(
                     except StopIteration:
                         break
                     try:
-                        iterator = util.stop_remapped_iter(iterable)
+                        iterator = reraise_as(iter, StopIteration, NoopStopIteration)(
+                            iterable
+                        )
                     except Exception as e:
                         yield RaisingIterator.ExceptionContainer(e)
                         continue

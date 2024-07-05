@@ -71,9 +71,6 @@ class NoopStopIteration(Exception):
     pass
 
 
-stop_remapped_iter = reraise_as(iter, StopIteration, NoopStopIteration)
-
-
 def validate_concurrency(concurrency: int):
     if concurrency < 1:
         raise ValueError(

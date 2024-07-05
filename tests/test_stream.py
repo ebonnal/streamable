@@ -343,7 +343,7 @@ class TestStream(unittest.TestCase):
     ) -> None:
         with self.assertRaises(
             catched_exc,
-            msg="At any concurrency, `map`and `foreach` must raise",
+            msg="At any concurrency, `map` and `foreach` and `amap` must raise",
         ):
             list(method(Stream(src), throw_func(raised_exc), concurrency))  # type: ignore
 
@@ -352,7 +352,7 @@ class TestStream(unittest.TestCase):
                 method(Stream(src), throw_for_odd_func(raised_exc), concurrency).catch(catched_exc)  # type: ignore
             ),
             list(pair_src),
-            msg="At any concurrency, `map`and `foreach` must not stop after one exception occured.",
+            msg="At any concurrency, `map` and `foreach` and `amap` must not stop after one exception occured.",
         )
 
     @parameterized.expand(

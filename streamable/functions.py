@@ -16,11 +16,11 @@ from streamable.iters import (
     AsyncConcurrentMappingIterable,
     CatchingIterator,
     ConcurrentFlatteningIterable,
-    ConcurrentMappingIterable,
     FlatteningIterator,
     GroupingIterator,
     ObservingIterator,
     RaisingIterator,
+    ThreadConcurrentMappingIterable,
     ThrottlingIterator,
     TruncatingOnCountIterator,
     TruncatingOnPredicateIterator,
@@ -88,7 +88,7 @@ def map(
     else:
         return RaisingIterator(
             iter(
-                ConcurrentMappingIterable(
+                ThreadConcurrentMappingIterable(
                     iterator,
                     transformation,
                     concurrency=concurrency,
@@ -108,7 +108,7 @@ def amap(
         iter(
             AsyncConcurrentMappingIterable(
                 iterator,
-                util.reraise_as(transformation, StopIteration, NoopStopIteration),
+                transformation,
                 buffer_size=concurrency,
             )
         )
