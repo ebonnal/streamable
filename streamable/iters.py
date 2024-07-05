@@ -237,11 +237,11 @@ class ThrottlingIterator(Iterator[T]):
 
     def __next__(self) -> T:
         start_time = time.time()
-        next_elem = next(self.iterator)
-        sleep_duration = self.period - (time.time() - start_time)
-        if sleep_duration > 0:
-            time.sleep(sleep_duration)
-        return next_elem
+        elem = next(self.iterator)
+        elapsed_time = time.time() - start_time
+        if self.period > elapsed_time:
+            time.sleep(self.period - elapsed_time)
+        return elem
 
 
 class RaisingIterator(Iterator[T]):
