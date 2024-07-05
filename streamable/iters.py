@@ -3,7 +3,6 @@ import itertools
 import time
 from collections import defaultdict, deque
 from concurrent.futures import Future, ThreadPoolExecutor
-from dataclasses import dataclass
 from datetime import datetime
 from typing import (
     Any,
@@ -14,6 +13,7 @@ from typing import (
     Iterable,
     Iterator,
     List,
+    NamedTuple,
     Optional,
     Tuple,
     Type,
@@ -245,8 +245,7 @@ class ThrottlingIterator(Iterator[T]):
 
 
 class RaisingIterator(Iterator[T]):
-    @dataclass
-    class ExceptionContainer:
+    class ExceptionContainer(NamedTuple):
         exception: Exception
 
     def __init__(
