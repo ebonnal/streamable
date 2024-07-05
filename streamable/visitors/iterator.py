@@ -25,29 +25,29 @@ class IteratorVisitor(Visitor[Iterator[T]]):
     def visit_catch_stream(self, stream: CatchStream[T]) -> Iterator[T]:
         return functions.catch(
             stream.upstream.accept(self),
-            stream.kind,
-            stream.when,
-            finally_raise=stream.finally_raise,
+            stream._kind,
+            stream._when,
+            finally_raise=stream._finally_raise,
         )
 
     def visit_filter_stream(self, stream: FilterStream[T]) -> Iterator[T]:
         return filter(
-            util.reraise_as(stream.keep, StopIteration, functions.NoopStopIteration),
+            util.reraise_as(stream._keep, StopIteration, functions.NoopStopIteration),
             cast(Iterable[T], stream.upstream.accept(self)),
         )
 
     def visit_flatten_stream(self, stream: FlattenStream[T]) -> Iterator[T]:
         return functions.flatten(
             stream.upstream.accept(IteratorVisitor[Iterable]()),
-            concurrency=stream.concurrency,
+            concurrency=stream._concurrency,
         )
 
     def visit_foreach_stream(self, stream: ForeachStream[T]) -> Iterator[T]:
         return self.visit_map_stream(
             MapStream(
                 stream.upstream,
-                util.sidify(stream.effect),
-                stream.concurrency,
+                util.sidify(stream._effect),
+                stream._concurrency,
             )
         )
 
@@ -55,8 +55,8 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         return self.visit_amap_stream(
             AMapStream(
                 stream.upstream,
-                util.async_sidify(stream.effect),
-                stream.concurrency,
+                util.async_sidify(stream._effect),
+                stream._concurrency,
             )
         )
 
@@ -65,41 +65,41 @@ class IteratorVisitor(Visitor[Iterator[T]]):
             Iterator[T],
             functions.group(
                 stream.upstream.accept(IteratorVisitor[U]()),
-                stream.size,
-                stream.seconds,
-                stream.by,
+                stream._size,
+                stream._seconds,
+                stream._by,
             ),
         )
 
     def visit_truncate_stream(self, stream: TruncateStream[T]) -> Iterator[T]:
         return functions.truncate(
             stream.upstream.accept(self),
-            stream.count,
-            stream.when,
+            stream._count,
+            stream._when,
         )
 
     def visit_map_stream(self, stream: MapStream[U, T]) -> Iterator[T]:
         return functions.map(
-            stream.transformation,
+            stream._transformation,
             stream.upstream.accept(IteratorVisitor[U]()),
-            concurrency=stream.concurrency,
+            concurrency=stream._concurrency,
         )
 
     def visit_amap_stream(self, stream: AMapStream[U, T]) -> Iterator[T]:
         return functions.amap(
-            stream.transformation,
+            stream._transformation,
             stream.upstream.accept(IteratorVisitor[U]()),
-            concurrency=stream.concurrency,
+            concurrency=stream._concurrency,
         )
 
     def visit_observe_stream(self, stream: ObserveStream[T]) -> Iterator[T]:
         return functions.observe(
             stream.upstream.accept(self),
-            stream.what,
+            stream._what,
         )
 
     def visit_throttle_stream(self, stream: ThrottleStream[T]) -> Iterator[T]:
-        return functions.throttle(stream.upstream.accept(self), stream.per_second)
+        return functions.throttle(stream.upstream.accept(self), stream._per_second)
 
     def visit_stream(self, stream: Stream[T]) -> Iterator[T]:
         if isinstance(stream.source, Iterable):

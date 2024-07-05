@@ -1012,7 +1012,7 @@ class TestStream(unittest.TestCase):
     def test_is_iterable(self) -> None:
         self.assertIsInstance(Stream(src), Iterable)
 
-    def test_exhaust(self) -> None:
+    def test_count(self) -> None:
         l: List[int] = []
 
         def effect(x: int) -> None:
@@ -1021,8 +1021,8 @@ class TestStream(unittest.TestCase):
 
         stream = Stream(lambda: map(effect, src))
         self.assertIs(
-            stream.exhaust(),
-            stream,
+            stream.count(),
+            N,
             msg="`exhaust` should return self.",
         )
         self.assertListEqual(

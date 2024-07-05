@@ -92,7 +92,7 @@ def reverse_etl_example():
             .observe("integrated user groups")
             .catch(finally_raise=True)
             .display()
-            .exhaust()
+            .count()
         )
     
     post_users(users_query())

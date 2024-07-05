@@ -112,6 +112,16 @@ class Stream(Iterable[T]):
         """
         return CatchStream(self, kind, when, finally_raise)
 
+    def count(self) -> int:
+        """
+        Iterates over this stream until exhaustion and returns the count of elements.
+
+        Returns:
+            int: Number of elements yielded during an entire iteration over this stream.
+        """
+
+        return sum(1 for _ in self)
+
     def display(self, level: int = logging.INFO) -> "Stream[T]":
         """
         Logs (INFO level) a representation of the stream.
@@ -127,17 +137,6 @@ class Stream(Iterable[T]):
         get_logger().log(
             level, "(\n%s\n)", textwrap.indent(repr(self).replace("\\", ""), "    ")
         )
-        return self
-
-    def exhaust(self) -> "Stream[T]":
-        """
-        Iterates over self until exhaustion.
-
-        Returns:
-            Stream[T]: self.
-        """
-        for _ in self:
-            pass
         return self
 
     def filter(self, keep: Callable[[T], Any] = bool) -> "Stream[T]":
@@ -394,41 +393,41 @@ class CatchStream(DownStream[T, T]):
         finally_raise: bool,
     ) -> None:
         super().__init__(upstream)
-        self.kind = kind
-        self.when = when
-        self.finally_raise = finally_raise
+        self._kind = kind
+        self._when = when
+        self._finally_raise = finally_raise
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_catch_stream(self)
 
     def __repr__(self) -> str:
-        call = f"catch({friendly_repr(self.kind)}, when={friendly_repr(self.when)}, finally_raise={self.finally_raise})"
+        call = f"catch({friendly_repr(self._kind)}, when={friendly_repr(self._when)}, finally_raise={self._finally_raise})"
         return f"{repr(self.upstream)}\\\n.{call}"
 
 
 class FilterStream(DownStream[T, T]):
     def __init__(self, upstream: Stream[T], keep: Callable[[T], Any]) -> None:
         super().__init__(upstream)
-        self.keep = keep
+        self._keep = keep
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_filter_stream(self)
 
     def __repr__(self) -> str:
-        call = f"filter({friendly_repr(self.keep)})"
+        call = f"filter({friendly_repr(self._keep)})"
         return f"{repr(self.upstream)}\\\n.{call}"
 
 
 class FlattenStream(DownStream[Iterable[T], T]):
     def __init__(self, upstream: Stream[Iterable[T]], concurrency: int) -> None:
         super().__init__(upstream)
-        self.concurrency = concurrency
+        self._concurrency = concurrency
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_flatten_stream(self)
 
     def __repr__(self) -> str:
-        call = f"flatten(concurrency={self.concurrency})"
+        call = f"flatten(concurrency={self._concurrency})"
         return f"{repr(self.upstream)}\\\n.{call}"
 
 
@@ -437,14 +436,16 @@ class ForeachStream(DownStream[T, T]):
         self, upstream: Stream[T], effect: Callable[[T], Any], concurrency: int
     ) -> None:
         super().__init__(upstream)
-        self.effect = effect
-        self.concurrency = concurrency
+        self._effect = effect
+        self._concurrency = concurrency
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_foreach_stream(self)
 
     def __repr__(self) -> str:
-        call = f"foreach({friendly_repr(self.effect)}, concurrency={self.concurrency})"
+        call = (
+            f"foreach({friendly_repr(self._effect)}, concurrency={self._concurrency})"
+        )
         return f"{repr(self.upstream)}\\\n.{call}"
 
 
@@ -453,14 +454,16 @@ class AForeachStream(DownStream[T, T]):
         self, upstream: Stream[T], effect: Callable[[T], Coroutine], concurrency: int
     ) -> None:
         super().__init__(upstream)
-        self.effect = effect
-        self.concurrency = concurrency
+        self._effect = effect
+        self._concurrency = concurrency
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_aforeach_stream(self)
 
     def __repr__(self) -> str:
-        call = f"aforeach({friendly_repr(self.effect)}, concurrency={self.concurrency})"
+        call = (
+            f"aforeach({friendly_repr(self._effect)}, concurrency={self._concurrency})"
+        )
         return f"{repr(self.upstream)}\\\n.{call}"
 
 
@@ -473,15 +476,15 @@ class GroupStream(DownStream[T, List[T]]):
         by: Optional[Callable[[T], Any]],
     ) -> None:
         super().__init__(upstream)
-        self.size = size
-        self.seconds = seconds
-        self.by = by
+        self._size = size
+        self._seconds = seconds
+        self._by = by
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_group_stream(self)
 
     def __repr__(self) -> str:
-        call = f"group(size={self.size}, by={friendly_repr(self.by)}, seconds={self.seconds})"
+        call = f"group(size={self._size}, by={friendly_repr(self._by)}, seconds={self._seconds})"
         return f"{repr(self.upstream)}\\\n.{call}"
 
 
@@ -490,16 +493,14 @@ class MapStream(DownStream[T, U]):
         self, upstream: Stream[T], transformation: Callable[[T], U], concurrency: int
     ) -> None:
         super().__init__(upstream)
-        self.transformation = transformation
-        self.concurrency = concurrency
+        self._transformation = transformation
+        self._concurrency = concurrency
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_map_stream(self)
 
     def __repr__(self) -> str:
-        call = (
-            f"map({friendly_repr(self.transformation)}, concurrency={self.concurrency})"
-        )
+        call = f"map({friendly_repr(self._transformation)}, concurrency={self._concurrency})"
         return f"{repr(self.upstream)}\\\n.{call}"
 
 
@@ -511,40 +512,40 @@ class AMapStream(DownStream[T, U]):
         concurrency: int,
     ) -> None:
         super().__init__(upstream)
-        self.transformation = transformation
-        self.concurrency = concurrency
+        self._transformation = transformation
+        self._concurrency = concurrency
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_amap_stream(self)
 
     def __repr__(self) -> str:
-        call = f"amap({friendly_repr(self.transformation)}, concurrency={self.concurrency})"
+        call = f"amap({friendly_repr(self._transformation)}, concurrency={self._concurrency})"
         return f"{repr(self.upstream)}\\\n.{call}"
 
 
 class ObserveStream(DownStream[T, T]):
     def __init__(self, upstream: Stream[T], what: str) -> None:
         super().__init__(upstream)
-        self.what = what
+        self._what = what
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_observe_stream(self)
 
     def __repr__(self) -> str:
-        call = f"""observe("{self.what}")"""
+        call = f"""observe("{self._what}")"""
         return f"{repr(self.upstream)}\\\n.{call}"
 
 
 class ThrottleStream(DownStream[T, T]):
     def __init__(self, upstream: Stream[T], per_second: float) -> None:
         super().__init__(upstream)
-        self.per_second = per_second
+        self._per_second = per_second
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_throttle_stream(self)
 
     def __repr__(self) -> str:
-        call = f"throttle(per_second={self.per_second})"
+        call = f"throttle(per_second={self._per_second})"
         return f"{repr(self.upstream)}\\\n.{call}"
 
 
@@ -556,12 +557,12 @@ class TruncateStream(DownStream[T, T]):
         when: Optional[Callable[[T], Any]] = None,
     ) -> None:
         super().__init__(upstream)
-        self.count = count
-        self.when = when
+        self._count = count
+        self._when = when
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_truncate_stream(self)
 
     def __repr__(self) -> str:
-        call = f"truncate(count={self.count}, when={friendly_repr(self.when)})"
+        call = f"truncate(count={self._count}, when={friendly_repr(self._when)})"
         return f"{repr(self.upstream)}\\\n.{call}"
