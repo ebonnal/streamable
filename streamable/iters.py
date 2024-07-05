@@ -1,7 +1,7 @@
 import asyncio
 import itertools
 import time
-from collections import deque
+from collections import defaultdict, deque
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime
@@ -9,8 +9,8 @@ from typing import (
     Any,
     Callable,
     Coroutine,
+    DefaultDict,
     Deque,
-    Dict,
     Iterable,
     Iterator,
     List,
@@ -89,7 +89,7 @@ class GroupingIterator(Iterator[List[T]]):
         self._to_be_raised: Optional[Exception] = None
         self._is_exhausted = False
         self._last_yielded_group_at = time.time()
-        self._groups_by: Dict[Any, List[T]] = {}
+        self._groups_by: DefaultDict[Any, List[T]] = defaultdict(list)
 
     def _group_key(self, elem: T) -> Any:
         if self.by:
@@ -98,10 +98,7 @@ class GroupingIterator(Iterator[List[T]]):
     def _group_next_elem(self) -> None:
         elem = next(self.iterator)
         key = self._group_key(elem)
-        if key in self._groups_by:
-            self._groups_by[key].append(elem)
-        else:
-            self._groups_by[key] = [elem]
+        self._groups_by[key].append(elem)
 
     def _seconds_have_elapsed(self) -> bool:
         return (time.time() - self._last_yielded_group_at) >= self.seconds
