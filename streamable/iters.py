@@ -277,14 +277,14 @@ class ConcurrentMappingIterable(Iterable[Union[U, RaisingIterator.ExceptionConta
     def __iter__(self) -> Iterator[Union[U, RaisingIterator.ExceptionContainer]]:
         with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
             futures: Deque[Future] = deque()
-            element_to_yield: List[Union[U, RaisingIterator.ExceptionContainer]] = []
+            to_yield: List[Union[U, RaisingIterator.ExceptionContainer]] = []
             # wait, queue, yield (FIFO)
             while True:
                 if futures:
                     try:
-                        element_to_yield.append(futures.popleft().result())
+                        to_yield.append(futures.popleft().result())
                     except Exception as e:
-                        element_to_yield.append(RaisingIterator.ExceptionContainer(e))
+                        to_yield.append(RaisingIterator.ExceptionContainer(e))
 
                 # queue tasks up to buffer_size
                 while len(futures) < self.buffer_size:
@@ -294,8 +294,8 @@ class ConcurrentMappingIterable(Iterable[Union[U, RaisingIterator.ExceptionConta
                         # the upstream iterator is exhausted
                         break
                     futures.append(executor.submit(self.transformation, elem))
-                if element_to_yield:
-                    yield element_to_yield.pop()
+                if to_yield:
+                    yield to_yield.pop()
                 if not futures:
                     break
 
@@ -331,11 +331,11 @@ class AsyncConcurrentMappingIterable(
         awaitables: Deque[
             asyncio.Task[Union[U, RaisingIterator.ExceptionContainer]]
         ] = deque()
-        element_to_yield: List[Union[U, RaisingIterator.ExceptionContainer]] = []
+        to_yield: List[Union[U, RaisingIterator.ExceptionContainer]] = []
         # wait, queue, yield (FIFO)
         while True:
             if awaitables:
-                element_to_yield.append(loop.run_until_complete(awaitables.popleft()))
+                to_yield.append(loop.run_until_complete(awaitables.popleft()))
             # queue tasks up to buffer_size
             while len(awaitables) < self.buffer_size:
                 try:
@@ -344,8 +344,8 @@ class AsyncConcurrentMappingIterable(
                     # the upstream iterator is exhausted
                     break
                 awaitables.append(loop.create_task(self._safe_transformation(elem)))
-            if element_to_yield:
-                yield element_to_yield.pop()
+            if to_yield:
+                yield to_yield.pop()
             if not awaitables:
                 break
 
