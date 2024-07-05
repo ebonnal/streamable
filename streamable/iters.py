@@ -3,7 +3,7 @@ from __future__ import annotations
 import itertools
 import time
 from abc import ABC, abstractmethod
-from asyncio import AbstractEventLoop, get_event_loop
+from asyncio import AbstractEventLoop, Task, get_event_loop
 from collections import defaultdict, deque
 from concurrent.futures import Executor, Future, ThreadPoolExecutor
 from contextlib import contextmanager
@@ -326,7 +326,7 @@ class ThreadConcurrentMappingIterable(ConcurrentMappingIterable[U]):
         super().__init__(iterator, buffer_size)
         self.transformation = transformation
         self.concurrency = concurrency
-        self.executor: Optional[Executor] = None
+        self.executor: Executor
 
     def _context_manager(self) -> ContextManager:
         self.executor = ThreadPoolExecutor(max_workers=self.concurrency)
@@ -335,7 +335,7 @@ class ThreadConcurrentMappingIterable(ConcurrentMappingIterable[U]):
     def _launch_future(
         self, elem: T
     ) -> Future[Union[U, RaisingIterator.ExceptionContainer]]:
-        return cast(Executor, self.executor).submit(self.transformation, elem)
+        return self.executor.submit(self.transformation, elem)
 
     def _get_future_result(
         self, future: Future[Union[U, RaisingIterator.ExceptionContainer]]
@@ -355,13 +355,12 @@ class AsyncConcurrentMappingIterable(ConcurrentMappingIterable[U]):
     ) -> None:
         super().__init__(iterator, buffer_size)
         self.transformation = transformation
-        self.loop: Optional[AbstractEventLoop] = None
+        self.loop: AbstractEventLoop
 
     @contextmanager
     def _context_manager(self):
         self.loop = get_event_loop()
         yield
-        self.loop = None
 
     async def _safe_transformation(
         self, elem: T
@@ -379,12 +378,17 @@ class AsyncConcurrentMappingIterable(ConcurrentMappingIterable[U]):
     def _launch_future(
         self, elem: T
     ) -> Future[Union[U, RaisingIterator.ExceptionContainer]]:
-        return self.loop.create_task(self._safe_transformation(elem))  # type: ignore
+        return cast(
+            Future[Union[U, RaisingIterator.ExceptionContainer]],
+            self.loop.create_task(self._safe_transformation(elem)),
+        )
 
     def _get_future_result(
         self, future: Future[Union[U, RaisingIterator.ExceptionContainer]]
     ) -> Union[U, RaisingIterator.ExceptionContainer]:
-        return self.loop.run_until_complete(future)  # type: ignore
+        return self.loop.run_until_complete(
+            cast(Task[Union[U, RaisingIterator.ExceptionContainer]], future)
+        )
 
 
 class ConcurrentFlatteningIterable(

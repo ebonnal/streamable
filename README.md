@@ -221,7 +221,7 @@ Logs the progress of iterations over this stream:
 
 If you iterate on
 ```python
-observed_throttle_integers: Stream[int] = throttle_integers.observe("integers")
+observed_slow_integers: Stream[int] = slow_integers.observe("integers")
 ```
 you will get these logs:
 ```
@@ -248,11 +248,11 @@ As an alternative to the threads-based concurrency available for `.map` and `.fo
 import asyncio
 import time
 
-async def throttle_async_square(n: int) -> int:
+async def slow_async_square(n: int) -> int:
     await asyncio.sleep(3)
     return n ** 2
 
-def throttle_str(n: int) -> str:
+def slow_str(n: int) -> str:
     time.sleep(3)
     return str(n)
 
@@ -260,9 +260,9 @@ print(
     ", ".join(
         integers
         # coroutines-based concurrency
-        .amap(throttle_async_square, concurrency=8)
+        .amap(slow_async_square, concurrency=8)
         # threads-based concurrency
-        .map(throttle_str, concurrency=8)
+        .map(slow_str, concurrency=8)
         .truncate(5)
     )
 )
@@ -304,8 +304,8 @@ def stream_depth(stream: Stream) -> int:
 ## import as functions
 The `Stream`'s methods are also exposed as functions:
 ```python
-from streamable.functions import throttle
+from streamable.functions import catch
 
 iterator: Iterator[int] = ...
-throttle_iterator: Iterator[int] = throttle(iterator)
+safe_iterator: Iterator[int] = catch(iterator, finally_raise=True)
 ```
