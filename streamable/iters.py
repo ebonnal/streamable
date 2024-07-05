@@ -198,17 +198,17 @@ class ObservingIterator(Iterator[T]):
         self.what = what
         self._n_yields = 0
         self._n_errors = 0
-        self._last_log_after_n_calls = 0
+        self._logged_n_calls = 0
         self._start_time = time.time()
 
     def _log(self) -> None:
-        errors_summary = f"errors={self._n_errors}"
-        yields_summary = f"{self._n_yields} {self.what} yielded"
-        elapsed_time = f"duration={datetime.fromtimestamp(time.time()) - datetime.fromtimestamp(self._start_time)}"
-
         util.get_logger().info(
-            "[%s %s] %s", elapsed_time, errors_summary, yields_summary
+            "[%s %s] %s",
+            f"duration={datetime.fromtimestamp(time.time()) - datetime.fromtimestamp(self._start_time)}",
+            f"errors={self._n_errors}",
+            f"{self._n_yields} {self.what} yielded",
         )
+        self._logged_n_calls = self._n_calls()
 
     def _n_calls(self) -> int:
         return self._n_yields + self._n_errors
@@ -219,17 +219,15 @@ class ObservingIterator(Iterator[T]):
             self._n_yields += 1
             return elem
         except StopIteration:
-            if self._n_calls() != self._last_log_after_n_calls:
-                self._last_log_after_n_calls = self._n_calls()
+            if self._n_calls() != self._logged_n_calls:
                 self._log()
             raise
         except Exception as e:
             self._n_errors += 1
             raise e
         finally:
-            if self._n_calls() >= 2 * self._last_log_after_n_calls:
+            if self._n_calls() >= 2 * self._logged_n_calls:
                 self._log()
-                self._last_log_after_n_calls = self._n_calls()
 
 
 class ThrottlingIterator(Iterator[T]):

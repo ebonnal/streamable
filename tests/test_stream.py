@@ -988,18 +988,19 @@ class TestStream(unittest.TestCase):
 
     def test_observe(self) -> None:
         value_error_rainsing_stream: Stream[List[int]] = (
-            Stream("123--567")
-            .throttle(1)
+            Stream("123--678")
+            .throttle(10)
             .observe("chars")
             .map(int)
             .observe("ints")
             .group(2)
             .observe("int pairs")
+            # .foreach(lambda g: print("end", g))
         )
 
         self.assertListEqual(
             list(value_error_rainsing_stream.catch(ValueError)),
-            [[1, 2], [3], [5, 6], [7]],
+            [[1, 2], [3], [6, 7], [8]],
             msg="This can break due to `group`/`map`/`catch`, check other breaking tests to determine quickly if it's an issue with `observe`.",
         )
 
