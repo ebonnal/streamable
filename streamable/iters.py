@@ -193,8 +193,6 @@ class GroupingByIterator(GroupingIterator[T]):
             return next(self)
 
         except Exception as e:
-            if not self._groups_by:
-                raise e
             self._to_be_raised = e
             return next(self)
 
