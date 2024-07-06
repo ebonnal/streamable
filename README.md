@@ -301,11 +301,11 @@ def stream_depth(stream: Stream) -> int:
 3
 ```
 
-## import as functions
+## as functions
 The `Stream`'s methods are also exposed as functions:
 ```python
 from streamable.functions import catch
 
-iterator: Iterator[int] = ...
-safe_iterator: Iterator[int] = catch(iterator, finally_raise=True)
+inverse_integers: Iterator[int] = map(lambda n: 1 / n, range(10))
+safe_inverse_integers: Iterator[int] = catch(inverse_integers, ZeroDivisionError)
 ```
