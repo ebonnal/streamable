@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import itertools
 import time
 from abc import ABC, abstractmethod
@@ -317,15 +315,15 @@ class ConcurrentMappingIterable(
     @abstractmethod
     def _launch_future(
         self, elem: T
-    ) -> Future[Union[U, RaisingIterator.ExceptionContainer]]: ...
+    ) -> "Future[Union[U, RaisingIterator.ExceptionContainer]]": ...
     @abstractmethod
     def _get_future_result(
-        self, future: Future[Union[U, RaisingIterator.ExceptionContainer]]
+        self, future: "Future[Union[U, RaisingIterator.ExceptionContainer]]"
     ) -> Union[U, RaisingIterator.ExceptionContainer]: ...
 
     def __iter__(self) -> Iterator[Union[U, RaisingIterator.ExceptionContainer]]:
         with self._context_manager():
-            futures: Deque[Future[Union[U, RaisingIterator.ExceptionContainer]]] = (
+            futures: Deque["Future[Union[U, RaisingIterator.ExceptionContainer]]"] = (
                 deque()
             )
             to_yield: List[Union[U, RaisingIterator.ExceptionContainer]] = []
@@ -366,11 +364,11 @@ class ThreadConcurrentMappingIterable(ConcurrentMappingIterable[U]):
 
     def _launch_future(
         self, elem: T
-    ) -> Future[Union[U, RaisingIterator.ExceptionContainer]]:
+    ) -> "Future[Union[U, RaisingIterator.ExceptionContainer]]":
         return self.executor.submit(self.transformation, elem)
 
     def _get_future_result(
-        self, future: Future[Union[U, RaisingIterator.ExceptionContainer]]
+        self, future: "Future[Union[U, RaisingIterator.ExceptionContainer]]"
     ) -> Union[U, RaisingIterator.ExceptionContainer]:
         try:
             return future.result()
@@ -409,17 +407,17 @@ class AsyncConcurrentMappingIterable(ConcurrentMappingIterable[U]):
 
     def _launch_future(
         self, elem: T
-    ) -> Future[Union[U, RaisingIterator.ExceptionContainer]]:
+    ) -> "Future[Union[U, RaisingIterator.ExceptionContainer]]":
         return cast(
-            Future[Union[U, RaisingIterator.ExceptionContainer]],
+            "Future[Union[U, RaisingIterator.ExceptionContainer]]",
             self.loop.create_task(self._safe_transformation(elem)),
         )
 
     def _get_future_result(
-        self, future: Future[Union[U, RaisingIterator.ExceptionContainer]]
+        self, future: "Future[Union[U, RaisingIterator.ExceptionContainer]]"
     ) -> Union[U, RaisingIterator.ExceptionContainer]:
         return self.loop.run_until_complete(
-            cast(Task[Union[U, RaisingIterator.ExceptionContainer]], future)
+            cast("Task[Union[U, RaisingIterator.ExceptionContainer]]", future)
         )
 
 
