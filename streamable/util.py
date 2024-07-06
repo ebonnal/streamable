@@ -1,6 +1,6 @@
 import logging
 import sys
-from typing import Any, Callable, Coroutine, Optional, Type, TypeVar
+from typing import Any, Callable, Coroutine, Iterator, Optional, Type, TypeVar
 
 _logger: Optional[logging.Logger] = None
 
@@ -69,6 +69,11 @@ def reraise_as(
 
 class NoopStopIteration(Exception):
     pass
+
+
+def validate_iterator(iterator: Iterator):
+    if not isinstance(iterator, Iterator):
+        raise TypeError(f"`iterator` should be an Iterator, but got a {type(iterator)}")
 
 
 def validate_concurrency(concurrency: int):

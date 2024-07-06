@@ -876,6 +876,20 @@ class TestStream(unittest.TestCase):
             )
 
     def test_catch(self) -> None:
+        self.assertEqual(
+            list(Stream(src).catch(finally_raise=True)),
+            list(src),
+            msg="`catch` should yield elements in exception-less scenarios",
+        )
+        with self.assertRaisesRegex(
+            TypeError,
+            "`iterator` should be an Iterator, but got a <class 'list'>",
+            msg="`catch` function should raise TypError when first argument is not an Iterator",
+        ):
+            from streamable.functions import catch
+
+            catch(cast(Iterator[int], [3, 4]))
+
         def f(i):
             return i / (3 - i)
 

@@ -39,6 +39,7 @@ def catch(
     when: Callable[[Exception], Any] = bool,
     finally_raise: bool = False,
 ) -> Iterator[T]:
+    util.validate_iterator(iterator)
     return CatchingIterator(
         iterator,
         kind,
@@ -48,6 +49,7 @@ def catch(
 
 
 def flatten(iterator: Iterator[Iterable[T]], concurrency: int = 1) -> Iterator[T]:
+    util.validate_iterator(iterator)
     util.validate_concurrency(concurrency)
     if concurrency == 1:
         return FlatteningIterator(iterator)
@@ -69,6 +71,7 @@ def group(
     seconds: float = float("inf"),
     by: Optional[Callable[[T], Any]] = None,
 ) -> Iterator[List[T]]:
+    util.validate_iterator(iterator)
     util.validate_group_size(size)
     util.validate_group_seconds(seconds)
     if by is not None:
@@ -81,6 +84,7 @@ def group(
 def map(
     transformation: Callable[[T], U], iterator: Iterator[T], concurrency: int = 1
 ) -> Iterator[U]:
+    util.validate_iterator(iterator)
     util.validate_concurrency(concurrency)
     transformation = util.reraise_as(transformation, StopIteration, NoopStopIteration)
     if concurrency == 1:
@@ -103,6 +107,7 @@ def amap(
     iterator: Iterator[T],
     concurrency: int = 1,
 ) -> Iterator[U]:
+    util.validate_iterator(iterator)
     util.validate_concurrency(concurrency)
     return RaisingIterator(
         iter(
@@ -116,10 +121,12 @@ def amap(
 
 
 def observe(iterator: Iterator[T], what: str) -> Iterator[T]:
+    util.validate_iterator(iterator)
     return ObservingIterator(iterator, what)
 
 
 def throttle(iterator: Iterator[T], per_second: float) -> Iterator[T]:
+    util.validate_iterator(iterator)
     util.validate_throttle_per_second(per_second)
     return ThrottlingIterator(iterator, per_second)
 
@@ -129,6 +136,7 @@ def truncate(
     count: Optional[int] = None,
     when: Optional[Callable[[T], Any]] = None,
 ) -> Iterator[T]:
+    util.validate_iterator(iterator)
     util.validate_truncate_args(count, when)
     if count is not None:
         iterator = TruncatingOnCountIterator(iterator, count)
