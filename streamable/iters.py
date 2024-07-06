@@ -299,6 +299,13 @@ class RaisingIterator(Iterator[T]):
 class ConcurrentMappingIterable(
     ABC, Iterable[Union[U, RaisingIterator.ExceptionContainer]]
 ):
+    """
+    Template Method Pattern:
+    This abstract class's `__iter__` is a skeleton for a queue-based concurrent mapping algorithm
+    that relies on abstract helper methods (`_context_manager`, `_launch_future`, `_get_future_result`)
+    that must be implemented by concrete subclasses.
+    """
+
     def __init__(
         self,
         iterator: Iterator[T],
