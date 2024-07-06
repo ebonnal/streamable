@@ -709,11 +709,20 @@ class TestStream(unittest.TestCase):
         self.assertListEqual(
             list(
                 Stream(lambda: map(slow_identity, src)).group(
-                    size=100, seconds=0.9 * slow_identity_duration
+                    size=100, seconds=slow_identity_duration / 1000
                 )
             ),
             list(map(lambda e: [e], src)),
-            msg="`group` should yield each upstream element alone in a single-element group if `seconds` inferior to the upstream yield period",
+            msg="`group` should not yield empty groups even though `seconds` if smaller than upstream's frequency",
+        )
+        self.assertListEqual(
+            list(
+                Stream(lambda: map(slow_identity, src)).group(
+                    size=100, seconds=slow_identity_duration / 1000, by=lambda _: None
+                )
+            ),
+            list(map(lambda e: [e], src)),
+            msg="`group` with `by` argument should not yield empty groups even though `seconds` if smaller than upstream's frequency",
         )
         self.assertListEqual(
             list(

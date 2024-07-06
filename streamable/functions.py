@@ -17,6 +17,7 @@ from streamable.iters import (
     CatchingIterator,
     ConcurrentFlatteningIterable,
     FlatteningIterator,
+    GroupingByIterator,
     GroupingIterator,
     ObservingIterator,
     RaisingIterator,
@@ -74,11 +75,12 @@ def group(
     util.validate_iterator(iterator)
     util.validate_group_size(size)
     util.validate_group_seconds(seconds)
-    if by is not None:
-        by = util.reraise_as(by, StopIteration, NoopStopIteration)
     if size is None:
         size = cast(int, float("inf"))
-    return GroupingIterator(iterator, size, seconds, by)
+    if by is not None:
+        by = util.reraise_as(by, StopIteration, NoopStopIteration)
+        return GroupingByIterator(iterator, size, seconds, by)
+    return GroupingIterator(iterator, size, seconds)
 
 
 def map(

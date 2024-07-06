@@ -87,15 +87,47 @@ class GroupingIterator(Iterator[List[T]]):
         iterator: Iterator[T],
         size: int,
         seconds: float,
-        by: Optional[Callable[[T], Any]],
     ) -> None:
         self.iterator = iterator
         self.size = size
         self.seconds = seconds
-        self.by = by
         self._to_be_raised: Optional[Exception] = None
-        self._is_exhausted = False
         self._last_yielded_group_at = time.time()
+        self._current_group: List[T] = []
+
+    def _seconds_have_elapsed(self) -> bool:
+        return (time.time() - self._last_yielded_group_at) >= self.seconds
+
+    def __next__(self) -> List[T]:
+        if self._to_be_raised:
+            e, self._to_be_raised = self._to_be_raised, None
+            raise e
+        try:
+            while len(self._current_group) < self.size and (
+                not self._seconds_have_elapsed() or not self._current_group
+            ):
+                self._current_group.append(next(self.iterator))
+        except Exception as e:
+            if not self._current_group:
+                raise e
+            self._to_be_raised = e
+
+        group, self._current_group = self._current_group, []
+        self._last_yielded_group_at = time.time()
+        return group
+
+
+class GroupingByIterator(GroupingIterator[T]):
+    def __init__(
+        self,
+        iterator: Iterator[T],
+        size: int,
+        seconds: float,
+        by: Optional[Callable[[T], Any]],
+    ) -> None:
+        super().__init__(iterator, size, seconds)
+        self.by = by
+        self._is_exhausted = False
         self._groups_by: DefaultDict[Any, List[T]] = defaultdict(list)
 
     def _group_key(self, elem: T) -> Any:
