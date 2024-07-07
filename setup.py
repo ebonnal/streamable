@@ -10,7 +10,7 @@ setup(
     license="Apache 2.",
     author="ebonnal",
     author_email="bonnal.enzo.dev@gmail.com",
-    description="expressive iteration",
+    description="expressive iteration in Python",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
 )
