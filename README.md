@@ -1,5 +1,5 @@
 # ༄ `streamable`
-### *Expressive iteration: fluent, typed, lazy, concurrent*
+### *Expressive iteration*
 [![Actions Status](https://github.com/ebonnal/streamable/workflows/unittest/badge.svg)](https://github.com/ebonnal/streamable/actions)
 [![codecov](https://codecov.io/gh/ebonnal/streamable/graph/badge.svg?token=S62T0JQK9N)](https://codecov.io/gh/ebonnal/streamable)
 [![Actions Status](https://github.com/ebonnal/streamable/workflows/typing/badge.svg)](https://github.com/ebonnal/streamable/actions)
@@ -239,8 +239,53 @@ The amount of logs will never be overwhelming because they are produced logarith
 
 # 📦 ***Notes Box***
 ## Extract-Transform-Load tasks
+ETL scripts (i.e. scripts fetching -> processing -> pushing data) can benefit from the expressivity of this library.
 
-One can leverage this library to write elegant ETL scripts, check the [**README dedicated to ETL**](README_ETL.md).
+Here is **a working example that you can run** (it only requires `requests` or `httpx`), it creates a CSV file containing all the 67 quadrupeds from the 1st, 2nd and 3rd generations of Pokémons (data source: [PokéAPI](https://pokeapi.co/))
+```python
+import csv
+import itertools
+from streamable import Stream
+import requests  # async equivalent: import httpx
+from requests import Response  # async equivalent: from httpx import Response
+
+with open("./quadruped_pokemons.csv", mode="w") as file:
+    writer = csv.DictWriter(file, ["id", "name", "base_happiness", "is_legendary"], extrasaction='ignore')
+    writer.writeheader()
+    (
+        # Instantiates an infinite Stream[int] of Pokemon ids, starting from Pokémon #1: Bulbasaur.
+        Stream(itertools.count(1))
+        .map(lambda poke_num: f"https://pokeapi.co/api/v2/pokemon-species/{poke_num}")
+        # GETs pokemons concurrently using a pool of 8 threads.
+        .map(requests.get, concurrency=8)  # async equivalent: .amap(AsyncClient().get, concurrency=8)
+        # Limits to 16 requests per second to be friendly to our fellow PokéAPI developers.
+        .throttle(per_second=16)
+        # Raises an HTTPError for any response having a non-2XX status code.
+        .foreach(Response.raise_for_status)
+        .map(Response.json)
+        # Stops the iteration when the first pokemon of 4th generation is reached
+        .truncate(when=lambda poke: poke["generation"]["name"] == "generation-iv")
+        .observe("pokemons")
+        # Keeps only quadruped Pokemons
+        .filter(lambda poke: poke["shape"]["name"] == "quadruped")
+        .observe("quadruped pokemons")
+        # Catches errors due to missing "shape" fields.
+        .catch(TypeError, when=lambda error: str(error) == "'NoneType' object is not subscriptable")
+        # Writes a batch of pokemons every 5 seconds to the CSV file
+        .group(seconds=5)
+        .observe("pokemon batches")
+        .foreach(writer.writerows)
+        # Ungroups pokemons
+        .flatten()
+        .observe("written pokemons")
+        # logs a representation of this stream
+        .display()
+        # Actually triggers a complete iteration (all the previous lines just define lazy operations)
+        .count()
+    )
+```
+
+More details in [**the README dedicated to ETL**](README_ETL.md).
 
 ## support for `asyncio`
 As an alternative to the threads-based concurrency available for `.map` and `.foreach` operations (via their `concurrency` parameter), one can use `.amap` and `.aforeach` operations to **apply `async` functions** concurrently on a stream:
