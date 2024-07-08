@@ -200,7 +200,18 @@ pair_then_odd_integers: Stream[int] = integers_by_parity.flatten()
 assert pair_then_odd_integers == [0, 2, 4, 6, 8, 1, 3, 5, 7, 9]
 ```
 
-It has an optional `concurrency: int` parameter to flatten several iterables concurrently (threads).
+### thread-based concurrency
+Flattens `concurrency` iterables concurrently:
+```python
+letters_mix: Stream[str] = Stream(
+    [
+        Stream(["a"] * 5).throttle(per_second=10),
+        Stream(["b"] * 5).throttle(per_second=10),
+        Stream(["c"] * 5).throttle(per_second=10),
+    ]
+).flatten(concurrency=2)
+assert list(letters_mix) == ['a', 'b', 'a', 'b', 'a', 'b', 'a', 'b', 'a', 'b', 'c', 'c', 'c', 'c', 'c']
+```
 
 
 ## `.catch`

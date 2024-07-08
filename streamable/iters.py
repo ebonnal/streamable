@@ -1,4 +1,3 @@
-import itertools
 import time
 from abc import ABC, abstractmethod
 from asyncio import AbstractEventLoop, Task, get_event_loop
@@ -439,39 +438,40 @@ class ConcurrentFlatteningIterable(
         self.concurrency = concurrency
         self.buffer_size = buffer_size
 
-    def _requeue(self, iterator: Iterator[T]) -> None:
-        self.iterables_iterator = itertools.chain(self.iterables_iterator, [iterator])
-
     def __iter__(self) -> Iterator[Union[T, RaisingIterator.ExceptionContainer]]:
         with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
             iterator_and_future_pairs: Deque[Tuple[Iterator[T], Future]] = deque()
             element_to_yield: List[Union[T, RaisingIterator.ExceptionContainer]] = []
+            iterator_to_queue: List[Iterator[T]] = []
             # wait, queue, yield (FIFO)
             while True:
                 if iterator_and_future_pairs:
                     iterator, future = iterator_and_future_pairs.popleft()
                     try:
                         element_to_yield.append(future.result())
-                        self._requeue(iterator)
+                        iterator_to_queue.append(iterator)
                     except StopIteration:
                         pass
                     except Exception as e:
                         element_to_yield.append(RaisingIterator.ExceptionContainer(e))
-                        self._requeue(iterator)
+                        iterator_to_queue.append(iterator)
 
                 # queue tasks up to buffer_size
                 while len(iterator_and_future_pairs) < self.buffer_size:
-                    try:
-                        iterable = next(self.iterables_iterator)
-                    except StopIteration:
-                        break
-                    try:
-                        iterator = reraise_as(iter, StopIteration, NoopStopIteration)(
-                            iterable
-                        )
-                    except Exception as e:
-                        yield RaisingIterator.ExceptionContainer(e)
-                        continue
+                    if iterator_to_queue:
+                        iterator = iterator_to_queue.pop()
+                    else:
+                        try:
+                            iterable = next(self.iterables_iterator)
+                        except StopIteration:
+                            break
+                        try:
+                            iterator = reraise_as(
+                                iter, StopIteration, NoopStopIteration
+                            )(iterable)
+                        except Exception as e:
+                            yield RaisingIterator.ExceptionContainer(e)
+                            continue
                     future = executor.submit(
                         cast(Callable[[Iterable[T]], T], next), iterator
                     )

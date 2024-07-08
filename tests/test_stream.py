@@ -409,6 +409,32 @@ class TestStream(unittest.TestCase):
         ):
             next(iter(Stream(cast(Iterable, src)).flatten()))
 
+    def test_flatten_concurrency(self) -> None:
+        per_second = 10
+        iterable_size = 5
+        runtime, res = timestream(
+            Stream(
+                [
+                    Stream(["a"] * iterable_size).throttle(per_second=per_second),
+                    Stream(["b"] * iterable_size).throttle(per_second=per_second),
+                    Stream(["c"] * iterable_size).throttle(per_second=per_second),
+                ]
+            ).flatten(concurrency=2)
+        )
+        self.assertEqual(
+            res,
+            ["a", "b"] * iterable_size + ["c"] * iterable_size,
+            msg="`flatten` should process 'a's and 'b's concurrently and then 'c's",
+        )
+        a_runtime = b_runtime = c_runtime = iterable_size / per_second
+        expected_runtime = (a_runtime + b_runtime) / 2 + c_runtime
+        self.assertAlmostEqual(
+            runtime,
+            expected_runtime,
+            delta=DELTA_RATE * expected_runtime,
+            msg="`flatten` should process 'a's and 'b's concurrently and then 'c's without concurrency",
+        )
+
     def test_flatten_typing(self) -> None:
         flattened_iterator_stream: Stream[str] = Stream("abc").map(iter).flatten()
         flattened_list_stream: Stream[str] = Stream("abc").map(list).flatten()
@@ -418,27 +444,6 @@ class TestStream(unittest.TestCase):
         )
         flattened_filter_stream: Stream[str] = (
             Stream("abc").map(lambda char: filter(lambda _: True, char)).flatten()
-        )
-
-    @parameterized.expand(
-        [
-            [1],
-            [2],
-            [4],
-        ]
-    )
-    def test_flatten_concurrency(self, concurrency) -> None:
-        expected_iteration_duration = N * slow_identity_duration / concurrency
-        n_iterables = 32
-        iterables_stream = Stream(range(n_iterables)).map(
-            lambda _: map(slow_identity, range(N // n_iterables))
-        )
-        duration, _ = timestream(iterables_stream.flatten(concurrency=concurrency))
-        self.assertAlmostEqual(
-            duration,
-            expected_iteration_duration,
-            delta=expected_iteration_duration * DELTA_RATE,
-            msg="Increasing the concurrency of mapping should decrease proportionnally the iteration's duration.",
         )
 
     @parameterized.expand(
@@ -522,12 +527,29 @@ class TestStream(unittest.TestCase):
                 yielded_elems.append(elem)
                 yield elem
 
-        for stream in [
-            Stream(remembering_src).map(identity, concurrency=concurrency),
-            Stream(remembering_src).amap(async_identity, concurrency=concurrency),
-            Stream(remembering_src).foreach(identity, concurrency=concurrency),
-            Stream(remembering_src).aforeach(async_identity, concurrency=concurrency),
-            Stream(remembering_src).group(1).flatten(concurrency=concurrency),
+        for stream, n_pulls_after_first_next in [
+            (
+                Stream(remembering_src).map(identity, concurrency=concurrency),
+                concurrency + 1,
+            ),
+            (
+                Stream(remembering_src).amap(async_identity, concurrency=concurrency),
+                concurrency + 1,
+            ),
+            (
+                Stream(remembering_src).foreach(identity, concurrency=concurrency),
+                concurrency + 1,
+            ),
+            (
+                Stream(remembering_src).aforeach(
+                    async_identity, concurrency=concurrency
+                ),
+                concurrency + 1,
+            ),
+            (
+                Stream(remembering_src).group(1).flatten(concurrency=concurrency),
+                concurrency,
+            ),
         ]:
             yielded_elems = []
             iterator = iter(stream)
@@ -541,8 +563,8 @@ class TestStream(unittest.TestCase):
             time.sleep(0.5)
             self.assertEqual(
                 len(yielded_elems),
-                concurrency + 1,
-                msg=f"after the first call to `next` a concurrent {type(stream)} should have pulled only {concurrency + 1} (== concurrency + 1) upstream elements.",
+                n_pulls_after_first_next,
+                msg=f"`after the first call to `next` a concurrent {type(stream)} with concurrency={concurrency} should have pulled only {n_pulls_after_first_next} upstream elements.",
             )
 
     def test_filter(self) -> None:
