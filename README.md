@@ -11,6 +11,7 @@
 ## TL;DR:
 |||
 |--|--|
+|🔗 *Fluent*|Chain methods !|
 |🇹 *Typed*|`Stream[T]` extends `Iterable[T]`: library **fully typed**, [`mypy`](https://github.com/python/mypy) it !|
 |💤 *Lazy*|Operations are **lazily evaluated** at iteration time|
 |🔄 *Concurrent*|**Threads** or `asyncio`-based concurrency for I/O bound tasks|
