@@ -93,9 +93,41 @@ negative_integer_strings: Stream[str] = integers.map(lambda n: -n).map(str)
 assert list(integer_strings) == ['0', '-1', '-2', '-3', '-4', '-5', '-6', '-7', '-8', '-9']
 ```
 
-It has an optional `concurrency: int` parameter to execute the function concurrently (threads-based) while preserving the order.
+### thread-based concurrency
+Applies the transformation concurrently using a thread pool of size `concurrency` (preserving the order):
+```python
+import requests
 
-It has a sibling operation called `.amap` to apply an async function concurrently (see section ***`asyncio` support***).
+pokemon_names: Stream[str] = (
+    Stream(range(1, 4))
+    .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i + 1}")
+    .map(requests.get, concurrency=3)
+    .map(requests.Response.json)
+    .map(lambda poke: poke["name"])
+)
+assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
+```
+
+### async-based concurrency
+The sibling operation called `.amap` applies an async transformation (preserving the order):
+```python
+import httpx
+import asyncio
+
+http_async_client = httpx.AsyncClient()
+
+pokemon_names: Stream[str] = (
+    Stream(range(1, 4))
+    .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
+    .amap(http_async_client.get, concurrency=3)
+    .map(httpx.Response.json)
+    .map(lambda poke: poke["name"])
+)
+
+assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
+asyncio.run(http_async_client.aclose())
+```
+
 
 ## `.foreach`
 Applies a side effect on elements:
@@ -106,9 +138,11 @@ self_printing_integers: Stream[int] = integers.foreach(print)
 assert list(self_printing_integers) == list(integers)  # triggers the printing
 ```
 
-It has an optional `concurrency: int` parameter to execute the function concurrently (threads-based) while preserving the order.
+### thread-based concurrency
+Like `.map` it has an optional `concurrency: int` parameter.
 
-It has a sibling operation called `.aforeach` to apply an async function concurrently (see section ***`asyncio` support***).
+### async-based concurrency
+Like `.map` it has a sibling operation `.aforeach` for async.
 
 ## `.filter`
 Keeps only the elements that satisfy a condition:
@@ -198,7 +232,7 @@ status_codes_ignoring_resolution_errors = (
 assert list(status_codes_ignoring_resolution_errors) == [200, 404]
 ```
 
-It has an optional `finally_raise: bool` parameter to raise the first catched exception when upstream's iteration ends.
+It has an optional `finally_raise: bool` parameter to raise the first catched exception when iteration ends.
 
 ## `.truncate`
 Stops the iteration:
@@ -241,13 +275,12 @@ The amount of logs will never be overwhelming because they are produced logarith
 ## Extract-Transform-Load tasks
 ETL scripts (i.e. scripts fetching -> processing -> pushing data) can benefit from the expressivity of this library.
 
-Here is **a working example that you can run** (it only requires `requests` or `httpx`), it creates a CSV file containing all the 67 quadrupeds from the 1st, 2nd and 3rd generations of Pokémons (data source: [PokéAPI](https://pokeapi.co/))
+Here is **a working example that you can run** (it only requires `requests`), it creates a CSV file containing all the 67 quadrupeds from the 1st, 2nd and 3rd generations of Pokémons (data source: [PokéAPI](https://pokeapi.co/))
 ```python
 import csv
 import itertools
 from streamable import Stream
-import requests  # async equivalent: import httpx
-from requests import Response  # async equivalent: from httpx import Response
+import requests
 
 with open("./quadruped_pokemons.csv", mode="w") as file:
     writer = csv.DictWriter(file, ["id", "name", "base_happiness", "is_legendary"], extrasaction='ignore')
@@ -257,7 +290,7 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
         Stream(itertools.count(1))
         .map(lambda poke_num: f"https://pokeapi.co/api/v2/pokemon-species/{poke_num}")
         # GETs pokemons concurrently using a pool of 8 threads.
-        .map(requests.get, concurrency=8)  # async equivalent: .amap(AsyncClient().get, concurrency=8)
+        .map(requests.get, concurrency=8)
         # Limits to 16 requests per second to be friendly to our fellow PokéAPI developers.
         .throttle(per_second=16)
         # Raises an HTTPError for any response having a non-2XX status code.
@@ -287,44 +320,13 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
 
 More details in [**the README dedicated to ETL**](README_ETL.md).
 
-## support for `asyncio`
-As an alternative to the threads-based concurrency available for `.map` and `.foreach` operations (via their `concurrency` parameter), one can use `.amap` and `.aforeach` operations to **apply `async` functions** concurrently on a stream:
-
-```python
-import asyncio
-import time
-
-async def slow_async_square(n: int) -> int:
-    await asyncio.sleep(3)
-    return n ** 2
-
-def slow_str(n: int) -> str:
-    time.sleep(3)
-    return str(n)
-
-print(
-    ", ".join(
-        integers
-        # coroutines-based concurrency
-        .amap(slow_async_square, concurrency=8)
-        # threads-based concurrency
-        .map(slow_str, concurrency=8)
-        .truncate(5)
-    )
-)
-```
-this prints (in 6s):
-```bash
-0, 1, 4, 9, 16
-```
-
 ## CPU-bound tasks
 For CPU-bound tasks, consider using the [`PyPy`](https://github.com/pypy/pypy) interpreter whose *Just In Time* (JIT) compilation should drastically improve performances !
 ([Few rough runtime orders of magnitude: CPython vs PyPy vs Java vs C vs Rust.](https://github.com/ebonnal/streamable/issues/10))
 
 ## change logging level
 ```python
-logging.getLogger("streamable").setLevel(logging.WARNING)
+logging.getLogger("streamable").setLevel(logging.WARNING)  # default is INFO
 ```
 
 ## visitor pattern
