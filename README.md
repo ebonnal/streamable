@@ -1,5 +1,5 @@
 # ༄ `streamable`
-### *Expressive iteration*
+### *Expressive iteration in Python*
 [![Actions Status](https://github.com/ebonnal/streamable/workflows/unittest/badge.svg)](https://github.com/ebonnal/streamable/actions)
 [![codecov](https://codecov.io/gh/ebonnal/streamable/graph/badge.svg?token=S62T0JQK9N)](https://codecov.io/gh/ebonnal/streamable)
 [![Actions Status](https://github.com/ebonnal/streamable/workflows/typing/badge.svg)](https://github.com/ebonnal/streamable/actions)
@@ -16,7 +16,7 @@
 |💤 *Lazy*|Operations are **lazily evaluated** at iteration time|
 |🔄 *Concurrent*|**Threads** or `asyncio`-based concurrency for I/O bound tasks|
 |🛡️ *Robust*|Extensively unittested for **Python 3.7 to 3.12** with 100% coverage|
-|🪶 *Light*|`pip install streamable` with **no additional dependency**|
+|🪶 *Light*|`pip install streamable` with **no additional dependencies**|
 
 ---
 
