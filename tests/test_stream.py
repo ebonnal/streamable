@@ -182,7 +182,7 @@ class TestStream(unittest.TestCase):
             .observe("groups")
             .flatten(concurrency=4)
             .throttle(64)
-            .observe("stream #1 elements")
+            .observe("foos")
             .catch(TypeError, finally_raise=True)
         )
         explanation_1 = repr(complex_stream)
@@ -198,6 +198,41 @@ class TestStream(unittest.TestCase):
 
         complex_stream.display()
         complex_stream.display(logging.ERROR)
+
+        self.assertEqual(
+            """(
+    Stream(range(0, 256))
+)""",
+            repr(Stream(src)),
+            msg="`repr` should work as expected on a stream without operation",
+        )
+        self.assertEqual(
+            """(
+    Stream(range(0, 256))
+    .map(<lambda>, concurrency=1)
+)""",
+            repr(Stream(src).map(lambda _: _)),
+            msg="`repr` should work as expected on a stream with 1 operation",
+        )
+        self.assertEqual(
+            """(
+    Stream(range(0, 256))
+    .truncate(count=1024, when=<lambda>)
+    .filter(bool)
+    .foreach(<lambda>, concurrency=1)
+    .aforeach(async_identity, concurrency=1)
+    .map(CustomCallable(...), concurrency=1)
+    .amap(async_identity, concurrency=1)
+    .group(size=100, by=None, seconds=inf)
+    .observe("groups")
+    .flatten(concurrency=4)
+    .throttle(per_second=64)
+    .observe("foos")
+    .catch(TypeError, when=bool, finally_raise=True)
+)""",
+            repr(complex_stream),
+            msg="`repr` should work as expected on a stream with many operation",
+        )
 
     def test_iter(self) -> None:
         self.assertIsInstance(

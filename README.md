@@ -349,10 +349,10 @@ logging.getLogger("streamable").setLevel(logging.WARNING)  # default is INFO
 ```
 
 ## visitor pattern
-The `Stream` class exposes an `.accept` method and you can implement a [***visitor***](https://en.wikipedia.org/wiki/Visitor_pattern) by extending the `streamable.visitor.Visitor` class:
+The `Stream` class exposes an `.accept` method and you can implement a [***visitor***](https://en.wikipedia.org/wiki/Visitor_pattern) by extending the `streamable.visitors.Visitor` abstract class:
 
 ```python
-from streamable.visitor import Visitor
+from streamable.visitors import Visitor
 
 class DepthVisitor(Visitor[int]):
     def visit_stream(self, stream: Stream) -> int:
@@ -360,12 +360,10 @@ class DepthVisitor(Visitor[int]):
             return 1
         return 1 + stream.upstream.accept(self)
 
-def stream_depth(stream: Stream) -> int:
+def depth(stream: Stream) -> int:
     return stream.accept(DepthVisitor())
-```
-```python
->>> stream_depth(odd_integer_strings)
-3
+
+assert depth(Stream(range(10)).map(str).filter()) == 3
 ```
 
 ## as functions

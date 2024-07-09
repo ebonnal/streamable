@@ -15,7 +15,7 @@ from streamable.stream import (
     ThrottleStream,
     TruncateStream,
 )
-from streamable.visitor import Visitor
+from streamable.visitors import Visitor
 
 T = TypeVar("T")
 U = TypeVar("U")
@@ -71,13 +71,6 @@ class IteratorVisitor(Visitor[Iterator[T]]):
             ),
         )
 
-    def visit_truncate_stream(self, stream: TruncateStream[T]) -> Iterator[T]:
-        return functions.truncate(
-            stream.upstream.accept(self),
-            stream._count,
-            stream._when,
-        )
-
     def visit_map_stream(self, stream: MapStream[U, T]) -> Iterator[T]:
         return functions.map(
             stream._transformation,
@@ -100,6 +93,13 @@ class IteratorVisitor(Visitor[Iterator[T]]):
 
     def visit_throttle_stream(self, stream: ThrottleStream[T]) -> Iterator[T]:
         return functions.throttle(stream.upstream.accept(self), stream._per_second)
+
+    def visit_truncate_stream(self, stream: TruncateStream[T]) -> Iterator[T]:
+        return functions.truncate(
+            stream.upstream.accept(self),
+            stream._count,
+            stream._when,
+        )
 
     def visit_stream(self, stream: Stream[T]) -> Iterator[T]:
         if isinstance(stream.source, Iterable):
