@@ -39,7 +39,6 @@ Instantiate a `Stream[T]` from an `Iterable[T]`.
 integers: Stream[int] = Stream(range(10))
 ```
 
-
 ## 4. operate
 - `Stream`s are ***immutable***: applying an operation returns a new stream.
 
@@ -77,8 +76,17 @@ odd_integer_strings: Stream[str] = (
 
 ### loop it
 ```python
-for odd_integer_string in odd_integer_strings:
-    ...
+>>> for odd_integer_string in odd_integer_strings
+>>>    ...
+```
+
+### next it
+```python
+>>> odd_integer_strings_iter = iter(odd_integer_strings)
+>>> next(odd_integer_strings_iter)
+'1'
+>>> next(odd_integer_strings_iter)
+'3'
 ```
 
 ---
