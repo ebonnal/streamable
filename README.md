@@ -1,5 +1,6 @@
 # ༄ `streamable`
-### *Expressive iteration in Python*
+> *Expressive iteration in Python*
+
 [![Actions Status](https://github.com/ebonnal/streamable/workflows/unittest/badge.svg)](https://github.com/ebonnal/streamable/actions)
 [![codecov](https://codecov.io/gh/ebonnal/streamable/graph/badge.svg?token=S62T0JQK9N)](https://codecov.io/gh/ebonnal/streamable)
 [![Actions Status](https://github.com/ebonnal/streamable/workflows/typing/badge.svg)](https://github.com/ebonnal/streamable/actions)
@@ -286,11 +287,17 @@ INFO: [duration=0:00:04.029666 errors=0] 8 integers yielded
 INFO: [duration=0:00:05.039571 errors=0] 10 integers yielded
 ```
 
-The amount of logs will never be overwhelming because they are produced logarithmically e.g. the 11th log will be produced when the iteration reaches the 1024th element.
+Note that the amount of logs will never be overwhelming because they are produced logarithmically e.g. the 11th log will be produced when the iteration reaches the 1024th element.
 
 ---
 
 # 📦 ***Notes Box***
+## Contribute
+Please help me ! Feel very welcome to:
+- [open issues](https://github.com/ebonnal/streamable/issues)
+- [open pull requests](https://github.com/ebonnal/streamable/pulls)
+- check [CONTRIBUTING.md](CONTRIBUTING.md)
+
 ## Extract-Transform-Load
 ETL scripts (i.e. scripts fetching -> processing -> pushing data) can benefit from the expressivity of this library.
 
