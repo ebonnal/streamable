@@ -291,7 +291,7 @@ The amount of logs will never be overwhelming because they are produced logarith
 ---
 
 # 📦 ***Notes Box***
-## Extract-Transform-Load tasks
+## Extract-Transform-Load
 ETL scripts (i.e. scripts fetching -> processing -> pushing data) can benefit from the expressivity of this library.
 
 Here is an example that you can **copy-paste and try** (it only requires `requests`): it creates a CSV file containing all the 67 quadrupeds from the 1st, 2nd and 3rd generations of Pokémons (kudos to [PokéAPI](https://pokeapi.co/))
@@ -332,8 +332,6 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
         .count()
     )
 ```
-
-More details in [**the README dedicated to ETL**](README_ETL.md).
 
 ## CPU-bound tasks
 For CPU-bound tasks, consider using the [`PyPy`](https://github.com/pypy/pypy) interpreter whose *Just In Time* (JIT) compilation should drastically improve performances !
