@@ -241,7 +241,7 @@ You can specify an additional `when` condition for the catch:
 import requests
 from requests.exceptions import ConnectionError
 
-status_codes_ignoring_resolution_errors = (
+status_codes_ignoring_resolution_errors: Stream[int] = (
     Stream(["https://github.com", "https://foo.bar", "https://github.com/foo/bar"])
     .map(requests.get, concurrency=2)
     .catch(ConnectionError, when=lambda exception: "Failed to resolve" in str(exception))
