@@ -5,6 +5,7 @@ from collections import defaultdict, deque
 from concurrent.futures import Executor, Future, ThreadPoolExecutor
 from contextlib import contextmanager
 from datetime import datetime
+from math import ceil
 from typing import (
     Any,
     Callable,
@@ -268,18 +269,46 @@ class ObservingIterator(Iterator[T]):
                 self._log()
 
 
-class ThrottlingIterator(Iterator[T]):
-    def __init__(self, iterator: Iterator[T], per_second: float) -> None:
+class ThrottlingIntervalIterator(Iterator[T]):
+    def __init__(self, iterator: Iterator[T], interval_seconds: float) -> None:
         self.iterator = iterator
-        self.period = 1 / per_second
+        self.interval_seconds = interval_seconds
 
     def __next__(self) -> T:
         start_time = time.time()
         elem = next(self.iterator)
         elapsed_time = time.time() - start_time
-        if self.period > elapsed_time:
-            time.sleep(self.period - elapsed_time)
+        if self.interval_seconds > elapsed_time:
+            time.sleep(self.interval_seconds - elapsed_time)
         return elem
+
+
+class ThrottlingPerSecondIterator(Iterator[T]):
+    def __init__(self, iterator: Iterator[T], per_second: int) -> None:
+        self.iterator = iterator
+        self.per_second = per_second
+
+        self.second: int = -1
+        self.yields_in_second = 0
+        self.offset: Optional[float] = None
+
+    def __next__(self) -> T:
+        current_time = time.time()
+        if not self.offset:
+            self.offset = current_time
+        current_time -= self.offset
+        current_second = int(current_time)
+        if self.second != current_second:
+            self.second = current_second
+            self.yields_in_second = 0
+
+        if self.yields_in_second >= self.per_second:
+            # sleep until next second
+            time.sleep(ceil(current_time) - current_time)
+            return next(self)
+
+        self.yields_in_second += 1
+        return next(self.iterator)
 
 
 class RaisingIterator(Iterator[T]):

@@ -22,7 +22,8 @@ from streamable.iters import (
     ObservingIterator,
     RaisingIterator,
     ThreadConcurrentMappingIterable,
-    ThrottlingIterator,
+    ThrottlingIntervalIterator,
+    ThrottlingPerSecondIterator,
     TruncatingOnCountIterator,
     TruncatingOnPredicateIterator,
 )
@@ -38,6 +39,7 @@ from streamable.util import (
     validate_group_seconds,
     validate_group_size,
     validate_iterator,
+    validate_throttle_interval_seconds,
     validate_throttle_per_second,
     validate_truncate_args,
 )
@@ -138,10 +140,20 @@ def observe(iterator: Iterator[T], what: str) -> Iterator[T]:
     return ObservingIterator(iterator, what)
 
 
-def throttle(iterator: Iterator[T], per_second: float) -> Iterator[T]:
+def throttle(
+    iterator: Iterator[T],
+    per_second: int = cast(int, float("inf")),
+    interval_seconds: float = 0,
+) -> Iterator[T]:
     validate_iterator(iterator)
     validate_throttle_per_second(per_second)
-    return ThrottlingIterator(iterator, per_second)
+    validate_throttle_interval_seconds(interval_seconds)
+
+    if per_second < float("inf"):
+        iterator = ThrottlingPerSecondIterator(iterator, per_second)
+    if interval_seconds > 0:
+        iterator = ThrottlingIntervalIterator(iterator, interval_seconds)
+    return iterator
 
 
 def truncate(

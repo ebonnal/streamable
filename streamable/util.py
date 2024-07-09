@@ -85,10 +85,17 @@ def validate_group_seconds(seconds: float):
         raise ValueError(f"`seconds` should be > 0 but got {seconds}.")
 
 
-def validate_throttle_per_second(per_second: float):
-    if per_second <= 0:
+def validate_throttle_per_second(per_second: int):
+    if per_second < 1:
         raise ValueError(
-            f"`per_second` is the maximum number of elements to yield per second, it must be > 0  but got {per_second}."
+            f"`per_second` is the maximum number of elements to yield per second, it must be >= 1  but got {per_second}."
+        )
+
+
+def validate_throttle_interval_seconds(interval_seconds: float):
+    if interval_seconds < 0:
+        raise ValueError(
+            f"`interval_seconds` is the minimum number of seconds between 2 consecutive yields, it must be >= 0  but got {interval_seconds}."
         )
 
 

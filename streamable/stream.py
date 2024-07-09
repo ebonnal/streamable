@@ -25,6 +25,7 @@ from streamable.util import (
     validate_concurrency,
     validate_group_seconds,
     validate_group_size,
+    validate_throttle_interval_seconds,
     validate_throttle_per_second,
     validate_truncate_args,
 )
@@ -336,18 +337,22 @@ class Stream(Iterable[T]):
         """
         return ObserveStream(self, what)
 
-    def throttle(self, per_second: float) -> "Stream[T]":
+    def throttle(
+        self, per_second: int = cast(int, float("inf")), interval_seconds: float = 0
+    ) -> "Stream[T]":
         """
-        Slows the iteration down to a maximum number of yields `per_second`, more precisely an element will only be yielded if a period of `1 / per_second` seconds has elapsed since the last yield.
+        Slows the iteration down to a maximum number of yields `per_second` and a minimum `interval_seconds` between 2 consecutive yields.
 
         Args:
-            per_second (float): Maximum number of yields per second.
+            per_second (float, optional): Maximum number of yields per second (default means no limit).
+            interval_seconds (float, optional): Minimum number of seconds between 2 consecutive yields (default means no limit).
 
         Returns:
-            Stream[T]: A stream yielding upstream elements at a maximum `per_second`.
+            Stream[T]: A stream yielding upstream elements slower according to `per_second` and `interval_seconds`limits.
         """
         validate_throttle_per_second(per_second)
-        return ThrottleStream(self, per_second)
+        validate_throttle_interval_seconds(interval_seconds)
+        return ThrottleStream(self, per_second, interval_seconds)
 
     def truncate(
         self, count: Optional[int] = None, when: Optional[Callable[[T], Any]] = None
@@ -499,9 +504,12 @@ class ObserveStream(DownStream[T, T]):
 
 
 class ThrottleStream(DownStream[T, T]):
-    def __init__(self, upstream: Stream[T], per_second: float) -> None:
+    def __init__(
+        self, upstream: Stream[T], per_second: int, interval_seconds: float
+    ) -> None:
         super().__init__(upstream)
         self._per_second = per_second
+        self._interval_seconds = interval_seconds
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_throttle_stream(self)
