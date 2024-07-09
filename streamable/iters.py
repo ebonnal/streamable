@@ -27,7 +27,7 @@ from typing import (
 T = TypeVar("T")
 U = TypeVar("U")
 
-from streamable.util import NoopStopIteration, get_logger, reraise_as
+from streamable.util import NO_REPLACEMENT, NoopStopIteration, get_logger, reraise_as
 
 
 class CatchingIterator(Iterator[T]):
@@ -36,11 +36,13 @@ class CatchingIterator(Iterator[T]):
         iterator: Iterator[T],
         kind: Type[Exception],
         when: Callable[[Exception], Any],
+        replacement: T,
         finally_raise: bool,
     ) -> None:
         self.iterator = iterator
         self.kind = kind
         self.when = when
+        self.replacement = replacement
         self.finally_raise = finally_raise
         self._to_be_finally_raised: Optional[Exception] = None
 
@@ -58,6 +60,8 @@ class CatchingIterator(Iterator[T]):
                 if isinstance(exception, self.kind) and self.when(exception):
                     if self._to_be_finally_raised is None:
                         self._to_be_finally_raised = exception
+                    if self.replacement is not NO_REPLACEMENT:
+                        return self.replacement
                     continue
                 raise
 

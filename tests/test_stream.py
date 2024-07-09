@@ -184,6 +184,7 @@ class TestStream(unittest.TestCase):
             .throttle(64)
             .observe("foos")
             .catch(TypeError, finally_raise=True)
+            .catch(TypeError, replacement=None, finally_raise=True)
         )
         explanation_1 = repr(complex_stream)
 
@@ -229,6 +230,7 @@ class TestStream(unittest.TestCase):
     .throttle(per_second=64)
     .observe("foos")
     .catch(TypeError, when=bool, finally_raise=True)
+    .catch(TypeError, when=bool, replacement=None, finally_raise=True)
 )""",
             repr(complex_stream),
             msg="`repr` should work as expected on a stream with many operation",
@@ -1064,6 +1066,25 @@ class TestStream(unittest.TestCase):
                     Exception, when=lambda exception: "ValueError" in repr(exception)
                 )
             )
+
+        self.assertEqual(
+            list(
+                Stream(map(lambda n: 1 / n, [0, 1, 2, 4])).catch(
+                    ZeroDivisionError, replacement=float("inf")
+                )
+            ),
+            [float("inf"), 1, 0.5, 0.25],
+            msg="`catch` should be able to yield a non-None replacement",
+        )
+        self.assertEqual(
+            list(
+                Stream(map(lambda n: 1 / n, [0, 1, 2, 4])).catch(
+                    ZeroDivisionError, replacement=cast(float, None)
+                )
+            ),
+            [None, 1, 0.5, 0.25],
+            msg="`catch` should be able to yield a None replacement",
+        )
 
     def test_observe(self) -> None:
         value_error_rainsing_stream: Stream[List[int]] = (

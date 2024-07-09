@@ -30,28 +30,39 @@ from streamable.iters import (
 T = TypeVar("T")
 U = TypeVar("U")
 
-from streamable import util
-from streamable.util import NoopStopIteration
+from streamable.util import (
+    NO_REPLACEMENT,
+    NoopStopIteration,
+    reraise_as,
+    validate_concurrency,
+    validate_group_seconds,
+    validate_group_size,
+    validate_iterator,
+    validate_throttle_per_second,
+    validate_truncate_args,
+)
 
 
 def catch(
     iterator: Iterator[T],
     kind: Type[Exception] = Exception,
     when: Callable[[Exception], Any] = bool,
+    replacement: T = NO_REPLACEMENT,  # type: ignore
     finally_raise: bool = False,
 ) -> Iterator[T]:
-    util.validate_iterator(iterator)
+    validate_iterator(iterator)
     return CatchingIterator(
         iterator,
         kind,
         when,
+        replacement,
         finally_raise=finally_raise,
     )
 
 
 def flatten(iterator: Iterator[Iterable[T]], concurrency: int = 1) -> Iterator[T]:
-    util.validate_iterator(iterator)
-    util.validate_concurrency(concurrency)
+    validate_iterator(iterator)
+    validate_concurrency(concurrency)
     if concurrency == 1:
         return FlatteningIterator(iterator)
     else:
@@ -72,13 +83,13 @@ def group(
     seconds: float = float("inf"),
     by: Optional[Callable[[T], Any]] = None,
 ) -> Iterator[List[T]]:
-    util.validate_iterator(iterator)
-    util.validate_group_size(size)
-    util.validate_group_seconds(seconds)
+    validate_iterator(iterator)
+    validate_group_size(size)
+    validate_group_seconds(seconds)
     if size is None:
         size = cast(int, float("inf"))
     if by is not None:
-        by = util.reraise_as(by, StopIteration, NoopStopIteration)
+        by = reraise_as(by, StopIteration, NoopStopIteration)
         return GroupingByIterator(iterator, size, seconds, by)
     return GroupingIterator(iterator, size, seconds)
 
@@ -86,9 +97,9 @@ def group(
 def map(
     transformation: Callable[[T], U], iterator: Iterator[T], concurrency: int = 1
 ) -> Iterator[U]:
-    util.validate_iterator(iterator)
-    util.validate_concurrency(concurrency)
-    transformation = util.reraise_as(transformation, StopIteration, NoopStopIteration)
+    validate_iterator(iterator)
+    validate_concurrency(concurrency)
+    transformation = reraise_as(transformation, StopIteration, NoopStopIteration)
     if concurrency == 1:
         return builtins.map(transformation, iterator)
     else:
@@ -109,8 +120,8 @@ def amap(
     iterator: Iterator[T],
     concurrency: int = 1,
 ) -> Iterator[U]:
-    util.validate_iterator(iterator)
-    util.validate_concurrency(concurrency)
+    validate_iterator(iterator)
+    validate_concurrency(concurrency)
     return RaisingIterator(
         iter(
             AsyncConcurrentMappingIterable(
@@ -123,13 +134,13 @@ def amap(
 
 
 def observe(iterator: Iterator[T], what: str) -> Iterator[T]:
-    util.validate_iterator(iterator)
+    validate_iterator(iterator)
     return ObservingIterator(iterator, what)
 
 
 def throttle(iterator: Iterator[T], per_second: float) -> Iterator[T]:
-    util.validate_iterator(iterator)
-    util.validate_throttle_per_second(per_second)
+    validate_iterator(iterator)
+    validate_throttle_per_second(per_second)
     return ThrottlingIterator(iterator, per_second)
 
 
@@ -138,8 +149,8 @@ def truncate(
     count: Optional[int] = None,
     when: Optional[Callable[[T], Any]] = None,
 ) -> Iterator[T]:
-    util.validate_iterator(iterator)
-    util.validate_truncate_args(count, when)
+    validate_iterator(iterator)
+    validate_truncate_args(count, when)
     if count is not None:
         iterator = TruncatingOnCountIterator(iterator, count)
     if when is not None:

@@ -224,16 +224,16 @@ assert list(letters_mix) == ['a', 'b', 'a', 'b', 'a', 'b', 'a', 'b', 'a', 'b', '
 
 ## `.catch`
 
-Catches a given type of exceptions:
+Catches a given type of exceptions, and optionally yields a `replacement` value:
 
 ```python
 safe_inverse_floats: Stream[float] = (
     integers
     .map(lambda n: round(1 / n, 2))
-    .catch(ZeroDivisionError)
+    .catch(ZeroDivisionError, replacement=float("inf"))
 )
 
-assert list(safe_inverse_floats) == [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
+assert list(safe_inverse_floats) == [float("inf"), 1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
 ```
 
 You can specify an additional `when` condition for the catch:

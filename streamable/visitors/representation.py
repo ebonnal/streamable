@@ -14,6 +14,7 @@ from streamable.stream import (
     ThrottleStream,
     TruncateStream,
 )
+from streamable.util import NO_REPLACEMENT
 from streamable.visitors import Visitor
 
 T = TypeVar("T")
@@ -36,7 +37,7 @@ class RepresentationVisitor(Visitor[str]):
 
     def visit_catch_stream(self, stream: CatchStream[T]) -> str:
         self.methods_reprs.append(
-            f"catch({self._friendly_repr(stream._kind)}, when={self._friendly_repr(stream._when)}, finally_raise={stream._finally_raise})"
+            f"catch({self._friendly_repr(stream._kind)}, when={self._friendly_repr(stream._when)}{(', replacement=' + self._friendly_repr(stream._replacement)) if stream._replacement is not NO_REPLACEMENT else ''}, finally_raise={stream._finally_raise})"
         )
         return stream.upstream.accept(self)
 

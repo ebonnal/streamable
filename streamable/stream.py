@@ -20,6 +20,7 @@ from typing import (
 )
 
 from streamable.util import (
+    NO_REPLACEMENT,
     get_logger,
     validate_concurrency,
     validate_group_seconds,
@@ -98,6 +99,7 @@ class Stream(Iterable[T]):
         self,
         kind: Type[Exception] = Exception,
         when: Callable[[Exception], Any] = bool,
+        replacement: T = NO_REPLACEMENT,  # type: ignore
         finally_raise: bool = False,
     ) -> "Stream[T]":
         """
@@ -106,12 +108,13 @@ class Stream(Iterable[T]):
         Args:
             kind (Type[Exception], optional): The type of exceptions to catch (default is base Exception).
             when (Callable[[Exception], Any], optional): An additional condition that must be satisfied (`when(exception)` must be Truthy) to catch the exception (always satisfied by default).
+            replacement (T, optional): The value to yield when an exception is catched (by default nothing will be yielded).
             finally_raise (bool, optional): If True the first catched exception is raised when upstream's iteration ends (default is False).
 
         Returns:
             Stream[T]: A stream of upstream elements catching the eligible exceptions.
         """
-        return CatchStream(self, kind, when, finally_raise)
+        return CatchStream(self, kind, when, replacement, finally_raise)
 
     def count(self) -> int:
         """
@@ -387,11 +390,13 @@ class CatchStream(DownStream[T, T]):
         upstream: Stream[T],
         kind: Type[Exception],
         when: Callable[[Exception], Any],
+        replacement: T,
         finally_raise: bool,
     ) -> None:
         super().__init__(upstream)
         self._kind = kind
         self._when = when
+        self._replacement = replacement
         self._finally_raise = finally_raise
 
     def accept(self, visitor: "Visitor[V]") -> V:

@@ -2,6 +2,8 @@ import logging
 import sys
 from typing import Any, Callable, Coroutine, Iterator, Optional, Type, TypeVar
 
+NO_REPLACEMENT = object()
+
 _logger: Optional[logging.Logger] = None
 
 

@@ -27,6 +27,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
             stream.upstream.accept(self),
             stream._kind,
             stream._when,
+            stream._replacement,
             finally_raise=stream._finally_raise,
         )
 
