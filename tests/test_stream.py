@@ -445,14 +445,13 @@ class TestStream(unittest.TestCase):
             next(iter(Stream(cast(Iterable, src)).flatten()))
 
     def test_flatten_concurrency(self) -> None:
-        per_second = 10
         iterable_size = 5
         runtime, res = timestream(
             Stream(
                 [
-                    Stream(["a"] * iterable_size).throttle(per_second=per_second),
-                    Stream(["b"] * iterable_size).throttle(per_second=per_second),
-                    Stream(["c"] * iterable_size).throttle(per_second=per_second),
+                    Stream(map(slow_identity, ["a"] * iterable_size)),
+                    Stream(map(slow_identity, ["b"] * iterable_size)),
+                    Stream(map(slow_identity, ["c"] * iterable_size)),
                 ]
             ).flatten(concurrency=2)
         )
@@ -461,7 +460,7 @@ class TestStream(unittest.TestCase):
             ["a", "b"] * iterable_size + ["c"] * iterable_size,
             msg="`flatten` should process 'a's and 'b's concurrently and then 'c's",
         )
-        a_runtime = b_runtime = c_runtime = iterable_size / per_second
+        a_runtime = b_runtime = c_runtime = iterable_size * slow_identity_duration
         expected_runtime = (a_runtime + b_runtime) / 2 + c_runtime
         self.assertAlmostEqual(
             runtime,
