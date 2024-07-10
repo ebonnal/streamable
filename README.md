@@ -95,7 +95,7 @@ odd_integer_strings: Stream[str] = (
 # 📒 ***Operations***
 
 ## `.map`
-Applies a transformation on elements:
+> Applies a transformation on elements:
 ```python
 negative_integer_strings: Stream[str] = integers.map(lambda n: -n).map(str)
 
@@ -103,7 +103,7 @@ assert list(integer_strings) == ['0', '-1', '-2', '-3', '-4', '-5', '-6', '-7', 
 ```
 
 ### thread-based concurrency
-Applies the transformation concurrently using a thread pool of size `concurrency` (preserving the order):
+> Applies the transformation concurrently using a thread pool of size `concurrency` (preserving the order):
 ```python
 import requests
 
@@ -118,7 +118,7 @@ assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
 ```
 
 ### async-based concurrency
-The sibling operation called `.amap` applies an async transformation (preserving the order):
+> The sibling operation called `.amap` applies an async transformation (preserving the order):
 ```python
 import httpx
 import asyncio
@@ -139,7 +139,7 @@ asyncio.run(http_async_client.aclose())
 
 
 ## `.foreach`
-Applies a side effect on elements:
+> Applies a side effect on elements:
 
 ```python
 self_printing_integers: Stream[int] = integers.foreach(print)
@@ -148,13 +148,13 @@ assert list(self_printing_integers) == list(integers)  # triggers the printing
 ```
 
 ### thread-based concurrency
-Like `.map` it has an optional `concurrency: int` parameter.
+> Like `.map` it has an optional `concurrency: int` parameter.
 
 ### async-based concurrency
-Like `.map` it has a sibling operation `.aforeach` for async.
+> Like `.map` it has a sibling operation `.aforeach` for async.
 
 ## `.filter`
-Keeps only the elements that satisfy a condition:
+> Keeps only the elements that satisfy a condition:
 
 ```python
 pair_integers: Stream[int] = integers.filter(lambda n: n % 2 == 0)
@@ -164,7 +164,7 @@ assert list(pair_integers) == [0, 2, 4, 6, 8]
 
 ## `.throttle`
 
-Limits the rate at which elements are yielded:
+> Limits the rate at which elements are yielded:
 
 ```python
 slow_integers: Stream[int] = integers.throttle(per_second=5)
@@ -174,7 +174,7 @@ assert list(slow_integers) == list(integers)  # takes 10 / 5 = 2 seconds
 
 ## `.group`
 
-Groups elements into `List`s:
+> Groups elements into `List`s:
 
 ```python
 integers_5_by_5: Stream[List[int]] = integers.group(size=5)
@@ -201,7 +201,7 @@ assert list(integers_2_by_2_by_parity) == [[0, 2], [1, 3], [4, 6], [5, 7], [8], 
 
 ## `.flatten`
 
-Ungroups elements assuming that they are `Iterable`s.
+> Ungroups elements assuming that they are `Iterable`s.
 
 ```python
 pair_then_odd_integers: Stream[int] = integers_by_parity.flatten()
@@ -210,7 +210,7 @@ assert pair_then_odd_integers == [0, 2, 4, 6, 8, 1, 3, 5, 7, 9]
 ```
 
 ### thread-based concurrency
-Flattens `concurrency` iterables concurrently:
+> Flattens `concurrency` iterables concurrently:
 ```python
 letters_mix: Stream[str] = Stream(
     [
@@ -225,7 +225,7 @@ assert list(letters_mix) == ['a', 'b', 'a', 'b', 'a', 'b', 'a', 'b', 'a', 'b', '
 
 ## `.catch`
 
-Catches a given type of exceptions, and optionally yields a `replacement` value:
+> Catches a given type of exceptions, and optionally yields a `replacement` value:
 
 ```python
 safe_inverse_floats: Stream[float] = (
@@ -237,7 +237,7 @@ safe_inverse_floats: Stream[float] = (
 assert list(safe_inverse_floats) == [float("inf"), 1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
 ```
 
-You can specify an additional `when` condition for the catch:
+> You can specify an additional `when` condition for the catch:
 ```python
 import requests
 from requests.exceptions import ConnectionError
@@ -252,10 +252,10 @@ status_codes_ignoring_resolution_errors: Stream[int] = (
 assert list(status_codes_ignoring_resolution_errors) == [200, 404]
 ```
 
-It has an optional `finally_raise: bool` parameter to raise the first catched exception when iteration ends.
+> It has an optional `finally_raise: bool` parameter to raise the first catched exception when iteration ends.
 
 ## `.truncate`
-Stops the iteration:
+> Stops the iteration:
 - after a given number of yielded elements:
 ```python
 five_first_integers: Stream[int] = integers.truncate(5)
@@ -272,7 +272,7 @@ assert list(five_first_integers) == [0, 1, 2, 3, 4]
 
 ## `.observe`
 
-Logs the progress of iterations over this stream:
+> Logs the progress of iterations over this stream:
 
 If you iterate on
 ```python
