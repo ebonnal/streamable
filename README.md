@@ -46,13 +46,12 @@ integers: Stream[int] = Stream(range(10))
 - Operations are ***lazy***: only evaluated at iteration time.
 
 ```python
-odd_integer_strings: Stream[str] = (
+inverses: Stream[float] = (
     integers
-    .filter(lambda n: n % 2)
-    .map(str)
+    .map(lambda n: round(1 / n, 2))
+    .catch(ZeroDivisionError)
 )
 ```
-
 
 ## 5. iterate
 - Iterate over a `Stream[T]` as you would over any other `Iterable[T]`.
@@ -60,34 +59,35 @@ odd_integer_strings: Stream[str] = (
 
 ### collect it
 ```python
->>> list(odd_integer_strings)
-['1', '3', '5', '7', '9']
->>> set(odd_integer_strings)
-{'9', '1', '5', '3', '7'}
+>>> list(inverses)
+[1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
+>>> set(inverses)
+{0.5, 1.0, 0.2, 0.33, 0.25, 0.17, 0.14, 0.12, 0.11}
 ```
 
 ### reduce it
 ```python
 >>> sum(integers)
-45
+2.82
+>>> max(inverses)
+1.0
 >>> from functools import reduce
->>> reduce(str.__add__, odd_integer_strings)
-'13579'
+>>> reduce(..., inverses)
 ```
 
 ### loop it
 ```python
->>> for odd_integer_string in odd_integer_strings
+>>> for inverse in inverses:
 >>>    ...
 ```
 
 ### next it
 ```python
->>> odd_integer_strings_iter = iter(odd_integer_strings)
->>> next(odd_integer_strings_iter)
-'1'
->>> next(odd_integer_strings_iter)
-'3'
+>>> inverses_iter = iter(inverses)
+>>> next(inverses_iter)
+1.0
+>>> next(inverses_iter)
+0.5
 ```
 
 ---
@@ -228,13 +228,13 @@ assert list(letters_mix) == ['a', 'b', 'a', 'b', 'a', 'b', 'a', 'b', 'a', 'b', '
 > Catches a given type of exceptions, and optionally yields a `replacement` value:
 
 ```python
-safe_inverse_floats: Stream[float] = (
+inverses: Stream[float] = (
     integers
     .map(lambda n: round(1 / n, 2))
     .catch(ZeroDivisionError, replacement=float("inf"))
 )
 
-assert list(safe_inverse_floats) == [float("inf"), 1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
+assert list(inverses) == [float("inf"), 1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
 ```
 
 > You can specify an additional `when` condition for the catch:
@@ -309,33 +309,36 @@ import requests
 from streamable import Stream
 
 with open("./quadruped_pokemons.csv", mode="w") as file:
-    writer = csv.DictWriter(file, ["id", "name", "base_happiness", "is_legendary"], extrasaction='ignore')
+    fields = ["id", "name", "is_legendary", "base_happiness", "capture_rate"]
+    writer = csv.DictWriter(file, fields, extrasaction='ignore')
     writer.writeheader()
     (
-        # Instantiates an infinite Stream[int] of Pokemon ids starting from Pokémon #1: Bulbasaur
+        # Infinite Stream[int] of Pokemon ids starting from Pokémon #1: Bulbasaur
         Stream(itertools.count(1))
-        # Limits to 16 requests per second to be friendly to our fellow PokéAPI developers
+        # Limits to 16 requests per second to be friendly to our fellow PokéAPI devs
         .throttle(per_second=16)
         # GETs pokemons concurrently using a pool of 8 threads
-        .map(
-            lambda poke_id: requests.get(f"https://pokeapi.co/api/v2/pokemon-species/{poke_id}"),
-            concurrency=8,
-        )
+        .map(lambda poke_id: f"https://pokeapi.co/api/v2/pokemon-species/{poke_id}")
+        .map(requests.get, concurrency=8)
         .foreach(requests.Response.raise_for_status)
         .map(requests.Response.json)
-        # Stops the iteration when the first pokemon of the 4th generation is reached
+        # Stops the iteration when reaching the 1st pokemon of the 4th generation
         .truncate(when=lambda poke: poke["generation"]["name"] == "generation-iv")
         .observe("pokemons")
         # Keeps only quadruped Pokemons
         .filter(lambda poke: poke["shape"]["name"] == "quadruped")
         .observe("quadruped pokemons")
         # Catches errors due to None "generation" or "shape"
-        .catch(TypeError, when=lambda error: str(error) == "'NoneType' object is not subscriptable")
+        .catch(
+            TypeError,
+            when=lambda error: str(error) == "'NoneType' object is not subscriptable"
+        )
         # Writes a batch of pokemons every 5 seconds to the CSV file
         .group(seconds=5)
         .foreach(writer.writerows)
-        .observe("written pokemon batches")
-        # Actually triggers a complete iteration (all the previous lines just define lazy operations)
+        .flatten()
+        .observe("written pokemons")
+        # Actually triggers a iteration, previous lines define lazy operations
         .count()
     )
 ```
