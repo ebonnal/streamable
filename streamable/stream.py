@@ -71,7 +71,7 @@ class Stream(Iterable[T]):
     def source(self) -> Union[Iterable, Callable[[], Iterable]]:
         """
         Returns:
-            Callable[[], Iterable]: Function to be called at iteration to get the stream's source iterable.
+            Callable[[], Iterable]: Function called at iteration time (i.e. by `__iter__`) to get a fresh source iterable.
         """
         return self._source
 
