@@ -1,3 +1,4 @@
+import datetime
 import unittest
 from typing import Callable, Iterator, List, TypeVar, cast
 
@@ -21,8 +22,12 @@ class TestFunctions(unittest.TestCase):
         mapped_it_2: Iterator[int] = map(transformation, iterator, concurrency=1)
         mapped_it_3: Iterator[int] = map(transformation, iterator, concurrency=2)
         grouped_it_1: Iterator[List[int]] = group(iterator, size=1)
-        grouped_it_2: Iterator[List[int]] = group(iterator, size=1, seconds=0.1)
-        grouped_it_3: Iterator[List[int]] = group(iterator, size=1, seconds=2)
+        grouped_it_2: Iterator[List[int]] = group(
+            iterator, size=1, interval=datetime.timedelta(seconds=0.1)
+        )
+        grouped_it_3: Iterator[List[int]] = group(
+            iterator, size=1, interval=datetime.timedelta(seconds=2)
+        )
         flattened_grouped_it_1: Iterator[int] = flatten(grouped_it_1)
         flattened_grouped_it_2: Iterator[int] = flatten(grouped_it_1, concurrency=1)
         flattened_grouped_it_3: Iterator[int] = flatten(grouped_it_1, concurrency=2)

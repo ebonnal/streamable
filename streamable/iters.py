@@ -88,17 +88,17 @@ class GroupingIterator(Iterator[List[T]]):
         self,
         iterator: Iterator[T],
         size: int,
-        seconds: float,
+        interval_seconds: float,
     ) -> None:
         self.iterator = iterator
         self.size = size
-        self.seconds = seconds
+        self.interval_seconds = interval_seconds
         self._to_be_raised: Optional[Exception] = None
         self._last_yielded_group_at = time.time()
         self._current_group: List[T] = []
 
-    def _seconds_have_elapsed(self) -> bool:
-        return (time.time() - self._last_yielded_group_at) >= self.seconds
+    def _interval_seconds_have_elapsed(self) -> bool:
+        return (time.time() - self._last_yielded_group_at) >= self.interval_seconds
 
     def __next__(self) -> List[T]:
         if self._to_be_raised:
@@ -106,7 +106,7 @@ class GroupingIterator(Iterator[List[T]]):
             raise e
         try:
             while len(self._current_group) < self.size and (
-                not self._seconds_have_elapsed() or not self._current_group
+                not self._interval_seconds_have_elapsed() or not self._current_group
             ):
                 self._current_group.append(next(self.iterator))
         except Exception as e:
@@ -124,10 +124,10 @@ class GroupingByIterator(GroupingIterator[T]):
         self,
         iterator: Iterator[T],
         size: int,
-        seconds: float,
+        interval_seconds: float,
         by: Optional[Callable[[T], Any]],
     ) -> None:
-        super().__init__(iterator, size, seconds)
+        super().__init__(iterator, size, interval_seconds)
         self.by = by
         self._is_exhausted = False
         self._groups_by: DefaultDict[Any, List[T]] = defaultdict(list)
@@ -141,8 +141,8 @@ class GroupingByIterator(GroupingIterator[T]):
         key = self._group_key(elem)
         self._groups_by[key].append(elem)
 
-    def _seconds_have_elapsed(self) -> bool:
-        return (time.time() - self._last_yielded_group_at) >= self.seconds
+    def _interval_seconds_have_elapsed(self) -> bool:
+        return (time.time() - self._last_yielded_group_at) >= self.interval_seconds
 
     def _pop_full_group(self) -> Optional[List[T]]:
         for key, group in self._groups_by.items():
@@ -184,7 +184,7 @@ class GroupingByIterator(GroupingIterator[T]):
             self._group_next_elem()
 
             full_group: Optional[List[T]] = self._pop_full_group()
-            while not full_group and not self._seconds_have_elapsed():
+            while not full_group and not self._interval_seconds_have_elapsed():
                 self._group_next_elem()
                 full_group = self._pop_full_group()
 

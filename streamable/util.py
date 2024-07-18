@@ -81,9 +81,9 @@ def validate_group_size(size: Optional[int]):
         raise ValueError(f"`size` should be None or >= 1 but got {size}.")
 
 
-def validate_group_seconds(seconds: float):
-    if seconds <= 0:
-        raise ValueError(f"`seconds` should be > 0 but got {seconds}.")
+def validate_group_interval(interval: Optional[datetime.timedelta]):
+    if interval is not None and interval <= datetime.timedelta(0):
+        raise ValueError(f"`interval` should be positive but got {repr(interval)}.")
 
 
 def validate_throttle_per_second(per_second: int):

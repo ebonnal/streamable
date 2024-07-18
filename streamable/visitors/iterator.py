@@ -67,7 +67,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
             functions.group(
                 stream.upstream.accept(IteratorVisitor[U]()),
                 stream._size,
-                stream._seconds,
+                stream._interval,
                 stream._by,
             ),
         )

@@ -33,8 +33,6 @@ class RepresentationVisitor(Visitor[str]):
                 representation = getattr(o, "__name__")
             except AttributeError:
                 representation = f"{o.__class__.__name__}(...)"
-        elif representation == "inf":
-            return "float('inf')"
         return representation
 
     def visit_catch_stream(self, stream: CatchStream[T]) -> str:
@@ -65,7 +63,7 @@ class RepresentationVisitor(Visitor[str]):
 
     def visit_group_stream(self, stream: GroupStream[U]) -> str:
         self.methods_reprs.append(
-            f"group(size={stream._size}, by={self._friendly_repr(stream._by)}, seconds={self._friendly_repr(stream._seconds)})"
+            f"group(size={stream._size}, by={self._friendly_repr(stream._by)}, interval={self._friendly_repr(stream._interval)})"
         )
         return stream.upstream.accept(self)
 

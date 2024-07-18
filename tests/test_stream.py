@@ -226,7 +226,7 @@ class TestStream(unittest.TestCase):
     .aforeach(async_identity, concurrency=1)
     .map(CustomCallable(...), concurrency=1)
     .amap(async_identity, concurrency=1)
-    .group(size=100, by=None, seconds=float('inf'))
+    .group(size=100, by=None, interval=None)
     .observe('groups')
     .flatten(concurrency=4)
     .throttle(per_second=64, interval=datetime.timedelta(seconds=1))
@@ -716,7 +716,11 @@ class TestStream(unittest.TestCase):
                 ValueError,
                 msg="`group` should raise error when called with `seconds` <= 0.",
             ):
-                list(Stream([1]).group(size=100, seconds=seconds)),
+                list(
+                    Stream([1]).group(
+                        size=100, interval=datetime.timedelta(seconds=seconds)
+                    )
+                ),
         for size in [-1, 0]:
             with self.assertRaises(
                 ValueError,
@@ -769,29 +773,33 @@ class TestStream(unittest.TestCase):
         self.assertListEqual(
             list(
                 Stream(lambda: map(slow_identity, src)).group(
-                    size=100, seconds=slow_identity_duration / 1000
+                    size=100,
+                    interval=datetime.timedelta(seconds=slow_identity_duration / 1000),
                 )
             ),
             list(map(lambda e: [e], src)),
-            msg="`group` should not yield empty groups even though `seconds` if smaller than upstream's frequency",
+            msg="`group` should not yield empty groups even though `interval` if smaller than upstream's frequency",
         )
         self.assertListEqual(
             list(
                 Stream(lambda: map(slow_identity, src)).group(
-                    size=100, seconds=slow_identity_duration / 1000, by=lambda _: None
+                    size=100,
+                    interval=datetime.timedelta(seconds=slow_identity_duration / 1000),
+                    by=lambda _: None,
                 )
             ),
             list(map(lambda e: [e], src)),
-            msg="`group` with `by` argument should not yield empty groups even though `seconds` if smaller than upstream's frequency",
+            msg="`group` with `by` argument should not yield empty groups even though `interval` if smaller than upstream's frequency",
         )
         self.assertListEqual(
             list(
                 Stream(lambda: map(slow_identity, src)).group(
-                    size=100, seconds=2 * slow_identity_duration
+                    size=100,
+                    interval=datetime.timedelta(seconds=2 * slow_identity_duration),
                 )
             ),
             list(map(lambda e: [e, e + 1], pair_src)),
-            msg="`group` should yield upstream elements in a two-element group if `seconds` inferior to twice the upstream yield period",
+            msg="`group` should yield upstream elements in a two-element group if `interval` inferior to twice the upstream yield period",
         )
 
         self.assertListEqual(
@@ -848,7 +856,8 @@ class TestStream(unittest.TestCase):
         self.assertListEqual(
             list(
                 Stream(lambda: map(slow_identity, range(10))).group(
-                    seconds=slow_identity_duration * 2.90, by=lambda n: n % 4 == 0
+                    interval=datetime.timedelta(seconds=slow_identity_duration * 2.90),
+                    by=lambda n: n % 4 == 0,
                 )
             ),
             [[1, 2], [0, 4], [3, 5, 6, 7], [8], [9]],

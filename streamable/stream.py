@@ -24,7 +24,7 @@ from streamable.util import (
     NO_REPLACEMENT,
     get_logger,
     validate_concurrency,
-    validate_group_seconds,
+    validate_group_interval,
     validate_group_size,
     validate_throttle_interval,
     validate_throttle_per_second,
@@ -263,13 +263,13 @@ class Stream(Iterable[T]):
     def group(
         self,
         size: Optional[int] = None,
-        seconds: float = float("inf"),
+        interval: Optional[datetime.timedelta] = None,
         by: Optional[Callable[[T], Any]] = None,
     ) -> "Stream[List[T]]":
         """
         Yields upstream elements grouped into lists.
         A group is a list of `size` elements for which `by` returns the same value, but it may contain fewer elements in these cases:
-        - `seconds` have elapsed since the last yield of a group
+        - `interval` have elapsed since the last yield of a group
         - upstream is exhausted
         - upstream raises an exception
 
@@ -282,8 +282,8 @@ class Stream(Iterable[T]):
             Stream[List[T]]: A stream of upstream elements grouped into lists.
         """
         validate_group_size(size)
-        validate_group_seconds(seconds)
-        return GroupStream(self, size, seconds, by)
+        validate_group_interval(interval)
+        return GroupStream(self, size, interval, by)
 
     def map(
         self,
@@ -458,12 +458,12 @@ class GroupStream(DownStream[T, List[T]]):
         self,
         upstream: Stream[T],
         size: Optional[int],
-        seconds: float,
+        interval: Optional[datetime.timedelta],
         by: Optional[Callable[[T], Any]],
     ) -> None:
         super().__init__(upstream)
         self._size = size
-        self._seconds = seconds
+        self._interval = interval
         self._by = by
 
     def accept(self, visitor: "Visitor[V]") -> V:

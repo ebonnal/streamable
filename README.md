@@ -187,12 +187,18 @@ integers_by_parity: Stream[List[int]] = integers.group(by=lambda n: n % 2)
 assert list(integers_by_parity) == [[0, 2, 4, 6, 8], [1, 3, 5, 7, 9]]
 ```
 ```python
-integers_within_1s: Stream[List[int]] = integers.throttle(per_second=2).group(seconds=1)
+import timedelta from datetime
+
+integers_within_1s: Stream[List[int]] = (
+    integers
+    .throttle(per_second=2)
+    .group(interval=timedelta(seconds=1))
+)
 
 assert list(integers_within_1s) == [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]]
 ```
 
-Combine the `size`/`by`/`seconds` parameters:
+Mix `size`/`by`/`interval` parameters:
 ```python
 integers_2_by_2_by_parity: Stream[List[int]] = integers.group(by=lambda n: n % 2, size=2)
 
@@ -304,6 +310,7 @@ ETL scripts (i.e. scripts fetching -> processing -> pushing data) can benefit fr
 Here is an example that you can **copy-paste and try** (it only requires `requests`): it creates a CSV file containing all the 67 quadrupeds from the 1st, 2nd and 3rd generations of Pokémons (kudos to [PokéAPI](https://pokeapi.co/))
 ```python
 import csv
+from datetime import timedelta
 import itertools
 import requests
 from streamable import Stream
@@ -334,7 +341,7 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
             when=lambda error: str(error) == "'NoneType' object is not subscriptable"
         )
         # Writes a batch of pokemons every 5 seconds to the CSV file
-        .group(seconds=5)
+        .group(interval=timedelta(seconds=5))
         .foreach(writer.writerows)
         .flatten()
         .observe("written pokemons")

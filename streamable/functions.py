@@ -37,7 +37,7 @@ from streamable.util import (
     NoopStopIteration,
     reraise_as,
     validate_concurrency,
-    validate_group_seconds,
+    validate_group_interval,
     validate_group_size,
     validate_iterator,
     validate_throttle_interval,
@@ -83,18 +83,22 @@ def flatten(iterator: Iterator[Iterable[T]], concurrency: int = 1) -> Iterator[T
 def group(
     iterator: Iterator[T],
     size: Optional[int] = None,
-    seconds: float = float("inf"),
+    interval: Optional[datetime.timedelta] = None,
     by: Optional[Callable[[T], Any]] = None,
 ) -> Iterator[List[T]]:
     validate_iterator(iterator)
     validate_group_size(size)
-    validate_group_seconds(seconds)
+    validate_group_interval(interval)
     if size is None:
         size = cast(int, float("inf"))
+    if interval is None:
+        interval_seconds = float("inf")
+    else:
+        interval_seconds = interval.total_seconds()
     if by is not None:
         by = reraise_as(by, StopIteration, NoopStopIteration)
-        return GroupingByIterator(iterator, size, seconds, by)
-    return GroupingIterator(iterator, size, seconds)
+        return GroupingByIterator(iterator, size, interval_seconds, by)
+    return GroupingIterator(iterator, size, interval_seconds)
 
 
 def map(
