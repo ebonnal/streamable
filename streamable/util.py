@@ -1,3 +1,4 @@
+import datetime
 import logging
 import sys
 from typing import Any, Callable, Coroutine, Iterator, Optional, Type, TypeVar
@@ -92,10 +93,10 @@ def validate_throttle_per_second(per_second: int):
         )
 
 
-def validate_throttle_interval_seconds(interval_seconds: float):
-    if interval_seconds < 0:
+def validate_throttle_interval(interval: datetime.timedelta):
+    if interval < datetime.timedelta(0):
         raise ValueError(
-            f"`interval_seconds` is the minimum number of seconds between 2 consecutive yields, it must be >= 0  but got {interval_seconds}."
+            f"`interval` is the minimum span of time between yields, it must not be negative but got {repr(interval)}."
         )
 
 

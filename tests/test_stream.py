@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import logging
 import time
 import timeit
@@ -182,7 +183,7 @@ class TestStream(unittest.TestCase):
             .group(100)
             .observe("groups")
             .flatten(concurrency=4)
-            .throttle(64)
+            .throttle(64, interval=datetime.timedelta(seconds=1))
             .observe("foos")
             .catch(TypeError, finally_raise=True)
             .catch(TypeError, replacement=None, finally_raise=True)
@@ -225,11 +226,11 @@ class TestStream(unittest.TestCase):
     .aforeach(async_identity, concurrency=1)
     .map(CustomCallable(...), concurrency=1)
     .amap(async_identity, concurrency=1)
-    .group(size=100, by=None, seconds=inf)
-    .observe("groups")
+    .group(size=100, by=None, seconds=float('inf'))
+    .observe('groups')
     .flatten(concurrency=4)
-    .throttle(per_second=64, interval_seconds=0)
-    .observe("foos")
+    .throttle(per_second=64, interval=datetime.timedelta(seconds=1))
+    .observe('foos')
     .catch(TypeError, when=bool, finally_raise=True)
     .catch(TypeError, when=bool, replacement=None, finally_raise=True)
 )""",
@@ -879,16 +880,16 @@ class TestStream(unittest.TestCase):
         # behavior with invalid arguments
         with self.assertRaises(
             ValueError,
-            msg="`throttle` should raise error when called with `interval_seconds` < 0.",
+            msg="`throttle` should raise error when called with `interval` is negative.",
         ):
-            list(Stream([1]).throttle(interval_seconds=-0.01))
+            list(Stream([1]).throttle(interval=datetime.timedelta(microseconds=-1)))
         with self.assertRaises(
             ValueError,
             msg="`throttle` should raise error when called with `per_second` < 1.",
         ):
             list(Stream([1]).throttle(per_second=0))
 
-        # test interval_seconds
+        # test interval
 
         interval_seconds = 0.3
         super_slow_elem_pull_seconds = 1
@@ -903,13 +904,13 @@ class TestStream(unittest.TestCase):
                     ),
                     range(N),
                 )
-            ).throttle(interval_seconds=interval_seconds)
+            ).throttle(interval=datetime.timedelta(seconds=interval_seconds))
         )
 
         self.assertEqual(
             res,
             list(range(N)),
-            msg="`throttle` with `interval_seconds` must yield upstream elements",
+            msg="`throttle` with `interval` must yield upstream elements",
         )
         expected_duration = (N - 1) * interval_seconds + super_slow_elem_pull_seconds
         self.assertAlmostEqual(
@@ -923,12 +924,12 @@ class TestStream(unittest.TestCase):
             next(
                 iter(
                     Stream(src)
-                    .throttle(interval_seconds=0.2)
-                    .throttle(interval_seconds=0.1)
+                    .throttle(interval=datetime.timedelta(seconds=0.2))
+                    .throttle(interval=datetime.timedelta(seconds=0.1))
                 )
             ),
             0,
-            msg="`throttle` should avoid 'ValueError: sleep length must be non-negative' when upstream is slower than `interval_seconds`",
+            msg="`throttle` should avoid 'ValueError: sleep length must be non-negative' when upstream is slower than `interval`",
         )
 
         # test per_second
@@ -953,15 +954,19 @@ class TestStream(unittest.TestCase):
 
         expected_duration = 2
         for stream in [
-            Stream(range(11)).throttle(per_second=5, interval_seconds=0.01),
-            Stream(range(10)).throttle(per_second=20, interval_seconds=0.2),
+            Stream(range(11)).throttle(
+                per_second=5, interval=datetime.timedelta(seconds=0.01)
+            ),
+            Stream(range(10)).throttle(
+                per_second=20, interval=datetime.timedelta(seconds=0.2)
+            ),
         ]:
             duration, _ = timestream(stream)
             self.assertAlmostEqual(
                 duration,
                 expected_duration,
                 delta=0.1 * expected_duration,
-                msg="`throttle` with both `per_second` and `interval_seconds` set should follow the most restrictive",
+                msg="`throttle` with both `per_second` and `interval` set should follow the most restrictive",
             )
 
     def test_catch(self) -> None:

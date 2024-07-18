@@ -33,6 +33,8 @@ class RepresentationVisitor(Visitor[str]):
                 representation = getattr(o, "__name__")
             except AttributeError:
                 representation = f"{o.__class__.__name__}(...)"
+        elif representation == "inf":
+            return "float('inf')"
         return representation
 
     def visit_catch_stream(self, stream: CatchStream[T]) -> str:
@@ -63,7 +65,7 @@ class RepresentationVisitor(Visitor[str]):
 
     def visit_group_stream(self, stream: GroupStream[U]) -> str:
         self.methods_reprs.append(
-            f"group(size={stream._size}, by={self._friendly_repr(stream._by)}, seconds={stream._seconds})"
+            f"group(size={stream._size}, by={self._friendly_repr(stream._by)}, seconds={self._friendly_repr(stream._seconds)})"
         )
         return stream.upstream.accept(self)
 
@@ -80,12 +82,12 @@ class RepresentationVisitor(Visitor[str]):
         return stream.upstream.accept(self)
 
     def visit_observe_stream(self, stream: ObserveStream[T]) -> str:
-        self.methods_reprs.append(f"""observe("{stream._what}")""")
+        self.methods_reprs.append(f"""observe({self._friendly_repr(stream._what)})""")
         return stream.upstream.accept(self)
 
     def visit_throttle_stream(self, stream: ThrottleStream[T]) -> str:
         self.methods_reprs.append(
-            f"throttle(per_second={stream._per_second}, interval_seconds={stream._interval_seconds})"
+            f"throttle(per_second={stream._per_second}, interval={self._friendly_repr(stream._interval)})"
         )
         return stream.upstream.accept(self)
 

@@ -1,4 +1,5 @@
 import builtins
+import datetime
 from typing import (
     Any,
     Callable,
@@ -39,7 +40,7 @@ from streamable.util import (
     validate_group_seconds,
     validate_group_size,
     validate_iterator,
-    validate_throttle_interval_seconds,
+    validate_throttle_interval,
     validate_throttle_per_second,
     validate_truncate_args,
 )
@@ -143,16 +144,16 @@ def observe(iterator: Iterator[T], what: str) -> Iterator[T]:
 def throttle(
     iterator: Iterator[T],
     per_second: int = cast(int, float("inf")),
-    interval_seconds: float = 0,
+    interval: datetime.timedelta = datetime.timedelta(0),
 ) -> Iterator[T]:
     validate_iterator(iterator)
     validate_throttle_per_second(per_second)
-    validate_throttle_interval_seconds(interval_seconds)
+    validate_throttle_interval(interval)
 
     if per_second < float("inf"):
         iterator = ThrottlingPerSecondIterator(iterator, per_second)
-    if interval_seconds > 0:
-        iterator = ThrottlingIntervalIterator(iterator, interval_seconds)
+    if interval > datetime.timedelta(0):
+        iterator = ThrottlingIntervalIterator(iterator, interval.total_seconds())
     return iterator
 
 
