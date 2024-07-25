@@ -12,7 +12,7 @@
 ## TL;DR:
 |||
 |--|--|
-|🔗 *Fluent*|Chain methods !|
+|🔗 *Fluent*|Chain methods!|
 |🇹 *Typed*|`Stream[T]` inherits from `Iterable[T]`, library **fully typed**, [`mypy`](https://github.com/python/mypy) it|
 |💤 *Lazy*|Operations are **lazily evaluated** at iteration time|
 |🔄 *Concurrent*|Seamlessly enjoy **threads** or `asyncio`-based concurrency|
