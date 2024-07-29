@@ -347,7 +347,7 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
         .observe("written pokemons")
         # Catches any unexpected exception and raises at the end of the iteration
         .catch(finally_raise=True)
-        # Actually triggers a iteration, previous lines define lazy operations
+        # Actually triggers an iteration while previous lines define lazy operations
         .count()
     )
 ```

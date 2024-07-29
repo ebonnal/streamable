@@ -1,6 +1,6 @@
 I am presenting the `streamable` library to you, fellow Python developers, with two classic objectives:
 
-- notify you that it exists, I hope it will be useful for some of you.
+- notify you that it exists
 - gather feedback
 
 # What my project does
@@ -135,13 +135,13 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
         .observe("written pokemons")
         # Catches any unexpected exception and raises at the end of the iteration
         .catch(finally_raise=True)
-        # Actually triggers a iteration, previous lines define lazy operations
+        # Actually triggers an iteration while previous lines define lazy operations
         .count()
     )
 ```
 
 # Comparison
-A lot of other libraries have filled the same need to chain lazy operations over an iterable (see [this stack overflow question among others](https://stackoverflow.com/questions/24831476/what-is-the-python-way-of-chaining-maps-and-filters/77978940?noredirect=1#comment138494051_77978940)), but the most adopted is the great [PyFunctional](https://github.com/EntilZha/PyFunctional). For my use case I couldn't use PyFunctional out-of-the-box, I mainly missed:
+A lot of other libraries have filled the same need to chain lazy operations over an iterable (e.g. see [this stackoverflow question](https://stackoverflow.com/questions/24831476/what-is-the-python-way-of-chaining-maps-and-filters/77978940?noredirect=1#comment138494051_77978940)), but the most adopted is the great [PyFunctional](https://github.com/EntilZha/PyFunctional). For my use case I couldn't use PyFunctional out-of-the-box, I mainly missed:
 - full typing (allowing type checking via mypy)
 - iteration throttling
 - iteration process logging
