@@ -1,14 +1,14 @@
 I am presenting the `streamable` library to you, fellow Python developers, with two classic objectives:
 
-- notify you that it exists
+- inform you of its existence
 - gather feedback
 
 # What my project does
-`streamable` could have been named *"Yet Another Stream-like Library"* (see the Comparison section at the end of this post): a `Stream[T]` inherits from `Iterable[T]` and exposes a fluent interface that allows manipulation of a source iterable by chaining lazy operations. New operations are easy to add and are currently covering:
-- grouping/flattening
-- filtering/mapping, optionally leveraging threads or asyncio-based concurrency
+`streamable` could have been named *"Yet Another Stream-like Library"* (see the Comparison section at the end of this post): a `Stream[T]` inherits from `Iterable[T]` and exposes a fluent interface that allows manipulation of a source iterable by chaining lazy operations, which currently cover:
+- grouping/flattening/filtering
+- mapping, optionally leveraging threads or asyncio-based concurrency
 - catching exceptions
-- throttling of the rate of iterations over the stream
+- throttling the rate of iterations over the stream
 - ... for more, see the [Operations section in the README](https://github.com/ebonnal/streamable?tab=readme-ov-file#-operations)
 
 # Intro
@@ -95,7 +95,7 @@ inverses: Stream[float] = (
 # Target Audience
 Even though I hope/guess that it can interest a broader audience, at least as a Data Engineer in a small startup I have found it particularly useful when I had to develop concise Extract-Transform-Load custom scripts.
 
-Here is a toy example (that you can copy-paste and run) that creates a CSV file containing all the 67 quadrupeds from the 1st, 2nd and 3rd generations of Pokémons (kudos to [PokéAPI](https://pokeapi.co/)):
+Here is a toy example (that you can copy-paste and run) that creates a CSV file containing all 67 quadrupeds from the 1st, 2nd, and 3rd generations of Pokémons (kudos to [PokéAPI](https://pokeapi.co/)):
 ```python
 import csv
 from datetime import timedelta
@@ -141,15 +141,15 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
 ```
 
 # Comparison
-A lot of other libraries have filled the same need to chain lazy operations over an iterable (e.g. see [this stackoverflow question](https://stackoverflow.com/questions/24831476/what-is-the-python-way-of-chaining-maps-and-filters/77978940?noredirect=1#comment138494051_77978940)), but the most adopted is the great [PyFunctional](https://github.com/EntilZha/PyFunctional). For my use case I couldn't use PyFunctional out-of-the-box, I mainly missed:
+A lot of other libraries have filled the same need to chain lazy operations over an iterable (e.g. see [this stackoverflow question](https://stackoverflow.com/questions/24831476/what-is-the-python-way-of-chaining-maps-and-filters/77978940?noredirect=1#comment138494051_77978940)), but the most adopted is [PyFunctional](https://github.com/EntilZha/PyFunctional). For my use case I couldn't use PyFunctional out-of-the-box, I mainly missed:
 - full typing (allowing type checking via mypy)
 - iteration throttling
 - iteration process logging
 - exceptions catching
 
-I have decided to create my own library and not to propose changes to PyFunctional because I also wanted to take my shot at:
+I have decided to create my own library and not to simply propose changes to PyFunctional because I also wanted to take my shot at:
 - proposing another fluent interface
-- proposing a light approach with zero additional dependency where your `Stream[T]` is simply an `Iterable[T]` decorated with chainable lazy operations; the responsability of the creation of the data source or the consumption of the stream is delegated to other libraries (e.g. `from csv import DictWriter` instead of relying on a `stream.to_csv(...)` or `from functools import reduce` instead of relying on a `stream.reduce(...)`)
-- implementing lazyness using a Visitor Pattern to decouple the declaration of a `Stream[T]` and the construction of an `Iterator[T]` out of it at iteration time (i.e. in the `__iter__` method)
+- proposing a light approach with no additional dependencies where a `Stream[T]` is just an `Iterable[T]` decorated with chainable lazy operations; the responsabilities of creating the data source and consuming the stream are out of the lib's scope: let's use `from csv import DictWriter` instead of relying on a `stream.to_csv(...)`, or `from functools import reduce` instead of `stream.reduce(...)`
+- implementing lazyness using a Visitor Pattern to decouple the declaration of a `Stream[T]` and the construction of an `Iterator[T]` required at iteration time (i.e. happening in the `__iter__` method)
 
 Yes, it is definitely *"Yet Another Stream-like Library"*, let me know if you think that its design efforts and differences with PyFunctional are not enough to justify the release of another library in the nature, and that it makes more sense to propose changes to PyFunctional to cover the few features I missed for my use cases!
