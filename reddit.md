@@ -149,6 +149,9 @@ The most supported of them is [PyFunctional](https://github.com/EntilZha/PyFunct
 I could have proposed a pull request implementing these points into PyFunctional but I have rather started from scratch in order to take my shot at:
 - Proposing another fluent interface (namings and signatures).
 - Leveraging a Visitor Pattern to decouple the declaration of a `Stream[T]` from the construction of an `Iterator[T]` (at iteration time i.e. in the `__iter__` method).
-- Proposing a light design: a `Stream[T]` is just an `Iterable[T]` decorated with chainable lazy operations and it has not the arbitrary responsabilities of creating its data source and consuming its elements (let's use `from csv import DictReader` instead of relying on a `stream.from_csv(...)`, or `from functools import reduce` instead of `stream.reduce(...)`).
+- Proposing a light design: a `Stream[T]` is just an `Iterable[T]` decorated with chainable lazy operations and it has not the arbitrary responsabilities of creating its data source and consuming its elements:
+  - let's `from pyarrow.parquet import ParquetFile` and use the `ParquetFile(...).iter_batches` method instead of relying on a `stream.from_parquet(...)`
+  - let's `from functools import reduce` and then `reduce(..., stream)` instead of relying on a `stream.reduce`
+  - let's `from google.cloud import bigquery`, get a client and use the `bigquery.Client(...).insert_rows_json(...)` method instead of relying on a `stream.to_bq(...)`.
 
 This library may serve as a MVP useful to discuss with maintainers of other more mature libs in the future!
