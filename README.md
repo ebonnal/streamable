@@ -1,5 +1,6 @@
 # ༄ `streamable`
-> *Expressive iteration in Python*
+> *Expressive iteration in Python*: The class `Stream[T]` inherits from `Iterable[T]` and is instantiated from an `Iterable[T]` source, that it decorates with a fluent interface that allows to chain lazy operations.
+
 
 [![Actions Status](https://github.com/ebonnal/streamable/workflows/unittest/badge.svg)](https://github.com/ebonnal/streamable/actions)
 [![codecov](https://codecov.io/gh/ebonnal/streamable/graph/badge.svg?token=S62T0JQK9N)](https://codecov.io/gh/ebonnal/streamable)
@@ -34,7 +35,7 @@ from streamable import Stream
 ```
 
 ## 3. init
-Instantiate a `Stream[T]` from an `Iterable[T]`.
+Decorates an `Iterable[T]` as a `Stream[T]`.
 
 ```python
 integers: Stream[int] = Stream(range(10))

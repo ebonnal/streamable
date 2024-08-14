@@ -1,7 +1,7 @@
-# Designs [WIP]
+# Designs
 
 ## Fluent Interface Pattern
-The library is built around a **single entry point**, the `Stream` class. This is the only import the user needs. It must be trivial to use, all the behaviors it exposes should be carefully named and designed to make them self-explanatory. A stream declaration should resemble natural language as closely as possible:
+The lib is built around a single entry point, the `Stream` class. This is the only import required. This lib must be trivial to use, all the behaviors it exposes should be carefully named and designed to make them self-explanatory as much as possible. A stream declaration should resemble natural language:
 ```python
 events = Stream(events).foreach(print).truncate(when=lambda event: event["year"] > "2023").catch(KeyError)
 ```
@@ -15,7 +15,7 @@ Applying an operation just performs some arguments validation and returns a new 
 Each node in this composite structure exposes an `.accept` method enabling traversal by a visitor. Both `Stream.__iter__` and `Stream.__repr__` rely on visitors defined in the package `streamable.visitors`.
 
 ## Decorator Pattern
-A `Stream[T]` holds an `Iterable[T]` in its `.source` attribute, and it is also itself an `Iterable[T]`: this pattern allows to dynamically add behaviors to the source iterable.
+A `Stream[T]` both inherits from `Iterable[T]` and holds an `Iterable[T]` as its `.source`: when you instantiate a stream from an iterable you decorate it with a fluent interface.
 
 # Cheat Sheet: commands for contributors
 

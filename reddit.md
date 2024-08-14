@@ -1,7 +1,7 @@
 Hi fellow Python developers, today I am presenting `streamable` to you in the hope that it can be useful to you and also to gather feedback before calling it a v1.0.0.
 
 # What my project does
-The class `Stream[T]` inherits from `Iterable[T]` and exposes a fluent interface that allows the manipulation of a source iterable by chaining lazy operations, which currently cover:
+The class `Stream[T]` inherits from `Iterable[T]` and is instantiated from an `Iterable[T]` source, that it decorates with a fluent interface that allows to chain lazy operations, which currently cover:
 - grouping/flattening/filtering
 - mapping, optionally leveraging threads or asyncio-based concurrency
 - catching exceptions
@@ -33,7 +33,7 @@ from streamable import Stream
 ```
 
 # 3. init
-Instantiate a `Stream[T]` from an `Iterable[T]`.
+Decorates an `Iterable[T]` as a `Stream[T]`.
 
 ```python
 integers: Stream[int] = Stream(range(10))
@@ -138,20 +138,21 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
 ```
 
 # Comparison
-A lot of other libraries have filled this desire to chain lazy operations over an iterable and this is *"Yet Another Stream-like Library"* (e.g. see [this stackoverflow question](https://stackoverflow.com/questions/24831476/what-is-the-python-way-of-chaining-maps-and-filters/77978940?noredirect=1#comment138494051_77978940)).
+A lot of other libraries have filled this desire to chain lazy operations over an iterable and this sounds like *"Yet Another Stream-like Library"* (e.g. see [this stackoverflow question](https://stackoverflow.com/questions/24831476/what-is-the-python-way-of-chaining-maps-and-filters/77978940?noredirect=1#comment138494051_77978940)).
 
 The most supported of them is [PyFunctional](https://github.com/EntilZha/PyFunctional), but for my use case I couldn't use it out-of-the-box, due to the lack of:
-- full typing (allowing type checking via mypy)
-- iteration throttling
-- iteration process logging
-- exceptions catching
+- generic typing (`class Stream[T](Iterable[T]))`)
+- throttling of iteration's rate (`.throttle`)
+- logging of iteration's process (`.observe`)
+- catching of exceptions (`.catch`)
 
-I could have proposed a pull request implementing these points into PyFunctional but I have rather started from scratch in order to take my shot at:
+I could have proposed pull requests implementing these points into PyFunctional but I have rather started from scratch in order to take my shot at:
 - Proposing another fluent interface (namings and signatures).
-- Leveraging a Visitor Pattern to decouple the declaration of a `Stream[T]` from the construction of an `Iterator[T]` (at iteration time i.e. in the `__iter__` method).
+- Leveraging a visitor pattern to decouple the declaration of a `Stream[T]` from the construction of an `Iterator[T]` (at iteration time i.e. in the `__iter__` method).
 - Proposing a light design: a `Stream[T]` is just an `Iterable[T]` decorated with chainable lazy operations and it has not the arbitrary responsabilities of creating its data source and consuming its elements:
-  - let's `from pyarrow.parquet import ParquetFile` and use the `ParquetFile(...).iter_batches` method instead of relying on a `stream.from_parquet(...)`
-  - let's `from functools import reduce` and then `reduce(..., stream)` instead of relying on a `stream.reduce`
-  - let's `from google.cloud import bigquery`, get a client and use the `bigquery.Client(...).insert_rows_json(...)` method instead of relying on a `stream.to_bq(...)`.
+  - let's use the `reduce` function from `functools` instead of relying on a `stream.reduce` method
+  - let's use `parquet.ParquetFile.iter_batches` from `pyarrow` instead of relying on a `stream.from_parquet` method
+  - let's use `bigquery.Client.insert_rows_json` from `google.cloud` instead of relying on a `stream.to_bigquery` method
+  - same for `json`, `csv`, `psycopg`, `stripe`, ... just use your favorite libs
 
-This library may serve as a MVP useful to discuss with maintainers of other more mature libs in the future!
+This library may serve as a MVP useful to discuss with maintainers of other more mature libs in the future, but if you like it feel free to use it and open issues/PRs, I must be an active maintainer.
