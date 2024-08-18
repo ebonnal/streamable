@@ -51,10 +51,11 @@ class Stream(Iterable[T]):
 
     def __init__(self, source: Union[Iterable[T], Callable[[], Iterable[T]]]) -> None:
         """
-        Initializes a Stream with a data source.
+        Initializes a Stream with a source iterable.
+        It basically decorates the provided iterable with convenient chainable operation.
 
         Args:
-            source (Union[Iterable[T], Callable[[], Iterable[T]]]): a source iterable or a function returning one (called for each new iteration on this stream).
+            source (Union[Iterable[T], Callable[[], Iterable[T]]]): a source iterable or a function returning one (called for each new iteration).
         """
         self._source = source
         self._upstream: "Optional[Stream]" = None
@@ -344,7 +345,9 @@ class Stream(Iterable[T]):
         interval: datetime.timedelta = datetime.timedelta(0),
     ) -> "Stream[T]":
         """
-        Slows the iteration down to a maximum number of yields `per_second` and a minimum time `interval` between yields.
+        Slows the iteration down to ensure both:
+        - a maximum number of yields `per_second`
+        - a minimum `interval` between yields`
 
         Args:
             per_second (float, optional): Maximum number of yields per second (no limit by default).
