@@ -1,7 +1,9 @@
-Hi fellow Python developers, today I am presenting `streamable` to you in the hope that it can be useful to you and also to gather feedback before calling it a v1.0.0.
+# Title: Yet Another Stream-like Lib
+
+Hi fellow Python developers, today I am presenting `streamable` to you in the hope that it can be useful to some of you and also to gather feedback before calling it a v1.0.0.
 
 # What my project does
-The class `Stream[T]` inherits from `Iterable[T]` and is instantiated from an `Iterable[T]` source, that it decorates with a fluent interface that allows to chain lazy operations, which currently cover:
+The `Stream[T]` class inherits from `Iterable[T]` and is instantiated from an `Iterable[T]` source, that it decorates with a fluent interface that allows to chain lazy operations, which currently cover:
 - grouping/flattening/filtering
 - mapping, optionally leveraging threads or asyncio-based concurrency
 - catching exceptions
@@ -33,7 +35,7 @@ from streamable import Stream
 ```
 
 # 3. init
-Decorates an `Iterable[T]` as a `Stream[T]`.
+Instantiate a `Stream[T]` from an `Iterable[T]`.
 
 ```python
 integers: Stream[int] = Stream(range(10))
@@ -90,7 +92,7 @@ inverses: Stream[float] = (
 ```
 
 # Target Audience
-As a Data Engineer in a startup I found it particularly useful when I had to develop Extract-Transform-Load custom scripts in an easy-to-read way.
+As a Data Engineer in a startup I found it especially useful when I had to develop Extract-Transform-Load custom scripts in an easy-to-read way.
 
 Here is a toy example (that you can copy-paste and run) that creates a CSV file containing all 67 quadrupeds from the 1st, 2nd, and 3rd generations of Pokémons (kudos to [PokéAPI](https://pokeapi.co/)):
 ```python
@@ -138,21 +140,21 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
 ```
 
 # Comparison
-A lot of other libraries have filled this desire to chain lazy operations over an iterable and this sounds like *"Yet Another Stream-like Library"* (e.g. see [this stackoverflow question](https://stackoverflow.com/questions/24831476/what-is-the-python-way-of-chaining-maps-and-filters/77978940?noredirect=1#comment138494051_77978940)).
+A lot of other libraries have filled this desire to chain lazy operations over an iterable and this feels indeed like *"Yet Another Stream-like Lib"* (e.g. see [this stackoverflow question](https://stackoverflow.com/questions/24831476/what-is-the-python-way-of-chaining-maps-and-filters/77978940?noredirect=1#comment138494051_77978940)).
 
-The most supported of them is [PyFunctional](https://github.com/EntilZha/PyFunctional), but for my use case I couldn't use it out-of-the-box, due to the lack of:
+The most supported of them is probably [PyFunctional](https://github.com/EntilZha/PyFunctional), but for my use case I couldn't use it out-of-the-box, due to the lack of:
 - generic typing (`class Stream[T](Iterable[T]))`)
 - throttling of iteration's rate (`.throttle`)
 - logging of iteration's process (`.observe`)
 - catching of exceptions (`.catch`)
 
-I could have proposed pull requests implementing these points into PyFunctional but I have rather started from scratch in order to take my shot at:
+I could have worked on pull requests implementing these points into PyFunctional but I have rather started from scratch in order to take my shot at:
 - Proposing another fluent interface (namings and signatures).
 - Leveraging a visitor pattern to decouple the declaration of a `Stream[T]` from the construction of an `Iterator[T]` (at iteration time i.e. in the `__iter__` method).
 - Proposing a light design: a `Stream[T]` is just an `Iterable[T]` decorated with chainable lazy operations and it has not the arbitrary responsabilities of creating its data source and consuming its elements:
   - let's use the `reduce` function from `functools` instead of relying on a `stream.reduce` method
   - let's use `parquet.ParquetFile.iter_batches` from `pyarrow` instead of relying on a `stream.from_parquet` method
   - let's use `bigquery.Client.insert_rows_json` from `google.cloud` instead of relying on a `stream.to_bigquery` method
-  - same for `json`, `csv`, `psycopg`, `stripe`, ... just use your favorite libs
+  - same for `json`, `csv`, `psycopg`, `stripe`, ... just use your favorite clients
 
-This library may serve as a MVP useful to discuss with maintainers of other more mature libs in the future, but if you like it feel free to use it and open issues/PRs, I must be an active maintainer.
+This library may serve as a MVP useful to discuss with maintainers of other more mature libs in the future, but if you like it, feel free to use it and open issues/PRs, I must be an active maintainer.

@@ -35,7 +35,7 @@ from streamable import Stream
 ```
 
 ## 3. init
-Decorates an `Iterable[T]` as a `Stream[T]`.
+Instantiate a `Stream[T]` from an `Iterable[T]`.
 
 ```python
 integers: Stream[int] = Stream(range(10))
