@@ -13,7 +13,7 @@
 |||
 |--|--|
 |🔗 *Fluent*|Chain methods!|
-|🇹 *Typed*|`Stream[T]` inherits from `Iterable[T]`, library **fully typed**, [`mypy`](https://github.com/python/mypy) it|
+|🇹 *Typed*|[`mypy`](https://github.com/python/mypy)able, `Stream[T]` inherits from `Iterable[T]`|
 |💤 *Lazy*|Operations are **lazily evaluated** at iteration time|
 |🔄 *Concurrent*|Seamlessly enjoy **threads** or `asyncio`-based concurrency|
 |🛡️ *Robust*|Extensively unittested for **Python 3.7 to 3.12** with 100% coverage|
