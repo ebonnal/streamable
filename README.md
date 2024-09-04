@@ -1,5 +1,5 @@
 # ༄ `streamable`
-> *Expressive iteration in Python*: A `Stream[T]` decorates an `Iterable[T]` with a fluent interface allowing to chain lazy operations.
+> *Expressive iteration in Python*: A `Stream[T]` decorates an `Iterable[T]` with a fluent interface that allows chaining lazy operations.
 
 
 [![Actions Status](https://github.com/ebonnal/streamable/workflows/unittest/badge.svg)](https://github.com/ebonnal/streamable/actions)
