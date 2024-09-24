@@ -10,7 +10,7 @@ setup(
     license="Apache 2.",
     author="ebonnal",
     author_email="bonnal.enzo.dev@gmail.com",
-    description="Expressive iteration in Python: fluent, typed, lazy, and concurrent",
+    description="Stream-like manipulation of Python iterables: fluent, typed, lazy, concurrent",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
 )

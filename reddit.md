@@ -1,24 +1,27 @@
-# Title: Yet Another Stream-like Lib
-
-Hi fellow Python developers, today I am presenting `streamable` to you in the hope that it can be useful to some of you and also to gather feedback before calling it a v1.0.0.
+# `streamable`: Stream-like manipulation of iterables
 
 # What my project does
-The `Stream[T]` class inherits from `Iterable[T]` and is instantiated from an `Iterable[T]` source, that it decorates with a fluent interface that allows to chain lazy operations, which currently cover:
-- grouping/flattening/filtering
-- mapping, optionally leveraging threads or asyncio-based concurrency
-- catching exceptions
-- throttling the rate of iterations over the stream
-- ... for more, see the [Operations section in the README](https://github.com/ebonnal/streamable?tab=readme-ov-file#-operations)
+A `Stream[T]` decorates an `Iterable[T]` with a **fluent interface** enabling the **chaining of lazy operations**:
+- **mapping** (concurrently)
+- **flattening** (concurrently)
+- **grouping** by key, by batch size, by time interval
+- **filtering**
+- **truncating**
+- **catching** exceptions
+- **throttling** the rate of iterations
+- **observing** the progress of iterations
 
-# Intro
+For more details and examples, check the [Operations section in the README](https://github.com/ebonnal/streamable?tab=readme-ov-file#-operations)
+
+
 |||
 |--|--|
-|🔗 *Fluent*|Chain methods|
-|🇹 *Typed*|`Stream[T]` inherits from `Iterable[T]`, library **fully typed**, [`mypy`](https://github.com/python/mypy) it|
-|💤 *Lazy*|Operations are **lazily evaluated** at iteration time|
-|🔄 *Concurrent*|Seamlessly enjoy **threads** or `asyncio`-based concurrency|
-|🛡️ *Robust*|Extensively unittested for **Python 3.7 to 3.12** with 100% coverage|
-|🪶 *Light*|`pip install streamable` with **no additional dependencies**|
+|🔗 *Fluent*|chain methods!|
+|🇹 *Typed*|**type-annotated** and [`mypy`](https://github.com/python/mypy)able|
+|💤 *Lazy*|operations are **lazily evaluated** at iteration time|
+|🔄 *Concurrent*|**thread**-based or `asyncio`-based concurrency|
+|🛡️ *Robust*|unit-tested for **Python 3.7 to 3.12** with 100% coverage|
+|🪶 *Minimalist*|`pip install streamable` with **no additional dependencies**|
 
 ---
 
@@ -134,7 +137,7 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
         .observe("written pokemons")
         # Catches exceptions and raises the 1st one at the end of the iteration
         .catch(finally_raise=True)
-        # Actually triggers an iteration while previous lines define lazy operations
+        # Actually triggers an iteration (the lines above define lazy operations)
         .count()
     )
 ```
@@ -151,10 +154,10 @@ The most supported of them is probably [PyFunctional](https://github.com/EntilZh
 I could have worked on pull requests implementing these points into PyFunctional but I have rather started from scratch in order to take my shot at:
 - Proposing another fluent interface (namings and signatures).
 - Leveraging a visitor pattern to decouple the declaration of a `Stream[T]` from the construction of an `Iterator[T]` (at iteration time i.e. in the `__iter__` method).
-- Proposing a light design: a `Stream[T]` is just an `Iterable[T]` decorated with chainable lazy operations and it has not the arbitrary responsabilities of creating its data source and consuming its elements:
+- Proposing a minimalist design: a `Stream[T]` is just an `Iterable[T]` decorated with chainable lazy operations and it is not responsible for the opinionated logic of creating its data source and consuming its elements:
   - let's use the `reduce` function from `functools` instead of relying on a `stream.reduce` method
   - let's use `parquet.ParquetFile.iter_batches` from `pyarrow` instead of relying on a `stream.from_parquet` method
   - let's use `bigquery.Client.insert_rows_json` from `google.cloud` instead of relying on a `stream.to_bigquery` method
-  - same for `json`, `csv`, `psycopg`, `stripe`, ... just use your favorite clients
+  - same for `json`, `csv`, `psycopg`, `stripe`, ... let's use our favorite specialized libraries
 
-This library may serve as a MVP useful to discuss with maintainers of other more mature libs in the future, but if you like it, feel free to use it and open issues/PRs, I must be an active maintainer.
+Thank you for your time,
