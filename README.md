@@ -1,6 +1,6 @@
 # ༄ `streamable`
 
-*Stream-like manipulation of iterables*: A `Stream[T]` decorates an `Iterable[T]` with a fluent interface enabling the chaining of lazy operations.
+**Stream-like manipulation of iterables**: A `Stream[T]` decorates an `Iterable[T]` with a **fluent interface** enabling the chaining of lazy operations.
 
 
 [![Actions Status](https://github.com/ebonnal/streamable/workflows/unittest/badge.svg)](https://github.com/ebonnal/streamable/actions)

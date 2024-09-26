@@ -1,5 +1,6 @@
-# `streamable`: Stream-like manipulation of iterables
+# [`streamable`: Stream-like manipulation of iterables](https://www.reddit.com/r/Python/comments/1fp38jd/streamable_streamlike_manipulation_of_iterables/)
 
+https://github.com/ebonnal/streamable
 # What my project does
 A `Stream[T]` decorates an `Iterable[T]` with a **fluent interface** enabling the **chaining of lazy operations**:
 - **mapping** (concurrently)
