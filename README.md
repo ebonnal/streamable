@@ -188,7 +188,7 @@ integers_by_parity: Stream[List[int]] = integers.group(by=lambda n: n % 2)
 assert list(integers_by_parity) == [[0, 2, 4, 6, 8], [1, 3, 5, 7, 9]]
 ```
 ```python
-import timedelta from datetime
+from datetime import timedelta
 
 integers_within_1s: Stream[List[int]] = (
     integers
