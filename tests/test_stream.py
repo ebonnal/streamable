@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import logging
+import random
 import time
 import timeit
 import unittest
@@ -25,6 +26,7 @@ from streamable.functions import NoopStopIteration
 from streamable.util import sidify
 
 T = TypeVar("T")
+R = TypeVar("R")
 
 
 def timestream(stream: Stream[T]) -> Tuple[float, List[T]]:
@@ -107,13 +109,26 @@ src = range(N)
 pair_src = range(0, N, 2)
 
 
-def less_and_less_slow_src() -> Iterator[int]:
-    """
-    Same as `src` but each element is yielded after a sleep time that gets shorter and shorter.
-    """
-    for i, elem in enumerate(src):
-        time.sleep(0.1 / (i + 1))
-        yield elem
+def randomly_slowed(
+    func: Callable[[T], R], min_sleep: float = 0.001, max_sleep: float = 0.05
+) -> Callable[[T], R]:
+    def wrap(x: T) -> R:
+        time.sleep(min_sleep + random.random() * (max_sleep - min_sleep))
+        return func(x)
+
+    return wrap
+
+
+def async_randomly_slowed(
+    async_func: Callable[[T], Coroutine[Any, Any, R]],
+    min_sleep: float = 0.001,
+    max_sleep: float = 0.05,
+) -> Callable[[T], Coroutine[Any, Any, R]]:
+    async def wrap(x: T) -> R:
+        await asyncio.sleep(min_sleep + random.random() * (max_sleep - min_sleep))
+        return await async_func(x)
+
+    return wrap
 
 
 def range_raising_at_exhaustion(
@@ -314,7 +329,7 @@ class TestStream(unittest.TestCase):
     )
     def test_map(self, concurrency) -> None:
         self.assertListEqual(
-            list(Stream(less_and_less_slow_src).map(square, concurrency=concurrency)),
+            list(Stream(src).map(randomly_slowed(square), concurrency=concurrency)),
             list(map(square, src)),
             msg="At any concurrency the `map` method should act as the builtin map function, transforming elements while preserving input elements order.",
         )
@@ -333,8 +348,9 @@ class TestStream(unittest.TestCase):
             side_collection.add(func(x))
 
         res = list(
-            Stream(less_and_less_slow_src).foreach(
-                lambda i: side_effect(i, square), concurrency=concurrency
+            Stream(src).foreach(
+                lambda i: randomly_slowed(side_effect(i, square)),
+                concurrency=concurrency,
             )
         )
 
@@ -1184,8 +1200,8 @@ class TestStream(unittest.TestCase):
     def test_amap(self, concurrency) -> None:
         self.assertListEqual(
             list(
-                Stream(less_and_less_slow_src).amap(
-                    async_square, concurrency=concurrency
+                Stream(src).amap(
+                    async_randomly_slowed(async_square), concurrency=concurrency
                 )
             ),
             list(map(square, src)),
@@ -1208,8 +1224,8 @@ class TestStream(unittest.TestCase):
     def test_aforeach(self, concurrency) -> None:
         self.assertListEqual(
             list(
-                Stream(less_and_less_slow_src).aforeach(
-                    async_square, concurrency=concurrency
+                Stream(src).aforeach(
+                    async_randomly_slowed(async_square), concurrency=concurrency
                 )
             ),
             list(src),
