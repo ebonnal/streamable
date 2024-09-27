@@ -104,7 +104,7 @@ assert list(integer_strings) == ['0', '-1', '-2', '-3', '-4', '-5', '-6', '-7', 
 ```
 
 ### thread-based concurrency
-> Applies the transformation concurrently using a thread pool of size `concurrency` (preserving the order):
+> Applies the transformation concurrently using a thread queue of size `concurrency`, and preserving the upstream order by default:
 ```python
 import requests
 
@@ -119,7 +119,7 @@ assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
 ```
 
 ### async-based concurrency
-> The sibling operation called `.amap` applies an async transformation (preserving the order):
+> The sibling operation `.amap` applies an async function:
 ```python
 import httpx
 import asyncio
@@ -152,7 +152,7 @@ assert list(self_printing_integers) == list(integers)  # triggers the printing
 > Like `.map` it has an optional `concurrency: int` parameter.
 
 ### async-based concurrency
-> Like `.map` it has a sibling operation `.aforeach` for async.
+> Like `.map` it has a sibling `.aforeach` operation for async.
 
 ## `.filter`
 > Keeps only the elements that satisfy a condition:

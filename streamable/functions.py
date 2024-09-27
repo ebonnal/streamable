@@ -102,7 +102,10 @@ def group(
 
 
 def map(
-    transformation: Callable[[T], U], iterator: Iterator[T], concurrency: int = 1
+    transformation: Callable[[T], U],
+    iterator: Iterator[T],
+    concurrency: int = 1,
+    ordered: bool = True,
 ) -> Iterator[U]:
     validate_iterator(iterator)
     validate_concurrency(concurrency)
@@ -117,6 +120,7 @@ def map(
                     transformation,
                     concurrency=concurrency,
                     buffer_size=concurrency,
+                    ordered=ordered,
                 )
             )
         )
@@ -126,6 +130,7 @@ def amap(
     transformation: Callable[[T], Coroutine[Any, Any, U]],
     iterator: Iterator[T],
     concurrency: int = 1,
+    ordered: bool = True,
 ) -> Iterator[U]:
     validate_iterator(iterator)
     validate_concurrency(concurrency)
@@ -135,6 +140,7 @@ def amap(
                 iterator,
                 transformation,
                 buffer_size=concurrency,
+                ordered=ordered,
             )
         )
     )

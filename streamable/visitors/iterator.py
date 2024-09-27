@@ -49,6 +49,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
                 stream.upstream,
                 util.sidify(stream._effect),
                 stream._concurrency,
+                stream._ordered,
             )
         )
 
@@ -58,6 +59,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
                 stream.upstream,
                 util.async_sidify(stream._effect),
                 stream._concurrency,
+                stream._ordered,
             )
         )
 
@@ -77,6 +79,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
             stream._transformation,
             stream.upstream.accept(IteratorVisitor[U]()),
             concurrency=stream._concurrency,
+            ordered=stream._ordered,
         )
 
     def visit_amap_stream(self, stream: AMapStream[U, T]) -> Iterator[T]:
@@ -84,6 +87,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
             stream._transformation,
             stream.upstream.accept(IteratorVisitor[U]()),
             concurrency=stream._concurrency,
+            ordered=stream._ordered,
         )
 
     def visit_observe_stream(self, stream: ObserveStream[T]) -> Iterator[T]:

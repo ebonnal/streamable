@@ -39,6 +39,16 @@ def timestream(stream: Stream[T]) -> Tuple[float, List[T]]:
     return timeit.timeit(iterate, number=1), res
 
 
+def identity_sleep(seconds: float) -> float:
+    time.sleep(seconds)
+    return seconds
+
+
+async def async_identity_sleep(seconds: float) -> float:
+    await asyncio.sleep(seconds)
+    return seconds
+
+
 # simulates an I/0 bound function
 slow_identity_duration = 0.01
 
@@ -227,7 +237,7 @@ class TestStream(unittest.TestCase):
         self.assertEqual(
             """(
     Stream(range(0, 256))
-    .map(<lambda>, concurrency=1)
+    .map(<lambda>, concurrency=1, ordered=True)
 )""",
             repr(Stream(src).map(lambda _: _)),
             msg="`repr` should work as expected on a stream with 1 operation",
@@ -237,10 +247,10 @@ class TestStream(unittest.TestCase):
     Stream(range(0, 256))
     .truncate(count=1024, when=<lambda>)
     .filter(bool)
-    .foreach(<lambda>, concurrency=1)
-    .aforeach(async_identity, concurrency=1)
-    .map(CustomCallable(...), concurrency=1)
-    .amap(async_identity, concurrency=1)
+    .foreach(<lambda>, concurrency=1, ordered=True)
+    .aforeach(async_identity, concurrency=1, ordered=True)
+    .map(CustomCallable(...), concurrency=1, ordered=True)
+    .amap(async_identity, concurrency=1, ordered=True)
     .group(size=100, by=None, interval=None)
     .observe('groups')
     .flatten(concurrency=4)
@@ -332,6 +342,52 @@ class TestStream(unittest.TestCase):
             list(Stream(src).map(randomly_slowed(square), concurrency=concurrency)),
             list(map(square, src)),
             msg="At any concurrency the `map` method should act as the builtin map function, transforming elements while preserving input elements order.",
+        )
+
+    @parameterized.expand(
+        [
+            [
+                ordered,
+                order_mutation,
+                expected_duration,
+                operation,
+                func,
+            ]
+            for ordered, order_mutation, expected_duration in [
+                (True, identity, 0.3),
+                (False, sorted, 0.21),
+            ]
+            for operation, func in [
+                (Stream.foreach, time.sleep),
+                (Stream.map, identity_sleep),
+                (Stream.aforeach, asyncio.sleep),
+                (Stream.amap, async_identity_sleep),
+            ]
+        ]
+    )
+    def test_mapping_ordering(
+        self,
+        ordered: bool,
+        order_mutation: Callable[[Iterable[float]], Iterable[float]],
+        expected_duration: float,
+        operation,
+        func,
+    ):
+        seconds = [0.1, 0.01, 0.2]
+        duration, res = timestream(
+            operation(Stream(seconds), func, ordered=ordered, concurrency=2)
+        )
+        self.assertListEqual(
+            res,
+            list(order_mutation(seconds)),
+            msg=f"`{operation}` must respect `ordered` constraint.",
+        )
+
+        self.assertAlmostEqual(
+            duration,
+            expected_duration,
+            msg=f"{'ordered' if ordered else 'unordered'} `{operation}` should reflect that unordering improves runtime by avoiding bottlenecks",
+            delta=0.03,
         )
 
     @parameterized.expand(
