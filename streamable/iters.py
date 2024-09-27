@@ -399,18 +399,23 @@ class ThreadConcurrentMappingIterable(ConcurrentMappingIterable[U]):
         self.executor = ThreadPoolExecutor(max_workers=self.concurrency)
         return self.executor
 
+    def _safe_transformation(
+        self, elem: T
+    ) -> Union[U, RaisingIterator.ExceptionContainer]:
+        try:
+            return self.transformation(elem)
+        except Exception as e:
+            return RaisingIterator.ExceptionContainer(e)
+
     def _launch_future(
         self, elem: T
     ) -> "Future[Union[U, RaisingIterator.ExceptionContainer]]":
-        return self.executor.submit(self.transformation, elem)
+        return self.executor.submit(self._safe_transformation, elem)
 
     def _get_future_result(
         self, future: "Future[Union[U, RaisingIterator.ExceptionContainer]]"
     ) -> Union[U, RaisingIterator.ExceptionContainer]:
-        try:
-            return future.result()
-        except Exception as e:
-            return RaisingIterator.ExceptionContainer(e)
+        return future.result()
 
 
 class AsyncConcurrentMappingIterable(ConcurrentMappingIterable[U]):
