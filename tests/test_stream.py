@@ -1147,7 +1147,6 @@ class TestStream(unittest.TestCase):
             .observe("ints")
             .group(2)
             .observe("int pairs")
-            # .foreach(lambda g: print("end", g))
         )
 
         self.assertListEqual(
