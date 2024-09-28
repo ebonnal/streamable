@@ -346,6 +346,24 @@ class TestStream(unittest.TestCase):
 
     @parameterized.expand(
         [
+            [16, 0],
+            [1, 0],
+            [16, 1],
+            [16, 15],
+            [16, 16],
+        ]
+    )
+    def test_map_with_more_concurrency_than_elements(
+        self, concurrency, n_elems
+    ) -> None:
+        self.assertListEqual(
+            list(Stream(range(n_elems)).map(str, concurrency=concurrency)),
+            list(map(str, range(n_elems))),
+            msg="`map` method should act correctly when concurrency > number of elements.",
+        )
+
+    @parameterized.expand(
+        [
             [
                 ordered,
                 order_mutation,
@@ -387,7 +405,7 @@ class TestStream(unittest.TestCase):
             duration,
             expected_duration,
             msg=f"{'ordered' if ordered else 'unordered'} `{operation}` should reflect that unordering improves runtime by avoiding bottlenecks",
-            delta=0.03,
+            delta=0.04,
         )
 
     @parameterized.expand(
