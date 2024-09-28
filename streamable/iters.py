@@ -364,7 +364,9 @@ class ConcurrentMappingIterable(
             futures: Deque["Future[Union[U, RaisingIterator.ExceptionContainer]]"] = (
                 deque()
             )
-            to_yield: List[Union[U, RaisingIterator.ExceptionContainer]] = []
+            to_yield: Deque[Union[U, RaisingIterator.ExceptionContainer]] = deque(
+                maxlen=1
+            )
             # wait, queue, yield (FIFO)
             while True:
                 if futures:
@@ -480,8 +482,10 @@ class ConcurrentFlatteningIterable(
     def __iter__(self) -> Iterator[Union[T, RaisingIterator.ExceptionContainer]]:
         with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
             iterator_and_future_pairs: Deque[Tuple[Iterator[T], Future]] = deque()
-            element_to_yield: List[Union[T, RaisingIterator.ExceptionContainer]] = []
-            iterator_to_queue: List[Iterator[T]] = []
+            element_to_yield: Deque[Union[T, RaisingIterator.ExceptionContainer]] = (
+                deque(maxlen=1)
+            )
+            iterator_to_queue: Deque[Iterator[T]] = deque(maxlen=1)
             # wait, queue, yield (FIFO)
             while True:
                 if iterator_and_future_pairs:
