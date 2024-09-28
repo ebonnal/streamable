@@ -13,6 +13,7 @@ from typing import (
     Coroutine,
     DefaultDict,
     Deque,
+    Generic,
     Iterable,
     Iterator,
     List,
@@ -329,7 +330,7 @@ class RaisingIterator(Iterator[T]):
 
 
 class ConcurrentMappingIterable(
-    ABC, Iterable[Union[U, RaisingIterator.ExceptionContainer]]
+    Generic[T, U], ABC, Iterable[Union[U, RaisingIterator.ExceptionContainer]]
 ):
     """
     Template Method Pattern:
@@ -382,7 +383,7 @@ class ConcurrentMappingIterable(
                     break
 
 
-class ThreadConcurrentMappingIterable(ConcurrentMappingIterable[U]):
+class ThreadConcurrentMappingIterable(ConcurrentMappingIterable[T, U]):
     def __init__(
         self,
         iterator: Iterator[T],
@@ -418,7 +419,7 @@ class ThreadConcurrentMappingIterable(ConcurrentMappingIterable[U]):
         return future.result()
 
 
-class AsyncConcurrentMappingIterable(ConcurrentMappingIterable[U]):
+class AsyncConcurrentMappingIterable(ConcurrentMappingIterable[T, U]):
     def __init__(
         self,
         iterator: Iterator[T],
