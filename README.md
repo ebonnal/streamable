@@ -300,7 +300,7 @@ Note that the amount of logs will never be overwhelming because they are produce
 
 # 📦 ***Notes Box***
 ## Contribute
-Please help me ! Feel very welcome to:
+Please help us ! Feel very welcome to:
 - [open issues](https://github.com/ebonnal/streamable/issues)
 - [open pull requests](https://github.com/ebonnal/streamable/pulls)
 - check [CONTRIBUTING.md](CONTRIBUTING.md)
@@ -355,7 +355,6 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
 
 ## CPU-bound tasks
 For CPU-bound tasks, consider using the [`PyPy`](https://github.com/pypy/pypy) interpreter whose *Just In Time* (JIT) compilation should drastically improve performances !
-([Few rough runtime orders of magnitude: CPython vs PyPy vs Java vs C vs Rust.](https://github.com/ebonnal/streamable/issues/10))
 
 ## change logging level
 ```python
