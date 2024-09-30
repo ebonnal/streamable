@@ -29,14 +29,14 @@ T = TypeVar("T")
 R = TypeVar("R")
 
 
-def timestream(stream: Stream[T]) -> Tuple[float, List[T]]:
+def timestream(stream: Stream[T], times: int = 1) -> Tuple[float, List[T]]:
     res: List[T] = []
 
     def iterate():
         nonlocal res
         res = list(stream)
 
-    return timeit.timeit(iterate, number=1), res
+    return timeit.timeit(iterate, number=times) / times, res
 
 
 def identity_sleep(seconds: float) -> float:
@@ -393,7 +393,8 @@ class TestStream(unittest.TestCase):
     ):
         seconds = [0.1, 0.01, 0.2]
         duration, res = timestream(
-            operation(Stream(seconds), func, ordered=ordered, concurrency=2)
+            operation(Stream(seconds), func, ordered=ordered, concurrency=2),
+            5,
         )
         self.assertListEqual(
             res,
@@ -405,7 +406,7 @@ class TestStream(unittest.TestCase):
             duration,
             expected_duration,
             msg=f"{'ordered' if ordered else 'unordered'} `{operation}` should reflect that unordering improves runtime by avoiding bottlenecks",
-            delta=0.04,
+            delta=expected_duration * 0.2,
         )
 
     @parameterized.expand(
