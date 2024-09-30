@@ -29,14 +29,14 @@ T = TypeVar("T")
 R = TypeVar("R")
 
 
-def timestream(stream: Stream[T]) -> Tuple[float, List[T]]:
+def timestream(stream: Stream[T], times: int = 1) -> Tuple[float, List[T]]:
     res: List[T] = []
 
     def iterate():
         nonlocal res
         res = list(stream)
 
-    return timeit.timeit(iterate, number=1), res
+    return timeit.timeit(iterate, number=times) / times, res
 
 
 def identity_sleep(seconds: float) -> float:
@@ -346,6 +346,24 @@ class TestStream(unittest.TestCase):
 
     @parameterized.expand(
         [
+            [16, 0],
+            [1, 0],
+            [16, 1],
+            [16, 15],
+            [16, 16],
+        ]
+    )
+    def test_map_with_more_concurrency_than_elements(
+        self, concurrency, n_elems
+    ) -> None:
+        self.assertListEqual(
+            list(Stream(range(n_elems)).map(str, concurrency=concurrency)),
+            list(map(str, range(n_elems))),
+            msg="`map` method should act correctly when concurrency > number of elements.",
+        )
+
+    @parameterized.expand(
+        [
             [
                 ordered,
                 order_mutation,
@@ -375,7 +393,8 @@ class TestStream(unittest.TestCase):
     ):
         seconds = [0.1, 0.01, 0.2]
         duration, res = timestream(
-            operation(Stream(seconds), func, ordered=ordered, concurrency=2)
+            operation(Stream(seconds), func, ordered=ordered, concurrency=2),
+            5,
         )
         self.assertListEqual(
             res,
@@ -387,7 +406,7 @@ class TestStream(unittest.TestCase):
             duration,
             expected_duration,
             msg=f"{'ordered' if ordered else 'unordered'} `{operation}` should reflect that unordering improves runtime by avoiding bottlenecks",
-            delta=0.03,
+            delta=expected_duration * 0.2,
         )
 
     @parameterized.expand(
