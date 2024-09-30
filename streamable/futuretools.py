@@ -29,14 +29,18 @@ class DequeFutureResultCollection(FutureResultCollection[T]):
         return self._futures.append(future)
 
 
-class CounterFutureResultCollection(FutureResultCollection[T]):
+class CallbackFutureResultCollection(FutureResultCollection[T]):
     def __init__(self) -> None:
         self._n_futures = 0
 
     def __len__(self) -> int:
         return self._n_futures
 
+    @abstractmethod
+    def _done_callback(self, future: "Future[T]") -> None: ...
+
     def add_future(self, future: "Future[T]") -> None:
+        future.add_done_callback(self._done_callback)
         self._n_futures += 1
 
 
@@ -49,7 +53,7 @@ class FIFOThreadFutureResultCollection(DequeFutureResultCollection[T]):
         return self._futures.popleft().result()
 
 
-class FDFOThreadFutureResultCollection(CounterFutureResultCollection[T]):
+class FDFOThreadFutureResultCollection(CallbackFutureResultCollection[T]):
     """
     First Done First Out
     """
@@ -60,10 +64,6 @@ class FDFOThreadFutureResultCollection(CounterFutureResultCollection[T]):
 
     def _done_callback(self, future: "Future[T]") -> None:
         self._results.put(future.result())
-
-    def add_future(self, future: "Future[T]") -> None:
-        future.add_done_callback(self._done_callback)
-        super().add_future(future)
 
     def __next__(self) -> T:
         self._n_futures -= 1
@@ -83,7 +83,7 @@ class FIFOAsyncFutureResultCollection(DequeFutureResultCollection[T]):
         return self._loop.run_until_complete(self._futures.popleft())  # type: ignore
 
 
-class FDFOAsyncFutureResultCollection(CounterFutureResultCollection[T]):
+class FDFOAsyncFutureResultCollection(CallbackFutureResultCollection[T]):
     """
     First Done First Out
     """
@@ -93,9 +93,8 @@ class FDFOAsyncFutureResultCollection(CounterFutureResultCollection[T]):
         self._loop = loop
         self._waiter: asyncio.futures.Future[T] = self._loop.create_future()
 
-    def add_future(self, future: "Future[T]") -> None:
-        future.add_done_callback(lambda f: self._waiter.set_result(f.result()))
-        super().add_future(future)
+    def _done_callback(self, future: "Future[T]") -> None:
+        self._waiter.set_result(future.result())
 
     def __next__(self) -> T:
         self._n_futures -= 1
