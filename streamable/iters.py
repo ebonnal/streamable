@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from asyncio import AbstractEventLoop, get_event_loop
 from collections import defaultdict, deque
 from concurrent.futures import Executor, Future, ThreadPoolExecutor
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from datetime import datetime
 from math import ceil
 from typing import (
@@ -375,19 +375,15 @@ class ConcurrentMappingIterable(
             future_results = self._future_result_collection()
 
             # queue tasks up to buffer_size
-            while len(future_results) < self.buffer_size:
-                try:
+            with suppress(StopIteration):
+                while len(future_results) < self.buffer_size:
                     future_results.add_future(self._create_future(next(self.iterator)))
-                except StopIteration:
-                    break
 
             # wait, queue, yield
             while future_results:
                 result = next(future_results)
-                try:
+                with suppress(StopIteration):
                     future_results.add_future(self._create_future(next(self.iterator)))
-                except StopIteration:
-                    pass
                 yield result
 
 

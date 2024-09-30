@@ -62,7 +62,7 @@ class FDFOThreadFutureResultCollection(CounterFutureResultCollection[T]):
         self._results.put(future.result())
 
     def add_future(self, future: "Future[T]") -> None:
-        future.add_done_callback(lambda f: self._done_callback(f))
+        future.add_done_callback(self._done_callback)
         super().add_future(future)
 
     def __next__(self) -> T:
