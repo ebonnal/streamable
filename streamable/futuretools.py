@@ -11,7 +11,7 @@ T = TypeVar("T")
 
 class FutureResultCollection(Iterator[T], Sized, ABC):
     """
-    Iterate over added futures' results. Supports adding new futures after iteration started.
+    Iterator over added futures' results. Supports adding new futures after iteration started.
     """
 
     @abstractmethod
@@ -62,8 +62,8 @@ class FDFOThreadFutureResultCollection(CounterFutureResultCollection[T]):
         self._results.put(future.result())
 
     def add_future(self, future: "Future[T]") -> None:
-        super().add_future(future)
         future.add_done_callback(lambda f: self._done_callback(f))
+        super().add_future(future)
 
     def __next__(self) -> T:
         self._n_futures -= 1
@@ -94,8 +94,8 @@ class FDFOAsyncFutureResultCollection(CounterFutureResultCollection[T]):
         self._waiter: asyncio.futures.Future[T] = self._loop.create_future()
 
     def add_future(self, future: "Future[T]") -> None:
-        super().add_future(future)
         future.add_done_callback(lambda f: self._waiter.set_result(f.result()))
+        super().add_future(future)
 
     def __next__(self) -> T:
         self._n_futures -= 1
