@@ -1,8 +1,15 @@
+import asyncio
 import time
 from abc import ABC, abstractmethod
-from asyncio import AbstractEventLoop, Task, get_event_loop
+from asyncio import AbstractEventLoop, get_event_loop
 from collections import defaultdict, deque
-from concurrent.futures import Executor, Future, ThreadPoolExecutor
+from concurrent.futures import (
+    FIRST_COMPLETED,
+    Executor,
+    Future,
+    ThreadPoolExecutor,
+    wait,
+)
 from contextlib import contextmanager
 from datetime import datetime
 from math import ceil
@@ -343,9 +350,11 @@ class ConcurrentMappingIterable(
         self,
         iterator: Iterator[T],
         buffer_size: int,
+        ordered: bool,
     ) -> None:
         self.iterator = iterator
         self.buffer_size = buffer_size
+        self.ordered = ordered
 
     @abstractmethod
     def _context_manager(self) -> ContextManager: ...
@@ -354,9 +363,10 @@ class ConcurrentMappingIterable(
     def _launch_future(
         self, elem: T
     ) -> "Future[Union[U, RaisingIterator.ExceptionContainer]]": ...
+
     @abstractmethod
-    def _get_future_result(
-        self, future: "Future[Union[U, RaisingIterator.ExceptionContainer]]"
+    def _next_yield(
+        self, futures: "Deque[Future[Union[U, RaisingIterator.ExceptionContainer]]]"
     ) -> Union[U, RaisingIterator.ExceptionContainer]: ...
 
     def __iter__(self) -> Iterator[Union[U, RaisingIterator.ExceptionContainer]]:
@@ -364,11 +374,13 @@ class ConcurrentMappingIterable(
             futures: Deque["Future[Union[U, RaisingIterator.ExceptionContainer]]"] = (
                 deque()
             )
-            to_yield: List[Union[U, RaisingIterator.ExceptionContainer]] = []
+            to_yield: Deque[Union[U, RaisingIterator.ExceptionContainer]] = deque(
+                maxlen=1
+            )
             # wait, queue, yield (FIFO)
             while True:
                 if futures:
-                    to_yield.append(self._get_future_result(futures.popleft()))
+                    to_yield.append(self._next_yield(futures))
                 # queue tasks up to buffer_size
                 while len(futures) < self.buffer_size:
                     try:
@@ -390,8 +402,9 @@ class ThreadConcurrentMappingIterable(ConcurrentMappingIterable[T, U]):
         transformation: Callable[[T], U],
         concurrency: int,
         buffer_size: int,
+        ordered: bool,
     ) -> None:
-        super().__init__(iterator, buffer_size)
+        super().__init__(iterator, buffer_size, ordered)
         self.transformation = transformation
         self.concurrency = concurrency
         self.executor: Executor
@@ -413,10 +426,16 @@ class ThreadConcurrentMappingIterable(ConcurrentMappingIterable[T, U]):
     ) -> "Future[Union[U, RaisingIterator.ExceptionContainer]]":
         return self.executor.submit(self._safe_transformation, elem)
 
-    def _get_future_result(
-        self, future: "Future[Union[U, RaisingIterator.ExceptionContainer]]"
+    def _next_yield(
+        self, futures: "Deque[Future[Union[U, RaisingIterator.ExceptionContainer]]]"
     ) -> Union[U, RaisingIterator.ExceptionContainer]:
-        return future.result()
+        if self.ordered:
+            return futures.popleft().result()
+        else:
+            done_futures, _ = wait(futures, return_when=FIRST_COMPLETED)
+            done_future = next(iter(done_futures))
+            futures.remove(done_future)
+            return done_future.result()
 
 
 class AsyncConcurrentMappingIterable(ConcurrentMappingIterable[T, U]):
@@ -425,8 +444,9 @@ class AsyncConcurrentMappingIterable(ConcurrentMappingIterable[T, U]):
         iterator: Iterator[T],
         transformation: Callable[[T], Coroutine[Any, Any, U]],
         buffer_size: int,
+        ordered: bool,
     ) -> None:
-        super().__init__(iterator, buffer_size)
+        super().__init__(iterator, buffer_size, ordered)
         self.transformation = transformation
         self.loop: AbstractEventLoop
 
@@ -456,12 +476,18 @@ class AsyncConcurrentMappingIterable(ConcurrentMappingIterable[T, U]):
             self.loop.create_task(self._safe_transformation(elem)),
         )
 
-    def _get_future_result(
-        self, future: "Future[Union[U, RaisingIterator.ExceptionContainer]]"
+    def _next_yield(
+        self, futures: "Deque[Future[Union[U, RaisingIterator.ExceptionContainer]]]"
     ) -> Union[U, RaisingIterator.ExceptionContainer]:
-        return self.loop.run_until_complete(
-            cast("Task[Union[U, RaisingIterator.ExceptionContainer]]", future)
-        )
+        if self.ordered:
+            return self.loop.run_until_complete(futures.popleft())  # type: ignore
+        else:
+            done_futures, _ = self.loop.run_until_complete(
+                asyncio.wait(futures, return_when=asyncio.FIRST_COMPLETED)  # type: ignore
+            )
+            done_future = next(iter(done_futures))
+            futures.remove(done_future)
+            return done_future.result()
 
 
 class ConcurrentFlatteningIterable(
@@ -480,8 +506,10 @@ class ConcurrentFlatteningIterable(
     def __iter__(self) -> Iterator[Union[T, RaisingIterator.ExceptionContainer]]:
         with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
             iterator_and_future_pairs: Deque[Tuple[Iterator[T], Future]] = deque()
-            element_to_yield: List[Union[T, RaisingIterator.ExceptionContainer]] = []
-            iterator_to_queue: List[Iterator[T]] = []
+            element_to_yield: Deque[Union[T, RaisingIterator.ExceptionContainer]] = (
+                deque(maxlen=1)
+            )
+            iterator_to_queue: Deque[Iterator[T]] = deque(maxlen=1)
             # wait, queue, yield (FIFO)
             while True:
                 if iterator_and_future_pairs:

@@ -229,6 +229,7 @@ class Stream(Iterable[T]):
         self,
         effect: Callable[[T], Any],
         concurrency: int = 1,
+        ordered: bool = True,
     ) -> "Stream[T]":
         """
         For each upstream element, yields it after having called `effect` on it.
@@ -236,17 +237,19 @@ class Stream(Iterable[T]):
 
         Args:
             effect (Callable[[T], Any]): The function to be applied to each element as a side effect.
-            concurrency (int): The number of threads used to concurrently apply the `effect` (default is 1, meaning no concurrency). Preserves the upstream order.
+            concurrency (int): The number of threads used to concurrently apply the `effect` (default is 1, meaning no concurrency).
+            ordered (bool): Whether to preserve the order of elements or yield them as soon as they are processed when `concurrency` > 1 (default preserves order).
         Returns:
             Stream[T]: A stream of upstream elements, unchanged.
         """
         validate_concurrency(concurrency)
-        return ForeachStream(self, effect, concurrency)
+        return ForeachStream(self, effect, concurrency, ordered)
 
     def aforeach(
         self,
         effect: Callable[[T], Coroutine],
         concurrency: int = 1,
+        ordered: bool = True,
     ) -> "Stream[T]":
         """
         For each upstream element, yields it after having called the asynchronous `effect` on it.
@@ -254,12 +257,13 @@ class Stream(Iterable[T]):
 
         Args:
             effect (Callable[[T], Any]): The asynchronous function to be applied to each element as a side effect.
-            concurrency (int): How many asyncio tasks will run at the same time. Preserves the upstream order.
+            concurrency (int): How many asyncio tasks will run at the same time.
+            ordered (bool): Whether to preserve the order of elements or yield them as soon as they are processed when `concurrency` > 1 (default preserves order).
         Returns:
             Stream[T]: A stream of upstream elements, unchanged.
         """
         validate_concurrency(concurrency)
-        return AForeachStream(self, effect, concurrency)
+        return AForeachStream(self, effect, concurrency, ordered)
 
     def group(
         self,
@@ -290,35 +294,39 @@ class Stream(Iterable[T]):
         self,
         transformation: Callable[[T], U],
         concurrency: int = 1,
+        ordered: bool = True,
     ) -> "Stream[U]":
         """
         Applies `transformation` on upstream elements and yields the results.
 
         Args:
             transformation (Callable[[T], R]): The function to be applied to each element.
-            concurrency (int): The number of threads used to concurrently apply `transformation` (default is 1, meaning no concurrency). Preserves the upstream order.
+            concurrency (int): The number of threads used to concurrently apply `transformation` (default is 1, meaning no concurrency).
+            ordered (bool): Whether to preserve the order of elements or yield them as soon as they are processed when `concurrency` > 1 (default preserves order).
         Returns:
             Stream[R]: A stream of results of `transformation` applied to upstream elements.
         """
         validate_concurrency(concurrency)
-        return MapStream(self, transformation, concurrency)
+        return MapStream(self, transformation, concurrency, ordered)
 
     def amap(
         self,
         transformation: Callable[[T], Coroutine[Any, Any, U]],
         concurrency: int = 1,
+        ordered: bool = True,
     ) -> "Stream[U]":
         """
-        Applies the asynchrounous `transformation` on upstream elements and yields the results in order.
+        Applies the asynchrounous `transformation` on upstream elements and yields the results.
 
         Args:
             transformation (Callable[[T], Coroutine[Any, Any, U]]): The asynchronous function to be applied to each element.
-            concurrency (int): How many asyncio tasks will run at the same time. Preserves the upstream order.
+            concurrency (int): How many asyncio tasks will run at the same time.
+            ordered (bool): Whether to preserve the order of elements or yield them as soon as they are processed when `concurrency` > 1 (default preserves order).
         Returns:
             Stream[R]: A stream of results of `transformation` applied to upstream elements.
         """
         validate_concurrency(concurrency)
-        return AMapStream(self, transformation, concurrency)
+        return AMapStream(self, transformation, concurrency, ordered)
 
     def observe(self, what: str = "elements") -> "Stream[T]":
         """
@@ -434,11 +442,16 @@ class FlattenStream(DownStream[Iterable[T], T]):
 
 class ForeachStream(DownStream[T, T]):
     def __init__(
-        self, upstream: Stream[T], effect: Callable[[T], Any], concurrency: int
+        self,
+        upstream: Stream[T],
+        effect: Callable[[T], Any],
+        concurrency: int,
+        ordered: bool,
     ) -> None:
         super().__init__(upstream)
         self._effect = effect
         self._concurrency = concurrency
+        self._ordered = ordered
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_foreach_stream(self)
@@ -446,11 +459,16 @@ class ForeachStream(DownStream[T, T]):
 
 class AForeachStream(DownStream[T, T]):
     def __init__(
-        self, upstream: Stream[T], effect: Callable[[T], Coroutine], concurrency: int
+        self,
+        upstream: Stream[T],
+        effect: Callable[[T], Coroutine],
+        concurrency: int,
+        ordered: bool,
     ) -> None:
         super().__init__(upstream)
         self._effect = effect
         self._concurrency = concurrency
+        self._ordered = ordered
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_aforeach_stream(self)
@@ -475,11 +493,16 @@ class GroupStream(DownStream[T, List[T]]):
 
 class MapStream(DownStream[T, U]):
     def __init__(
-        self, upstream: Stream[T], transformation: Callable[[T], U], concurrency: int
+        self,
+        upstream: Stream[T],
+        transformation: Callable[[T], U],
+        concurrency: int,
+        ordered: bool,
     ) -> None:
         super().__init__(upstream)
         self._transformation = transformation
         self._concurrency = concurrency
+        self._ordered = ordered
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_map_stream(self)
@@ -491,10 +514,12 @@ class AMapStream(DownStream[T, U]):
         upstream: Stream[T],
         transformation: Callable[[T], Coroutine[Any, Any, U]],
         concurrency: int,
+        ordered: bool,
     ) -> None:
         super().__init__(upstream)
         self._transformation = transformation
         self._concurrency = concurrency
+        self._ordered = ordered
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_amap_stream(self)

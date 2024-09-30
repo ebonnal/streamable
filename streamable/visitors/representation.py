@@ -51,13 +51,13 @@ class RepresentationVisitor(Visitor[str]):
 
     def visit_foreach_stream(self, stream: ForeachStream[T]) -> str:
         self.methods_reprs.append(
-            f"foreach({self._friendly_repr(stream._effect)}, concurrency={stream._concurrency})"
+            f"foreach({self._friendly_repr(stream._effect)}, concurrency={stream._concurrency}, ordered={stream._ordered})"
         )
         return stream.upstream.accept(self)
 
     def visit_aforeach_stream(self, stream: AForeachStream[T]) -> str:
         self.methods_reprs.append(
-            f"aforeach({self._friendly_repr(stream._effect)}, concurrency={stream._concurrency})"
+            f"aforeach({self._friendly_repr(stream._effect)}, concurrency={stream._concurrency}, ordered={stream._ordered})"
         )
         return stream.upstream.accept(self)
 
@@ -69,13 +69,13 @@ class RepresentationVisitor(Visitor[str]):
 
     def visit_map_stream(self, stream: MapStream[U, T]) -> str:
         self.methods_reprs.append(
-            f"map({self._friendly_repr(stream._transformation)}, concurrency={stream._concurrency})"
+            f"map({self._friendly_repr(stream._transformation)}, concurrency={stream._concurrency}, ordered={stream._ordered})"
         )
         return stream.upstream.accept(self)
 
     def visit_amap_stream(self, stream: AMapStream[U, T]) -> str:
         self.methods_reprs.append(
-            f"amap({self._friendly_repr(stream._transformation)}, concurrency={stream._concurrency})"
+            f"amap({self._friendly_repr(stream._transformation)}, concurrency={stream._concurrency}, ordered={stream._ordered})"
         )
         return stream.upstream.accept(self)
 
