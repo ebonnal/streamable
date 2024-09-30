@@ -102,13 +102,15 @@ class GroupingIterator(Iterator[List[T]]):
         self.size = size
         self.interval_seconds = interval_seconds
         self._to_be_raised: Optional[Exception] = None
-        self._last_yielded_group_at = time.time()
+        self._last_group_yielded_at: float = 0
         self._current_group: List[T] = []
 
     def _interval_seconds_have_elapsed(self) -> bool:
-        return (time.time() - self._last_yielded_group_at) >= self.interval_seconds
+        return (time.time() - self._last_group_yielded_at) >= self.interval_seconds
 
     def __next__(self) -> List[T]:
+        if not self._last_group_yielded_at:
+            self._last_group_yielded_at = time.time()
         if self._to_be_raised:
             e, self._to_be_raised = self._to_be_raised, None
             raise e
@@ -123,7 +125,7 @@ class GroupingIterator(Iterator[List[T]]):
             self._to_be_raised = e
 
         group, self._current_group = self._current_group, []
-        self._last_yielded_group_at = time.time()
+        self._last_group_yielded_at = time.time()
         return group
 
 
@@ -150,7 +152,7 @@ class GroupingByIterator(GroupingIterator[T]):
         self._groups_by[key].append(elem)
 
     def _interval_seconds_have_elapsed(self) -> bool:
-        return (time.time() - self._last_yielded_group_at) >= self.interval_seconds
+        return (time.time() - self._last_group_yielded_at) >= self.interval_seconds
 
     def _pop_full_group(self) -> Optional[List[T]]:
         for key, group in self._groups_by.items():
@@ -172,10 +174,12 @@ class GroupingByIterator(GroupingIterator[T]):
         return self._groups_by.pop(largest_group_key)
 
     def _return_group(self, group: List[T]) -> List[T]:
-        self._last_yielded_group_at = time.time()
+        self._last_group_yielded_at = time.time()
         return group
 
     def __next__(self) -> List[T]:
+        if not self._last_group_yielded_at:
+            self._last_group_yielded_at = time.time()
         if self._is_exhausted:
             if self._groups_by:
                 return self._return_group(self._pop_first_group())
