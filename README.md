@@ -193,10 +193,10 @@ from datetime import timedelta
 integers_within_1s: Stream[List[int]] = (
     integers
     .throttle(per_second=2)
-    .group(interval=timedelta(seconds=1))
+    .group(interval=timedelta(seconds=0.99))
 )
 
-assert list(integers_within_1s) == [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]]
+assert list(integers_within_1s) == [[0, 1, 2], [3, 4], [5, 6], [7, 8], [9]]
 ```
 
 Mix `size`/`by`/`interval` parameters:

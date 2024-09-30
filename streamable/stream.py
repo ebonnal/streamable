@@ -280,7 +280,7 @@ class Stream(Iterable[T]):
 
         Args:
             size (Optional[int], optional): Maximum number of elements per group (default is infinity).
-            seconds (float, optional): Maximum number of seconds between two yields (default is infinity).
+            interval (float, optional): Yields a group if `interval` seconds have passed since the last group was yielded (default is infinity).
             by (Optional[Callable[[T], Any]], optional): to cogroup elements for which this function returns to the same value. (default does not cogroup).
 
         Returns:
