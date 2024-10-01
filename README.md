@@ -106,7 +106,7 @@ assert list(integer_strings) == ['0', '-1', '-2', '-3', '-4', '-5', '-6', '-7', 
 ```
 
 ### thread-based concurrency
-> Applies the transformation concurrently using a thread queue of size `concurrency`, and preserving the upstream order by default:
+> Applies the transformation concurrently using a thread queue of size `concurrency`:
 ```python
 import requests
 
@@ -119,6 +119,8 @@ pokemon_names: Stream[str] = (
 )
 assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
 ```
+
+Preserves the upstream order by default (FIFO) but you can set `ordered=False` for *First Done First Out*.
 
 ### async-based concurrency
 > The sibling operation `.amap` applies an async function:
