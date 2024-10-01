@@ -1,5 +1,6 @@
 import datetime
 import logging
+from multiprocessing import get_logger
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -20,9 +21,8 @@ from typing import (
     overload,
 )
 
-from streamable.util import (
-    NO_REPLACEMENT,
-    get_logger,
+from streamable.util.constants import NO_REPLACEMENT
+from streamable.util.validationtools import (
     validate_concurrency,
     validate_group_interval,
     validate_group_size,

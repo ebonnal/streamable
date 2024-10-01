@@ -23,7 +23,7 @@ from parameterized import parameterized  # type: ignore
 
 from streamable import Stream
 from streamable.functions import NoopStopIteration
-from streamable.util import sidify
+from streamable.util.functiontools import sidify
 
 T = TypeVar("T")
 R = TypeVar("R")
@@ -886,7 +886,9 @@ class TestStream(unittest.TestCase):
             list(
                 Stream(lambda: map(slow_identity, src)).group(
                     size=100,
-                    interval=datetime.timedelta(seconds=2 * slow_identity_duration * 0.99),
+                    interval=datetime.timedelta(
+                        seconds=2 * slow_identity_duration * 0.99
+                    ),
                 )
             ),
             list(map(lambda e: [e, e + 1], pair_src)),

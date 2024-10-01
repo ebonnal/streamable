@@ -1,6 +1,6 @@
 import unittest
 
-from streamable.util import sidify
+from streamable.util.functiontools import sidify
 
 
 class TestUtil(unittest.TestCase):

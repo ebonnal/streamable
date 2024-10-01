@@ -28,14 +28,10 @@ from streamable.iters import (
     TruncatingOnCountIterator,
     TruncatingOnPredicateIterator,
 )
-
-T = TypeVar("T")
-U = TypeVar("U")
-
-from streamable.util import (
-    NO_REPLACEMENT,
-    NoopStopIteration,
-    reraise_as,
+from streamable.util.constants import NO_REPLACEMENT
+from streamable.util.exceptions import NoopStopIteration
+from streamable.util.functiontools import reraise_as
+from streamable.util.validationtools import (
     validate_concurrency,
     validate_group_interval,
     validate_group_size,
@@ -44,6 +40,9 @@ from streamable.util import (
     validate_throttle_per_second,
     validate_truncate_args,
 )
+
+T = TypeVar("T")
+U = TypeVar("U")
 
 
 def catch(

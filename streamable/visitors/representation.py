@@ -14,7 +14,7 @@ from streamable.stream import (
     ThrottleStream,
     TruncateStream,
 )
-from streamable.util import NO_REPLACEMENT
+from streamable.util.constants import NO_REPLACEMENT
 from streamable.visitors import Visitor
 
 T = TypeVar("T")

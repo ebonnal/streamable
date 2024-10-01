@@ -6,6 +6,7 @@ from concurrent.futures import Executor, Future, ThreadPoolExecutor
 from contextlib import contextmanager, suppress
 from datetime import datetime
 from math import ceil
+from multiprocessing import get_logger
 from typing import (
     Any,
     Callable,
@@ -26,17 +27,20 @@ from typing import (
     cast,
 )
 
+from streamable.util.functiontools import reraise_as
+
 T = TypeVar("T")
 U = TypeVar("U")
 
-from streamable.futuretools import (
+from streamable.util.constants import NO_REPLACEMENT
+from streamable.util.exceptions import NoopStopIteration
+from streamable.util.futuretools import (
     FDFOAsyncFutureResultCollection,
     FDFOThreadFutureResultCollection,
     FIFOAsyncFutureResultCollection,
     FIFOThreadFutureResultCollection,
     FutureResultCollection,
 )
-from streamable.util import NO_REPLACEMENT, NoopStopIteration, get_logger, reraise_as
 
 
 class CatchingIterator(Iterator[T]):
@@ -409,18 +413,22 @@ class ThreadConcurrentMappingIterable(ConcurrentMappingIterable[T, U]):
         self.executor = ThreadPoolExecutor(max_workers=self.concurrency)
         return self.executor
 
+    # picklable
+    @staticmethod
     def _safe_transformation(
-        self, elem: T
+        transformation: Callable[[T], U], elem: T
     ) -> Union[U, RaisingIterator.ExceptionContainer]:
         try:
-            return self.transformation(elem)
+            return transformation(elem)
         except Exception as e:
             return RaisingIterator.ExceptionContainer(e)
 
     def _create_future(
         self, elem: T
     ) -> "Future[Union[U, RaisingIterator.ExceptionContainer]]":
-        return self.executor.submit(self._safe_transformation, elem)
+        return self.executor.submit(
+            self._safe_transformation, self.transformation, elem
+        )
 
     def _future_result_collection(
         self,

@@ -1,67 +1,8 @@
 import datetime
-import logging
 import sys
-from typing import Any, Callable, Coroutine, Iterator, Optional, Type, TypeVar
-
-NO_REPLACEMENT = object()
-
-_logger: Optional[logging.Logger] = None
-
-
-def get_logger() -> logging.Logger:
-    global _logger
-    if not _logger:
-        _logger = logging.getLogger("streamable")
-        _logger.propagate = False
-        _handler = logging.StreamHandler()
-        _formatter = logging.Formatter("%(asctime)s: %(levelname)s: %(message)s")
-        _handler.setFormatter(_formatter)
-        _logger.addHandler(_handler)
-        _logger.setLevel(logging.INFO)
-    return _logger
-
+from typing import Any, Callable, Iterator, Optional, TypeVar
 
 T = TypeVar("T")
-R = TypeVar("R")
-
-
-def sidify(func: Callable[[T], Any]) -> Callable[[T], T]:
-    def wrap(arg: T):
-        func(arg)
-        return arg
-
-    return wrap
-
-
-def async_sidify(
-    func: Callable[[T], Coroutine]
-) -> Callable[[T], Coroutine[Any, Any, T]]:
-    async def wrap(arg: T) -> T:
-        coroutine = func(arg)
-        if not isinstance(coroutine, Coroutine):
-            raise TypeError(
-                f"The function is expected to be an async function, i.e. it must be a function returning a Coroutine object, but returned a {type(coroutine)}."
-            )
-        await coroutine
-        return arg
-
-    return wrap
-
-
-def reraise_as(
-    func: Callable[[T], R], source: Type[Exception], target: Type[Exception]
-) -> Callable[[T], R]:
-    def wrap(arg):
-        try:
-            return func(arg)
-        except source as e:
-            raise target() from e
-
-    return wrap
-
-
-class NoopStopIteration(Exception):
-    pass
 
 
 def validate_iterator(iterator: Iterator):
