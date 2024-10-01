@@ -346,6 +346,53 @@ class TestStream(unittest.TestCase):
 
     @parameterized.expand(
         [
+            [True, identity],
+            [False, sorted],
+        ]
+    )
+    def test_process_concurrency(self, ordered, order_mutation):
+        from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+
+        from streamable.iters import OSConcurrentMappingIterable
+
+        OSConcurrentMappingIterable.EXECUTOR_CLASS = ProcessPoolExecutor
+        try:
+
+            lambda_identity = lambda x: x * 10
+
+            def local_identity(x):
+                return x
+
+            for f in [lambda_identity, local_identity]:
+                with self.assertRaisesRegex(
+                    AttributeError,
+                    "Can't pickle",
+                    msg="process-based concurrency should not be able to serialize a lambda or a local func",
+                ):
+                    list(Stream(src).map(f, concurrency=2))
+
+            sleeps = [0.01, 1, 0.01]
+            state = []
+            self.assertListEqual(
+                list(
+                    Stream(sleeps)
+                    .foreach(identity_sleep, concurrency=2, ordered=ordered)
+                    .map(str, concurrency=2, ordered=True)
+                    .foreach(state.append, concurrency=2, ordered=True)
+                ),
+                list(order_mutation(map(str, sleeps))),
+                msg="process-based concurrency must correctly transform elements, respecting `ordered`...",
+            )
+            self.assertListEqual(
+                state,
+                [],
+                msg="... and must not mutate main thread-bound structures.",
+            )
+        finally:
+            OSConcurrentMappingIterable.EXECUTOR_CLASS = ThreadPoolExecutor
+
+    @parameterized.expand(
+        [
             [16, 0],
             [1, 0],
             [16, 1],

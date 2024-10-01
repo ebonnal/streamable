@@ -2,7 +2,7 @@ import time
 from abc import ABC, abstractmethod
 from asyncio import AbstractEventLoop, get_event_loop
 from collections import defaultdict, deque
-from concurrent.futures import Executor, Future, ThreadPoolExecutor
+from concurrent.futures import Executor, Future, ProcessPoolExecutor, ThreadPoolExecutor
 from contextlib import contextmanager, suppress
 from datetime import datetime
 from math import ceil
@@ -395,7 +395,12 @@ class ConcurrentMappingIterable(
                 yield result
 
 
-class ThreadConcurrentMappingIterable(ConcurrentMappingIterable[T, U]):
+class OSConcurrentMappingIterable(ConcurrentMappingIterable[T, U]):
+    # offer experimental hook to use processes instead of threads
+    EXECUTOR_CLASS: Type[Union[ThreadPoolExecutor, ProcessPoolExecutor]] = (
+        ThreadPoolExecutor
+    )
+
     def __init__(
         self,
         iterator: Iterator[T],
@@ -410,7 +415,7 @@ class ThreadConcurrentMappingIterable(ConcurrentMappingIterable[T, U]):
         self.executor: Executor
 
     def _context_manager(self) -> ContextManager:
-        self.executor = ThreadPoolExecutor(max_workers=self.concurrency)
+        self.executor = self.EXECUTOR_CLASS(max_workers=self.concurrency)
         return self.executor
 
     # picklable

@@ -21,8 +21,8 @@ from streamable.iters import (
     GroupingByIterator,
     GroupingIterator,
     ObservingIterator,
+    OSConcurrentMappingIterable,
     RaisingIterator,
-    ThreadConcurrentMappingIterable,
     ThrottlingIntervalIterator,
     ThrottlingPerSecondIterator,
     TruncatingOnCountIterator,
@@ -114,7 +114,7 @@ def map(
     else:
         return RaisingIterator(
             iter(
-                ThreadConcurrentMappingIterable(
+                OSConcurrentMappingIterable(
                     iterator,
                     transformation,
                     concurrency=concurrency,
