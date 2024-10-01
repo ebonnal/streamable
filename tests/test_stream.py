@@ -886,7 +886,7 @@ class TestStream(unittest.TestCase):
             list(
                 Stream(lambda: map(slow_identity, src)).group(
                     size=100,
-                    interval=datetime.timedelta(seconds=2 * slow_identity_duration),
+                    interval=datetime.timedelta(seconds=2 * slow_identity_duration * 0.99),
                 )
             ),
             list(map(lambda e: [e, e + 1], pair_src)),
