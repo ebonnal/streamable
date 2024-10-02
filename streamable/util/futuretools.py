@@ -66,8 +66,9 @@ class FDFOThreadFutureResultCollection(CallbackFutureResultCollection[T]):
         self._results.put(future.result())
 
     def __next__(self) -> T:
+        result = self._results.get()
         self._n_futures -= 1
-        return self._results.get()
+        return result
 
 
 class FIFOAsyncFutureResultCollection(DequeFutureResultCollection[T]):
@@ -97,7 +98,7 @@ class FDFOAsyncFutureResultCollection(CallbackFutureResultCollection[T]):
         self._waiter.set_result(future.result())
 
     def __next__(self) -> T:
-        self._n_futures -= 1
         result = self._loop.run_until_complete(self._waiter)
+        self._n_futures -= 1
         self._waiter = self._loop.create_future()
         return result
