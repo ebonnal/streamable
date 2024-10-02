@@ -20,4 +20,4 @@ jobs:
     - name: mypy
       run: |
         python -m pip install -r requirements-dev.txt
-        python -m mypy streamable tests
+        python -m mypy --install-types --non-interactive streamable tests
