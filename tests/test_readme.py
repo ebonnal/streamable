@@ -74,7 +74,7 @@ class TestReadme(unittest.TestCase):
         )
 
         assert list(pokemon_names) == ["bulbasaur", "ivysaur", "venusaur"]
-        asyncio.run(http_async_client.aclose())
+        asyncio.get_event_loop().run_until_complete(http_async_client.aclose())
 
     def test_foreach_example(self) -> None:
         self_printing_integers: Stream[int] = integers.foreach(print)

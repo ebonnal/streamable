@@ -139,7 +139,7 @@ pokemon_names: Stream[str] = (
 )
 
 assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
-asyncio.run(http_async_client.aclose())
+asyncio.get_event_loop().run_until_complete(http_async_client.aclose())
 ```
 
 
