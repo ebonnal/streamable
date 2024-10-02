@@ -1,6 +1,6 @@
+import asyncio
 import time
 from abc import ABC, abstractmethod
-from asyncio import AbstractEventLoop, get_event_loop
 from collections import defaultdict, deque
 from concurrent.futures import Executor, Future, ProcessPoolExecutor, ThreadPoolExecutor
 from contextlib import contextmanager, suppress
@@ -454,11 +454,11 @@ class AsyncConcurrentMappingIterable(ConcurrentMappingIterable[T, U]):
     ) -> None:
         super().__init__(iterator, buffer_size, ordered)
         self.transformation = transformation
-        self._loop: AbstractEventLoop
+        self._loop: asyncio.AbstractEventLoop
 
     @contextmanager
     def _context_manager(self):
-        self._loop = get_event_loop()
+        self._loop = asyncio.new_event_loop()
         yield
 
     async def _safe_transformation(
