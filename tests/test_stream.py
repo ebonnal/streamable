@@ -372,21 +372,30 @@ class TestStream(unittest.TestCase):
                     list(Stream(src).map(f, concurrency=2))
 
             sleeps = [0.01, 1, 0.01]
-            state = []
+            state: List[str] = []
+            expected_result_list: List[str] = list(order_mutation(map(str, sleeps)))
+            stream = (
+                Stream(sleeps)
+                .foreach(identity_sleep, concurrency=2, ordered=ordered)
+                .map(str, concurrency=2, ordered=True)
+                .foreach(state.append, concurrency=2, ordered=True)
+                .foreach(lambda _: state.append(""), concurrency=1, ordered=True)
+            )
             self.assertListEqual(
-                list(
-                    Stream(sleeps)
-                    .foreach(identity_sleep, concurrency=2, ordered=ordered)
-                    .map(str, concurrency=2, ordered=True)
-                    .foreach(state.append, concurrency=2, ordered=True)
-                ),
-                list(order_mutation(map(str, sleeps))),
+                list(stream),
+                expected_result_list,
                 msg="process-based concurrency must correctly transform elements, respecting `ordered`...",
             )
             self.assertListEqual(
                 state,
-                [],
+                [""] * len(sleeps),
                 msg="... and must not mutate main thread-bound structures.",
+            )
+            # test partial iteration:
+            self.assertEqual(
+                next(iter(stream)),
+                expected_result_list[0],
+                msg="process-based concurrency must behave ok with partial iteration",
             )
         finally:
             OSConcurrentMappingIterable.EXECUTOR_CLASS = ThreadPoolExecutor
