@@ -222,9 +222,11 @@ class TestReadme(unittest.TestCase):
         # for mypy typing check only
         if not self:
             import csv
-            from datetime import timedelta
             import itertools
+            from datetime import timedelta
+
             import requests
+
             from streamable import Stream
 
             with open("./quadruped_pokemons.csv", mode="w") as file:
