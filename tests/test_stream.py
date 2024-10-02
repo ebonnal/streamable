@@ -350,7 +350,7 @@ class TestStream(unittest.TestCase):
             [False, sorted],
         ]
     )
-    def test_process_concurrency(self, ordered, order_mutation):
+    def test_process_concurrency(self, ordered, order_mutation) -> None:
         from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 
         from streamable.iters import OSConcurrentMappingIterable
@@ -437,7 +437,7 @@ class TestStream(unittest.TestCase):
         expected_duration: float,
         operation,
         func,
-    ):
+    ) -> None:
         seconds = [0.1, 0.01, 0.2]
         duration, res = timestream(
             operation(Stream(seconds), func, ordered=ordered, concurrency=2),
