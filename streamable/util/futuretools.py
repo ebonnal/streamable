@@ -1,6 +1,5 @@
 import asyncio
 from abc import ABC, abstractmethod
-from asyncio import AbstractEventLoop
 from collections import deque
 from concurrent.futures import Future
 from multiprocessing import Queue
@@ -76,12 +75,8 @@ class FIFOAsyncFutureResultCollection(DequeFutureResultCollection[T]):
     First In First Out
     """
 
-    def __init__(self, loop: AbstractEventLoop) -> None:
-        super().__init__()
-        self._loop = loop
-
     def __next__(self) -> T:
-        return self._loop.run_until_complete(self._futures.popleft())  # type: ignore
+        return asyncio.get_event_loop().run_until_complete(self._futures.popleft())  # type: ignore
 
 
 class FDFOAsyncFutureResultCollection(CallbackFutureResultCollection[T]):
@@ -89,16 +84,17 @@ class FDFOAsyncFutureResultCollection(CallbackFutureResultCollection[T]):
     First Done First Out
     """
 
-    def __init__(self, loop: AbstractEventLoop) -> None:
+    def __init__(self) -> None:
         super().__init__()
-        self._loop = loop
-        self._waiter: asyncio.futures.Future[T] = self._loop.create_future()
+        self._waiter: asyncio.futures.Future[T] = (
+            asyncio.get_event_loop().create_future()
+        )
 
     def _done_callback(self, future: "Future[T]") -> None:
         self._waiter.set_result(future.result())
 
     def __next__(self) -> T:
-        result = self._loop.run_until_complete(self._waiter)
+        result = asyncio.get_event_loop().run_until_complete(self._waiter)
         self._n_futures -= 1
-        self._waiter = self._loop.create_future()
+        self._waiter = asyncio.get_event_loop().create_future()
         return result

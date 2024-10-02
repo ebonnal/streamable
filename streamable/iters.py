@@ -364,8 +364,12 @@ class ConcurrentMappingIterable(
         self.buffer_size = buffer_size
         self.ordered = ordered
 
-    @abstractmethod
-    def _context_manager(self) -> ContextManager: ...
+    def _context_manager(self) -> ContextManager:
+        @contextmanager
+        def dummy_context_manager_generator():
+            yield
+
+        return dummy_context_manager_generator()
 
     @abstractmethod
     def _launch_task(
@@ -454,12 +458,6 @@ class AsyncConcurrentMappingIterable(ConcurrentMappingIterable[T, U]):
     ) -> None:
         super().__init__(iterator, buffer_size, ordered)
         self.transformation = transformation
-        self._loop: asyncio.AbstractEventLoop
-
-    @contextmanager
-    def _context_manager(self):
-        self._loop = asyncio.new_event_loop()
-        yield
 
     async def _safe_transformation(
         self, elem: T
@@ -479,16 +477,16 @@ class AsyncConcurrentMappingIterable(ConcurrentMappingIterable[T, U]):
     ) -> "Future[Union[U, RaisingIterator.ExceptionContainer]]":
         return cast(
             "Future[Union[U, RaisingIterator.ExceptionContainer]]",
-            self._loop.create_task(self._safe_transformation(elem)),
+            asyncio.get_event_loop().create_task(self._safe_transformation(elem)),
         )
 
     def _future_result_collection(
         self,
     ) -> FutureResultCollection[Union[U, RaisingIterator.ExceptionContainer]]:
         if self.ordered:
-            return FIFOAsyncFutureResultCollection(self._loop)
+            return FIFOAsyncFutureResultCollection()
         else:
-            return FDFOAsyncFutureResultCollection(self._loop)
+            return FDFOAsyncFutureResultCollection()
 
 
 class ConcurrentFlatteningIterable(
