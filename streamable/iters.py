@@ -368,7 +368,7 @@ class ConcurrentMappingIterable(
     def _context_manager(self) -> ContextManager: ...
 
     @abstractmethod
-    def _create_future(
+    def _launch_task(
         self, elem: T
     ) -> "Future[Union[U, RaisingIterator.ExceptionContainer]]": ...
 
@@ -385,13 +385,13 @@ class ConcurrentMappingIterable(
             # queue tasks up to buffer_size
             with suppress(StopIteration):
                 while len(future_results) < self.buffer_size:
-                    future_results.add_future(self._create_future(next(self.iterator)))
+                    future_results.add_future(self._launch_task(next(self.iterator)))
 
             # wait, queue, yield
             while future_results:
                 result = next(future_results)
                 with suppress(StopIteration):
-                    future_results.add_future(self._create_future(next(self.iterator)))
+                    future_results.add_future(self._launch_task(next(self.iterator)))
                 yield result
 
 
@@ -428,7 +428,7 @@ class OSConcurrentMappingIterable(ConcurrentMappingIterable[T, U]):
         except Exception as e:
             return RaisingIterator.ExceptionContainer(e)
 
-    def _create_future(
+    def _launch_task(
         self, elem: T
     ) -> "Future[Union[U, RaisingIterator.ExceptionContainer]]":
         return self.executor.submit(
@@ -474,7 +474,7 @@ class AsyncConcurrentMappingIterable(ConcurrentMappingIterable[T, U]):
         except Exception as e:
             return RaisingIterator.ExceptionContainer(e)
 
-    def _create_future(
+    def _launch_task(
         self, elem: T
     ) -> "Future[Union[U, RaisingIterator.ExceptionContainer]]":
         return cast(
