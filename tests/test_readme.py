@@ -170,7 +170,7 @@ class TestReadme(unittest.TestCase):
         ]
 
         import requests
-        from requests.exceptions import SSLError
+        from requests.exceptions import ConnectionError
 
         status_codes_ignoring_resolution_errors: Stream[int] = (
             Stream(
@@ -178,9 +178,8 @@ class TestReadme(unittest.TestCase):
             )
             .map(requests.get, concurrency=2)
             .catch(
-                SSLError,
-                when=lambda exception: "Max retries exceeded with url"
-                in str(exception),
+                ConnectionError,
+                when=lambda exception: "Max retries exceeded" in str(exception),
             )
             .map(lambda response: response.status_code)
         )
