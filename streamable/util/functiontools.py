@@ -1,5 +1,5 @@
 import functools
-from typing import Any, Callable, Coroutine, Type, TypeVar, cast
+from typing import Any, Callable, Coroutine, Tuple, Type, TypeVar, cast
 
 T = TypeVar("T")
 R = TypeVar("R")
@@ -46,3 +46,11 @@ def async_sidify(
         return arg
 
     return wrap
+
+
+def _star(func: Callable[..., R], args: Tuple) -> R:
+    return func(*args)
+
+
+def star(func: Callable[..., R]) -> Callable[[Tuple], R]:
+    return functools.partial(_star, func)

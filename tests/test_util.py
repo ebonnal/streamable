@@ -1,6 +1,6 @@
 import unittest
 
-from streamable.util.functiontools import sidify
+from streamable.util.functiontools import sidify, star
 
 
 class TestUtil(unittest.TestCase):
@@ -15,3 +15,9 @@ class TestUtil(unittest.TestCase):
             return x**2
 
         self.assertEqual(g(2), 2)
+
+    def test_star(self) -> None:
+        self.assertListEqual(
+            list(map(star(lambda i, n: i * n), enumerate(range(10)))),
+            list(map(lambda x: x**2, range(10))),
+        )
