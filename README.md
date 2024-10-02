@@ -70,7 +70,7 @@ inverses: Stream[float] = (
 
 ### reduce it
 ```python
->>> sum(integers)
+>>> sum(inverses)
 2.82
 >>> max(inverses)
 1.0
@@ -102,7 +102,7 @@ inverses: Stream[float] = (
 ```python
 negative_integer_strings: Stream[str] = integers.map(lambda n: -n).map(str)
 
-assert list(integer_strings) == ['0', '-1', '-2', '-3', '-4', '-5', '-6', '-7', '-8', '-9']
+assert list(negative_integer_strings) == ['0', '-1', '-2', '-3', '-4', '-5', '-6', '-7', '-8', '-9']
 ```
 
 ### thread-based concurrency
@@ -112,7 +112,7 @@ import requests
 
 pokemon_names: Stream[str] = (
     Stream(range(1, 4))
-    .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i + 1}")
+    .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
     .map(requests.get, concurrency=3)
     .map(requests.Response.json)
     .map(lambda poke: poke["name"])
@@ -217,7 +217,7 @@ assert list(integers_2_by_2_by_parity) == [[0, 2], [1, 3], [4, 6], [5, 7], [8], 
 ```python
 pair_then_odd_integers: Stream[int] = integers_by_parity.flatten()
 
-assert pair_then_odd_integers == [0, 2, 4, 6, 8, 1, 3, 5, 7, 9]
+assert list(pair_then_odd_integers) == [0, 2, 4, 6, 8, 1, 3, 5, 7, 9]
 ```
 
 ### thread-based concurrency
@@ -251,12 +251,12 @@ assert list(inverses) == [float("inf"), 1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0
 > You can specify an additional `when` condition for the catch:
 ```python
 import requests
-from requests.exceptions import ConnectionError
+from requests.exceptions import SSLError
 
 status_codes_ignoring_resolution_errors: Stream[int] = (
     Stream(["https://github.com", "https://foo.bar", "https://github.com/foo/bar"])
     .map(requests.get, concurrency=2)
-    .catch(ConnectionError, when=lambda exception: "Failed to resolve" in str(exception))
+    .catch(SSLError, when=lambda exception: "Max retries exceeded with url" in str(exception))
     .map(lambda response: response.status_code)
 )
 
