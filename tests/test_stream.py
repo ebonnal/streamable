@@ -350,7 +350,14 @@ class TestStream(unittest.TestCase):
             [False, sorted],
         ]
     )
-    def test_process_concurrency(self, ordered, order_mutation) -> None:
+    def test_process_concurrency(
+        self, ordered, order_mutation
+    ) -> None:  # pragma: no cover
+        import sys
+
+        if sys.version < "3.9.0":
+            return
+
         from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 
         from streamable.iters import OSConcurrentMappingIterable
