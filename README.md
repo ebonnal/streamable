@@ -96,9 +96,10 @@ inverses: Stream[float] = (
 ---
 
 # 📒 ***Operations***
-
 ## `.map`
+
 > Applies a transformation on elements:
+
 ```python
 negative_integer_strings: Stream[str] = integers.map(lambda n: -n).map(str)
 
@@ -106,7 +107,9 @@ assert list(negative_integer_strings) == ['0', '-1', '-2', '-3', '-4', '-5', '-6
 ```
 
 ### thread-based concurrency
+
 > Applies the transformation concurrently using a thread queue of size `concurrency`:
+
 ```python
 import requests
 
@@ -123,7 +126,9 @@ assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
 Preserves the upstream order by default (FIFO) but you can set `ordered=False` for *First Done First Out*.
 
 ### async-based concurrency
+
 > The sibling operation `.amap` applies an async function:
+
 ```python
 import httpx
 import asyncio
@@ -142,8 +147,23 @@ assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
 asyncio.get_event_loop().run_until_complete(http_async_client.aclose())
 ```
 
+### starmap
+
+> The `star` function decorator transforms a function that takes several positional arguments into a function that takes a tuple:
+
+```python
+from streamable import star
+
+zeros: Stream[int] = (
+    Stream(enumerate(integers))
+    .map(star(lambda index, integer: index - integer))
+)
+
+assert list(zeros) == [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+```
 
 ## `.foreach`
+
 > Applies a side effect on elements:
 
 ```python
@@ -153,12 +173,15 @@ assert list(self_printing_integers) == list(integers)  # triggers the printing
 ```
 
 ### thread-based concurrency
+
 > Like `.map` it has an optional `concurrency: int` parameter.
 
 ### async-based concurrency
+
 > Like `.map` it has a sibling `.aforeach` operation for async.
 
 ## `.filter`
+
 > Keeps only the elements that satisfy a condition:
 
 ```python
@@ -221,7 +244,9 @@ assert list(pair_then_odd_integers) == [0, 2, 4, 6, 8, 1, 3, 5, 7, 9]
 ```
 
 ### thread-based concurrency
+
 > Flattens `concurrency` iterables concurrently:
+
 ```python
 letters_mix: Stream[str] = Stream(
     [
@@ -266,6 +291,7 @@ assert list(status_codes_ignoring_resolution_errors) == [200, 404]
 > It has an optional `finally_raise: bool` parameter to raise the first catched exception when iteration ends.
 
 ## `.truncate`
+
 > Stops the iteration:
 - after a given number of yielded elements:
 ```python
@@ -299,6 +325,21 @@ INFO: [duration=0:00:05.039571 errors=0] 10 integers yielded
 ```
 
 Note that the amount of logs will never be overwhelming because they are produced logarithmically e.g. the 11th log will be produced when the iteration reaches the 1024th element.
+
+## `zip`
+
+> Use the standard `zip` function:
+
+```python
+from streamable import star
+
+cubes: Stream[int] = (
+    Stream(zip(integers, integers, integers)) # Stream[Tuple[int, int, int]]
+    .map(star(lambda a, b, c: a * b * c))
+)
+
+assert list(cubes) == [0, 1, 8, 27, 64, 125, 216, 343, 512, 729]
+```
 
 ---
 

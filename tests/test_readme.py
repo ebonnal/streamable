@@ -31,6 +31,15 @@ class TestReadme(unittest.TestCase):
         self.assertEqual(next(inverses_iter), 1.0)
         self.assertEqual(next(inverses_iter), 0.5)
 
+    def test_starmap_example(self) -> None:
+        from streamable import star
+
+        zeros: Stream[int] = Stream(enumerate(integers)).map(
+            star(lambda index, integer: index - integer)
+        )
+
+        assert list(zeros) == [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
     def test_map_example(self) -> None:
         negative_integer_strings: Stream[str] = integers.map(lambda n: -n).map(str)
         assert list(negative_integer_strings) == [
@@ -197,6 +206,16 @@ class TestReadme(unittest.TestCase):
 
     def test_observe_example(self) -> None:
         observed_slow_integers: Stream[int] = slow_integers.observe("integers")
+
+    def test_zip_example(self) -> None:
+        from streamable import star
+
+        cubes: Stream[int] = Stream(
+            zip(integers, integers, integers)
+        ).map(  # Stream[Tuple[int, int, int]]
+            star(lambda a, b, c: a * b * c)
+        )
+        assert list(cubes) == [0, 1, 8, 27, 64, 125, 216, 343, 512, 729]
 
     # fmt: off
     def test_etl_example(self) -> None: # pragma: no cover
