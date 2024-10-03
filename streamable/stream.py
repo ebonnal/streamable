@@ -160,6 +160,7 @@ class Stream(Iterable[T]):
         self: "Stream[Iterable[U]]",
         concurrency: int = 1,
     ) -> "Stream[U]": ...
+
     @overload
     def flatten(
         self: "Stream[Collection[U]]",
