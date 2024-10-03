@@ -307,15 +307,16 @@ assert list(status_codes_ignoring_resolution_errors) == [200, 404]
 
 ## `.truncate`
 
-> Stops the iteration:
-- after a given number of yielded elements:
+> Ends iteration once a given number of elements have been yielded:
+
 ```python
 five_first_integers: Stream[int] = integers.truncate(5)
 
 assert list(five_first_integers) == [0, 1, 2, 3, 4]
 ```
 
-- as soon as a condition is satisfied:
+> ... or when a condition has become satisfied:
+
 ```python
 five_first_integers: Stream[int] = integers.truncate(when=lambda n: n == 5)
 
