@@ -247,7 +247,7 @@ class TestStream(unittest.TestCase):
     Stream(range(0, 256))
     .truncate(count=1024, when=<lambda>)
     .filter(bool)
-    .foreach(<lambda>, concurrency=1, ordered=True, within_processes=True)
+    .foreach(<lambda>, concurrency=1, ordered=True, within_processes=False)
     .aforeach(async_identity, concurrency=1, ordered=True)
     .map(CustomCallable(...), concurrency=1, ordered=True, within_processes=False)
     .amap(async_identity, concurrency=1, ordered=True)

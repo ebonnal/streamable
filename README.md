@@ -133,7 +133,7 @@ Preserves the upstream order by default (FIFO) but you can set `ordered=False` f
 state: List[int] = []
 n_integers: int = (
     integers
-    .map(state.append, within_processes=True, concurrency=4)
+    .map(state.append, concurrency=4, within_processes=True)
     .count()
 )
 assert n_integers == 10
