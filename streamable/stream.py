@@ -215,10 +215,10 @@ class Stream(Iterable[T]):
         concurrency: int = 1,
     ) -> "Stream[U]":
         """
-        Iterates over upstream elements, assumed to be iterables, and individually yields the sub-elements.
+        Iterates over upstream elements assumed to be iterables, and individually yields their items.
 
         Args:
-            concurrency (int): The number of threads used to concurrently flatten the upstream iterables (default is 1, meaning no concurrency).
+            concurrency (int): Represents both the number of threads used to concurrently flatten the upstream iterables and the number of iterables buffered (default is 1, meaning no multithreading).
         Returns:
             Stream[R]: A stream of flattened elements from upstream iterables.
         """
@@ -230,6 +230,7 @@ class Stream(Iterable[T]):
         effect: Callable[[T], Any],
         concurrency: int = 1,
         ordered: bool = True,
+        within_processes: bool = False,
     ) -> "Stream[T]":
         """
         For each upstream element, yields it after having called `effect` on it.
@@ -237,13 +238,14 @@ class Stream(Iterable[T]):
 
         Args:
             effect (Callable[[T], Any]): The function to be applied to each element as a side effect.
-            concurrency (int): The number of threads used to concurrently apply the `effect` (default is 1, meaning no concurrency).
+            concurrency (int): Represents both the number of threads used to concurrently apply the `effect` and the number of elements buffered (default is 1, meaning no multithreading).
             ordered (bool): Whether to preserve the order of elements or yield them as soon as they are processed when `concurrency` > 1 (default preserves order).
+            within_processes (bool): True concurrency and memory isolation by spawning processes instead of threads (defaults to threads).
         Returns:
             Stream[T]: A stream of upstream elements, unchanged.
         """
         validate_concurrency(concurrency)
-        return ForeachStream(self, effect, concurrency, ordered)
+        return ForeachStream(self, effect, concurrency, ordered, within_processes)
 
     def aforeach(
         self,
@@ -257,7 +259,7 @@ class Stream(Iterable[T]):
 
         Args:
             effect (Callable[[T], Any]): The asynchronous function to be applied to each element as a side effect.
-            concurrency (int): How many asyncio tasks will run at the same time.
+            concurrency (int): Represents both the number of async tasks concurrently applying the `effect` and the number of elements buffered.
             ordered (bool): Whether to preserve the order of elements or yield them as soon as they are processed when `concurrency` > 1 (default preserves order).
         Returns:
             Stream[T]: A stream of upstream elements, unchanged.
@@ -295,19 +297,21 @@ class Stream(Iterable[T]):
         transformation: Callable[[T], U],
         concurrency: int = 1,
         ordered: bool = True,
+        within_processes: bool = False,
     ) -> "Stream[U]":
         """
         Applies `transformation` on upstream elements and yields the results.
 
         Args:
             transformation (Callable[[T], R]): The function to be applied to each element.
-            concurrency (int): The number of threads used to concurrently apply `transformation` (default is 1, meaning no concurrency).
+            concurrency (int): Represents both the number of threads used to concurently apply `transformation` and the number of results buffered (default is 1, meaning no multithreading).
             ordered (bool): Whether to preserve the order of elements or yield them as soon as they are processed when `concurrency` > 1 (default preserves order).
+            within_processes (bool): True concurrency and memory isolation by spawning processes instead of threads (defaults to threads).
         Returns:
             Stream[R]: A stream of results of `transformation` applied to upstream elements.
         """
         validate_concurrency(concurrency)
-        return MapStream(self, transformation, concurrency, ordered)
+        return MapStream(self, transformation, concurrency, ordered, within_processes)
 
     def amap(
         self,
@@ -320,7 +324,7 @@ class Stream(Iterable[T]):
 
         Args:
             transformation (Callable[[T], Coroutine[Any, Any, U]]): The asynchronous function to be applied to each element.
-            concurrency (int): How many asyncio tasks will run at the same time.
+            concurrency (int): Represents both the number of async tasks concurrently applying `transformation` and the number of results buffered.
             ordered (bool): Whether to preserve the order of elements or yield them as soon as they are processed when `concurrency` > 1 (default preserves order).
         Returns:
             Stream[R]: A stream of results of `transformation` applied to upstream elements.
@@ -447,11 +451,13 @@ class ForeachStream(DownStream[T, T]):
         effect: Callable[[T], Any],
         concurrency: int,
         ordered: bool,
+        within_processes: bool,
     ) -> None:
         super().__init__(upstream)
         self._effect = effect
         self._concurrency = concurrency
         self._ordered = ordered
+        self._within_processes = within_processes
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_foreach_stream(self)
@@ -498,11 +504,13 @@ class MapStream(DownStream[T, U]):
         transformation: Callable[[T], U],
         concurrency: int,
         ordered: bool,
+        within_processes: bool,
     ) -> None:
         super().__init__(upstream)
         self._transformation = transformation
         self._concurrency = concurrency
         self._ordered = ordered
+        self._within_processes = within_processes
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_map_stream(self)
