@@ -237,9 +237,9 @@ class TestStream(unittest.TestCase):
         self.assertEqual(
             """(
     Stream(range(0, 256))
-    .map(<lambda>, concurrency=1, ordered=True)
+    .map(<lambda>, concurrency=1, ordered=True, within_processes=True)
 )""",
-            repr(Stream(src).map(lambda _: _)),
+            repr(Stream(src).map(lambda _: _, within_processes=True)),
             msg="`repr` should work as expected on a stream with 1 operation",
         )
         self.assertEqual(
@@ -247,9 +247,9 @@ class TestStream(unittest.TestCase):
     Stream(range(0, 256))
     .truncate(count=1024, when=<lambda>)
     .filter(bool)
-    .foreach(<lambda>, concurrency=1, ordered=True)
+    .foreach(<lambda>, concurrency=1, ordered=True, within_processes=True)
     .aforeach(async_identity, concurrency=1, ordered=True)
-    .map(CustomCallable(...), concurrency=1, ordered=True)
+    .map(CustomCallable(...), concurrency=1, ordered=True, within_processes=False)
     .amap(async_identity, concurrency=1, ordered=True)
     .group(size=100, by=None, interval=None)
     .observe('groups')
@@ -358,54 +358,47 @@ class TestStream(unittest.TestCase):
         if sys.version < "3.9.0":
             return
 
-        from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+        lambda_identity = lambda x: x * 10
 
-        from streamable.iters import OSConcurrentMappingIterable
+        def local_identity(x):
+            return x
 
-        OSConcurrentMappingIterable.EXECUTOR_CLASS = ProcessPoolExecutor
-        try:
+        for f in [lambda_identity, local_identity]:
+            with self.assertRaisesRegex(
+                AttributeError,
+                "Can't pickle",
+                msg="process-based concurrency should not be able to serialize a lambda or a local func",
+            ):
+                list(Stream(src).map(f, concurrency=2, within_processes=True))
 
-            lambda_identity = lambda x: x * 10
-
-            def local_identity(x):
-                return x
-
-            for f in [lambda_identity, local_identity]:
-                with self.assertRaisesRegex(
-                    AttributeError,
-                    "Can't pickle",
-                    msg="process-based concurrency should not be able to serialize a lambda or a local func",
-                ):
-                    list(Stream(src).map(f, concurrency=2))
-
-            sleeps = [0.01, 1, 0.01]
-            state: List[str] = []
-            expected_result_list: List[str] = list(order_mutation(map(str, sleeps)))
-            stream = (
-                Stream(sleeps)
-                .foreach(identity_sleep, concurrency=2, ordered=ordered)
-                .map(str, concurrency=2, ordered=True)
-                .foreach(state.append, concurrency=2, ordered=True)
-                .foreach(lambda _: state.append(""), concurrency=1, ordered=True)
+        sleeps = [0.01, 1, 0.01]
+        state: List[str] = []
+        expected_result_list: List[str] = list(order_mutation(map(str, sleeps)))
+        stream = (
+            Stream(sleeps)
+            .foreach(
+                identity_sleep, concurrency=2, ordered=ordered, within_processes=True
             )
-            self.assertListEqual(
-                list(stream),
-                expected_result_list,
-                msg="process-based concurrency must correctly transform elements, respecting `ordered`...",
-            )
-            self.assertListEqual(
-                state,
-                [""] * len(sleeps),
-                msg="... and must not mutate main thread-bound structures.",
-            )
-            # test partial iteration:
-            self.assertEqual(
-                next(iter(stream)),
-                expected_result_list[0],
-                msg="process-based concurrency must behave ok with partial iteration",
-            )
-        finally:
-            OSConcurrentMappingIterable.EXECUTOR_CLASS = ThreadPoolExecutor
+            .map(str, concurrency=2, ordered=True, within_processes=True)
+            .foreach(state.append, concurrency=2, ordered=True, within_processes=True)
+            .foreach(lambda _: state.append(""), concurrency=1, ordered=True)
+        )
+        self.assertListEqual(
+            list(stream),
+            expected_result_list,
+            msg="process-based concurrency must correctly transform elements, respecting `ordered`...",
+        )
+        self.assertListEqual(
+            state,
+            [""] * len(sleeps),
+            msg="... and must not mutate main thread-bound structures.",
+        )
+        # test partial iteration:
+        self.assertEqual(
+            next(iter(stream)),
+            expected_result_list[0],
+            msg="process-based concurrency must behave ok with partial iteration",
+        )
 
     @parameterized.expand(
         [

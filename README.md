@@ -125,6 +125,21 @@ assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
 
 Preserves the upstream order by default (FIFO) but you can set `ordered=False` for *First Done First Out*.
 
+### process-based concurrency
+
+> Set `within_processes=True`:
+
+```python
+state: List[int] = []
+n_integers: int = (
+    integers
+    .map(state.append, within_processes=True, concurrency=4)
+    .count()
+)
+assert n_integers == 10
+assert state == [] # main process's state not mutated
+```
+
 ### async-based concurrency
 
 > The sibling operation `.amap` applies an async function:

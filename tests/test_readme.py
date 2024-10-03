@@ -55,6 +55,14 @@ class TestReadme(unittest.TestCase):
             "-9",
         ]
 
+    def test_process_concurrent_map_example(self) -> None:
+        state: List[int] = []
+        n_integers: int = integers.map(
+            state.append, within_processes=True, concurrency=4
+        ).count()
+        assert n_integers == 10
+        assert state == []  # main process's state not mutated
+
     def test_thread_concurrent_map_example(self) -> None:
         import requests
 
