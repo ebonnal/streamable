@@ -400,11 +400,6 @@ class ConcurrentMappingIterable(
 
 
 class OSConcurrentMappingIterable(ConcurrentMappingIterable[T, U]):
-    # offer experimental hook to use processes instead of threads
-    EXECUTOR_CLASS: Type[Union[ThreadPoolExecutor, ProcessPoolExecutor]] = (
-        ThreadPoolExecutor
-    )
-
     def __init__(
         self,
         iterator: Iterator[T],
@@ -412,14 +407,19 @@ class OSConcurrentMappingIterable(ConcurrentMappingIterable[T, U]):
         concurrency: int,
         buffer_size: int,
         ordered: bool,
+        within_processes: bool,
     ) -> None:
         super().__init__(iterator, buffer_size, ordered)
         self.transformation = transformation
         self.concurrency = concurrency
         self.executor: Executor
+        self.within_processes = within_processes
 
     def _context_manager(self) -> ContextManager:
-        self.executor = self.EXECUTOR_CLASS(max_workers=self.concurrency)
+        if self.within_processes:
+            self.executor = ProcessPoolExecutor(max_workers=self.concurrency)
+        else:
+            self.executor = ThreadPoolExecutor(max_workers=self.concurrency)
         return self.executor
 
     # picklable

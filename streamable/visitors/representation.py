@@ -51,7 +51,7 @@ class RepresentationVisitor(Visitor[str]):
 
     def visit_foreach_stream(self, stream: ForeachStream[T]) -> str:
         self.methods_reprs.append(
-            f"foreach({self._friendly_repr(stream._effect)}, concurrency={stream._concurrency}, ordered={stream._ordered})"
+            f"foreach({self._friendly_repr(stream._effect)}, concurrency={stream._concurrency}, ordered={stream._ordered}, within_processes={stream._within_processes})"
         )
         return stream.upstream.accept(self)
 
@@ -69,7 +69,7 @@ class RepresentationVisitor(Visitor[str]):
 
     def visit_map_stream(self, stream: MapStream[U, T]) -> str:
         self.methods_reprs.append(
-            f"map({self._friendly_repr(stream._transformation)}, concurrency={stream._concurrency}, ordered={stream._ordered})"
+            f"map({self._friendly_repr(stream._transformation)}, concurrency={stream._concurrency}, ordered={stream._ordered}, within_processes={stream._within_processes})"
         )
         return stream.upstream.accept(self)
 
