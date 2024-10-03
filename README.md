@@ -177,6 +177,8 @@ zeros: Stream[int] = (
 assert list(zeros) == [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 ```
 
+> Also convenient with `.foreach`, `.filter`, ...
+
 ## `.foreach`
 
 > Applies a side effect on elements:
