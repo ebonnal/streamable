@@ -191,6 +191,10 @@ assert list(self_printing_integers) == list(integers)  # triggers the printing
 
 > Like `.map` it has an optional `concurrency: int` parameter.
 
+### process-based concurrency
+
+> Like `.map` it has an optional `within_processes=True` parameter.
+
 ### async-based concurrency
 
 > Like `.map` it has a sibling `.aforeach` operation for async.
