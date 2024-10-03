@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import logging
 import random
+import sys
 import time
 import timeit
 import unittest
@@ -353,10 +354,6 @@ class TestStream(unittest.TestCase):
     def test_process_concurrency(
         self, ordered, order_mutation
     ) -> None:  # pragma: no cover
-        import sys
-
-        if sys.version < "3.9.0":
-            return
 
         lambda_identity = lambda x: x * 10
 
@@ -394,6 +391,8 @@ class TestStream(unittest.TestCase):
             msg="... and must not mutate main thread-bound structures.",
         )
         # test partial iteration:
+        if sys.version < "3.9.0":
+            return
         self.assertEqual(
             next(iter(stream)),
             expected_result_list[0],
