@@ -123,7 +123,7 @@ pokemon_names: Stream[str] = (
 assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
 ```
 
-Preserves the upstream order by default (FIFO) but you can set `ordered=False` for *First Done First Out*.
+> Preserves the upstream order by default (FIFO) but you can set `ordered=False` for *First Done First Out*.
 
 ### process-based concurrency
 
@@ -241,7 +241,7 @@ integers_within_1s: Stream[List[int]] = (
 assert list(integers_within_1s) == [[0, 1, 2], [3, 4], [5, 6], [7, 8], [9]]
 ```
 
-Mix `size`/`by`/`interval` parameters:
+> Mix `size`/`by`/`interval` parameters:
 ```python
 integers_2_by_2_by_parity: Stream[List[int]] = integers.group(by=lambda n: n % 2, size=2)
 
@@ -324,13 +324,11 @@ assert list(five_first_integers) == [0, 1, 2, 3, 4]
 
 ## `.observe`
 
-> Logs the progress of iterations over this stream:
-
-If you iterate on
+> Logs the progress of iterations over this stream, if you iterate on:
 ```python
 observed_slow_integers: Stream[int] = slow_integers.observe("integers")
 ```
-you will get these logs:
+> you will get these logs:
 ```
 INFO: [duration=0:00:00.502155 errors=0] 1 integers yielded
 INFO: [duration=0:00:01.006336 errors=0] 2 integers yielded
@@ -339,7 +337,7 @@ INFO: [duration=0:00:04.029666 errors=0] 8 integers yielded
 INFO: [duration=0:00:05.039571 errors=0] 10 integers yielded
 ```
 
-Note that the amount of logs will never be overwhelming because they are produced logarithmically e.g. the 11th log will be produced when the iteration reaches the 1024th element.
+> The amount of logs will never be overwhelming because they are produced logarithmically e.g. the 11th log will be produced when the iteration reaches the 1024th element.
 
 ## `zip`
 
