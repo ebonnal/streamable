@@ -276,7 +276,7 @@ class Stream(Iterable[T]):
         """
         Yields upstream elements grouped into lists.
         A group is a list of `size` elements for which `by` returns the same value, but it may contain fewer elements in these cases:
-        - `interval` have elapsed since the last yield of a group
+        - `interval` have passed since the last yield of a group
         - upstream is exhausted
         - upstream raises an exception
 
