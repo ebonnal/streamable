@@ -237,9 +237,9 @@ class TestStream(unittest.TestCase):
         self.assertEqual(
             """(
     Stream(range(0, 256))
-    .map(<lambda>, concurrency=1, ordered=True, within_processes=True)
+    .map(<lambda>, concurrency=1, ordered=True, via_processes=True)
 )""",
-            repr(Stream(src).map(lambda _: _, within_processes=True)),
+            repr(Stream(src).map(lambda _: _, via_processes=True)),
             msg="`repr` should work as expected on a stream with 1 operation",
         )
         self.assertEqual(
@@ -247,9 +247,9 @@ class TestStream(unittest.TestCase):
     Stream(range(0, 256))
     .truncate(count=1024, when=<lambda>)
     .filter(bool)
-    .foreach(<lambda>, concurrency=1, ordered=True, within_processes=False)
+    .foreach(<lambda>, concurrency=1, ordered=True, via_processes=False)
     .aforeach(async_identity, concurrency=1, ordered=True)
-    .map(CustomCallable(...), concurrency=1, ordered=True, within_processes=False)
+    .map(CustomCallable(...), concurrency=1, ordered=True, via_processes=False)
     .amap(async_identity, concurrency=1, ordered=True)
     .group(size=100, by=None, interval=None)
     .observe('groups')
@@ -369,18 +369,16 @@ class TestStream(unittest.TestCase):
                 "Can't pickle",
                 msg="process-based concurrency should not be able to serialize a lambda or a local func",
             ):
-                list(Stream(src).map(f, concurrency=2, within_processes=True))
+                list(Stream(src).map(f, concurrency=2, via_processes=True))
 
         sleeps = [0.01, 1, 0.01]
         state: List[str] = []
         expected_result_list: List[str] = list(order_mutation(map(str, sleeps)))
         stream = (
             Stream(sleeps)
-            .foreach(
-                identity_sleep, concurrency=2, ordered=ordered, within_processes=True
-            )
-            .map(str, concurrency=2, ordered=True, within_processes=True)
-            .foreach(state.append, concurrency=2, ordered=True, within_processes=True)
+            .foreach(identity_sleep, concurrency=2, ordered=ordered, via_processes=True)
+            .map(str, concurrency=2, ordered=True, via_processes=True)
+            .foreach(state.append, concurrency=2, ordered=True, via_processes=True)
             .foreach(lambda _: state.append(""), concurrency=1, ordered=True)
         )
         self.assertListEqual(
