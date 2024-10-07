@@ -127,7 +127,7 @@ assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
 
 ### process-based concurrency
 
-> Set `via_processes=True`:
+> Set `via_processes`:
 
 ```python
 state: List[int] = []
@@ -195,7 +195,7 @@ assert list(self_printing_integers) == list(integers)  # triggers the printing
 
 ### process-based concurrency
 
-> Like `.map` it has an optional `via_processes=True` parameter.
+> Like `.map` it has an optional `via_processes` parameter.
 
 ### async-based concurrency
 
