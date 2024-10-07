@@ -308,7 +308,7 @@ class Stream(Iterable[T]):
             ordered (bool): If `concurrency` > 1, whether to preserve the order of upstream elements or to yield them as soon as they are processed (default preserves order).
             within_processes (bool): True concurrency and memory isolation by spawning processes instead of threads (defaults to threads).
         Returns:
-            Stream[R]: A stream of results of `transformation` applied to upstream elements.
+            Stream[R]: A stream of transformed elements.
         """
         validate_concurrency(concurrency)
         return MapStream(self, transformation, concurrency, ordered, within_processes)
@@ -327,7 +327,7 @@ class Stream(Iterable[T]):
             concurrency (int): Represents both the number of async tasks concurrently applying `transformation` and the number of results buffered.
             ordered (bool): If `concurrency` > 1, whether to preserve the order of upstream elements or to yield them as soon as they are processed (default preserves order).
         Returns:
-            Stream[R]: A stream of results of `transformation` applied to upstream elements.
+            Stream[R]: A stream of transformed elements.
         """
         validate_concurrency(concurrency)
         return AMapStream(self, transformation, concurrency, ordered)
