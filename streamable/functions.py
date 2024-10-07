@@ -24,7 +24,7 @@ from streamable.iters import (
     OSConcurrentMappingIterable,
     RaisingIterator,
     ThrottlingIntervalIterator,
-    ThrottlingPerSecondIterator,
+    ThrottlingPerPeriodIterator,
     TruncatingOnCountIterator,
     TruncatingOnPredicateIterator,
 )
@@ -37,7 +37,7 @@ from streamable.util.validationtools import (
     validate_group_size,
     validate_iterator,
     validate_throttle_interval,
-    validate_throttle_per_second,
+    validate_throttle_per_period,
     validate_truncate_args,
 )
 
@@ -155,14 +155,32 @@ def observe(iterator: Iterator[T], what: str) -> Iterator[T]:
 def throttle(
     iterator: Iterator[T],
     per_second: int = cast(int, float("inf")),
+    per_minute: int = cast(int, float("inf")),
+    per_hour: int = cast(int, float("inf")),
     interval: datetime.timedelta = datetime.timedelta(0),
 ) -> Iterator[T]:
     validate_iterator(iterator)
-    validate_throttle_per_second(per_second)
+    validate_throttle_per_period("per_second", per_second)
+    validate_throttle_per_period("per_minute", per_minute)
+    validate_throttle_per_period("per_hour", per_hour)
     validate_throttle_interval(interval)
 
+    restrictive_periods: List[ThrottlingPerPeriodIterator.RestrictivePeriod] = []
     if per_second < float("inf"):
-        iterator = ThrottlingPerSecondIterator(iterator, per_second)
+        restrictive_periods.append(
+            ThrottlingPerPeriodIterator.RestrictivePeriod(1, per_second)
+        )
+    if per_minute < float("inf"):
+        restrictive_periods.append(
+            ThrottlingPerPeriodIterator.RestrictivePeriod(60, per_minute)
+        )
+    if per_hour < float("inf"):
+        restrictive_periods.append(
+            ThrottlingPerPeriodIterator.RestrictivePeriod(3600, per_hour)
+        )
+    if restrictive_periods:
+        iterator = ThrottlingPerPeriodIterator(iterator, restrictive_periods)
+
     if interval > datetime.timedelta(0):
         iterator = ThrottlingIntervalIterator(iterator, interval.total_seconds())
     return iterator
