@@ -407,16 +407,16 @@ class OSConcurrentMappingIterable(ConcurrentMappingIterable[T, U]):
         concurrency: int,
         buffer_size: int,
         ordered: bool,
-        within_processes: bool,
+        via_processes: bool,
     ) -> None:
         super().__init__(iterator, buffer_size, ordered)
         self.transformation = transformation
         self.concurrency = concurrency
         self.executor: Executor
-        self.within_processes = within_processes
+        self.via_processes = via_processes
 
     def _context_manager(self) -> ContextManager:
-        if self.within_processes:
+        if self.via_processes:
             self.executor = ProcessPoolExecutor(max_workers=self.concurrency)
         else:
             self.executor = ThreadPoolExecutor(max_workers=self.concurrency)

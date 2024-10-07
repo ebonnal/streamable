@@ -105,7 +105,7 @@ def map(
     iterator: Iterator[T],
     concurrency: int = 1,
     ordered: bool = True,
-    within_processes: bool = False,
+    via_processes: bool = False,
 ) -> Iterator[U]:
     validate_iterator(iterator)
     validate_concurrency(concurrency)
@@ -121,7 +121,7 @@ def map(
                     concurrency=concurrency,
                     buffer_size=concurrency,
                     ordered=ordered,
-                    within_processes=within_processes,
+                    via_processes=via_processes,
                 )
             )
         )
