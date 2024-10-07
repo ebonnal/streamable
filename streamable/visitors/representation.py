@@ -85,7 +85,7 @@ class RepresentationVisitor(Visitor[str]):
 
     def visit_throttle_stream(self, stream: ThrottleStream[T]) -> str:
         self.methods_reprs.append(
-            f"throttle(per_second={stream._per_second}, interval={self._friendly_repr(stream._interval)})"
+            f"throttle(per_second={stream._per_second}, per_minute={stream._per_minute}, per_hour={stream._per_hour}, interval={self._friendly_repr(stream._interval)})"
         )
         return stream.upstream.accept(self)
 

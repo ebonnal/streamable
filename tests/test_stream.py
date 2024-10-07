@@ -23,6 +23,7 @@ from parameterized import parameterized  # type: ignore
 
 from streamable import Stream
 from streamable.functions import NoopStopIteration
+from streamable.iters import ThrottlingPerPeriodIterator
 from streamable.util.functiontools import sidify
 
 T = TypeVar("T")
@@ -254,7 +255,7 @@ class TestStream(unittest.TestCase):
     .group(size=100, by=None, interval=None)
     .observe('groups')
     .flatten(concurrency=4)
-    .throttle(per_second=64, interval=datetime.timedelta(seconds=1))
+    .throttle(per_second=64, per_minute=inf, per_hour=inf, interval=datetime.timedelta(seconds=1))
     .observe('foos')
     .catch(TypeError, when=bool, finally_raise=True)
     .catch(TypeError, when=bool, replacement=None, finally_raise=True)
@@ -1044,9 +1045,18 @@ class TestStream(unittest.TestCase):
             msg="`throttle` should raise error when called with `per_second` < 1.",
         ):
             list(Stream([1]).throttle(per_second=0))
+        with self.assertRaises(
+            ValueError,
+            msg="`throttle` should raise error when called with `per_minute` < 1.",
+        ):
+            list(Stream([1]).throttle(per_minute=0))
+        with self.assertRaises(
+            ValueError,
+            msg="`throttle` should raise error when called with `per_hour` < 1.",
+        ):
+            list(Stream([1]).throttle(per_hour=0))
 
         # test interval
-
         interval_seconds = 0.3
         super_slow_elem_pull_seconds = 1
         N = 10
@@ -1088,6 +1098,20 @@ class TestStream(unittest.TestCase):
             msg="`throttle` should avoid 'ValueError: sleep length must be non-negative' when upstream is slower than `interval`",
         )
 
+        # test periods pruning
+        stream = Stream(range(11)).throttle(per_second=2)
+        self.assertEqual(
+            len(cast(ThrottlingPerPeriodIterator, iter(stream)).restrictive_periods),
+            1,
+        )
+        stream = Stream(range(11)).throttle(
+            per_second=30, per_minute=100, per_hour=1000
+        )
+        self.assertEqual(
+            len(cast(ThrottlingPerPeriodIterator, iter(stream)).restrictive_periods),
+            3,
+        )
+
         # test per_second
 
         N = 11
@@ -1105,6 +1129,27 @@ class TestStream(unittest.TestCase):
             delta=0.01 * expected_duration,
             msg="`throttle` must slow according to `per_second`",
         )
+
+        # per_second and per_minute
+        # N = 11
+        # assert N % 2
+        # per_minute = 8
+        # per_second = 2
+        # duration, res = timestream(
+        #     Stream(range(11)).throttle(per_second=per_second, per_minute=per_minute)
+        # )
+        # self.assertEqual(
+        #     res,
+        #     list(range(11)),
+        #     msg="`throttle` with `per_second` must yield upstream elements",
+        # )
+        # expected_duration = (N // per_minute) * 60 + (N % per_minute) // per_second
+        # self.assertAlmostEqual(
+        #     duration,
+        #     expected_duration,
+        #     delta=0.01 * expected_duration,
+        #     msg="`throttle` must slow according to `per_second` and `per_minute`",
+        # )
 
         # test both
 
