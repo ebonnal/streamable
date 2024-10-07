@@ -299,13 +299,22 @@ class ThrottlingIntervalIterator(Iterator[T]):
         return elem
 
 
-class ThrottlingPerSecondIterator(Iterator[T]):
-    def __init__(self, iterator: Iterator[T], per_second: int) -> None:
-        self.iterator = iterator
-        self.per_second = per_second
+class ThrottlingPerPeriodIterator(Iterator[T]):
+    class RestrictivePeriod(NamedTuple):
+        seconds: int
+        max_yields: int
 
-        self.second: int = -1
-        self.yields_in_second = 0
+    def __init__(
+        self,
+        iterator: Iterator[T],
+        restrictive_periods: List[RestrictivePeriod],
+    ) -> None:
+        self.iterator = iterator
+        self.restrictive_periods = restrictive_periods
+
+        self.floor_time_in_period_unit: List[int] = [-1] * len(self.restrictive_periods)
+        self.yields_in_periods = [0] * len(self.restrictive_periods)
+
         self.offset: Optional[float] = None
 
     def __next__(self) -> T:
@@ -313,17 +322,45 @@ class ThrottlingPerSecondIterator(Iterator[T]):
         if not self.offset:
             self.offset = current_time
         current_time -= self.offset
-        current_second = int(current_time)
-        if self.second != current_second:
-            self.second = current_second
-            self.yields_in_second = 0
 
-        if self.yields_in_second >= self.per_second:
-            # sleep until next second
-            time.sleep(ceil(current_time) - current_time)
+        # at first we consider that no sleep is required
+        longest_required_sleep = 0.0
+        # iterate over the restrictive periods to find
+        # the longest sleep required if any
+        for index, (period_seconds, max_yields_per_period) in enumerate(
+            self.restrictive_periods
+        ):
+            # e.g. with 'per minute' (period_seconds=60) and current_time = 150.6
+            # then time_in_period_unit = 2.51 (minutes)
+            # and floor_time_in_period_unit = 2 (minute periods passed so far)
+            time_in_period_unit = current_time / period_seconds
+            floor_time_in_period_unit = int(time_in_period_unit)
+
+            # if the number of minutes passed is more than during the last iteration,
+            # then it means we reached a new minute period ...
+            if self.floor_time_in_period_unit[index] != floor_time_in_period_unit:
+                self.floor_time_in_period_unit[index] = floor_time_in_period_unit
+                # ... and we can reset the yields counter
+                self.yields_in_periods[index] = 0
+
+            # if the number of yields during the ongoing minute period reaches the max
+            if self.yields_in_periods[index] >= max_yields_per_period:
+                # then we need at least to sleep to reach the next minute period
+                longest_required_sleep = max(
+                    longest_required_sleep,
+                    (ceil(time_in_period_unit) - time_in_period_unit) * period_seconds,
+                )
+
+        # sleeps as required by the restrictive periods
+        if longest_required_sleep:
+            time.sleep(longest_required_sleep)
             return next(self)
 
-        self.yields_in_second += 1
+        # increment the yields counter of each restrictive period
+        for index in range(len(self.yields_in_periods)):
+            self.yields_in_periods[index] += 1
+
+        # yield
         return next(self.iterator)
 
 

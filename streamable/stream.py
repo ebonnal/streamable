@@ -27,7 +27,7 @@ from streamable.util.validationtools import (
     validate_group_interval,
     validate_group_size,
     validate_throttle_interval,
-    validate_throttle_per_second,
+    validate_throttle_per_period,
     validate_truncate_args,
 )
 
@@ -354,23 +354,31 @@ class Stream(Iterable[T]):
     def throttle(
         self,
         per_second: int = cast(int, float("inf")),
+        per_minute: int = cast(int, float("inf")),
+        per_hour: int = cast(int, float("inf")),
         interval: datetime.timedelta = datetime.timedelta(0),
     ) -> "Stream[T]":
         """
-        Slows the iteration down to ensure both:
+        Slows iteration to respect:
         - a maximum number of yields `per_second`
-        - a minimum `interval` between yields`
+        - a maximum number of yields `per_minute`
+        - a maximum number of yields `per_hour`
+        - a minimum `interval` elapses between yields
 
         Args:
             per_second (float, optional): Maximum number of yields per second (no limit by default).
+            per_minute (float, optional): Maximum number of yields per minute (no limit by default).
+            per_hour (float, optional): Maximum number of yields per hour (no limit by default).
             interval (datetime.timedelta, optional): Minimum span of time between yields (no limit by default).
 
         Returns:
-            Stream[T]: A stream yielding upstream elements slower, according to `per_second` and `interval` limits.
+            Stream[T]: A stream yielding upstream elements under the provided rate constraints.
         """
-        validate_throttle_per_second(per_second)
+        validate_throttle_per_period("per_second", per_second)
+        validate_throttle_per_period("per_minute", per_minute)
+        validate_throttle_per_period("per_hour", per_hour)
         validate_throttle_interval(interval)
-        return ThrottleStream(self, per_second, interval)
+        return ThrottleStream(self, per_second, per_minute, per_hour, interval)
 
     def truncate(
         self, count: Optional[int] = None, when: Optional[Callable[[T], Any]] = None
@@ -544,10 +552,17 @@ class ObserveStream(DownStream[T, T]):
 
 class ThrottleStream(DownStream[T, T]):
     def __init__(
-        self, upstream: Stream[T], per_second: int, interval: datetime.timedelta
+        self,
+        upstream: Stream[T],
+        per_second: int,
+        per_minute: int,
+        per_hour: int,
+        interval: datetime.timedelta,
     ) -> None:
         super().__init__(upstream)
         self._per_second = per_second
+        self._per_minute = per_minute
+        self._per_hour = per_hour
         self._interval = interval
 
     def accept(self, visitor: "Visitor[V]") -> V:

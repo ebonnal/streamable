@@ -29,10 +29,10 @@ def validate_group_interval(interval: Optional[datetime.timedelta]):
         raise ValueError(f"`interval` should be positive but got {repr(interval)}.")
 
 
-def validate_throttle_per_second(per_second: int):
-    if per_second < 1:
+def validate_throttle_per_period(per_period_arg_name: str, value: int):
+    if value < 1:
         raise ValueError(
-            f"`per_second` is the maximum number of elements to yield per second, it must be >= 1  but got {per_second}."
+            f"`{per_period_arg_name}` is the maximum number of elements to yield {' '.join(per_period_arg_name.split('_'))}, it must be >= 1  but got {value}."
         )
 
 
