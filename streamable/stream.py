@@ -304,7 +304,7 @@ class Stream(Iterable[T]):
 
         Args:
             transformation (Callable[[T], R]): The function to be applied to each element.
-            concurrency (int): Represents both the number of threads used to concurently apply `transformation` and the number of results buffered (default is 1, meaning no multithreading).
+            concurrency (int): Represents both the number of threads used to concurrently apply `transformation` and the number of results buffered (default is 1, meaning no multithreading).
             ordered (bool): Whether to preserve the order of elements or yield them as soon as they are processed when `concurrency` > 1 (default preserves order).
             within_processes (bool): True concurrency and memory isolation by spawning processes instead of threads (defaults to threads).
         Returns:
