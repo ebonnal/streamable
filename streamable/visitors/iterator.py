@@ -51,7 +51,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
                 sidify(stream._effect),
                 stream._concurrency,
                 stream._ordered,
-                stream._within_processes,
+                stream._via_processes,
             )
         )
 
@@ -82,7 +82,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
             stream.upstream.accept(IteratorVisitor[U]()),
             concurrency=stream._concurrency,
             ordered=stream._ordered,
-            within_processes=stream._within_processes,
+            via_processes=stream._via_processes,
         )
 
     def visit_amap_stream(self, stream: AMapStream[U, T]) -> Iterator[T]:

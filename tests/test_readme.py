@@ -58,7 +58,7 @@ class TestReadme(unittest.TestCase):
     def test_process_concurrent_map_example(self) -> None:
         state: List[int] = []
         n_integers: int = integers.map(
-            state.append, concurrency=4, within_processes=True
+            state.append, concurrency=4, via_processes=True
         ).count()
         assert n_integers == 10
         assert state == []  # main process's state not mutated
