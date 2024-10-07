@@ -239,7 +239,7 @@ class Stream(Iterable[T]):
         Args:
             effect (Callable[[T], Any]): The function to be applied to each element as a side effect.
             concurrency (int): Represents both the number of threads used to concurrently apply the `effect` and the number of elements buffered (default is 1, meaning no multithreading).
-            ordered (bool): Whether to preserve the order of elements or yield them as soon as they are processed when `concurrency` > 1 (default preserves order).
+            ordered (bool): If `concurrency` > 1, whether to preserve the order of upstream elements or to yield them as soon as they are processed (default preserves order).
             within_processes (bool): True concurrency and memory isolation by spawning processes instead of threads (defaults to threads).
         Returns:
             Stream[T]: A stream of upstream elements, unchanged.
@@ -260,7 +260,7 @@ class Stream(Iterable[T]):
         Args:
             effect (Callable[[T], Any]): The asynchronous function to be applied to each element as a side effect.
             concurrency (int): Represents both the number of async tasks concurrently applying the `effect` and the number of elements buffered.
-            ordered (bool): Whether to preserve the order of elements or yield them as soon as they are processed when `concurrency` > 1 (default preserves order).
+            ordered (bool): If `concurrency` > 1, whether to preserve the order of upstream elements or to yield them as soon as they are processed (default preserves order).
         Returns:
             Stream[T]: A stream of upstream elements, unchanged.
         """
@@ -305,7 +305,7 @@ class Stream(Iterable[T]):
         Args:
             transformation (Callable[[T], R]): The function to be applied to each element.
             concurrency (int): Represents both the number of threads used to concurrently apply `transformation` and the number of results buffered (default is 1, meaning no multithreading).
-            ordered (bool): Whether to preserve the order of elements or yield them as soon as they are processed when `concurrency` > 1 (default preserves order).
+            ordered (bool): If `concurrency` > 1, whether to preserve the order of upstream elements or to yield them as soon as they are processed (default preserves order).
             within_processes (bool): True concurrency and memory isolation by spawning processes instead of threads (defaults to threads).
         Returns:
             Stream[R]: A stream of results of `transformation` applied to upstream elements.
@@ -325,7 +325,7 @@ class Stream(Iterable[T]):
         Args:
             transformation (Callable[[T], Coroutine[Any, Any, U]]): The asynchronous function to be applied to each element.
             concurrency (int): Represents both the number of async tasks concurrently applying `transformation` and the number of results buffered.
-            ordered (bool): Whether to preserve the order of elements or yield them as soon as they are processed when `concurrency` > 1 (default preserves order).
+            ordered (bool): If `concurrency` > 1, whether to preserve the order of upstream elements or to yield them as soon as they are processed (default preserves order).
         Returns:
             Stream[R]: A stream of results of `transformation` applied to upstream elements.
         """
