@@ -104,8 +104,15 @@ class TestReadme(unittest.TestCase):
         assert list(pair_integers) == [0, 2, 4, 6, 8]
 
     def test_throttle_example(self) -> None:
+        slow_integers: Stream[int] = integers.throttle(per_second=5)
 
         assert list(slow_integers) == list(integers)  # takes 10 / 5 = 2 seconds
+
+        from datetime import timedelta
+
+        slow_integers = integers.throttle(interval=timedelta(milliseconds=100))
+
+        assert list(slow_integers) == list(integers)  # takes 10 * 0.1 = 1 second
 
     def test_group_example(self) -> None:
         global integers_by_parity

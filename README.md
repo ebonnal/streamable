@@ -213,12 +213,22 @@ assert list(pair_integers) == [0, 2, 4, 6, 8]
 
 ## `.throttle`
 
-> Limits the rate at which elements are yielded:
+> Limits the number of yields `per_second`/`per_minute`/`per_hour`:
 
 ```python
 slow_integers: Stream[int] = integers.throttle(per_second=5)
 
 assert list(slow_integers) == list(integers)  # takes 10 / 5 = 2 seconds
+```
+
+> and/or ensure a minimum time `interval` separates successive yields:
+
+```python
+from datetime import timedelta
+
+slow_integers = integers.throttle(interval=timedelta(milliseconds=100))
+
+assert list(slow_integers) == list(integers)  # takes 10 * 0.1 = 1 second
 ```
 
 ## `.group`
