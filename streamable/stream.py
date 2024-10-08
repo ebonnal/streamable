@@ -88,9 +88,14 @@ class Stream(Iterable[T]):
         return self.accept(IteratorVisitor[T]())
 
     def __repr__(self) -> str:
-        from streamable.visitors.representation import RepresentationVisitor
+        from streamable.visitors.representation import ReprVisitor
 
-        return self.accept(RepresentationVisitor())
+        return self.accept(ReprVisitor())
+
+    def __str__(self) -> str:
+        from streamable.visitors.representation import StrVisitor
+
+        return self.accept(StrVisitor())
 
     def accept(self, visitor: "Visitor[V]") -> V:
         """
@@ -139,7 +144,7 @@ class Stream(Iterable[T]):
         Returns:
             Stream[T]: self.
         """
-        get_logger().log(level, repr(self))
+        get_logger().log(level, str(self))
         return self
 
     def filter(self, keep: Callable[[T], Any] = bool) -> "Stream[T]":
