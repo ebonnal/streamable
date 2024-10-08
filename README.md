@@ -108,7 +108,7 @@ assert list(negative_integer_strings) == ['0', '-1', '-2', '-3', '-4', '-5', '-6
 
 ### thread-based concurrency
 
-> Applies the transformation concurrently using a thread queue of size `concurrency`:
+> Applies the transformation via `concurrency` threads:
 
 ```python
 import requests
@@ -123,7 +123,10 @@ pokemon_names: Stream[str] = (
 assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
 ```
 
-> Preserves the upstream order by default (FIFO) but you can set `ordered=False` for *First Done First Out*.
+> Preserves the upstream order by default (FIFO), but you can set `ordered=False` for *First Done First Out*.
+
+> `concurrency` is also the size of the buffer containing not-yet-yielded results. **If the buffer is full, the iteration over the upstream is stopped** until some results are yielded out of the buffer.
+
 
 ### process-based concurrency
 
