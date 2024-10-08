@@ -214,9 +214,12 @@ class TestStream(unittest.TestCase):
             .catch(TypeError, finally_raise=True)
             .catch(TypeError, replacement=None, finally_raise=True)
         )
-        explanation_1 = repr(complex_stream)
 
-        explanation_2 = repr(complex_stream.map(str))
+        print(repr(complex_stream))
+
+        explanation_1 = str(complex_stream)
+
+        explanation_2 = str(complex_stream.map(str))
         self.assertNotEqual(
             explanation_1,
             explanation_2,
@@ -232,7 +235,7 @@ class TestStream(unittest.TestCase):
             """(
     Stream(range(0, 256))
 )""",
-            repr(Stream(src)),
+            str(Stream(src)),
             msg="`repr` should work as expected on a stream without operation",
         )
         self.assertEqual(
@@ -240,7 +243,7 @@ class TestStream(unittest.TestCase):
     Stream(range(0, 256))
     .map(<lambda>, concurrency=1, ordered=True, via_processes=True)
 )""",
-            repr(Stream(src).map(lambda _: _, via_processes=True)),
+            str(Stream(src).map(lambda _: _, via_processes=True)),
             msg="`repr` should work as expected on a stream with 1 operation",
         )
         self.assertEqual(
@@ -260,7 +263,7 @@ class TestStream(unittest.TestCase):
     .catch(TypeError, when=bool, finally_raise=True)
     .catch(TypeError, when=bool, replacement=None, finally_raise=True)
 )""",
-            repr(complex_stream),
+            str(complex_stream),
             msg="`repr` should work as expected on a stream with many operation",
         )
 
