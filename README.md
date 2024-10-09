@@ -431,10 +431,7 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
     )
 ```
 
-## CPU-bound tasks
-For CPU-bound tasks, consider using the [`PyPy`](https://github.com/pypy/pypy) interpreter whose *Just In Time* (JIT) compilation should drastically improve performances !
-
-## change logging level
+## logging level
 ```python
 logging.getLogger("streamable").setLevel(logging.WARNING)  # default is INFO
 ```
