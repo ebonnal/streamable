@@ -133,14 +133,15 @@ assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
 > Set `via_processes`:
 
 ```python
-state: List[int] = []
-n_integers: int = (
-    integers
-    .map(state.append, concurrency=4, via_processes=True)
-    .count()
-)
-assert n_integers == 10
-assert state == [] # main process's state not mutated
+if __name__ == "__main__":
+    state: List[int] = []
+    n_integers: int = (
+        integers
+        .map(state.append, concurrency=4, via_processes=True)
+        .count()
+    )
+    assert n_integers == 10
+    assert state == [] # main process's state not mutated
 ```
 
 ### async-based concurrency
