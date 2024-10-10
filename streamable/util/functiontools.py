@@ -6,23 +6,28 @@ R = TypeVar("R")
 
 class ErrorMappedFunc(Generic[T, R]):
     def __init__(
-        self, func: Callable[[T], R], source: Type[Exception], target: Type[Exception]
+        self,
+        func: Callable[[T], R],
+        source_error_type: Type[Exception],
+        target_error_type: Type[Exception],
     ) -> None:
         self.func = func
-        self.source = source
-        self.target = target
+        self.source_error_type = source_error_type
+        self.target_error_type = target_error_type
 
     def __call__(self, arg: T) -> R:
         try:
             return self.func(arg)
-        except self.source as e:
-            raise self.target() from e
+        except self.source_error_type as source:
+            raise self.target_error_type() from source
 
 
 def reraise_as(
-    func: Callable[[T], R], source: Type[Exception], target: Type[Exception]
+    func: Callable[[T], R],
+    source_error_type: Type[Exception],
+    target_error_type: Type[Exception],
 ) -> Callable[[T], R]:
-    return ErrorMappedFunc(func, source, target)
+    return ErrorMappedFunc(func, source_error_type, target_error_type)
 
 
 class SidifiedFunc(Generic[T]):
