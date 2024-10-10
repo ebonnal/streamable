@@ -58,7 +58,7 @@ def async_sidify(
     return wrap
 
 
-class TupledFunc(Generic[R]):
+class Star(Generic[R]):
     def __init__(self, func: Callable[..., R]) -> None:
         self.func = func
 
@@ -114,4 +114,4 @@ def star(func: Callable[..., R]) -> Callable[[Tuple], R]:
     assert star(lambda a, b: a + b)((2, 5)) == 7
     ```
     """
-    return TupledFunc(func)
+    return Star(func)
