@@ -195,7 +195,7 @@ assert list(self_printing_integers) == list(integers)  # triggers the printing
 
 ### thread-based concurrency
 
-> Like `.map` it has an optional `concurrency: int` parameter.
+> Like `.map` it has an optional `concurrency` parameter.
 
 ### process-based concurrency
 
