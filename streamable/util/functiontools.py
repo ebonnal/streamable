@@ -1,36 +1,30 @@
-import functools
-from typing import Any, Callable, Coroutine, Tuple, Type, TypeVar, cast
+from typing import Any, Callable, Coroutine, Generic, Tuple, Type, TypeVar
 
 T = TypeVar("T")
 R = TypeVar("R")
 
 
-def _reraise_as(
-    func: Callable[[T], R], source: Type[Exception], target: Type[Exception], arg: T
-) -> R:
-    try:
-        return func(arg)
-    except source as e:
-        raise target() from e
+class reraise_as(Generic[T, R]):
+    def __init__(self, func: Callable[[T], R], source: Type[Exception], target: Type[Exception]) -> None:
+        self.func = func
+        self.source = source
+        self.target = target
+    
+    def __call__(self, arg: T) -> R:
+        try:
+            return self.func(arg)
+        except self.source as e:
+            raise self.target() from e
 
 
-# picklable
-def reraise_as(
-    func: Callable[[T], R], source: Type[Exception], target: Type[Exception]
-) -> Callable[[T], R]:
-    return cast(
-        Callable[["T"], "R"], functools.partial(_reraise_as, func, source, target)
-    )
 
-
-def _sidify(func: Callable[[T], Any], arg: T):
-    func(arg)
-    return arg
-
-
-# picklable
-def sidify(func: Callable[[T], Any]) -> Callable[[T], T]:
-    return functools.partial(_sidify, func)
+class sidify(Generic[T]):
+    def __init__(self, func: Callable[[T], Any]) -> None:
+        self.func = func
+    
+    def __call__(self, arg: T) -> T:
+        self.func(arg)
+        return arg
 
 
 def async_sidify(
@@ -48,9 +42,9 @@ def async_sidify(
     return wrap
 
 
-def _star(func: Callable[..., R], args: Tuple) -> R:
-    return func(*args)
-
-
-def star(func: Callable[..., R]) -> Callable[[Tuple], R]:
-    return functools.partial(_star, func)
+class star(Generic[R]):
+    def __init__(self, func: Callable[..., R]) -> None:
+        self.func = func
+    
+    def __call__(self, args: Tuple) -> R:
+        return self.func(*args)
