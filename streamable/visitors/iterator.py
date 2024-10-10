@@ -15,7 +15,7 @@ from streamable.stream import (
     ThrottleStream,
     TruncateStream,
 )
-from streamable.util.functiontools import reraise_as, sidify, async_sidify
+from streamable.util.functiontools import async_sidify, reraise_as, sidify
 from streamable.visitors import Visitor
 
 T = TypeVar("T")
