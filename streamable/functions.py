@@ -30,7 +30,7 @@ from streamable.iters import (
 )
 from streamable.util.constants import NO_REPLACEMENT
 from streamable.util.exceptions import NoopStopIteration
-from streamable.util.functiontools import reraise_as
+from streamable.util.functiontools import catch_and_raise_as
 from streamable.util.validationtools import (
     validate_concurrency,
     validate_group_interval,
@@ -95,7 +95,7 @@ def group(
     else:
         interval_seconds = interval.total_seconds()
     if by is not None:
-        by = reraise_as(by, StopIteration, NoopStopIteration)
+        by = catch_and_raise_as(by, StopIteration, NoopStopIteration)
         return GroupingByIterator(iterator, size, interval_seconds, by)
     return GroupingIterator(iterator, size, interval_seconds)
 
@@ -109,7 +109,9 @@ def map(
 ) -> Iterator[U]:
     validate_iterator(iterator)
     validate_concurrency(concurrency)
-    transformation = reraise_as(transformation, StopIteration, NoopStopIteration)
+    transformation = catch_and_raise_as(
+        transformation, StopIteration, NoopStopIteration
+    )
     if concurrency == 1:
         return builtins.map(transformation, iterator)
     else:

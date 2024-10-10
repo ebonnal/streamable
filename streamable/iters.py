@@ -27,7 +27,7 @@ from typing import (
     cast,
 )
 
-from streamable.util.functiontools import reraise_as
+from streamable.util.functiontools import catch_and_raise_as
 
 T = TypeVar("T")
 U = TypeVar("U")
@@ -90,7 +90,7 @@ class FlatteningIterator(Iterator[U]):
                 return next(self._current_iterator_elem)
             except StopIteration:
                 iterable_elem = next(self.iterator)
-                self._current_iterator_elem = reraise_as(
+                self._current_iterator_elem = catch_and_raise_as(
                     iter, StopIteration, NoopStopIteration
                 )(iterable_elem)
 
@@ -569,7 +569,7 @@ class ConcurrentFlatteningIterable(
                         except StopIteration:
                             break
                         try:
-                            iterator = reraise_as(
+                            iterator = catch_and_raise_as(
                                 iter, StopIteration, NoopStopIteration
                             )(iterable)
                         except Exception as e:

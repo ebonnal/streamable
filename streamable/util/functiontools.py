@@ -4,33 +4,33 @@ T = TypeVar("T")
 R = TypeVar("R")
 
 
-class ErrorMappedFunc(Generic[T, R]):
+class CatchAndRaiseAs(Generic[T, R]):
     def __init__(
         self,
         func: Callable[[T], R],
-        source_error_type: Type[Exception],
-        target_error_type: Type[Exception],
+        catched_error: Type[Exception],
+        raised_error: Type[Exception],
     ) -> None:
         self.func = func
-        self.source_error_type = source_error_type
-        self.target_error_type = target_error_type
+        self.catched_error = catched_error
+        self.raised_error = raised_error
 
     def __call__(self, arg: T) -> R:
         try:
             return self.func(arg)
-        except self.source_error_type as source:
-            raise self.target_error_type() from source
+        except self.catched_error as e:
+            raise self.raised_error(str(e)) from e
 
 
-def reraise_as(
+def catch_and_raise_as(
     func: Callable[[T], R],
-    source_error_type: Type[Exception],
-    target_error_type: Type[Exception],
+    catched_error: Type[Exception],
+    raised_error: Type[Exception],
 ) -> Callable[[T], R]:
-    return ErrorMappedFunc(func, source_error_type, target_error_type)
+    return CatchAndRaiseAs(func, catched_error, raised_error)
 
 
-class SidifiedFunc(Generic[T]):
+class Sidify(Generic[T]):
     def __init__(self, func: Callable[[T], Any]) -> None:
         self.func = func
 
@@ -40,7 +40,7 @@ class SidifiedFunc(Generic[T]):
 
 
 def sidify(func: Callable[[T], Any]) -> Callable[[T], T]:
-    return SidifiedFunc(func)
+    return Sidify(func)
 
 
 def async_sidify(

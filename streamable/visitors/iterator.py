@@ -15,7 +15,7 @@ from streamable.stream import (
     ThrottleStream,
     TruncateStream,
 )
-from streamable.util.functiontools import async_sidify, reraise_as, sidify
+from streamable.util.functiontools import async_sidify, catch_and_raise_as, sidify
 from streamable.visitors import Visitor
 
 T = TypeVar("T")
@@ -34,7 +34,9 @@ class IteratorVisitor(Visitor[Iterator[T]]):
 
     def visit_filter_stream(self, stream: FilterStream[T]) -> Iterator[T]:
         return filter(
-            reraise_as(stream._keep, StopIteration, functions.NoopStopIteration),
+            catch_and_raise_as(
+                stream._keep, StopIteration, functions.NoopStopIteration
+            ),
             cast(Iterable[T], stream.upstream.accept(self)),
         )
 
