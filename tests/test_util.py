@@ -21,3 +21,12 @@ class TestUtil(unittest.TestCase):
             list(map(star(lambda i, n: i * n), enumerate(range(10)))),
             list(map(lambda x: x**2, range(10))),
         )
+
+        @star
+        def mul(a: int, b: int) -> int:
+            return a * b
+
+        self.assertListEqual(
+            list(map(mul, enumerate(range(10)))),
+            list(map(lambda x: x**2, range(10))),
+        )
