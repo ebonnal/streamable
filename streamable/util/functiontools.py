@@ -71,65 +71,28 @@ T7 = TypeVar("T7")
 T8 = TypeVar("T8")
 T9 = TypeVar("T9")
 
-
+# fmt: off
 @overload
-def star(func: Callable[[T], R]) -> Callable[[Tuple], R]:
-    return TupledFunc(func)
-
-
+def star(func: Callable[[T], R]) -> Callable[[Tuple], R]: ...
 @overload
-def star(func: Callable[[T1, T2], R]) -> Callable[[Tuple[T1, T2]], R]:
-    return TupledFunc(func)
-
-
+def star(func: Callable[[T1, T2], R]) -> Callable[[Tuple[T1, T2]], R]: ...
 @overload
-def star(func: Callable[[T1, T2, T3], R]) -> Callable[[Tuple[T1, T2, T3]], R]:
-    return TupledFunc(func)
-
-
+def star(func: Callable[[T1, T2, T3], R]) -> Callable[[Tuple[T1, T2, T3]], R]: ...
 @overload
-def star(func: Callable[[T1, T2, T3, T4], R]) -> Callable[[Tuple[T1, T2, T3, T4]], R]:
-    return TupledFunc(func)
-
-
+def star(func: Callable[[T1, T2, T3, T4], R]) -> Callable[[Tuple[T1, T2, T3, T4]], R]: ...
 @overload
-def star(
-    func: Callable[[T1, T2, T3, T4, T5], R]
-) -> Callable[[Tuple[T1, T2, T3, T4, T5]], R]:
-    return TupledFunc(func)
-
-
+def star(func: Callable[[T1, T2, T3, T4, T5], R]) -> Callable[[Tuple[T1, T2, T3, T4, T5]], R]: ...
 @overload
-def star(
-    func: Callable[[T1, T2, T3, T4, T5, T6], R]
-) -> Callable[[Tuple[T1, T2, T3, T4, T5, T6]], R]:
-    return TupledFunc(func)
-
-
+def star(func: Callable[[T1, T2, T3, T4, T5, T6], R]) -> Callable[[Tuple[T1, T2, T3, T4, T5, T6]], R]: ...
 @overload
-def star(
-    func: Callable[[T1, T2, T3, T4, T5, T6, T7], R]
-) -> Callable[[Tuple[T1, T2, T3, T4, T5, T6, T7]], R]:
-    return TupledFunc(func)
-
-
+def star(func: Callable[[T1, T2, T3, T4, T5, T6, T7], R]) -> Callable[[Tuple[T1, T2, T3, T4, T5, T6, T7]], R]: ...
 @overload
-def star(
-    func: Callable[[T1, T2, T3, T4, T5, T6, T7, T8], R]
-) -> Callable[[Tuple[T1, T2, T3, T4, T5, T6, T7, T8]], R]:
-    return TupledFunc(func)
-
-
+def star(func: Callable[[T1, T2, T3, T4, T5, T6, T7, T8], R]) -> Callable[[Tuple[T1, T2, T3, T4, T5, T6, T7, T8]], R]: ...
 @overload
-def star(
-    func: Callable[[T1, T2, T3, T4, T5, T6, T7, T8, T9], R]
-) -> Callable[[Tuple[T1, T2, T3, T4, T5, T6, T7, T8, T9]], R]:
-    return TupledFunc(func)
-
-
+def star(func: Callable[[T1, T2, T3, T4, T5, T6, T7, T8, T9], R]) -> Callable[[Tuple[T1, T2, T3, T4, T5, T6, T7, T8, T9]], R]: ...
 @overload
-def star(func: Callable[..., R]) -> Callable[[Tuple], R]:
-    return TupledFunc(func)
+def star(func: Callable[..., R]) -> Callable[[Tuple], R]: ...
+# fmt: on
 
 
 def star(func: Callable[..., R]) -> Callable[[Tuple], R]:
