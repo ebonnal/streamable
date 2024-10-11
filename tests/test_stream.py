@@ -601,12 +601,13 @@ class TestStream(unittest.TestCase):
         iterable_size = 5
         runtime, res = timestream(
             Stream(
-                [
+                lambda: [
                     Stream(map(slow_identity, ["a"] * iterable_size)),
                     Stream(map(slow_identity, ["b"] * iterable_size)),
                     Stream(map(slow_identity, ["c"] * iterable_size)),
                 ]
-            ).flatten(concurrency=2)
+            ).flatten(concurrency=2),
+            times=3,
         )
         self.assertEqual(
             res,
