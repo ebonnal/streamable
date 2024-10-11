@@ -4,7 +4,7 @@ T = TypeVar("T")
 R = TypeVar("R")
 
 
-class CatchAndRaiseAs(Generic[T, R]):
+class _CatchAndRaiseAs(Generic[T, R]):
     def __init__(
         self,
         func: Callable[[T], R],
@@ -27,10 +27,10 @@ def catch_and_raise_as(
     catched_error: Type[Exception],
     raised_error: Type[Exception],
 ) -> Callable[[T], R]:
-    return CatchAndRaiseAs(func, catched_error, raised_error)
+    return _CatchAndRaiseAs(func, catched_error, raised_error)
 
 
-class Sidify(Generic[T]):
+class _Sidify(Generic[T]):
     def __init__(self, func: Callable[[T], Any]) -> None:
         self.func = func
 
@@ -40,7 +40,7 @@ class Sidify(Generic[T]):
 
 
 def sidify(func: Callable[[T], Any]) -> Callable[[T], T]:
-    return Sidify(func)
+    return _Sidify(func)
 
 
 def async_sidify(
@@ -58,7 +58,7 @@ def async_sidify(
     return wrap
 
 
-class Star(Generic[R]):
+class _Star(Generic[R]):
     def __init__(self, func: Callable[..., R]) -> None:
         self.func = func
 
@@ -114,4 +114,4 @@ def star(func: Callable[..., R]) -> Callable[[Tuple], R]:
     assert star(lambda a, b: a + b)((2, 5)) == 7
     ```
     """
-    return Star(func)
+    return _Star(func)

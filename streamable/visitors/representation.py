@@ -16,6 +16,7 @@ from streamable.stream import (
     TruncateStream,
 )
 from streamable.util.constants import NO_REPLACEMENT
+from streamable.util.functiontools import _Star
 from streamable.visitors import Visitor
 
 T = TypeVar("T")
@@ -102,16 +103,19 @@ class ToStringVisitor(Visitor[str], ABC):
 class ReprVisitor(ToStringVisitor):
     @staticmethod
     def to_string(o: object) -> str:
+        if isinstance(o, _Star):
+            return f"star({ReprVisitor.to_string(o.func)})"
         return repr(o)
 
 
 class StrVisitor(ToStringVisitor):
     @staticmethod
     def to_string(o: object) -> str:
-        representation = repr(o)
-        if representation.startswith("<"):
+        if isinstance(o, _Star):
+            return f"star({StrVisitor.to_string(o.func)})"
+        if repr(o).startswith("<"):
             try:
-                representation = getattr(o, "__name__")
+                return getattr(o, "__name__")
             except AttributeError:
-                representation = f"{o.__class__.__name__}(...)"
-        return representation
+                return f"{o.__class__.__name__}(...)"
+        return repr(o)

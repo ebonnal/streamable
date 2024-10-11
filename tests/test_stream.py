@@ -24,7 +24,7 @@ from parameterized import parameterized  # type: ignore
 from streamable import Stream
 from streamable.functions import NoopStopIteration
 from streamable.iters import ThrottlingPerPeriodIterator
-from streamable.util.functiontools import sidify
+from streamable.util.functiontools import sidify, star
 
 T = TypeVar("T")
 R = TypeVar("R")
@@ -202,6 +202,8 @@ class TestStream(unittest.TestCase):
             Stream(src)
             .truncate(1024, when=lambda _: False)
             .filter()
+            .map(lambda i: (i,))
+            .filter(star(bool))
             .foreach(lambda _: _)
             .aforeach(async_identity)
             .map(cast(Callable[[Any], Any], CustomCallable()))
@@ -251,6 +253,8 @@ class TestStream(unittest.TestCase):
     Stream(range(0, 256))
     .truncate(count=1024, when=<lambda>)
     .filter(bool)
+    .map(<lambda>, concurrency=1, ordered=True, via_processes=False)
+    .filter(star(bool))
     .foreach(<lambda>, concurrency=1, ordered=True, via_processes=False)
     .aforeach(async_identity, concurrency=1, ordered=True)
     .map(CustomCallable(...), concurrency=1, ordered=True, via_processes=False)
