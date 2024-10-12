@@ -19,7 +19,7 @@ A `Stream[T]` decorates an `Iterable[T]` with a **fluent interface** enabling th
 |🇹 *Typed*|**type-annotated** and [`mypy`](https://github.com/python/mypy)able|
 |💤 *Lazy*|operations are **lazily evaluated** at iteration time|
 |🔄 *Concurrent*|via **threads** or **processes** or `asyncio`|
-|🛡️ *Robust*|unit-tested for **Python 3.7 to 3.12** with 100% coverage|
+|🛡️ *Robust*|unit-tested for **Python 3.7 to 3.14** with 100% coverage|
 |🪶 *Minimalist*|`pip install streamable` with **no additional dependencies**|
 
 ---
@@ -463,3 +463,6 @@ from streamable.functions import catch
 inverse_integers: Iterator[int] = map(lambda n: 1 / n, range(10))
 safe_inverse_integers: Iterator[int] = catch(inverse_integers, ZeroDivisionError)
 ```
+
+## compatible with *free-threaded* Python 3.13+
+Benefits from [free-threaded](https://docs.python.org/3/using/configure.html#cmdoption-disable-gil) Python 3.13+ builds, run via `python -X gil=0`.
