@@ -1,5 +1,6 @@
 import builtins
 import datetime
+from contextlib import suppress
 from typing import (
     Any,
     Callable,
@@ -12,6 +13,9 @@ from typing import (
     TypeVar,
     cast,
 )
+
+with suppress(ImportError):
+    from typing import Literal
 
 from streamable.iters import (
     AsyncConcurrentMappingIterable,
@@ -105,7 +109,7 @@ def map(
     iterator: Iterator[T],
     concurrency: int = 1,
     ordered: bool = True,
-    via_processes: bool = False,
+    via: "Literal['thread', 'process']" = "thread",
 ) -> Iterator[U]:
     validate_iterator(iterator)
     validate_concurrency(concurrency)
@@ -123,7 +127,7 @@ def map(
                     concurrency=concurrency,
                     buffer_size=concurrency,
                     ordered=ordered,
-                    via_processes=via_processes,
+                    via=via,
                 )
             )
         )

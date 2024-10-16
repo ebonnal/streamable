@@ -1,5 +1,6 @@
 import datetime
 import logging
+from contextlib import suppress
 from multiprocessing import get_logger
 from typing import (
     TYPE_CHECKING,
@@ -21,6 +22,9 @@ from typing import (
     overload,
 )
 
+with suppress(ImportError):
+    from typing import Literal
+
 from streamable.util.constants import NO_REPLACEMENT
 from streamable.util.validationtools import (
     validate_concurrency,
@@ -29,6 +33,7 @@ from streamable.util.validationtools import (
     validate_throttle_interval,
     validate_throttle_per_period,
     validate_truncate_args,
+    validate_via,
 )
 
 # fmt: off
@@ -235,7 +240,7 @@ class Stream(Iterable[T]):
         effect: Callable[[T], Any],
         concurrency: int = 1,
         ordered: bool = True,
-        via_processes: bool = False,
+        via: "Literal['thread', 'process']" = "thread",
     ) -> "Stream[T]":
         """
         For each upstream element, yields it after having called `effect` on it.
@@ -245,12 +250,13 @@ class Stream(Iterable[T]):
             effect (Callable[[T], Any]): The function to be applied to each element as a side effect.
             concurrency (int): Represents both the number of threads used to concurrently apply the `effect` and the size of the buffer containing not-yet-yielded elements. If the buffer is full, the iteration over the upstream is stopped until some elements are yielded out of the buffer. (default is 1, meaning no multithreading).
             ordered (bool): If `concurrency` > 1, whether to preserve the order of upstream elements or to yield them as soon as they are processed (default preserves order).
-            via_processes (bool): If `concurrency` > 1, applies `effect` concurrently using processes instead of threads (default is threads).
+            via ("thread" or "process"): If `concurrency` > 1, whether to apply `transformation` using processes or threads (default via threads).
         Returns:
             Stream[T]: A stream of upstream elements, unchanged.
         """
         validate_concurrency(concurrency)
-        return ForeachStream(self, effect, concurrency, ordered, via_processes)
+        validate_via(via)
+        return ForeachStream(self, effect, concurrency, ordered, via)
 
     def aforeach(
         self,
@@ -302,7 +308,7 @@ class Stream(Iterable[T]):
         transformation: Callable[[T], U],
         concurrency: int = 1,
         ordered: bool = True,
-        via_processes: bool = False,
+        via: "Literal['thread', 'process']" = "thread",
     ) -> "Stream[U]":
         """
         Applies `transformation` on upstream elements and yields the results.
@@ -311,12 +317,13 @@ class Stream(Iterable[T]):
             transformation (Callable[[T], R]): The function to be applied to each element.
             concurrency (int): Represents both the number of threads used to concurrently apply `transformation` and the size of the buffer containing not-yet-yielded results. If the buffer is full, the iteration over the upstream is stopped until some results are yielded out of the buffer. (default is 1, meaning no multithreading).
             ordered (bool): If `concurrency` > 1, whether to preserve the order of upstream elements or to yield them as soon as they are processed (default preserves order).
-            via_processes (bool): If `concurrency` > 1, applies `transformation` concurrently using processes instead of threads (default via threads).
+            via ("thread" or "process"): If `concurrency` > 1, whether to apply `transformation` using processes or threads (default via threads).
         Returns:
             Stream[R]: A stream of transformed elements.
         """
         validate_concurrency(concurrency)
-        return MapStream(self, transformation, concurrency, ordered, via_processes)
+        validate_via(via)
+        return MapStream(self, transformation, concurrency, ordered, via)
 
     def amap(
         self,
@@ -464,13 +471,13 @@ class ForeachStream(DownStream[T, T]):
         effect: Callable[[T], Any],
         concurrency: int,
         ordered: bool,
-        via_processes: bool,
+        via: "Literal['thread', 'process']",
     ) -> None:
         super().__init__(upstream)
         self._effect = effect
         self._concurrency = concurrency
         self._ordered = ordered
-        self._via_processes = via_processes
+        self._via = via
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_foreach_stream(self)
@@ -517,13 +524,13 @@ class MapStream(DownStream[T, U]):
         transformation: Callable[[T], U],
         concurrency: int,
         ordered: bool,
-        via_processes: bool,
+        via: "Literal['thread', 'process']",
     ) -> None:
         super().__init__(upstream)
         self._transformation = transformation
         self._concurrency = concurrency
         self._ordered = ordered
-        self._via_processes = via_processes
+        self._via = via
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_map_stream(self)

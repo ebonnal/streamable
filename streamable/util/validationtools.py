@@ -19,6 +19,11 @@ def validate_concurrency(concurrency: int):
         )
 
 
+def validate_via(via: str):
+    if via not in ["thread", "process"]:
+        raise TypeError(f"`via` should be 'thread' or 'process', but got {repr(via)}.")
+
+
 def validate_group_size(size: Optional[int]):
     if size is not None and size < 1:
         raise ValueError(f"`size` should be None or >= 1 but got {size}.")

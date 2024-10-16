@@ -27,6 +27,9 @@ from typing import (
     cast,
 )
 
+with suppress(ImportError):
+    from typing import Literal
+
 from streamable.util.functiontools import catch_and_raise_as
 
 T = TypeVar("T")
@@ -417,19 +420,19 @@ class OSConcurrentMappingIterable(ConcurrentMappingIterable[T, U]):
         concurrency: int,
         buffer_size: int,
         ordered: bool,
-        via_processes: bool,
+        via: "Literal['thread', 'process']",
     ) -> None:
         super().__init__(iterator, buffer_size, ordered)
         self.transformation = transformation
         self.concurrency = concurrency
         self.executor: Executor
-        self.via_processes = via_processes
+        self.via = via
 
     def _context_manager(self) -> ContextManager:
-        if self.via_processes:
-            self.executor = ProcessPoolExecutor(max_workers=self.concurrency)
-        else:
+        if self.via == "thread":
             self.executor = ThreadPoolExecutor(max_workers=self.concurrency)
+        if self.via == "process":
+            self.executor = ProcessPoolExecutor(max_workers=self.concurrency)
         return self.executor
 
     # picklable
