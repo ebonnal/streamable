@@ -1356,10 +1356,15 @@ class TestStream(unittest.TestCase):
             l.append(x)
 
         stream = Stream(lambda: map(effect, src))
-        self.assertIs(
+        self.assertEqual(
             stream.count(),
             N,
-            msg="`exhaust` should return self.",
+            msg="`count` should return the count of elements.",
+        )
+        self.assertEqual(
+            stream(),
+            N,
+            msg="`__call__` should return the count of elements.",
         )
         self.assertListEqual(
             l, list(src), msg="`exhaust` should iterate over the entire stream."

@@ -139,6 +139,16 @@ class Stream(Iterable[T]):
 
         return sum(1 for _ in self)
 
+    def __call__(self) -> int:
+        """
+        Iterates over this stream until exhaustion and returns the count of elements.
+        Equivalent to `stream.count()`.
+
+        Returns:
+            int: Number of elements yielded during an entire iteration over this stream.
+        """
+        return self.count()
+
     def display(self, level: int = logging.INFO) -> "Stream[T]":
         """
         Logs (INFO level) a representation of the stream.
