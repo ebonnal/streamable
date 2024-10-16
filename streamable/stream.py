@@ -1,7 +1,6 @@
 import datetime
 import logging
 from contextlib import suppress
-from multiprocessing import get_logger
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -21,6 +20,8 @@ from typing import (
     cast,
     overload,
 )
+
+from streamable.util.loggertools import get_logger
 
 with suppress(ImportError):
     from typing import Literal

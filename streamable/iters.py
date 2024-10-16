@@ -6,7 +6,6 @@ from collections import defaultdict, deque
 from concurrent.futures import Executor, Future, ProcessPoolExecutor, ThreadPoolExecutor
 from contextlib import contextmanager, suppress
 from math import ceil
-from multiprocessing import get_logger
 from typing import (
     Any,
     Callable,
@@ -26,6 +25,8 @@ from typing import (
     Union,
     cast,
 )
+
+from streamable.util.loggertools import get_logger
 
 with suppress(ImportError):
     from typing import Literal
