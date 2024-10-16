@@ -15,18 +15,18 @@ from typing import (
 
 from streamable.iters import (
     AsyncConcurrentMappingIterable,
+    ByKeyGroupingIterator,
     CatchingIterator,
     ConcurrentFlatteningIterable,
+    CountTruncatingIterator,
     FlatteningIterator,
-    GroupingByIterator,
     GroupingIterator,
+    IntervalThrottlingIterator,
     ObservingIterator,
     OSConcurrentMappingIterable,
+    PredicateTruncatingIterator,
     RaisingIterator,
-    ThrottlingIntervalIterator,
-    ThrottlingPerPeriodIterator,
-    TruncatingOnCountIterator,
-    TruncatingOnPredicateIterator,
+    YieldsPerPeriodThrottlingIterator,
 )
 from streamable.util.constants import NO_REPLACEMENT
 from streamable.util.exceptions import NoopStopIteration
@@ -96,7 +96,7 @@ def group(
         interval_seconds = interval.total_seconds()
     if by is not None:
         by = catch_and_raise_as(by, StopIteration, NoopStopIteration)
-        return GroupingByIterator(iterator, size, interval_seconds, by)
+        return ByKeyGroupingIterator(iterator, size, interval_seconds, by)
     return GroupingIterator(iterator, size, interval_seconds)
 
 
@@ -167,24 +167,16 @@ def throttle(
     validate_throttle_per_period("per_hour", per_hour)
     validate_throttle_interval(interval)
 
-    restrictive_periods: List[ThrottlingPerPeriodIterator.RestrictivePeriod] = []
-    if per_second < float("inf"):
-        restrictive_periods.append(
-            ThrottlingPerPeriodIterator.RestrictivePeriod(1, per_second)
-        )
-    if per_minute < float("inf"):
-        restrictive_periods.append(
-            ThrottlingPerPeriodIterator.RestrictivePeriod(60, per_minute)
-        )
-    if per_hour < float("inf"):
-        restrictive_periods.append(
-            ThrottlingPerPeriodIterator.RestrictivePeriod(3600, per_hour)
-        )
-    if restrictive_periods:
-        iterator = ThrottlingPerPeriodIterator(iterator, restrictive_periods)
+    for per_period, period in (
+        (per_second, datetime.timedelta(seconds=1)),
+        (per_minute, datetime.timedelta(minutes=1)),
+        (per_hour, datetime.timedelta(hours=1)),
+    ):
+        if per_period < float("inf"):
+            iterator = YieldsPerPeriodThrottlingIterator(iterator, per_period, period)
 
     if interval > datetime.timedelta(0):
-        iterator = ThrottlingIntervalIterator(iterator, interval.total_seconds())
+        iterator = IntervalThrottlingIterator(iterator, interval)
     return iterator
 
 
@@ -196,7 +188,7 @@ def truncate(
     validate_iterator(iterator)
     validate_truncate_args(count, when)
     if count is not None:
-        iterator = TruncatingOnCountIterator(iterator, count)
+        iterator = CountTruncatingIterator(iterator, count)
     if when is not None:
-        iterator = TruncatingOnPredicateIterator(iterator, when)
+        iterator = PredicateTruncatingIterator(iterator, when)
     return iterator

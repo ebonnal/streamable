@@ -1,10 +1,10 @@
 import asyncio
+import datetime
 import time
 from abc import ABC, abstractmethod
 from collections import defaultdict, deque
 from concurrent.futures import Executor, Future, ProcessPoolExecutor, ThreadPoolExecutor
 from contextlib import contextmanager, suppress
-from datetime import datetime
 from math import ceil
 from multiprocessing import get_logger
 from typing import (
@@ -133,7 +133,7 @@ class GroupingIterator(Iterator[List[T]]):
         return group
 
 
-class GroupingByIterator(GroupingIterator[T]):
+class ByKeyGroupingIterator(GroupingIterator[T]):
     def __init__(
         self,
         iterator: Iterator[T],
@@ -217,7 +217,7 @@ class GroupingByIterator(GroupingIterator[T]):
             return next(self)
 
 
-class TruncatingOnCountIterator(Iterator[T]):
+class CountTruncatingIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], count: int) -> None:
         self.iterator = iterator
         self.max_count = count
@@ -231,7 +231,7 @@ class TruncatingOnCountIterator(Iterator[T]):
         return elem
 
 
-class TruncatingOnPredicateIterator(Iterator[T]):
+class PredicateTruncatingIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], when: Callable[[T], Any]) -> None:
         self.iterator = iterator
         self.when = when
@@ -259,7 +259,7 @@ class ObservingIterator(Iterator[T]):
     def _log(self) -> None:
         get_logger().info(
             "[%s %s] %s",
-            f"duration={datetime.fromtimestamp(time.time()) - datetime.fromtimestamp(self._start_time)}",
+            f"duration={datetime.datetime.fromtimestamp(time.time()) - datetime.datetime.fromtimestamp(self._start_time)}",
             f"errors={self._n_errors}",
             f"{self._n_yields} {self.what} yielded",
         )
@@ -285,10 +285,10 @@ class ObservingIterator(Iterator[T]):
                 self._log()
 
 
-class ThrottlingIntervalIterator(Iterator[T]):
-    def __init__(self, iterator: Iterator[T], interval_seconds: float) -> None:
+class IntervalThrottlingIterator(Iterator[T]):
+    def __init__(self, iterator: Iterator[T], interval: datetime.timedelta) -> None:
         self.iterator = iterator
-        self.interval_seconds = interval_seconds
+        self.interval_seconds = interval.total_seconds()
 
     def __next__(self) -> T:
         start_time = time.time()
@@ -299,21 +299,19 @@ class ThrottlingIntervalIterator(Iterator[T]):
         return elem
 
 
-class ThrottlingPerPeriodIterator(Iterator[T]):
-    class RestrictivePeriod(NamedTuple):
-        seconds: int
-        max_yields: int
-
+class YieldsPerPeriodThrottlingIterator(Iterator[T]):
     def __init__(
         self,
         iterator: Iterator[T],
-        restrictive_periods: List[RestrictivePeriod],
+        max_yields: int,
+        period: datetime.timedelta,
     ) -> None:
         self.iterator = iterator
-        self.restrictive_periods = restrictive_periods
+        self.max_yields = max_yields
+        self.period_seconds = period.total_seconds()
 
-        self.floor_time_in_period_unit: List[int] = [-1] * len(self.restrictive_periods)
-        self.yields_in_periods = [0] * len(self.restrictive_periods)
+        self.period_index: int = -1
+        self.yields_in_period = 0
 
         self.offset: Optional[float] = None
 
@@ -323,44 +321,19 @@ class ThrottlingPerPeriodIterator(Iterator[T]):
             self.offset = current_time
         current_time -= self.offset
 
-        # at first we consider that no sleep is required
-        longest_required_sleep = 0.0
-        # iterate over the restrictive periods to find
-        # the longest sleep required if any
-        for index, (period_seconds, max_yields_per_period) in enumerate(
-            self.restrictive_periods
-        ):
-            # e.g. with 'per minute' (period_seconds=60) and current_time = 150.6
-            # then time_in_period_unit = 2.51 (minutes)
-            # and floor_time_in_period_unit = 2 (minute periods passed so far)
-            time_in_period_unit = current_time / period_seconds
-            floor_time_in_period_unit = int(time_in_period_unit)
+        num_periods = current_time / self.period_seconds
+        period_index = int(num_periods)
 
-            # if the number of minutes passed is more than during the last iteration,
-            # then it means we reached a new minute period ...
-            if self.floor_time_in_period_unit[index] != floor_time_in_period_unit:
-                self.floor_time_in_period_unit[index] = floor_time_in_period_unit
-                # ... and we can reset the yields counter
-                self.yields_in_periods[index] = 0
+        if self.period_index != period_index:
+            self.period_index = period_index
+            self.yields_in_period = 0
 
-            # if the number of yields during the ongoing minute period reaches the max
-            if self.yields_in_periods[index] >= max_yields_per_period:
-                # then we need at least to sleep to reach the next minute period
-                longest_required_sleep = max(
-                    longest_required_sleep,
-                    (ceil(time_in_period_unit) - time_in_period_unit) * period_seconds,
-                )
-
-        # sleeps as required by the restrictive periods
-        if longest_required_sleep:
-            time.sleep(longest_required_sleep)
+        if self.yields_in_period >= self.max_yields:
+            time.sleep((ceil(num_periods) - num_periods) * self.period_seconds)
             return next(self)
 
-        # increment the yields counter of each restrictive period
-        for index in range(len(self.yields_in_periods)):
-            self.yields_in_periods[index] += 1
-
         # yield
+        self.yields_in_period += 1
         return next(self.iterator)
 
 

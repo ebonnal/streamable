@@ -23,7 +23,6 @@ from parameterized import parameterized  # type: ignore
 
 from streamable import Stream
 from streamable.functions import NoopStopIteration
-from streamable.iters import ThrottlingPerPeriodIterator
 from streamable.util.functiontools import sidify, star
 
 T = TypeVar("T")
@@ -1106,20 +1105,6 @@ class TestStream(unittest.TestCase):
             msg="`throttle` should avoid 'ValueError: sleep length must be non-negative' when upstream is slower than `interval`",
         )
 
-        # test periods pruning
-        stream = Stream(range(11)).throttle(per_second=2)
-        self.assertEqual(
-            len(cast(ThrottlingPerPeriodIterator, iter(stream)).restrictive_periods),
-            1,
-        )
-        stream = Stream(range(11)).throttle(
-            per_second=30, per_minute=100, per_hour=1000
-        )
-        self.assertEqual(
-            len(cast(ThrottlingPerPeriodIterator, iter(stream)).restrictive_periods),
-            3,
-        )
-
         # test per_second
 
         N = 11
@@ -1138,7 +1123,7 @@ class TestStream(unittest.TestCase):
             msg="`throttle` must slow according to `per_second`",
         )
 
-        # per_second and per_minute
+        # # per_second and per_minute
         # N = 11
         # assert N % 2
         # per_minute = 8
