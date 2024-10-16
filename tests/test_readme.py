@@ -215,6 +215,10 @@ class TestReadme(unittest.TestCase):
     def test_count_example(self):
         assert integers.count() == 10
 
+    def test_call(self):
+        verbose_integers: Stream[int] = integers.foreach(print)
+        assert verbose_integers() is verbose_integers
+
     # fmt: off
     def test_etl_example(self) -> None: # pragma: no cover
         # for mypy typing check only

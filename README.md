@@ -382,9 +382,10 @@ Please help us ! Feel very welcome to:
 >>> assert integers.count() == 10
 ```
 
-> ***calling*** the stream iterates over it until exhaustion.
+> ***calling*** the stream iterates over it until exhaustion and returns it.
 ```python
->>> integers.foreach(print)()
+>>> verbose_integers: Stream[int] = integers.foreach(print)
+>>> assert verbose_integers() is verbose_integers
 0
 1
 2
