@@ -212,6 +212,9 @@ class TestReadme(unittest.TestCase):
         )
         assert list(cubes) == [0, 1, 8, 27, 64, 125, 216, 343, 512, 729]
 
+    def test_count_example(self):
+        assert integers.count() == 10
+
     # fmt: off
     def test_etl_example(self) -> None: # pragma: no cover
         # for mypy typing check only

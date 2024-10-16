@@ -374,6 +374,30 @@ Please help us ! Feel very welcome to:
 - [open pull requests](https://github.com/ebonnal/streamable/pulls)
 - check [CONTRIBUTING.md](CONTRIBUTING.md)
 
+
+## exhaust the stream
+
+> `.count` iterates over the stream until exhaustion and returns the count of elements yielded.
+```python
+>>> assert integers.count() == 10
+```
+
+> ***calling*** the stream iterates over it until exhaustion.
+```python
+>>> integers.foreach(print)()
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+```
+
+
 ## Extract-Transform-Load
 ETL scripts (i.e. scripts fetching -> processing -> pushing data) can benefit from the expressivity of this library.
 
