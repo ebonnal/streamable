@@ -57,11 +57,10 @@ class Stream(Iterable[T]):
 
     def __init__(self, source: Union[Iterable[T], Callable[[], Iterable[T]]]) -> None:
         """
-        Initializes a Stream with a source iterable.
-        It basically decorates the provided iterable with convenient chainable operation.
+        A `Stream[T]` decorates an `Iterable[T]` with a **fluent interface** enabling the chaining of lazy operations.
 
         Args:
-            source (Union[Iterable[T], Callable[[], Iterable[T]]]): a source iterable or a function returning one (called for each new iteration).
+            source (Union[Iterable[T], Callable[[], Iterable[T]]]): The iterable to decorate. Can be provided via a function that will be called each time an iteration is started over the stream.
         """
         self._source = source
         self._upstream: "Optional[Stream]" = None
