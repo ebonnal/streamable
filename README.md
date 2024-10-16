@@ -460,3 +460,9 @@ safe_inverse_integers: Iterator[int] = catch(inverse_integers, ZeroDivisionError
 
 ## compatible with *free-threaded* Python 3.13+
 Benefits from [free-threaded](https://docs.python.org/3/using/configure.html#cmdoption-disable-gil) Python 3.13+ builds, run via `python -X gil=0`.
+
+## ty highlighters 🙏
+- [Upvoters on Reddit](https://www.reddit.com/r/Python/comments/1fp38jd/streamable_streamlike_manipulation_of_iterables/)
+- [@PythonHub](https://x.com/PythonHub/status/1842886311369142713)
+- [PyCoders.com](https://pycoders.com/issues/651)
+- [PlanetPython.org](https://planetpython.org/)
