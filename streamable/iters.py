@@ -26,12 +26,8 @@ from typing import (
     cast,
 )
 
-from streamable.util.loggertools import get_logger
-
-with suppress(ImportError):
-    from typing import Literal
-
 from streamable.util.functiontools import catch_and_raise_as
+from streamable.util.loggertools import get_logger
 
 T = TypeVar("T")
 U = TypeVar("U")
@@ -45,6 +41,9 @@ from streamable.util.futuretools import (
     FIFOThreadFutureResultCollection,
     FutureResultCollection,
 )
+
+with suppress(ImportError):
+    from typing import Literal
 
 
 class CatchingIterator(Iterator[T]):

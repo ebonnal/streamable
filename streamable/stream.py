@@ -21,12 +21,8 @@ from typing import (
     overload,
 )
 
-from streamable.util.loggertools import get_logger
-
-with suppress(ImportError):
-    from typing import Literal
-
 from streamable.util.constants import NO_REPLACEMENT
+from streamable.util.loggertools import get_logger
 from streamable.util.validationtools import (
     validate_concurrency,
     validate_group_interval,
@@ -36,6 +32,9 @@ from streamable.util.validationtools import (
     validate_truncate_args,
     validate_via,
 )
+
+with suppress(ImportError):
+    from typing import Literal
 
 # fmt: off
 if TYPE_CHECKING: import builtins

@@ -14,9 +14,6 @@ from typing import (
     cast,
 )
 
-with suppress(ImportError):
-    from typing import Literal
-
 from streamable.iters import (
     AsyncConcurrentMappingIterable,
     ByKeyGroupingIterator,
@@ -44,6 +41,9 @@ from streamable.util.validationtools import (
     validate_throttle_per_period,
     validate_truncate_args,
 )
+
+with suppress(ImportError):
+    from typing import Literal
 
 T = TypeVar("T")
 U = TypeVar("U")
