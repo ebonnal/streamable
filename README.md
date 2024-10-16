@@ -130,16 +130,12 @@ assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
 
 ### process-based concurrency
 
-> Set `via_processes`:
+> Set `via="process"`:
 
 ```python
 if __name__ == "__main__":
     state: List[int] = []
-    n_integers: int = (
-        integers
-        .map(state.append, concurrency=4, via_processes=True)
-        .count()
-    )
+    n_integers: int = integers.map(state.append, concurrency=4, via="process").count()
     assert n_integers == 10
     assert state == [] # main process's state not mutated
 ```
@@ -199,7 +195,7 @@ assert list(self_printing_integers) == list(integers)  # triggers the printing
 
 ### process-based concurrency
 
-> Like `.map` it has an optional `via_processes` parameter.
+> Like for `.map`, set the parameter `via="process"`.
 
 ### async-based concurrency
 

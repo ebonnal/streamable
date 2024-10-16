@@ -49,7 +49,7 @@ class ToStringVisitor(Visitor[str], ABC):
 
     def visit_foreach_stream(self, stream: ForeachStream[T]) -> str:
         self.methods_reprs.append(
-            f"foreach({self.to_string(stream._effect)}, concurrency={self.to_string(stream._concurrency)}, ordered={self.to_string(stream._ordered)}, via_processes={self.to_string(stream._via_processes)})"
+            f"foreach({self.to_string(stream._effect)}, concurrency={self.to_string(stream._concurrency)}, ordered={self.to_string(stream._ordered)}, via={self.to_string(stream._via)})"
         )
         return stream.upstream.accept(self)
 
@@ -67,7 +67,7 @@ class ToStringVisitor(Visitor[str], ABC):
 
     def visit_map_stream(self, stream: MapStream[U, T]) -> str:
         self.methods_reprs.append(
-            f"map({self.to_string(stream._transformation)}, concurrency={self.to_string(stream._concurrency)}, ordered={self.to_string(stream._ordered)}, via_processes={self.to_string(stream._via_processes)})"
+            f"map({self.to_string(stream._transformation)}, concurrency={self.to_string(stream._concurrency)}, ordered={self.to_string(stream._ordered)}, via={self.to_string(stream._via)})"
         )
         return stream.upstream.accept(self)
 

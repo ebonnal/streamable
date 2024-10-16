@@ -242,9 +242,9 @@ class TestStream(unittest.TestCase):
         self.assertEqual(
             """(
     Stream(range(0, 256))
-    .map(<lambda>, concurrency=1, ordered=True, via_processes=True)
+    .map(<lambda>, concurrency=1, ordered=True, via='process')
 )""",
-            str(Stream(src).map(lambda _: _, via_processes=True)),
+            str(Stream(src).map(lambda _: _, via="process")),
             msg="`repr` should work as expected on a stream with 1 operation",
         )
         self.assertEqual(
@@ -252,11 +252,11 @@ class TestStream(unittest.TestCase):
     Stream(range(0, 256))
     .truncate(count=1024, when=<lambda>)
     .filter(bool)
-    .map(<lambda>, concurrency=1, ordered=True, via_processes=False)
+    .map(<lambda>, concurrency=1, ordered=True, via='thread')
     .filter(star(bool))
-    .foreach(<lambda>, concurrency=1, ordered=True, via_processes=False)
+    .foreach(<lambda>, concurrency=1, ordered=True, via='thread')
     .aforeach(async_identity, concurrency=1, ordered=True)
-    .map(CustomCallable(...), concurrency=1, ordered=True, via_processes=False)
+    .map(CustomCallable(...), concurrency=1, ordered=True, via='thread')
     .amap(async_identity, concurrency=1, ordered=True)
     .group(size=100, by=None, interval=None)
     .observe('groups')
@@ -322,12 +322,13 @@ class TestStream(unittest.TestCase):
         stream = Stream(src)
         with self.assertRaises(
             TypeError,
-            msg=f"{method} should be raising TypeError for non-int concurrency.",
+            msg=f"`{method}` should be raising TypeError for non-int concurrency.",
         ):
             method(stream, *args, concurrency="1")
 
         with self.assertRaises(
-            ValueError, msg=f"{method} should be raising ValueError for concurrency=0."
+            ValueError,
+            msg=f"`{method}` should be raising ValueError for concurrency=0.",
         ):
             method(stream, *args, concurrency=0)
 
@@ -337,6 +338,20 @@ class TestStream(unittest.TestCase):
                 Stream,
                 msg=f"It must be ok to call {method} with concurrency={concurrency}.",
             )
+
+    @parameterized.expand(
+        [
+            (Stream.map,),
+            (Stream.foreach,),
+        ]
+    )
+    def test_sanitize_via(self, method) -> None:
+        with self.assertRaisesRegex(
+            TypeError,
+            "`via` should be 'thread' or 'process', but got 'foo'.",
+            msg=f"`{method}` must raise a TypeError for invalid via",
+        ):
+            method(Stream(src), identity, via="foo")
 
     @parameterized.expand(
         [
@@ -376,16 +391,16 @@ class TestStream(unittest.TestCase):
                 "Can't pickle",
                 msg="process-based concurrency should not be able to serialize a lambda or a local func",
             ):
-                list(Stream(src).map(f, concurrency=2, via_processes=True))
+                list(Stream(src).map(f, concurrency=2, via="process"))
 
         sleeps = [0.01, 1, 0.01]
         state: List[str] = []
         expected_result_list: List[str] = list(order_mutation(map(str, sleeps)))
         stream = (
             Stream(sleeps)
-            .foreach(identity_sleep, concurrency=2, ordered=ordered, via_processes=True)
-            .map(str, concurrency=2, ordered=True, via_processes=True)
-            .foreach(state.append, concurrency=2, ordered=True, via_processes=True)
+            .foreach(identity_sleep, concurrency=2, ordered=ordered, via="process")
+            .map(str, concurrency=2, ordered=True, via="process")
+            .foreach(state.append, concurrency=2, ordered=True, via="process")
             .foreach(lambda _: state.append(""), concurrency=1, ordered=True)
         )
         self.assertListEqual(
