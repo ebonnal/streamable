@@ -59,7 +59,7 @@ class Stream(Iterable[T]):
         A `Stream[T]` decorates an `Iterable[T]` with a **fluent interface** enabling the chaining of lazy operations.
 
         Args:
-            source (Union[Iterable[T], Callable[[], Iterable[T]]]): The iterable to decorate. Can be provided via a function that will be called each time an iteration is started over the stream.
+            source (Union[Iterable[T], Callable[[], Iterable[T]]]): The iterable to decorate. Can be specified via a function that will be called each time an iteration is started over the stream.
         """
         self._source = source
         self._upstream: "Optional[Stream]" = None
@@ -257,7 +257,7 @@ class Stream(Iterable[T]):
 
         Args:
             effect (Callable[[T], Any]): The function to be applied to each element as a side effect.
-            concurrency (int): Represents both the number of threads used to concurrently apply the `effect` and the size of the buffer containing not-yet-yielded elements. If the buffer is full, the iteration over the upstream is stopped until some elements are yielded out of the buffer. (default is 1, meaning no multithreading).
+            concurrency (int): Represents both the number of threads used to concurrently apply the `effect` and the size of the buffer containing not-yet-yielded elements. If the buffer is full, the iteration over the upstream is paused until an element is yielded from the buffer. (default is 1, meaning no multithreading).
             ordered (bool): If `concurrency` > 1, whether to preserve the order of upstream elements or to yield them as soon as they are processed (default preserves order).
             via ("thread" or "process"): If `concurrency` > 1, whether to apply `transformation` using processes or threads (default via threads).
         Returns:
@@ -279,7 +279,7 @@ class Stream(Iterable[T]):
 
         Args:
             effect (Callable[[T], Any]): The asynchronous function to be applied to each element as a side effect.
-            concurrency (int): Represents both the number of async tasks concurrently applying the `effect` and the size of the buffer containing not-yet-yielded elements. If the buffer is full, the iteration over the upstream is stopped until some elements are yielded out of the buffer.
+            concurrency (int): Represents both the number of async tasks concurrently applying the `effect` and the size of the buffer containing not-yet-yielded elements. If the buffer is full, the iteration over the upstream is paused until an element is yielded from the buffer.
             ordered (bool): If `concurrency` > 1, whether to preserve the order of upstream elements or to yield them as soon as they are processed (default preserves order).
         Returns:
             Stream[T]: A stream of upstream elements, unchanged.
@@ -324,7 +324,7 @@ class Stream(Iterable[T]):
 
         Args:
             transformation (Callable[[T], R]): The function to be applied to each element.
-            concurrency (int): Represents both the number of threads used to concurrently apply `transformation` and the size of the buffer containing not-yet-yielded results. If the buffer is full, the iteration over the upstream is stopped until some results are yielded out of the buffer. (default is 1, meaning no multithreading).
+            concurrency (int): Represents both the number of threads used to concurrently apply `transformation` and the size of the buffer containing not-yet-yielded results. If the buffer is full, the iteration over the upstream is paused until a result is yielded from the buffer. (default is 1, meaning no multithreading).
             ordered (bool): If `concurrency` > 1, whether to preserve the order of upstream elements or to yield them as soon as they are processed (default preserves order).
             via ("thread" or "process"): If `concurrency` > 1, whether to apply `transformation` using processes or threads (default via threads).
         Returns:
@@ -345,7 +345,7 @@ class Stream(Iterable[T]):
 
         Args:
             transformation (Callable[[T], Coroutine[Any, Any, U]]): The asynchronous function to be applied to each element.
-            concurrency (int): Represents both the number of async tasks concurrently applying `transformation` and the size of the buffer containing not-yet-yielded results. If the buffer is full, the iteration over the upstream is stopped until some results are yielded out of the buffer.
+            concurrency (int): Represents both the number of async tasks concurrently applying `transformation` and the size of the buffer containing not-yet-yielded results. If the buffer is full, the iteration over the upstream is paused until a result is yielded from the buffer.
             ordered (bool): If `concurrency` > 1, whether to preserve the order of upstream elements or to yield them as soon as they are processed (default preserves order).
         Returns:
             Stream[R]: A stream of transformed elements.
@@ -393,7 +393,7 @@ class Stream(Iterable[T]):
             interval (datetime.timedelta, optional): Minimum span of time between yields (no limit by default).
 
         Returns:
-            Stream[T]: A stream yielding upstream elements under the provided rate constraints.
+            Stream[T]: A stream yielding upstream elements according to the specified rate constraints.
         """
         validate_throttle_per_period("per_second", per_second)
         validate_throttle_per_period("per_minute", per_minute)
