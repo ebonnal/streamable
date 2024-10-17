@@ -125,7 +125,7 @@ assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
 
 > Preserves the upstream order by default (FIFO), but you can set `ordered=False` for *First Done First Out*.
 
-> `concurrency` is also the size of the buffer containing not-yet-yielded results. **If the buffer is full, the iteration over the upstream is stopped** until some results are yielded out of the buffer.
+> `concurrency` is also the size of the buffer containing not-yet-yielded results. **If the buffer is full, the iteration over the upstream is stopped** until a result is yielded from the buffer.
 
 
 ### process-based concurrency

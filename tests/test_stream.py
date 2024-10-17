@@ -1207,7 +1207,7 @@ class TestStream(unittest.TestCase):
         self.assertListEqual(
             list(stream.catch()),
             list(map(f, safe_src)),
-            msg="If the predicate is not provided, then all exceptions should be catched.",
+            msg="If the predicate is not specified, then all exceptions should be catched.",
         )
 
         with self.assertRaises(
