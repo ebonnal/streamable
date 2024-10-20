@@ -350,6 +350,9 @@ INFO: [duration=0:00:05.039571 errors=0] 10 integers yielded
 
 > The amount of logs will never be overwhelming because they are produced logarithmically e.g. the 11th log will be produced when the iteration reaches the 1024th element.
 
+> [!WARNING]
+> It is mute between *v1.1.0* and *v1.3.1*, please `pip install --upgrade streamable`
+
 ## `zip`
 
 > Use the standard `zip` function:
