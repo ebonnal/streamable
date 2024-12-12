@@ -485,8 +485,8 @@ safe_inverse_integers: Iterator[int] = catch(inverse_integers, ZeroDivisionError
 ## compatible with *free-threaded* Python 3.13+
 Benefits from [free-threaded](https://docs.python.org/3/using/configure.html#cmdoption-disable-gil) Python 3.13+ builds, run via `python -X gil=0`.
 
-## ty highlighters 🙏
-- [Upvoters on Reddit](https://www.reddit.com/r/Python/comments/1fp38jd/streamable_streamlike_manipulation_of_iterables/)
-- [@PythonHub](https://x.com/PythonHub/status/1842886311369142713)
-- [PyCoders.com](https://pycoders.com/issues/651)
-- [PlanetPython.org](https://planetpython.org/)
+## Thank you for the highlights 🙏
+- [Tryolabs's Top Python libraries of 2024](https://tryolabs.com/blog/top-python-libraries-2024#top-10---general-use) ([LinkedIn](https://www.linkedin.com/posts/tryolabs_top-python-libraries-2024-activity-7273052840984539137-bcGs?utm_source=share&utm_medium=member_desktop), [Reddit](https://www.reddit.com/r/Python/comments/1hbs4t8/the_handpicked_selection_of_the_best_python/))
+- [PyCoder’s Weekly](https://pycoders.com/issues/651) x [Real Python](https://realpython.com/)
+- [@PythonHub's tweet](https://x.com/PythonHub/status/1842886311369142713)
+- [Upvoters on our showcase Reddit post](https://www.reddit.com/r/Python/comments/1fp38jd/streamable_streamlike_manipulation_of_iterables/)
