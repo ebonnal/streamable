@@ -200,6 +200,7 @@ class TestStream(unittest.TestCase):
         complex_stream: Stream[int] = (
             Stream(src)
             .truncate(1024, when=lambda _: False)
+            .skip(10)
             .filter()
             .map(lambda i: (i,))
             .filter(star(bool))
@@ -248,9 +249,11 @@ class TestStream(unittest.TestCase):
             msg="`repr` should work as expected on a stream with 1 operation",
         )
         self.assertEqual(
+            str(complex_stream),
             """(
     Stream(range(0, 256))
     .truncate(count=1024, when=<lambda>)
+    .skip(count=10)
     .filter(bool)
     .map(<lambda>, concurrency=1, ordered=True, via='thread')
     .filter(star(bool))
@@ -266,7 +269,6 @@ class TestStream(unittest.TestCase):
     .catch(TypeError, when=bool, finally_raise=True)
     .catch(TypeError, when=bool, replacement=None, finally_raise=True)
 )""",
-            str(complex_stream),
             msg="`repr` should work as expected on a stream with many operation",
         )
 
@@ -788,6 +790,21 @@ class TestStream(unittest.TestCase):
             msg="`filter` without predicate must act like builtin filter with None predicate.",
         )
 
+    def test_skip(self) -> None:
+        with self.assertRaisesRegex(
+            ValueError,
+            "`count` must be positive but got -1.",
+            msg="`skip` must raise ValueError if `count` is negative",
+        ):
+            Stream(src).skip(-1)
+
+        for count in [0, 1, 3]:
+            self.assertEqual(
+                list(Stream(src).skip(count)),
+                list(src)[count:],
+                msg="`skip` must skip `count` elements",
+            )
+
     def test_truncate(self) -> None:
         with self.assertRaisesRegex(
             ValueError,
@@ -816,8 +833,9 @@ class TestStream(unittest.TestCase):
             msg="`truncate` must be ok with count == 0",
         )
 
-        with self.assertRaises(
+        with self.assertRaisesRegex(
             ValueError,
+            "`count` must be positive but got -1.",
             msg="`truncate` must raise ValueError if `count` is negative",
         ):
             Stream(src).truncate(-1)

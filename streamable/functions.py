@@ -27,6 +27,7 @@ from streamable.iters import (
     OSConcurrentMappingIterable,
     PredicateTruncatingIterator,
     RaisingIterator,
+    SkipIterator,
     YieldsPerPeriodThrottlingIterator,
 )
 from streamable.util.constants import NO_REPLACEMENT
@@ -34,6 +35,7 @@ from streamable.util.exceptions import NoopStopIteration
 from streamable.util.functiontools import catch_and_raise_as
 from streamable.util.validationtools import (
     validate_concurrency,
+    validate_count,
     validate_group_interval,
     validate_group_size,
     validate_iterator,
@@ -156,6 +158,17 @@ def amap(
 def observe(iterator: Iterator[T], what: str) -> Iterator[T]:
     validate_iterator(iterator)
     return ObservingIterator(iterator, what)
+
+
+def skip(
+    iterator: Iterator[T],
+    count: int,
+) -> Iterator[T]:
+    validate_iterator(iterator)
+    validate_count(count)
+    if count > 0:
+        iterator = SkipIterator(iterator, count)
+    return iterator
 
 
 def throttle(

@@ -11,6 +11,7 @@ from streamable.stream import (
     GroupStream,
     MapStream,
     ObserveStream,
+    SkipStream,
     Stream,
     ThrottleStream,
     TruncateStream,
@@ -79,6 +80,10 @@ class ToStringVisitor(Visitor[str], ABC):
 
     def visit_observe_stream(self, stream: ObserveStream[T]) -> str:
         self.methods_reprs.append(f"""observe({self.to_string(stream._what)})""")
+        return stream.upstream.accept(self)
+
+    def visit_skip_stream(self, stream: SkipStream[T]) -> str:
+        self.methods_reprs.append(f"skip(count={self.to_string(stream._count)})")
         return stream.upstream.accept(self)
 
     def visit_throttle_stream(self, stream: ThrottleStream[T]) -> str:

@@ -34,6 +34,13 @@ def validate_group_interval(interval: Optional[datetime.timedelta]) -> None:
         raise ValueError(f"`interval` should be positive but got {repr(interval)}.")
 
 
+def validate_count(count: int):
+    if count < 0:
+        raise ValueError(f"`count` must be positive but got {count}.")
+    if count >= sys.maxsize:
+        raise ValueError(f"`count` must be less than sys.maxsize but got {count}.")
+
+
 def validate_throttle_per_period(per_period_arg_name: str, value: int) -> None:
     if value < 1:
         raise ValueError(
@@ -54,7 +61,5 @@ def validate_truncate_args(
     if count is None:
         if when is None:
             raise ValueError(f"`count` and `when` can't be both None.")
-    elif count < 0:
-        raise ValueError(f"`count` must be positive but got {count}.")
-    elif count >= sys.maxsize:
-        raise ValueError(f"`count` must be less than sys.maxsize but got {count}.")
+    else:
+        validate_count(count)

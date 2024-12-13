@@ -220,6 +220,19 @@ class ByKeyGroupingIterator(GroupingIterator[T]):
             return next(self)
 
 
+class SkipIterator(Iterator[T]):
+    def __init__(self, iterator: Iterator[T], count: int) -> None:
+        self.iterator = iterator
+        self.count = count
+        self.skipped = 0
+
+    def __next__(self):
+        while self.skipped < self.count:
+            next(self.iterator)
+            self.skipped += 1
+        return next(self.iterator)
+
+
 class CountTruncatingIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], count: int) -> None:
         self.iterator = iterator
