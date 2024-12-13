@@ -14,22 +14,21 @@ from typing import (
     cast,
 )
 
-from streamable.iters import (
-    AsyncConcurrentMappingIterable,
-    ByKeyGroupingIterator,
-    CatchingIterator,
-    ConcurrentFlatteningIterable,
-    CountTruncatingIterator,
-    DeduplicatingIterator,
-    FlatteningIterator,
-    GroupingIterator,
-    IntervalThrottlingIterator,
-    ObservingIterator,
-    OSConcurrentMappingIterable,
-    PredicateTruncatingIterator,
-    RaisingIterator,
-    SkippingIterator,
-    YieldsPerPeriodThrottlingIterator,
+from streamable.iterators import (
+    AsyncConcurrentMapIterator,
+    CatchIterator,
+    ConcurrentFlattenIterator,
+    CountTruncateIterator,
+    DistinctIterator,
+    FlattenIterator,
+    GroupIterator,
+    IntervalThrottleIterator,
+    KeyGroupIterator,
+    ObserveIterator,
+    OSConcurrentMapIterator,
+    PredicateTruncateIterator,
+    SkipIterator,
+    YieldsPerPeriodThrottleIterator,
 )
 from streamable.util.constants import NO_REPLACEMENT
 from streamable.util.exceptions import NoopStopIteration
@@ -60,7 +59,7 @@ def catch(
     finally_raise: bool = False,
 ) -> Iterator[T]:
     validate_iterator(iterator)
-    return CatchingIterator(
+    return CatchIterator(
         iterator,
         kind,
         when,
@@ -73,23 +72,19 @@ def distinct(
     iterator: Iterator[T],
     by: Optional[Callable[[T], Any]] = None,
 ) -> Iterator[T]:
-    return DeduplicatingIterator(iterator, by)
+    return DistinctIterator(iterator, by)
 
 
 def flatten(iterator: Iterator[Iterable[T]], concurrency: int = 1) -> Iterator[T]:
     validate_iterator(iterator)
     validate_concurrency(concurrency)
     if concurrency == 1:
-        return FlatteningIterator(iterator)
+        return FlattenIterator(iterator)
     else:
-        return RaisingIterator(
-            iter(
-                ConcurrentFlatteningIterable(
-                    iterator,
-                    concurrency=concurrency,
-                    buffer_size=concurrency,
-                )
-            )
+        return ConcurrentFlattenIterator(
+            iterator,
+            concurrency=concurrency,
+            buffer_size=concurrency,
         )
 
 
@@ -110,8 +105,8 @@ def group(
         interval_seconds = interval.total_seconds()
     if by is not None:
         by = catch_and_raise_as(by, StopIteration, NoopStopIteration)
-        return ByKeyGroupingIterator(iterator, size, interval_seconds, by)
-    return GroupingIterator(iterator, size, interval_seconds)
+        return KeyGroupIterator(iterator, size, interval_seconds, by)
+    return GroupIterator(iterator, size, interval_seconds)
 
 
 def map(
@@ -129,17 +124,13 @@ def map(
     if concurrency == 1:
         return builtins.map(transformation, iterator)
     else:
-        return RaisingIterator(
-            iter(
-                OSConcurrentMappingIterable(
-                    iterator,
-                    transformation,
-                    concurrency=concurrency,
-                    buffer_size=concurrency,
-                    ordered=ordered,
-                    via=via,
-                )
-            )
+        return OSConcurrentMapIterator(
+            iterator,
+            transformation,
+            concurrency=concurrency,
+            buffer_size=concurrency,
+            ordered=ordered,
+            via=via,
         )
 
 
@@ -151,21 +142,17 @@ def amap(
 ) -> Iterator[U]:
     validate_iterator(iterator)
     validate_concurrency(concurrency)
-    return RaisingIterator(
-        iter(
-            AsyncConcurrentMappingIterable(
-                iterator,
-                transformation,
-                buffer_size=concurrency,
-                ordered=ordered,
-            )
-        )
+    return AsyncConcurrentMapIterator(
+        iterator,
+        transformation,
+        buffer_size=concurrency,
+        ordered=ordered,
     )
 
 
 def observe(iterator: Iterator[T], what: str) -> Iterator[T]:
     validate_iterator(iterator)
-    return ObservingIterator(iterator, what)
+    return ObserveIterator(iterator, what)
 
 
 def skip(
@@ -175,7 +162,7 @@ def skip(
     validate_iterator(iterator)
     validate_count(count)
     if count > 0:
-        iterator = SkippingIterator(iterator, count)
+        iterator = SkipIterator(iterator, count)
     return iterator
 
 
@@ -198,10 +185,10 @@ def throttle(
         (per_hour, datetime.timedelta(hours=1)),
     ):
         if per_period < float("inf"):
-            iterator = YieldsPerPeriodThrottlingIterator(iterator, per_period, period)
+            iterator = YieldsPerPeriodThrottleIterator(iterator, per_period, period)
 
     if interval > datetime.timedelta(0):
-        iterator = IntervalThrottlingIterator(iterator, interval)
+        iterator = IntervalThrottleIterator(iterator, interval)
     return iterator
 
 
@@ -213,7 +200,7 @@ def truncate(
     validate_iterator(iterator)
     validate_truncate_args(count, when)
     if count is not None:
-        iterator = CountTruncatingIterator(iterator, count)
+        iterator = CountTruncateIterator(iterator, count)
     if when is not None:
-        iterator = PredicateTruncatingIterator(iterator, when)
+        iterator = PredicateTruncateIterator(iterator, when)
     return iterator

@@ -47,7 +47,7 @@ with suppress(ImportError):
     from typing import Literal
 
 
-class CatchingIterator(Iterator[T]):
+class CatchIterator(Iterator[T]):
     def __init__(
         self,
         iterator: Iterator[T],
@@ -83,7 +83,7 @@ class CatchingIterator(Iterator[T]):
                 raise
 
 
-class DeduplicatingIterator(Iterator[T]):
+class DistinctIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], by: Optional[Callable[[T], Any]]) -> None:
         self.iterator = iterator
         self.by = by
@@ -118,7 +118,7 @@ class DeduplicatingIterator(Iterator[T]):
         return elem
 
 
-class FlatteningIterator(Iterator[U]):
+class FlattenIterator(Iterator[U]):
     def __init__(self, iterator: Iterator[Iterable[U]]) -> None:
         self.iterator = iterator
         self._current_iterator_elem: Iterator[U] = iter([])
@@ -134,7 +134,7 @@ class FlatteningIterator(Iterator[U]):
                 )(iterable_elem)
 
 
-class GroupingIterator(Iterator[List[T]]):
+class GroupIterator(Iterator[List[T]]):
     def __init__(
         self,
         iterator: Iterator[T],
@@ -172,7 +172,7 @@ class GroupingIterator(Iterator[List[T]]):
         return group
 
 
-class ByKeyGroupingIterator(GroupingIterator[T]):
+class KeyGroupIterator(GroupIterator[T]):
     def __init__(
         self,
         iterator: Iterator[T],
@@ -256,7 +256,7 @@ class ByKeyGroupingIterator(GroupingIterator[T]):
             return next(self)
 
 
-class SkippingIterator(Iterator[T]):
+class SkipIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], count: int) -> None:
         self.iterator = iterator
         self.count = count
@@ -270,7 +270,7 @@ class SkippingIterator(Iterator[T]):
         return next(self.iterator)
 
 
-class CountTruncatingIterator(Iterator[T]):
+class CountTruncateIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], count: int) -> None:
         self.iterator = iterator
         self.max_count = count
@@ -284,7 +284,7 @@ class CountTruncatingIterator(Iterator[T]):
         return elem
 
 
-class PredicateTruncatingIterator(Iterator[T]):
+class PredicateTruncateIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], when: Callable[[T], Any]) -> None:
         self.iterator = iterator
         self.when = when
@@ -300,7 +300,7 @@ class PredicateTruncatingIterator(Iterator[T]):
         return elem
 
 
-class ObservingIterator(Iterator[T]):
+class ObserveIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], what: str) -> None:
         self.iterator = iterator
         self.what = what
@@ -338,7 +338,7 @@ class ObservingIterator(Iterator[T]):
                 self._log()
 
 
-class IntervalThrottlingIterator(Iterator[T]):
+class IntervalThrottleIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], interval: datetime.timedelta) -> None:
         self.iterator = iterator
         self.interval_seconds = interval.total_seconds()
@@ -352,7 +352,7 @@ class IntervalThrottlingIterator(Iterator[T]):
         return elem
 
 
-class YieldsPerPeriodThrottlingIterator(Iterator[T]):
+class YieldsPerPeriodThrottleIterator(Iterator[T]):
     def __init__(
         self,
         iterator: Iterator[T],
@@ -390,7 +390,7 @@ class YieldsPerPeriodThrottlingIterator(Iterator[T]):
         return next(self.iterator)
 
 
-class RaisingIterator(Iterator[T]):
+class _RaisingIterator(Iterator[T]):
     class ExceptionContainer(NamedTuple):
         exception: Exception
 
@@ -407,8 +407,8 @@ class RaisingIterator(Iterator[T]):
         return elem
 
 
-class ConcurrentMappingIterable(
-    Generic[T, U], ABC, Iterable[Union[U, RaisingIterator.ExceptionContainer]]
+class _ConcurrentMapIterable(
+    Generic[T, U], ABC, Iterable[Union[U, _RaisingIterator.ExceptionContainer]]
 ):
     """
     Template Method Pattern:
@@ -437,15 +437,15 @@ class ConcurrentMappingIterable(
     @abstractmethod
     def _launch_task(
         self, elem: T
-    ) -> "Future[Union[U, RaisingIterator.ExceptionContainer]]": ...
+    ) -> "Future[Union[U, _RaisingIterator.ExceptionContainer]]": ...
 
     # factory method
     @abstractmethod
     def _future_result_collection(
         self,
-    ) -> FutureResultCollection[Union[U, RaisingIterator.ExceptionContainer]]: ...
+    ) -> FutureResultCollection[Union[U, _RaisingIterator.ExceptionContainer]]: ...
 
-    def __iter__(self) -> Iterator[Union[U, RaisingIterator.ExceptionContainer]]:
+    def __iter__(self) -> Iterator[Union[U, _RaisingIterator.ExceptionContainer]]:
         with self._context_manager():
             future_results = self._future_result_collection()
 
@@ -462,7 +462,7 @@ class ConcurrentMappingIterable(
                 yield result
 
 
-class OSConcurrentMappingIterable(ConcurrentMappingIterable[T, U]):
+class _OSConcurrentMapIterable(_ConcurrentMapIterable[T, U]):
     def __init__(
         self,
         iterator: Iterator[T],
@@ -489,29 +489,53 @@ class OSConcurrentMappingIterable(ConcurrentMappingIterable[T, U]):
     @staticmethod
     def _safe_transformation(
         transformation: Callable[[T], U], elem: T
-    ) -> Union[U, RaisingIterator.ExceptionContainer]:
+    ) -> Union[U, _RaisingIterator.ExceptionContainer]:
         try:
             return transformation(elem)
         except Exception as e:
-            return RaisingIterator.ExceptionContainer(e)
+            return _RaisingIterator.ExceptionContainer(e)
 
     def _launch_task(
         self, elem: T
-    ) -> "Future[Union[U, RaisingIterator.ExceptionContainer]]":
+    ) -> "Future[Union[U, _RaisingIterator.ExceptionContainer]]":
         return self.executor.submit(
             self._safe_transformation, self.transformation, elem
         )
 
     def _future_result_collection(
         self,
-    ) -> FutureResultCollection[Union[U, RaisingIterator.ExceptionContainer]]:
+    ) -> FutureResultCollection[Union[U, _RaisingIterator.ExceptionContainer]]:
         if self.ordered:
             return FIFOThreadFutureResultCollection()
         else:
             return FDFOThreadFutureResultCollection()
 
 
-class AsyncConcurrentMappingIterable(ConcurrentMappingIterable[T, U]):
+class OSConcurrentMapIterator(_RaisingIterator[U]):
+    def __init__(
+        self,
+        iterator: Iterator[T],
+        transformation: Callable[[T], U],
+        concurrency: int,
+        buffer_size: int,
+        ordered: bool,
+        via: "Literal['thread', 'process']",
+    ) -> None:
+        super().__init__(
+            iter(
+                _OSConcurrentMapIterable(
+                    iterator,
+                    transformation,
+                    concurrency,
+                    buffer_size,
+                    ordered,
+                    via,
+                )
+            )
+        )
+
+
+class _AsyncConcurrentMapIterable(_ConcurrentMapIterable[T, U]):
     def __init__(
         self,
         iterator: Iterator[T],
@@ -524,7 +548,7 @@ class AsyncConcurrentMappingIterable(ConcurrentMappingIterable[T, U]):
 
     async def _safe_transformation(
         self, elem: T
-    ) -> Union[U, RaisingIterator.ExceptionContainer]:
+    ) -> Union[U, _RaisingIterator.ExceptionContainer]:
         try:
             coroutine = self.transformation(elem)
             if not isinstance(coroutine, Coroutine):
@@ -533,27 +557,47 @@ class AsyncConcurrentMappingIterable(ConcurrentMappingIterable[T, U]):
                 )
             return await coroutine
         except Exception as e:
-            return RaisingIterator.ExceptionContainer(e)
+            return _RaisingIterator.ExceptionContainer(e)
 
     def _launch_task(
         self, elem: T
-    ) -> "Future[Union[U, RaisingIterator.ExceptionContainer]]":
+    ) -> "Future[Union[U, _RaisingIterator.ExceptionContainer]]":
         return cast(
-            "Future[Union[U, RaisingIterator.ExceptionContainer]]",
+            "Future[Union[U, _RaisingIterator.ExceptionContainer]]",
             asyncio.get_event_loop().create_task(self._safe_transformation(elem)),
         )
 
     def _future_result_collection(
         self,
-    ) -> FutureResultCollection[Union[U, RaisingIterator.ExceptionContainer]]:
+    ) -> FutureResultCollection[Union[U, _RaisingIterator.ExceptionContainer]]:
         if self.ordered:
             return FIFOAsyncFutureResultCollection()
         else:
             return FDFOAsyncFutureResultCollection()
 
 
-class ConcurrentFlatteningIterable(
-    Iterable[Union[T, RaisingIterator.ExceptionContainer]]
+class AsyncConcurrentMapIterator(_RaisingIterator[U]):
+    def __init__(
+        self,
+        iterator: Iterator[T],
+        transformation: Callable[[T], Coroutine[Any, Any, U]],
+        buffer_size: int,
+        ordered: bool,
+    ) -> None:
+        super().__init__(
+            iter(
+                _AsyncConcurrentMapIterable(
+                    iterator,
+                    transformation,
+                    buffer_size,
+                    ordered,
+                )
+            )
+        )
+
+
+class _ConcurrentFlattenIterable(
+    Iterable[Union[T, _RaisingIterator.ExceptionContainer]]
 ):
     def __init__(
         self,
@@ -565,10 +609,10 @@ class ConcurrentFlatteningIterable(
         self.concurrency = concurrency
         self.buffer_size = buffer_size
 
-    def __iter__(self) -> Iterator[Union[T, RaisingIterator.ExceptionContainer]]:
+    def __iter__(self) -> Iterator[Union[T, _RaisingIterator.ExceptionContainer]]:
         with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
             iterator_and_future_pairs: Deque[Tuple[Iterator[T], Future]] = deque()
-            element_to_yield: Deque[Union[T, RaisingIterator.ExceptionContainer]] = (
+            element_to_yield: Deque[Union[T, _RaisingIterator.ExceptionContainer]] = (
                 deque(maxlen=1)
             )
             iterator_to_queue: Deque[Iterator[T]] = deque(maxlen=1)
@@ -582,7 +626,7 @@ class ConcurrentFlatteningIterable(
                     except StopIteration:
                         pass
                     except Exception as e:
-                        element_to_yield.append(RaisingIterator.ExceptionContainer(e))
+                        element_to_yield.append(_RaisingIterator.ExceptionContainer(e))
                         iterator_to_queue.append(iterator)
 
                 # queue tasks up to buffer_size
@@ -599,7 +643,7 @@ class ConcurrentFlatteningIterable(
                                 iter, StopIteration, NoopStopIteration
                             )(iterable)
                         except Exception as e:
-                            yield RaisingIterator.ExceptionContainer(e)
+                            yield _RaisingIterator.ExceptionContainer(e)
                             continue
                     future = executor.submit(
                         cast(Callable[[Iterable[T]], T], next), iterator
@@ -609,3 +653,21 @@ class ConcurrentFlatteningIterable(
                     yield element_to_yield.pop()
                 if not iterator_and_future_pairs:
                     break
+
+
+class ConcurrentFlattenIterator(_RaisingIterator[T]):
+    def __init__(
+        self,
+        iterables_iterator: Iterator[Iterable[T]],
+        concurrency: int,
+        buffer_size: int,
+    ) -> None:
+        super().__init__(
+            iter(
+                _ConcurrentFlattenIterable(
+                    iterables_iterator,
+                    concurrency,
+                    buffer_size,
+                )
+            )
+        )
