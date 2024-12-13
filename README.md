@@ -333,6 +333,33 @@ five_first_integers: Stream[int] = integers.truncate(when=lambda n: n == 5)
 assert list(five_first_integers) == [0, 1, 2, 3, 4]
 ```
 
+## `.skip`
+
+> Skips the first specified number of elements:
+
+```python
+integers_after_five: Stream[int] = integers.skip(5)
+
+assert list(integers_after_five) == [5, 6, 7, 8, 9]
+```
+
+## `.distinct`
+
+> Removes duplicates:
+
+```python
+distinct_chars: Stream[str] = Stream("foobarfoo").distinct()
+
+assert list(distinct_chars) == ["f", "o", "b", "a", "r"]
+```
+
+> Specify a function to deduplicate based on the value it returns when applied to elements:
+```python
+strings_of_distinct_lengths: Stream[str] = Stream(["a", "foo", "bar", "z"]).distinct(len)
+
+assert list(strings_of_distinct_lengths) == ["a", "foo"]
+```
+
 ## `.observe`
 
 > Logs the progress of iterations over this stream, if you iterate on:
