@@ -11,6 +11,7 @@ from streamable.stream import (
     GroupStream,
     MapStream,
     ObserveStream,
+    SkipStream,
     Stream,
     ThrottleStream,
     TruncateStream,
@@ -25,17 +26,18 @@ class TestVisitor(unittest.TestCase):
                 return None
 
         visitor = ConcreteVisitor()
-        visitor.visit_group_stream(cast(GroupStream, ...))
         visitor.visit_catch_stream(cast(CatchStream, ...))
         visitor.visit_filter_stream(cast(FilterStream, ...))
         visitor.visit_flatten_stream(cast(FlattenStream, ...))
         visitor.visit_foreach_stream(cast(ForeachStream, ...))
         visitor.visit_aforeach_stream(cast(AForeachStream, ...))
-        visitor.visit_truncate_stream(cast(TruncateStream, ...))
+        visitor.visit_group_stream(cast(GroupStream, ...))
         visitor.visit_map_stream(cast(MapStream, ...))
         visitor.visit_amap_stream(cast(AMapStream, ...))
         visitor.visit_observe_stream(cast(ObserveStream, ...))
+        visitor.visit_skip_stream(cast(SkipStream, ...))
         visitor.visit_throttle_stream(cast(ThrottleStream, ...))
+        visitor.visit_truncate_stream(cast(TruncateStream, ...))
         visitor.visit_stream(cast(Stream, ...))
 
     def test_depth_visitor_example(self):
