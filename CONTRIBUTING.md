@@ -1,4 +1,4 @@
-# Designs
+# Design Overview
 
 ## Fluent Interface Pattern
 The lib is built around a single entry point, the `Stream` class. This is the only import required. This lib must be trivial to use, all the behaviors it exposes should be carefully named and designed to make them self-explanatory as much as possible. A stream declaration should resemble natural language:
