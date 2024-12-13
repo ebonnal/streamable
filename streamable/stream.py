@@ -25,6 +25,7 @@ from streamable.util.constants import NO_REPLACEMENT
 from streamable.util.loggertools import get_logger
 from streamable.util.validationtools import (
     validate_concurrency,
+    validate_count,
     validate_group_interval,
     validate_group_size,
     validate_throttle_interval,
@@ -372,6 +373,19 @@ class Stream(Iterable[T]):
         """
         return ObserveStream(self, what)
 
+    def skip(self, count: int) -> "Stream":
+        """
+        Skips the first `count` elements.
+
+        Args:
+            count (int): The number of elements to skip.
+
+        Returns:
+            Stream: A stream of the upstream elements remaining after skipping.
+        """
+        validate_count(count)
+        return SkipStream(self, count)
+
     def throttle(
         self,
         per_second: int = cast(int, float("inf")),
@@ -569,6 +583,19 @@ class ObserveStream(DownStream[T, T]):
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_observe_stream(self)
+
+
+class SkipStream(DownStream[T, T]):
+    def __init__(
+        self,
+        upstream: Stream[T],
+        count: int,
+    ) -> None:
+        super().__init__(upstream)
+        self._count = count
+
+    def accept(self, visitor: "Visitor[V]") -> V:
+        return visitor.visit_skip_stream(self)
 
 
 class ThrottleStream(DownStream[T, T]):
