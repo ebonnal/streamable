@@ -30,9 +30,6 @@ class Visitor(ABC, Generic[V]):
     def visit_group_stream(self, stream: stream.GroupStream) -> V:
         return self.visit_stream(stream)
 
-    def visit_truncate_stream(self, stream: stream.TruncateStream) -> V:
-        return self.visit_stream(stream)
-
     def visit_observe_stream(self, stream: stream.ObserveStream) -> V:
         return self.visit_stream(stream)
 
@@ -42,5 +39,11 @@ class Visitor(ABC, Generic[V]):
     def visit_amap_stream(self, stream: stream.AMapStream) -> V:
         return self.visit_stream(stream)
 
+    def visit_skip_stream(self, stream: stream.SkipStream) -> V:
+        return self.visit_stream(stream)
+
     def visit_throttle_stream(self, stream: stream.ThrottleStream) -> V:
+        return self.visit_stream(stream)
+
+    def visit_truncate_stream(self, stream: stream.TruncateStream) -> V:
         return self.visit_stream(stream)

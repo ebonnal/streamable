@@ -11,6 +11,7 @@ from streamable.stream import (
     GroupStream,
     MapStream,
     ObserveStream,
+    SkipStream,
     Stream,
     ThrottleStream,
     TruncateStream,
@@ -99,6 +100,12 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         return functions.observe(
             stream.upstream.accept(self),
             stream._what,
+        )
+
+    def visit_skip_stream(self, stream: SkipStream[T]) -> Iterator[T]:
+        return functions.skip(
+            stream.upstream.accept(self),
+            stream._count,
         )
 
     def visit_throttle_stream(self, stream: ThrottleStream[T]) -> Iterator[T]:
