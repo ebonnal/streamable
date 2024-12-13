@@ -5,6 +5,7 @@ from streamable.stream import (
     AForeachStream,
     AMapStream,
     CatchStream,
+    DistinctStream,
     FilterStream,
     FlattenStream,
     ForeachStream,
@@ -27,6 +28,7 @@ class TestVisitor(unittest.TestCase):
 
         visitor = ConcreteVisitor()
         visitor.visit_catch_stream(cast(CatchStream, ...))
+        visitor.visit_distinct_stream(cast(DistinctStream, ...))
         visitor.visit_filter_stream(cast(FilterStream, ...))
         visitor.visit_flatten_stream(cast(FlattenStream, ...))
         visitor.visit_foreach_stream(cast(ForeachStream, ...))

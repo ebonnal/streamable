@@ -20,6 +20,7 @@ from streamable.iters import (
     CatchingIterator,
     ConcurrentFlatteningIterable,
     CountTruncatingIterator,
+    DeduplicatingIterator,
     FlatteningIterator,
     GroupingIterator,
     IntervalThrottlingIterator,
@@ -66,6 +67,13 @@ def catch(
         replacement,
         finally_raise=finally_raise,
     )
+
+
+def distinct(
+    iterator: Iterator[T],
+    by: Optional[Callable[[T], Any]] = None,
+) -> Iterator[T]:
+    return DeduplicatingIterator(iterator, by)
 
 
 def flatten(iterator: Iterator[Iterable[T]], concurrency: int = 1) -> Iterator[T]:

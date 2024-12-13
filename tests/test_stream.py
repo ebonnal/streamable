@@ -201,6 +201,7 @@ class TestStream(unittest.TestCase):
             Stream(src)
             .truncate(1024, when=lambda _: False)
             .skip(10)
+            .distinct(lambda _: _)
             .filter()
             .map(lambda i: (i,))
             .filter(star(bool))
@@ -254,6 +255,7 @@ class TestStream(unittest.TestCase):
     Stream(range(0, 256))
     .truncate(count=1024, when=<lambda>)
     .skip(10)
+    .distinct(<lambda>)
     .filter(bool)
     .map(<lambda>, concurrency=1, ordered=True, via='thread')
     .filter(star(bool))
@@ -1205,6 +1207,33 @@ class TestStream(unittest.TestCase):
                 delta=0.1 * expected_duration,
                 msg="`throttle` with both `per_second` and `interval` set should follow the most restrictive",
             )
+
+    def test_distinct(self) -> None:
+        self.assertEqual(
+            list(Stream("abbcaabcccddd").distinct()),
+            list("abcd"),
+            msg="`distinct` should yield distinct elements",
+        )
+        self.assertEqual(
+            list(Stream(src).distinct(by=lambda i: i % 3)),
+            [0, 1, 2],
+            msg="`distinct` should yield the first encountered elem among duplicates",
+        )
+        self.assertEqual(
+            list(Stream([]).distinct()),
+            [],
+            msg="`distinct` should yield zero elements on empty stream",
+        )
+        self.assertEqual(
+            list(Stream([[1], [2], [1], [2]]).distinct()),
+            [[1], [2]],
+            msg="`distinct` should work with non-hashable elements",
+        )
+        self.assertEqual(
+            list(Stream([[1], "foo", [2], [1], [2], "foo"]).distinct()),
+            [[1], "foo", [2]],
+            msg="`distinct` should work with a mix of hashable and non-hashable elements",
+        )
 
     def test_catch(self) -> None:
         self.assertEqual(
