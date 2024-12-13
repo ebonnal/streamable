@@ -5,6 +5,7 @@ from streamable.stream import (
     AForeachStream,
     AMapStream,
     CatchStream,
+    DistinctStream,
     FilterStream,
     FlattenStream,
     ForeachStream,
@@ -36,6 +37,10 @@ class ToStringVisitor(Visitor[str], ABC):
         self.methods_reprs.append(
             f"catch({self.to_string(stream._kind)}, when={self.to_string(stream._when)}{(', replacement=' + self.to_string(stream._replacement)) if stream._replacement is not NO_REPLACEMENT else ''}, finally_raise={self.to_string(stream._finally_raise)})"
         )
+        return stream.upstream.accept(self)
+
+    def visit_distinct_stream(self, stream: DistinctStream[T]) -> str:
+        self.methods_reprs.append(f"distinct({self.to_string(stream._by)})")
         return stream.upstream.accept(self)
 
     def visit_filter_stream(self, stream: FilterStream[T]) -> str:
