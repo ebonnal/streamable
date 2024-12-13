@@ -199,6 +199,22 @@ class TestReadme(unittest.TestCase):
 
         assert list(five_first_integers) == [0, 1, 2, 3, 4]
 
+    def test_skip_example(self) -> None:
+        integers_after_five: Stream[int] = integers.skip(5)
+
+        assert list(integers_after_five) == [5, 6, 7, 8, 9]
+
+    def test_distinct_example(self) -> None:
+        distinct_chars: Stream[str] = Stream("foobarfoo").distinct()
+
+        assert list(distinct_chars) == ["f", "o", "b", "a", "r"]
+
+        strings_of_distinct_lengths: Stream[str] = Stream(
+            ["a", "foo", "bar", "z"]
+        ).distinct(len)
+
+        assert list(strings_of_distinct_lengths) == ["a", "foo"]
+
     def test_observe_example(self) -> None:
         observed_slow_integers: Stream[int] = slow_integers.observe("integers")
 
