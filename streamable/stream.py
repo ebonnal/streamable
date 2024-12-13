@@ -162,17 +162,17 @@ class Stream(Iterable[T]):
         get_logger().log(level, str(self))
         return self
 
-    def filter(self, keep: Callable[[T], Any] = bool) -> "Stream[T]":
+    def filter(self, when: Callable[[T], Any] = bool) -> "Stream[T]":
         """
-        Yields only upstream elements satisfying the `keep` predicate.
+        Yields only upstream elements satisfying the `when` predicate.
 
         Args:
-            keep (Callable[[T], Any], optional): An element will be kept if `keep(elem)` is Truthy (default keeps Truthy elements).
+            when (Callable[[T], Any], optional): An element is kept when `when(elem)` is Truthy (default keeps Truthy elements).
 
         Returns:
-            Stream[T]: A stream of upstream elements satisfying the `keep` predicate.
+            Stream[T]: A stream of upstream elements satisfying the `when` predicate.
         """
-        return FilterStream(self, keep)
+        return FilterStream(self, when)
 
     # fmt: off
     @overload
@@ -470,9 +470,9 @@ class CatchStream(DownStream[T, T]):
 
 
 class FilterStream(DownStream[T, T]):
-    def __init__(self, upstream: Stream[T], keep: Callable[[T], Any]) -> None:
+    def __init__(self, upstream: Stream[T], when: Callable[[T], Any]) -> None:
         super().__init__(upstream)
-        self._keep = keep
+        self._when = when
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_filter_stream(self)

@@ -39,7 +39,7 @@ class ToStringVisitor(Visitor[str], ABC):
         return stream.upstream.accept(self)
 
     def visit_filter_stream(self, stream: FilterStream[T]) -> str:
-        self.methods_reprs.append(f"filter({self.to_string(stream._keep)})")
+        self.methods_reprs.append(f"filter({self.to_string(stream._when)})")
         return stream.upstream.accept(self)
 
     def visit_flatten_stream(self, stream: FlattenStream[T]) -> str:
