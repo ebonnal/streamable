@@ -162,6 +162,23 @@ class Stream(Iterable[T]):
         get_logger().log(level, str(self))
         return self
 
+    def distinct(self, by: Optional[Callable[[T], Any]] = None) -> "Stream":
+        """
+        Filters the stream to only yield distinct elements, two elements `foo` and `bar` being considered duplicates if `foo == bar`.
+        If `by` is specified, then `foo` and `bar` are considered duplicates if `by(foo) == by(bar)`.
+
+        An element that has not already been yielded will be yielded, and any subsequent occurrence of it will be skipped.
+
+        Note: This operation can have a significant memory footprint, as the yielded elements are stored in memory for subsequent deduplication checks.
+
+        Args:
+            by (Callable[[T], Any], optional): Elements are deduplicated by the value of `by(elem)` (default deduplicates on elements themselves).
+
+        Returns:
+            Stream: A new stream with only unique elements.
+        """
+        return DistinctStream(self, by)
+
     def filter(self, when: Callable[[T], Any] = bool) -> "Stream[T]":
         """
         Yields only upstream elements satisfying the `when` predicate.
@@ -467,6 +484,19 @@ class CatchStream(DownStream[T, T]):
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_catch_stream(self)
+
+
+class DistinctStream(DownStream[T, T]):
+    def __init__(
+        self,
+        upstream: Stream[T],
+        by: Optional[Callable[[T], Any]],
+    ) -> None:
+        super().__init__(upstream)
+        self._by = by
+
+    def accept(self, visitor: "Visitor[V]") -> V:
+        return visitor.visit_distinct_stream(self)
 
 
 class FilterStream(DownStream[T, T]):

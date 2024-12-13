@@ -5,6 +5,7 @@ from streamable.stream import (
     AForeachStream,
     AMapStream,
     CatchStream,
+    DistinctStream,
     FilterStream,
     FlattenStream,
     ForeachStream,
@@ -31,6 +32,12 @@ class IteratorVisitor(Visitor[Iterator[T]]):
             stream._when,
             stream._replacement,
             finally_raise=stream._finally_raise,
+        )
+
+    def visit_distinct_stream(self, stream: DistinctStream[T]) -> Iterator[T]:
+        return functions.distinct(
+            stream.upstream.accept(self),
+            stream._by,
         )
 
     def visit_filter_stream(self, stream: FilterStream[T]) -> Iterator[T]:

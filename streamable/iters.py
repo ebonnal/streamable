@@ -19,6 +19,7 @@ from typing import (
     List,
     NamedTuple,
     Optional,
+    Set,
     Tuple,
     Type,
     TypeVar,
@@ -80,6 +81,41 @@ class CatchingIterator(Iterator[T]):
                         return self.replacement
                     continue
                 raise
+
+
+class DeduplicatingIterator(Iterator[T]):
+    def __init__(self, iterator: Iterator[T], by: Optional[Callable[[T], Any]]) -> None:
+        self.iterator = iterator
+        self.by = by
+        self.already_seen_set: Set[Any] = set()
+        self.already_seen_list: List[Any] = list()
+
+    def _value(self, elem):
+        return self.by(elem) if self.by else elem
+
+    def _see(self, elem: Any):
+        value = self._value(elem)
+        try:
+            value = hash(value)
+        except TypeError:
+            self.already_seen_list.append(value)
+        else:
+            self.already_seen_set.add(value)
+
+    def _has_been_seen(self, elem: Any):
+        value = self._value(elem)
+        try:
+            value = hash(value)
+        except TypeError:
+            return value in self.already_seen_list
+        return value in self.already_seen_set
+
+    def __next__(self) -> T:
+        elem = next(self.iterator)
+        while self._has_been_seen(elem):
+            elem = next(self.iterator)
+        self._see(elem)
+        return elem
 
 
 class FlatteningIterator(Iterator[U]):
