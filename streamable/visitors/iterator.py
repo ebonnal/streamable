@@ -38,6 +38,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         return functions.distinct(
             stream.upstream.accept(self),
             stream._by,
+            stream._consecutive_only,
         )
 
     def visit_filter_stream(self, stream: FilterStream[T]) -> Iterator[T]:

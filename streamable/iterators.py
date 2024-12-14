@@ -118,6 +118,21 @@ class DistinctIterator(Iterator[T]):
         return elem
 
 
+class ConsecutiveDistinctIterator(Iterator[T]):
+    def __init__(self, iterator: Iterator[T]) -> None:
+        self.iterator = iterator
+        self.has_yielded = False
+        self.last_elem: Optional[T] = None
+
+    def __next__(self) -> T:
+        elem = next(self.iterator)
+        while self.has_yielded and elem == self.last_elem:
+            elem = next(self.iterator)
+        self.has_yielded = True
+        self.last_elem = elem
+        return elem
+
+
 class FlattenIterator(Iterator[U]):
     def __init__(self, iterator: Iterator[Iterable[U]]) -> None:
         self.iterator = iterator

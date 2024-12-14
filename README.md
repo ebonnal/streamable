@@ -348,16 +348,26 @@ assert list(integers_after_five) == [5, 6, 7, 8, 9]
 > Removes duplicates:
 
 ```python
-distinct_chars: Stream[str] = Stream("foobarfoo").distinct()
+distinct_chars: Stream[str] = Stream("foobarfooo").distinct()
 
 assert list(distinct_chars) == ["f", "o", "b", "a", "r"]
 ```
 
 > Specify a function to deduplicate based on the value it returns when applied to elements:
+
 ```python
 strings_of_distinct_lengths: Stream[str] = Stream(["a", "foo", "bar", "z"]).distinct(len)
 
 assert list(strings_of_distinct_lengths) == ["a", "foo"]
+```
+
+> [!WARNING]
+> During iteration, all distinct elements that are yielded are retained in memory to perform deduplication. However, you can remove only consecutive duplicates without a memory footprint by setting `consecutive_only=True`:
+
+```python
+consecutively_distinct_chars: Stream[str] = Stream("foobarfooo").distinct(consecutive_only=True)
+
+assert list(consecutively_distinct_chars) == ["f", "o", "b", "a", "r", "f", "o"]
 ```
 
 ## `.observe`
