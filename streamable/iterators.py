@@ -87,8 +87,8 @@ class DistinctIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], by: Optional[Callable[[T], Any]]) -> None:
         self.iterator = iterator
         self.by = by
-        self.already_seen_set: Set[Any] = set()
-        self.already_seen_list: List[Any] = list()
+        self._already_seen_set: Set[Any] = set()
+        self._already_seen_list: List[Any] = list()
 
     def _value(self, elem):
         return self.by(elem) if self.by else elem
@@ -98,23 +98,44 @@ class DistinctIterator(Iterator[T]):
         try:
             value = hash(value)
         except TypeError:
-            self.already_seen_list.append(value)
+            self._already_seen_list.append(value)
         else:
-            self.already_seen_set.add(value)
+            self._already_seen_set.add(value)
 
     def _has_been_seen(self, elem: Any):
         value = self._value(elem)
         try:
             value = hash(value)
         except TypeError:
-            return value in self.already_seen_list
-        return value in self.already_seen_set
+            return value in self._already_seen_list
+        return value in self._already_seen_set
 
     def __next__(self) -> T:
         elem = next(self.iterator)
         while self._has_been_seen(elem):
             elem = next(self.iterator)
         self._see(elem)
+        return elem
+
+
+class ConsecutiveDistinctIterator(Iterator[T]):
+    def __init__(self, iterator: Iterator[T], by: Optional[Callable[[T], Any]]) -> None:
+        self.iterator = iterator
+        self.by = by
+        self._has_yielded = False
+        self._last_value: Any = None
+
+    def _next_elem_and_value(self) -> Tuple[T, Any]:
+        elem = next(self.iterator)
+        value = self.by(elem) if self.by else elem
+        return elem, value
+
+    def __next__(self) -> T:
+        elem, value = self._next_elem_and_value()
+        while self._has_yielded and value == self._last_value:
+            elem, value = self._next_elem_and_value()
+        self._has_yielded = True
+        self._last_value = value
         return elem
 
 

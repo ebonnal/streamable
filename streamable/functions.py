@@ -18,6 +18,7 @@ from streamable.iterators import (
     AsyncConcurrentMapIterator,
     CatchIterator,
     ConcurrentFlattenIterator,
+    ConsecutiveDistinctIterator,
     CountTruncateIterator,
     DistinctIterator,
     FlattenIterator,
@@ -71,7 +72,10 @@ def catch(
 def distinct(
     iterator: Iterator[T],
     by: Optional[Callable[[T], Any]] = None,
+    consecutive_only: bool = False,
 ) -> Iterator[T]:
+    if consecutive_only:
+        return ConsecutiveDistinctIterator(iterator, by)
     return DistinctIterator(iterator, by)
 
 
