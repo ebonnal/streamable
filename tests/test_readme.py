@@ -205,7 +205,7 @@ class TestReadme(unittest.TestCase):
         assert list(integers_after_five) == [5, 6, 7, 8, 9]
 
     def test_distinct_example(self) -> None:
-        distinct_chars: Stream[str] = Stream("foobarfoo").distinct()
+        distinct_chars: Stream[str] = Stream("foobarfooo").distinct()
 
         assert list(distinct_chars) == ["f", "o", "b", "a", "r"]
 
@@ -214,6 +214,12 @@ class TestReadme(unittest.TestCase):
         ).distinct(len)
 
         assert list(strings_of_distinct_lengths) == ["a", "foo"]
+
+        consecutively_distinct_chars: Stream[str] = Stream("foobarfooo").distinct(
+            consecutive_only=True
+        )
+
+        assert list(consecutively_distinct_chars) == ["f", "o", "b", "a", "r", "f", "o"]
 
     def test_observe_example(self) -> None:
         observed_slow_integers: Stream[int] = slow_integers.observe("integers")

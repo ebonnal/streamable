@@ -40,7 +40,9 @@ class ToStringVisitor(Visitor[str], ABC):
         return stream.upstream.accept(self)
 
     def visit_distinct_stream(self, stream: DistinctStream[T]) -> str:
-        self.methods_reprs.append(f"distinct({self.to_string(stream._by)})")
+        self.methods_reprs.append(
+            f"distinct({self.to_string(stream._by)}, consecutive_only={self.to_string(stream._consecutive_only)})"
+        )
         return stream.upstream.accept(self)
 
     def visit_filter_stream(self, stream: FilterStream[T]) -> str:

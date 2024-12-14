@@ -162,22 +162,27 @@ class Stream(Iterable[T]):
         get_logger().log(level, str(self))
         return self
 
-    def distinct(self, by: Optional[Callable[[T], Any]] = None) -> "Stream":
+    def distinct(
+        self, by: Optional[Callable[[T], Any]] = None, consecutive_only: bool = False
+    ) -> "Stream":
         """
-        Filters the stream to only yield distinct elements, two elements `foo` and `bar` being considered duplicates if `foo == bar`.
-        If `by` is specified, then `foo` and `bar` are considered duplicates if `by(foo) == by(bar)`.
+        Filters the stream to yield only distinct elements, `foo` and `bar` considered duplicates if `foo == bar`.
+        If `by` is specified, `foo` and `bar` are considered duplicates if `by(foo) == by(bar)`.
 
-        An element that has not already been yielded will be yielded, and any subsequent occurrence of it will be skipped.
+        Among duplicates, the first encountered occurence in upstream order is yielded.
 
-        Note: This operation can have a significant memory footprint, as the yielded elements are stored in memory for subsequent deduplication checks.
+        Warning:
+            During iteration, the distinct elements yielded are retained in memory to perform deduplication.
+            Alternatively, remove only consecutive duplicates without memory footprint by setting `consecutive_only=True`.
 
         Args:
-            by (Callable[[T], Any], optional): Elements are deduplicated by the value of `by(elem)` (default deduplicates on elements themselves).
+            by (Callable[[T], Any], optional): Elements are deduplicated based on the value returned by `by(elem)` (by default the deduplication is performed on the elements themselves).
+            consecutive_only (bool, optional): Whether to deduplicate only consecutive duplicates, or globally (by default the deduplication is global).
 
         Returns:
-            Stream: A new stream with only unique elements.
+            Stream: A stream containing only unique upstream elements.
         """
-        return DistinctStream(self, by)
+        return DistinctStream(self, by, consecutive_only)
 
     def filter(self, when: Callable[[T], Any] = bool) -> "Stream[T]":
         """
@@ -491,9 +496,11 @@ class DistinctStream(DownStream[T, T]):
         self,
         upstream: Stream[T],
         by: Optional[Callable[[T], Any]],
+        consecutive_only: bool,
     ) -> None:
         super().__init__(upstream)
         self._by = by
+        self._consecutive_only = consecutive_only
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_distinct_stream(self)

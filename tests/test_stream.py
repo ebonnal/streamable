@@ -255,7 +255,7 @@ class TestStream(unittest.TestCase):
     Stream(range(0, 256))
     .truncate(count=1024, when=<lambda>)
     .skip(10)
-    .distinct(<lambda>)
+    .distinct(<lambda>, consecutive_only=False)
     .filter(bool)
     .map(<lambda>, concurrency=1, ordered=True, via='thread')
     .filter(star(bool))
@@ -1215,15 +1215,21 @@ class TestStream(unittest.TestCase):
             msg="`distinct` should yield distinct elements",
         )
         self.assertEqual(
-            list(Stream(src).distinct(by=lambda i: i % 3)),
-            [0, 1, 2],
-            msg="`distinct` should yield the first encountered elem among duplicates",
+            list(Stream("aabbcccaabbcccc").distinct(consecutive_only=True)),
+            list("abcabc"),
+            msg="`distinct` should only remove the duplicates that are consecutive if `consecutive_only=True`",
         )
-        self.assertEqual(
-            list(Stream([]).distinct()),
-            [],
-            msg="`distinct` should yield zero elements on empty stream",
-        )
+        for consecutive_only in [True, False]:
+            self.assertEqual(
+                list(Stream(["foo", "bar", "a", "b"]).distinct(len)),
+                ["foo", "a"],
+                msg="`distinct` should yield the first encountered elem among duplicates",
+            )
+            self.assertEqual(
+                list(Stream([]).distinct(consecutive_only=consecutive_only)),
+                [],
+                msg="`distinct` should yield zero elements on empty stream",
+            )
         self.assertEqual(
             list(Stream([[1], [2], [1], [2]]).distinct()),
             [[1], [2]],
