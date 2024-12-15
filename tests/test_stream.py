@@ -204,8 +204,10 @@ class TestStream(unittest.TestCase):
             .distinct(lambda _: _)
             .filter()
             .map(lambda i: (i,))
+            .map(lambda i: (i,), concurrency=2)
             .filter(star(bool))
             .foreach(lambda _: _)
+            .foreach(lambda _: _, concurrency=2)
             .aforeach(async_identity)
             .map(cast(Callable[[Any], Any], CustomCallable()))
             .amap(async_identity)
@@ -244,9 +246,9 @@ class TestStream(unittest.TestCase):
         self.assertEqual(
             """(
     Stream(range(0, 256))
-    .map(<lambda>, concurrency=1, ordered=True, via='process')
+    .map(<lambda>, concurrency=2, ordered=True, via='process')
 )""",
-            str(Stream(src).map(lambda _: _, via="process")),
+            str(Stream(src).map(lambda _: _, concurrency=2, via="process")),
             msg="`repr` should work as expected on a stream with 1 operation",
         )
         self.assertEqual(
@@ -257,11 +259,13 @@ class TestStream(unittest.TestCase):
     .skip(10)
     .distinct(<lambda>, consecutive_only=False)
     .filter(bool)
-    .map(<lambda>, concurrency=1, ordered=True, via='thread')
+    .map(<lambda>, concurrency=1, ordered=True)
+    .map(<lambda>, concurrency=2, ordered=True, via='thread')
     .filter(star(bool))
-    .foreach(<lambda>, concurrency=1, ordered=True, via='thread')
+    .foreach(<lambda>, concurrency=1, ordered=True)
+    .foreach(<lambda>, concurrency=2, ordered=True, via='thread')
     .aforeach(async_identity, concurrency=1, ordered=True)
-    .map(CustomCallable(...), concurrency=1, ordered=True, via='thread')
+    .map(CustomCallable(...), concurrency=1, ordered=True)
     .amap(async_identity, concurrency=1, ordered=True)
     .group(size=100, by=None, interval=None)
     .observe('groups')
