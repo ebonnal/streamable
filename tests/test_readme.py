@@ -1,5 +1,5 @@
 import unittest
-from typing import List
+from typing import List, Tuple
 
 from streamable.stream import Stream
 
@@ -143,6 +143,24 @@ class TestReadme(unittest.TestCase):
             [9],
         ]
 
+    def test_groupby_example(self) -> None:
+        integers_by_parity: Stream[Tuple[str, List[int]]] = integers.groupby(
+            lambda n: "odd" if n % 2 else "pair"
+        )
+
+        assert list(integers_by_parity) == [
+            ("pair", [0, 2, 4, 6, 8]),
+            ("odd", [1, 3, 5, 7, 9]),
+        ]
+
+        from streamable import star
+
+        counts_by_parity: Stream[Tuple[str, int]] = integers_by_parity.map(
+            star(lambda parity, ints: (parity, len(ints)))
+        )
+
+        assert list(counts_by_parity) == [("pair", 5), ("odd", 5)]
+
     def test_flatten_example(self) -> None:
         global integers_by_parity
         pair_then_odd_integers: Stream[int] = integers_by_parity.flatten()
@@ -234,10 +252,10 @@ class TestReadme(unittest.TestCase):
         )
         assert list(cubes) == [0, 1, 8, 27, 64, 125, 216, 343, 512, 729]
 
-    def test_count_example(self):
+    def test_count_example(self) -> None:
         assert integers.count() == 10
 
-    def test_call(self):
+    def test_call(self) -> None:
         verbose_integers: Stream[int] = integers.foreach(print)
         assert verbose_integers() is verbose_integers
 

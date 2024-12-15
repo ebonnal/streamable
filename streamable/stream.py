@@ -14,6 +14,7 @@ from typing import (
     Optional,
     Sequence,
     Set,
+    Tuple,
     Type,
     TypeVar,
     Union,
@@ -335,6 +336,30 @@ class Stream(Iterable[T]):
         validate_group_interval(interval)
         return GroupStream(self, size, interval, by)
 
+    def groupby(
+        self,
+        by: Callable[[T], U],
+        size: Optional[int] = None,
+        interval: Optional[datetime.timedelta] = None,
+    ) -> "Stream[Tuple[U, List[T]]]":
+        """
+        Yields elements grouped by key as `(key, elements)` tuples.
+        Key is returned by `by(elem)`.
+        The group will contain `size` elements, but it may contain fewer elements in these cases:
+        - `interval` have passed since the last yield of a group
+        - upstream is exhausted
+        - upstream raises an exception
+
+        Args:
+            by (Callable[[T], Any]): Function returning the group's key.
+            size (Optional[int], optional): Maximum number of elements per group. (by default: no limit on the size of the group)
+            interval (float, optional): Yields a group if `interval` seconds have passed since the last group was yielded. (by default: no limit on the time interval between yields)
+
+        Returns:
+            Stream[Tuple[U, List[T]]]: A stream of upstream elements grouped by key, as `(key, elements)` tuples.
+        """
+        return GroupbyStream(self, by, size, interval)
+
     def map(
         self,
         transformation: Callable[[T], U],
@@ -575,6 +600,23 @@ class GroupStream(DownStream[T, List[T]]):
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_group_stream(self)
+
+
+class GroupbyStream(DownStream[T, Tuple[U, List[T]]]):
+    def __init__(
+        self,
+        upstream: Stream[T],
+        by: Callable[[T], U],
+        size: Optional[int],
+        interval: Optional[datetime.timedelta],
+    ) -> None:
+        super().__init__(upstream)
+        self._by = by
+        self._size = size
+        self._interval = interval
+
+    def accept(self, visitor: "Visitor[V]") -> V:
+        return visitor.visit_groupby_stream(self)
 
 
 class MapStream(DownStream[T, U]):

@@ -1,6 +1,7 @@
 import builtins
 import datetime
 from contextlib import suppress
+from operator import itemgetter
 from typing import (
     Any,
     Callable,
@@ -9,6 +10,7 @@ from typing import (
     Iterator,
     List,
     Optional,
+    Tuple,
     Type,
     TypeVar,
     cast,
@@ -22,9 +24,9 @@ from streamable.iterators import (
     CountTruncateIterator,
     DistinctIterator,
     FlattenIterator,
+    GroupbyIterator,
     GroupIterator,
     IntervalThrottleIterator,
-    KeyGroupIterator,
     ObserveIterator,
     OSConcurrentMapIterator,
     PredicateTruncateIterator,
@@ -101,16 +103,21 @@ def group(
     validate_iterator(iterator)
     validate_group_size(size)
     validate_group_interval(interval)
-    if size is None:
-        size = cast(int, float("inf"))
-    if interval is None:
-        interval_seconds = float("inf")
-    else:
-        interval_seconds = interval.total_seconds()
-    if by is not None:
-        by = catch_and_raise_as(by, StopIteration, NoopStopIteration)
-        return KeyGroupIterator(iterator, size, interval_seconds, by)
-    return GroupIterator(iterator, size, interval_seconds)
+    if by is None:
+        return GroupIterator(iterator, size, interval)
+    return map(itemgetter(1), GroupbyIterator(iterator, by, size, interval))
+
+
+def groupby(
+    iterator: Iterator[T],
+    by: Callable[[T], U],
+    size: Optional[int] = None,
+    interval: Optional[datetime.timedelta] = None,
+) -> Iterator[Tuple[U, List[T]]]:
+    validate_iterator(iterator)
+    validate_group_size(size)
+    validate_group_interval(interval)
+    return GroupbyIterator(iterator, by, size, interval)
 
 
 def map(
