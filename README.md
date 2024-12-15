@@ -266,7 +266,7 @@ assert list(integers_2_by_2_by_parity) == [[0, 2], [1, 3], [4, 6], [5, 7], [8], 
 
 ### `.groupby`
 
-> Alternative to `.group` that yields `(key, group)` tuples:
+> Like `.group`, but groups into `(key, elements)` tuples:
 ```python
 integers_by_parity: Stream[Tuple[str, List[int]]] = integers.groupby(lambda n: "odd" if n % 2 else "pair")
 
@@ -274,7 +274,7 @@ assert list(integers_by_parity) == [("pair", [0, 2, 4, 6, 8]), ("odd", [1, 3, 5,
 ```
 
 > [!TIP]
-> *"star map"* over the resulting tuples:
+> Then *"star map"* over the tuples:
 
 ```python
 from streamable import star
