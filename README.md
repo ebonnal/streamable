@@ -266,7 +266,7 @@ assert list(integers_2_by_2_by_parity) == [[0, 2], [1, 3], [4, 6], [5, 7], [8], 
 
 ## `.flatten`
 
-> Ungroups elements assuming that they are `Iterable`s.
+> Ungroups elements assuming that they are `Iterable`s:
 
 ```python
 pair_then_odd_integers: Stream[int] = integers_by_parity.flatten()
@@ -392,6 +392,7 @@ INFO: [duration=0:00:05.039571 errors=0] 10 integers yielded
 
 ## `zip`
 
+> [!TIP]
 > Use the standard `zip` function:
 
 ```python
