@@ -16,11 +16,11 @@ A `Stream[T]` decorates an `Iterable[T]` with a **fluent interface** enabling th
 |||
 |--|--|
 |🔗 *Fluent*|chain methods!|
-|🇹 *Typed*|**type-annotated** and [`mypy`](https://github.com/python/mypy)able|
-|💤 *Lazy*|operations are **lazily evaluated** at iteration time|
-|🔄 *Concurrent*|via **threads** or **processes** or `asyncio`|
+|🇹 *Typed*|generically **type-annotated**, `Stream[T]` is an `Iterable[T]`|
+|💤 *Lazy*|operations **evaluated** at iteration time|
+|🔀 *Concurrent*|via **threads** or **processes** or `asyncio`|
 |🛡️ *Robust*|unit-tested for **Python 3.7 to 3.14** with 100% coverage|
-|🪶 *Minimalist*|`pip install streamable` with **no additional dependencies**|
+|🪶 *Light*|`pip install streamable` with **no additional dependencies**|
 
 ---
 
@@ -266,7 +266,7 @@ assert list(integers_2_by_2_by_parity) == [[0, 2], [1, 3], [4, 6], [5, 7], [8], 
 
 ## `.flatten`
 
-> Ungroups elements assuming that they are `Iterable`s.
+> Ungroups elements assuming that they are `Iterable`s:
 
 ```python
 pair_then_odd_integers: Stream[int] = integers_by_parity.flatten()
@@ -392,6 +392,7 @@ INFO: [duration=0:00:05.039571 errors=0] 10 integers yielded
 
 ## `zip`
 
+> [!TIP]
 > Use the standard `zip` function:
 
 ```python
@@ -519,11 +520,11 @@ inverse_integers: Iterator[int] = map(lambda n: 1 / n, range(10))
 safe_inverse_integers: Iterator[int] = catch(inverse_integers, ZeroDivisionError)
 ```
 
-## compatible with *free-threaded* Python 3.13+
+## *free-threaded* Python 3.13+
 Benefits from [free-threaded](https://docs.python.org/3/using/configure.html#cmdoption-disable-gil) Python 3.13+ builds, run via `python -X gil=0`.
 
 ## Thank you for the highlights 🙏
-- [Tryolabs's Top Python libraries of 2024](https://tryolabs.com/blog/top-python-libraries-2024#top-10---general-use) ([LinkedIn](https://www.linkedin.com/posts/tryolabs_top-python-libraries-2024-activity-7273052840984539137-bcGs?utm_source=share&utm_medium=member_desktop), [Reddit](https://www.reddit.com/r/Python/comments/1hbs4t8/the_handpicked_selection_of_the_best_python/))
+- [Tryolabs' Top Python libraries of 2024](https://tryolabs.com/blog/top-python-libraries-2024#top-10---general-use) ([LinkedIn](https://www.linkedin.com/posts/tryolabs_top-python-libraries-2024-activity-7273052840984539137-bcGs?utm_source=share&utm_medium=member_desktop), [Reddit](https://www.reddit.com/r/Python/comments/1hbs4t8/the_handpicked_selection_of_the_best_python/))
 - [PyCoder’s Weekly](https://pycoders.com/issues/651) x [Real Python](https://realpython.com/)
 - [@PythonHub's tweet](https://x.com/PythonHub/status/1842886311369142713)
 - [Upvoters on our showcase Reddit post](https://www.reddit.com/r/Python/comments/1fp38jd/streamable_streamlike_manipulation_of_iterables/)
