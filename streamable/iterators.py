@@ -294,14 +294,14 @@ class SkipIterator(Iterator[T]):
 class CountTruncateIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], count: int) -> None:
         self.iterator = iterator
-        self.max_count = count
-        self.count = 0
+        self.count = count
+        self._current_count = 0
 
     def __next__(self):
-        if self.count == self.max_count:
+        if self._current_count == self.count:
             raise StopIteration()
         elem = next(self.iterator)
-        self.count += 1
+        self._current_count += 1
         return elem
 
 
@@ -309,14 +309,14 @@ class PredicateTruncateIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], when: Callable[[T], Any]) -> None:
         self.iterator = iterator
         self.when = when
-        self.satisfied = False
+        self._satisfied = False
 
     def __next__(self):
-        if self.satisfied:
+        if self._satisfied:
             raise StopIteration()
         elem = next(self.iterator)
         if self.when(elem):
-            self.satisfied = True
+            self._satisfied = True
             return next(self)
         return elem
 
@@ -362,14 +362,14 @@ class ObserveIterator(Iterator[T]):
 class IntervalThrottleIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], interval: datetime.timedelta) -> None:
         self.iterator = iterator
-        self.interval_seconds = interval.total_seconds()
+        self._interval_seconds = interval.total_seconds()
 
     def __next__(self) -> T:
         start_time = time.time()
         elem = next(self.iterator)
         elapsed_time = time.time() - start_time
-        if self.interval_seconds > elapsed_time:
-            time.sleep(self.interval_seconds - elapsed_time)
+        if self._interval_seconds > elapsed_time:
+            time.sleep(self._interval_seconds - elapsed_time)
         return elem
 
 
@@ -382,32 +382,32 @@ class YieldsPerPeriodThrottleIterator(Iterator[T]):
     ) -> None:
         self.iterator = iterator
         self.max_yields = max_yields
-        self.period_seconds = period.total_seconds()
+        self._period_seconds = period.total_seconds()
 
-        self.period_index: int = -1
-        self.yields_in_period = 0
+        self._period_index: int = -1
+        self._yields_in_period = 0
 
-        self.offset: Optional[float] = None
+        self._offset: Optional[float] = None
 
     def __next__(self) -> T:
         current_time = time.time()
-        if not self.offset:
-            self.offset = current_time
-        current_time -= self.offset
+        if not self._offset:
+            self._offset = current_time
+        current_time -= self._offset
 
-        num_periods = current_time / self.period_seconds
+        num_periods = current_time / self._period_seconds
         period_index = int(num_periods)
 
-        if self.period_index != period_index:
-            self.period_index = period_index
-            self.yields_in_period = 0
+        if self._period_index != period_index:
+            self._period_index = period_index
+            self._yields_in_period = 0
 
-        if self.yields_in_period >= self.max_yields:
-            time.sleep((ceil(num_periods) - num_periods) * self.period_seconds)
+        if self._yields_in_period >= self.max_yields:
+            time.sleep((ceil(num_periods) - num_periods) * self._period_seconds)
             return next(self)
 
         # yield
-        self.yields_in_period += 1
+        self._yields_in_period += 1
         return next(self.iterator)
 
 
