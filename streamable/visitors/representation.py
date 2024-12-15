@@ -9,6 +9,7 @@ from streamable.stream import (
     FilterStream,
     FlattenStream,
     ForeachStream,
+    GroupbyStream,
     GroupStream,
     MapStream,
     ObserveStream,
@@ -71,6 +72,12 @@ class ToStringVisitor(Visitor[str], ABC):
     def visit_group_stream(self, stream: GroupStream[U]) -> str:
         self.methods_reprs.append(
             f"group(size={self.to_string(stream._size)}, by={self.to_string(stream._by)}, interval={self.to_string(stream._interval)})"
+        )
+        return stream.upstream.accept(self)
+
+    def visit_groupby_stream(self, stream: GroupbyStream[U, T]) -> str:
+        self.methods_reprs.append(
+            f"groupby({self.to_string(stream._by)}, size={self.to_string(stream._size)}, interval={self.to_string(stream._interval)})"
         )
         return stream.upstream.accept(self)
 

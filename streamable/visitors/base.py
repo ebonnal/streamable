@@ -33,6 +33,9 @@ class Visitor(ABC, Generic[V]):
     def visit_group_stream(self, stream: stream.GroupStream) -> V:
         return self.visit_stream(stream)
 
+    def visit_groupby_stream(self, stream: stream.GroupbyStream) -> V:
+        return self.visit_stream(stream)
+
     def visit_observe_stream(self, stream: stream.ObserveStream) -> V:
         return self.visit_stream(stream)
 

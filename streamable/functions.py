@@ -9,6 +9,7 @@ from typing import (
     Iterator,
     List,
     Optional,
+    Tuple,
     Type,
     TypeVar,
     cast,
@@ -111,6 +112,18 @@ def group(
         by = catch_and_raise_as(by, StopIteration, NoopStopIteration)
         return KeyGroupIterator(iterator, size, interval_seconds, by)
     return GroupIterator(iterator, size, interval_seconds)
+
+
+def groupby(
+    iterator: Iterator[T],
+    by: Callable[[T], U],
+    size: Optional[int] = None,
+    interval: Optional[datetime.timedelta] = None,
+) -> Iterator[Tuple[U, List[T]]]:
+    return map(
+        lambda grp: (by(grp[0]), grp),
+        group(iterator, size=size, interval=interval, by=by),
+    )
 
 
 def map(

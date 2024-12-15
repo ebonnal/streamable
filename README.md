@@ -264,9 +264,29 @@ integers_2_by_2_by_parity: Stream[List[int]] = integers.group(by=lambda n: n % 2
 assert list(integers_2_by_2_by_parity) == [[0, 2], [1, 3], [4, 6], [5, 7], [8], [9]]
 ```
 
+### `.groupby`
+
+> Alternative to `.group` that yields `(key, group)` tuples:
+```python
+integers_by_parity: Stream[Tuple[str, List[int]]] = integers.groupby(lambda n: "odd" if n % 2 else "pair")
+
+assert list(integers_by_parity) == [("pair", [0, 2, 4, 6, 8]), ("odd", [1, 3, 5, 7, 9])]
+```
+
+> [!TIP]
+> *"star map"* over the resulting tuples:
+
+```python
+from streamable import star
+
+counts_by_parity: Stream[Tuple[str, int]] = integers_by_parity.map(star(lambda parity, ints: (parity, len(ints))))
+
+assert list(counts_by_parity) == [("pair", 5), ("odd", 5)]
+```
+
 ## `.flatten`
 
-> Ungroups elements assuming that they are `Iterable`s.
+> Ungroups elements assuming that they are `Iterable`s:
 
 ```python
 pair_then_odd_integers: Stream[int] = integers_by_parity.flatten()
