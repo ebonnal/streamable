@@ -75,6 +75,7 @@ def distinct(
     by: Optional[Callable[[T], Any]] = None,
     consecutive_only: bool = False,
 ) -> Iterator[T]:
+    validate_iterator(iterator)
     if consecutive_only:
         return ConsecutiveDistinctIterator(iterator, by)
     return DistinctIterator(iterator, by)

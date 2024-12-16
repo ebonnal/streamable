@@ -22,7 +22,7 @@ from typing import (
 from parameterized import parameterized  # type: ignore
 
 from streamable import Stream
-from streamable.functions import NoopStopIteration
+from streamable.util.exceptions import NoopStopIteration
 from streamable.util.functiontools import sidify, star
 
 T = TypeVar("T")

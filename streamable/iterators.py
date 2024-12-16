@@ -29,6 +29,15 @@ from typing import (
 
 from streamable.util.functiontools import noop_stopiteration
 from streamable.util.loggertools import get_logger
+from streamable.util.validationtools import (
+    validate_buffer_size,
+    validate_concurrency,
+    validate_count,
+    validate_group_interval,
+    validate_group_size,
+    validate_iterator,
+    validate_throttle_interval,
+)
 
 T = TypeVar("T")
 U = TypeVar("U")
@@ -55,6 +64,7 @@ class CatchIterator(Iterator[T]):
         replacement: T,
         finally_raise: bool,
     ) -> None:
+        validate_iterator(iterator)
         self.iterator = iterator
         self.kind = kind
         self.when = noop_stopiteration(when)
@@ -84,6 +94,7 @@ class CatchIterator(Iterator[T]):
 
 class DistinctIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], by: Optional[Callable[[T], Any]]) -> None:
+        validate_iterator(iterator)
         self.iterator = iterator
         self.by = noop_stopiteration(by) if by else None
         self._already_seen_set: Set[Any] = set()
@@ -119,6 +130,7 @@ class DistinctIterator(Iterator[T]):
 
 class ConsecutiveDistinctIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], by: Optional[Callable[[T], Any]]) -> None:
+        validate_iterator(iterator)
         self.iterator = iterator
         self.by = noop_stopiteration(by) if by else None
         self._has_yielded = False
@@ -140,6 +152,7 @@ class ConsecutiveDistinctIterator(Iterator[T]):
 
 class FlattenIterator(Iterator[U]):
     def __init__(self, iterator: Iterator[Iterable[U]]) -> None:
+        validate_iterator(iterator)
         self.iterator = iterator
         self._current_iterator_elem: Iterator[U] = iter([])
 
@@ -159,6 +172,9 @@ class _GroupIteratorInitMixin(Generic[T]):
         size: Optional[int],
         interval: Optional[datetime.timedelta],
     ) -> None:
+        validate_iterator(iterator)
+        validate_group_size(size)
+        validate_group_interval(interval)
         self.iterator = iterator
         self.size = size if size else cast(int, float("inf"))
         self._interval_seconds = (
@@ -283,6 +299,8 @@ class GroupbyIterator(_GroupIteratorInitMixin[T], Iterator[Tuple[U, List[T]]]):
 
 class SkipIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], count: int) -> None:
+        validate_iterator(iterator)
+        validate_count(count)
         self.iterator = iterator
         self.count = count
         self._skipped = 0
@@ -297,6 +315,8 @@ class SkipIterator(Iterator[T]):
 
 class CountTruncateIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], count: int) -> None:
+        validate_iterator(iterator)
+        validate_count(count)
         self.iterator = iterator
         self.count = count
         self._current_count = 0
@@ -311,6 +331,7 @@ class CountTruncateIterator(Iterator[T]):
 
 class PredicateTruncateIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], when: Callable[[T], Any]) -> None:
+        validate_iterator(iterator)
         self.iterator = iterator
         self.when = noop_stopiteration(when)
         self._satisfied = False
@@ -327,6 +348,7 @@ class PredicateTruncateIterator(Iterator[T]):
 
 class ObserveIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], what: str) -> None:
+        validate_iterator(iterator)
         self.iterator = iterator
         self.what = what
         self._n_yields = 0
@@ -365,6 +387,8 @@ class ObserveIterator(Iterator[T]):
 
 class IntervalThrottleIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], interval: datetime.timedelta) -> None:
+        validate_iterator(iterator)
+        validate_throttle_interval(interval)
         self.iterator = iterator
         self._interval_seconds = interval.total_seconds()
 
@@ -384,6 +408,7 @@ class YieldsPerPeriodThrottleIterator(Iterator[T]):
         max_yields: int,
         period: datetime.timedelta,
     ) -> None:
+        validate_iterator(iterator)
         self.iterator = iterator
         self.max_yields = max_yields
         self._period_seconds = period.total_seconds()
@@ -448,6 +473,8 @@ class _ConcurrentMapIterable(
         buffer_size: int,
         ordered: bool,
     ) -> None:
+        validate_iterator(iterator)
+        validate_buffer_size(buffer_size)
         self.iterator = iterator
         self.buffer_size = buffer_size
         self.ordered = ordered
@@ -498,6 +525,7 @@ class _OSConcurrentMapIterable(_ConcurrentMapIterable[T, U]):
         via: "Literal['thread', 'process']",
     ) -> None:
         super().__init__(iterator, buffer_size, ordered)
+        validate_concurrency(concurrency)
         self.transformation = noop_stopiteration(transformation)
         self.concurrency = concurrency
         self.executor: Executor
@@ -630,6 +658,8 @@ class _ConcurrentFlattenIterable(
         concurrency: int,
         buffer_size: int,
     ) -> None:
+        validate_iterator(iterables_iterator)
+        validate_concurrency(concurrency)
         self.iterables_iterator = iterables_iterator
         self.concurrency = concurrency
         self.buffer_size = buffer_size
