@@ -19,6 +19,13 @@ def validate_concurrency(concurrency: int) -> None:
         )
 
 
+def validate_buffer_size(buffer_size: int) -> None:
+    if buffer_size < 1:
+        raise ValueError(
+            f"`buffer_size` should be greater or equal to 1, but got {buffer_size}."
+        )
+
+
 def validate_via(via: str) -> None:
     if via not in ["thread", "process"]:
         raise TypeError(f"`via` should be 'thread' or 'process', but got {repr(via)}.")
