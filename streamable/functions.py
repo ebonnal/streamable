@@ -90,7 +90,7 @@ def flatten(iterator: Iterator[Iterable[T]], concurrency: int = 1) -> Iterator[T
         return ConcurrentFlattenIterator(
             iterator,
             concurrency=concurrency,
-            buffer_size=concurrency,
+            buffersize=concurrency,
         )
 
 
@@ -136,7 +136,7 @@ def map(
             iterator,
             transformation,
             concurrency=concurrency,
-            buffer_size=concurrency,
+            buffersize=concurrency,
             ordered=ordered,
             via=via,
         )
@@ -153,7 +153,7 @@ def amap(
     return AsyncConcurrentMapIterator(
         iterator,
         transformation,
-        buffer_size=concurrency,
+        buffersize=concurrency,
         ordered=ordered,
     )
 
