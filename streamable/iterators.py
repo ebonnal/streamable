@@ -193,55 +193,54 @@ class GroupIterator(Iterator[List[T]]):
         return group
 
 
-class KeyGroupIterator(GroupIterator[T]):
+class GroupbyIterator(Iterator[Tuple[U, List[T]]]):
     def __init__(
         self,
         iterator: Iterator[T],
+        by: Callable[[T], U],
         size: int,
         interval_seconds: float,
-        by: Optional[Callable[[T], Any]],
     ) -> None:
-        super().__init__(iterator, size, interval_seconds)
         self.by = by
+        self.iterator = iterator
+        self.size = size
+        self.interval_seconds = interval_seconds
+        self._to_be_raised: Optional[Exception] = None
+        self._last_group_yielded_at: float = 0
         self._is_exhausted = False
-        self._groups_by: DefaultDict[Any, List[T]] = defaultdict(list)
-
-    def _group_key(self, elem: T) -> Any:
-        if self.by:
-            return self.by(elem)
-
-    def _group_next_elem(self) -> None:
-        elem = next(self.iterator)
-        key = self._group_key(elem)
-        self._groups_by[key].append(elem)
+        self._groups_by: DefaultDict[U, List[T]] = defaultdict(list)
 
     def _interval_seconds_have_elapsed(self) -> bool:
         return (time.time() - self._last_group_yielded_at) >= self.interval_seconds
 
-    def _pop_full_group(self) -> Optional[List[T]]:
+    def _group_next_elem(self) -> None:
+        elem = next(self.iterator)
+        self._groups_by[self.by(elem)].append(elem)
+
+    def _pop_full_group(self) -> Optional[Tuple[U, List[T]]]:
         for key, group in self._groups_by.items():
             if len(group) >= self.size:
-                return self._groups_by.pop(key)
+                return key, self._groups_by.pop(key)
         return None
 
-    def _pop_first_group(self) -> List[T]:
-        first_key = next(iter(self._groups_by), ...)
-        return self._groups_by.pop(first_key)
+    def _pop_first_group(self) -> Tuple[U, List[T]]:
+        first_key: U = next(iter(self._groups_by), cast(U, ...))
+        return first_key, self._groups_by.pop(first_key)
 
-    def _pop_largest_group(self) -> List[T]:
+    def _pop_largest_group(self) -> Tuple[U, List[T]]:
         largest_group_key: Any = next(iter(self._groups_by), ...)
 
         for key, group in self._groups_by.items():
             if len(group) > len(self._groups_by[largest_group_key]):
                 largest_group_key = key
 
-        return self._groups_by.pop(largest_group_key)
+        return largest_group_key, self._groups_by.pop(largest_group_key)
 
-    def _return_group(self, group: List[T]) -> List[T]:
+    def _return_group(self, group: Tuple[U, List[T]]) -> Tuple[U, List[T]]:
         self._last_group_yielded_at = time.time()
         return group
 
-    def __next__(self) -> List[T]:
+    def __next__(self) -> Tuple[U, List[T]]:
         if not self._last_group_yielded_at:
             self._last_group_yielded_at = time.time()
         if self._is_exhausted:
@@ -259,7 +258,7 @@ class KeyGroupIterator(GroupIterator[T]):
         try:
             self._group_next_elem()
 
-            full_group: Optional[List[T]] = self._pop_full_group()
+            full_group: Optional[Tuple[U, List[T]]] = self._pop_full_group()
             while not full_group and not self._interval_seconds_have_elapsed():
                 self._group_next_elem()
                 full_group = self._pop_full_group()
