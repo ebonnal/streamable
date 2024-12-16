@@ -1,5 +1,7 @@
 from typing import Any, Callable, Coroutine, Generic, Tuple, Type, TypeVar, overload
 
+from streamable.util.exceptions import NoopStopIteration
+
 T = TypeVar("T")
 R = TypeVar("R")
 
@@ -22,12 +24,8 @@ class _CatchAndRaiseAs(Generic[T, R]):
             raise self.raised_error(str(e)) from e
 
 
-def catch_and_raise_as(
-    func: Callable[[T], R],
-    catched_error: Type[Exception],
-    raised_error: Type[Exception],
-) -> Callable[[T], R]:
-    return _CatchAndRaiseAs(func, catched_error, raised_error)
+def noop_stopiteration(func: Callable[[T], R]) -> Callable[[T], R]:
+    return _CatchAndRaiseAs(func, StopIteration, NoopStopIteration)
 
 
 class _Sidify(Generic[T]):

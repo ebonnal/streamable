@@ -18,7 +18,7 @@ from streamable.stream import (
     ThrottleStream,
     TruncateStream,
 )
-from streamable.util.functiontools import async_sidify, catch_and_raise_as, sidify
+from streamable.util.functiontools import async_sidify, noop_stopiteration, sidify
 from streamable.visitors import Visitor
 
 T = TypeVar("T")
@@ -44,9 +44,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
 
     def visit_filter_stream(self, stream: FilterStream[T]) -> Iterator[T]:
         return filter(
-            catch_and_raise_as(
-                stream._when, StopIteration, functions.NoopStopIteration
-            ),
+            noop_stopiteration(stream._when),
             cast(Iterable[T], stream.upstream.accept(self)),
         )
 
