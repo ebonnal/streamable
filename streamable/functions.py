@@ -34,8 +34,7 @@ from streamable.iterators import (
     YieldsPerPeriodThrottleIterator,
 )
 from streamable.util.constants import NO_REPLACEMENT
-from streamable.util.exceptions import NoopStopIteration
-from streamable.util.functiontools import catch_and_raise_as
+from streamable.util.functiontools import noop_stopiteration
 from streamable.util.validationtools import (
     validate_concurrency,
     validate_count,
@@ -129,11 +128,8 @@ def map(
 ) -> Iterator[U]:
     validate_iterator(iterator)
     validate_concurrency(concurrency)
-    transformation = catch_and_raise_as(
-        transformation, StopIteration, NoopStopIteration
-    )
     if concurrency == 1:
-        return builtins.map(transformation, iterator)
+        return builtins.map(noop_stopiteration(transformation), iterator)
     else:
         return OSConcurrentMapIterator(
             iterator,

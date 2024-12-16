@@ -27,14 +27,13 @@ from typing import (
     cast,
 )
 
-from streamable.util.functiontools import catch_and_raise_as
+from streamable.util.functiontools import noop_stopiteration
 from streamable.util.loggertools import get_logger
 
 T = TypeVar("T")
 U = TypeVar("U")
 
 from streamable.util.constants import NO_REPLACEMENT
-from streamable.util.exceptions import NoopStopIteration
 from streamable.util.futuretools import (
     FDFOAsyncFutureResultCollection,
     FDFOThreadFutureResultCollection,
@@ -58,7 +57,7 @@ class CatchIterator(Iterator[T]):
     ) -> None:
         self.iterator = iterator
         self.kind = kind
-        self.when = when
+        self.when = noop_stopiteration(when)
         self.replacement = replacement
         self.finally_raise = finally_raise
         self._to_be_finally_raised: Optional[Exception] = None
@@ -86,7 +85,7 @@ class CatchIterator(Iterator[T]):
 class DistinctIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], by: Optional[Callable[[T], Any]]) -> None:
         self.iterator = iterator
-        self.by = by
+        self.by = noop_stopiteration(by) if by else None
         self._already_seen_set: Set[Any] = set()
         self._already_seen_list: List[Any] = list()
 
@@ -121,7 +120,7 @@ class DistinctIterator(Iterator[T]):
 class ConsecutiveDistinctIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], by: Optional[Callable[[T], Any]]) -> None:
         self.iterator = iterator
-        self.by = by
+        self.by = noop_stopiteration(by) if by else None
         self._has_yielded = False
         self._last_value: Any = None
 
@@ -150,9 +149,7 @@ class FlattenIterator(Iterator[U]):
                 return next(self._current_iterator_elem)
             except StopIteration:
                 iterable_elem = next(self.iterator)
-                self._current_iterator_elem = catch_and_raise_as(
-                    iter, StopIteration, NoopStopIteration
-                )(iterable_elem)
+                self._current_iterator_elem = noop_stopiteration(iter)(iterable_elem)
 
 
 class _GroupIteratorInitMixin(Generic[T]):
@@ -214,7 +211,7 @@ class GroupbyIterator(_GroupIteratorInitMixin[T], Iterator[Tuple[U, List[T]]]):
         interval: Optional[datetime.timedelta],
     ) -> None:
         super().__init__(iterator, size, interval)
-        self.by = catch_and_raise_as(by, StopIteration, NoopStopIteration)
+        self.by = noop_stopiteration(by)
         self._is_exhausted = False
         self._groups_by: DefaultDict[U, List[T]] = defaultdict(list)
 
@@ -315,7 +312,7 @@ class CountTruncateIterator(Iterator[T]):
 class PredicateTruncateIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], when: Callable[[T], Any]) -> None:
         self.iterator = iterator
-        self.when = when
+        self.when = noop_stopiteration(when)
         self._satisfied = False
 
     def __next__(self):
@@ -501,7 +498,7 @@ class _OSConcurrentMapIterable(_ConcurrentMapIterable[T, U]):
         via: "Literal['thread', 'process']",
     ) -> None:
         super().__init__(iterator, buffer_size, ordered)
-        self.transformation = transformation
+        self.transformation = noop_stopiteration(transformation)
         self.concurrency = concurrency
         self.executor: Executor
         self.via = via
@@ -572,7 +569,7 @@ class _AsyncConcurrentMapIterable(_ConcurrentMapIterable[T, U]):
         ordered: bool,
     ) -> None:
         super().__init__(iterator, buffer_size, ordered)
-        self.transformation = transformation
+        self.transformation = noop_stopiteration(transformation)
 
     async def _safe_transformation(
         self, elem: T
@@ -667,9 +664,7 @@ class _ConcurrentFlattenIterable(
                         except StopIteration:
                             break
                         try:
-                            iterator = catch_and_raise_as(
-                                iter, StopIteration, NoopStopIteration
-                            )(iterable)
+                            iterator = noop_stopiteration(iter)(iterable)
                         except Exception as e:
                             yield _RaisingIterator.ExceptionContainer(e)
                             continue
