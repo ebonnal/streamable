@@ -30,7 +30,7 @@ from typing import (
 from streamable.util.functiontools import noop_stopiteration
 from streamable.util.loggertools import get_logger
 from streamable.util.validationtools import (
-    validate_buffer_size,
+    validate_buffersize,
     validate_concurrency,
     validate_count,
     validate_group_interval,
@@ -470,13 +470,13 @@ class _ConcurrentMapIterable(
     def __init__(
         self,
         iterator: Iterator[T],
-        buffer_size: int,
+        buffersize: int,
         ordered: bool,
     ) -> None:
         validate_iterator(iterator)
-        validate_buffer_size(buffer_size)
+        validate_buffersize(buffersize)
         self.iterator = iterator
-        self.buffer_size = buffer_size
+        self.buffersize = buffersize
         self.ordered = ordered
 
     def _context_manager(self) -> ContextManager:
@@ -501,9 +501,9 @@ class _ConcurrentMapIterable(
         with self._context_manager():
             future_results = self._future_result_collection()
 
-            # queue tasks up to buffer_size
+            # queue tasks up to buffersize
             with suppress(StopIteration):
-                while len(future_results) < self.buffer_size:
+                while len(future_results) < self.buffersize:
                     future_results.add_future(self._launch_task(next(self.iterator)))
 
             # wait, queue, yield
@@ -520,11 +520,11 @@ class _OSConcurrentMapIterable(_ConcurrentMapIterable[T, U]):
         iterator: Iterator[T],
         transformation: Callable[[T], U],
         concurrency: int,
-        buffer_size: int,
+        buffersize: int,
         ordered: bool,
         via: "Literal['thread', 'process']",
     ) -> None:
-        super().__init__(iterator, buffer_size, ordered)
+        super().__init__(iterator, buffersize, ordered)
         validate_concurrency(concurrency)
         self.transformation = noop_stopiteration(transformation)
         self.concurrency = concurrency
@@ -570,7 +570,7 @@ class OSConcurrentMapIterator(_RaisingIterator[U]):
         iterator: Iterator[T],
         transformation: Callable[[T], U],
         concurrency: int,
-        buffer_size: int,
+        buffersize: int,
         ordered: bool,
         via: "Literal['thread', 'process']",
     ) -> None:
@@ -580,7 +580,7 @@ class OSConcurrentMapIterator(_RaisingIterator[U]):
                     iterator,
                     transformation,
                     concurrency,
-                    buffer_size,
+                    buffersize,
                     ordered,
                     via,
                 )
@@ -593,10 +593,10 @@ class _AsyncConcurrentMapIterable(_ConcurrentMapIterable[T, U]):
         self,
         iterator: Iterator[T],
         transformation: Callable[[T], Coroutine[Any, Any, U]],
-        buffer_size: int,
+        buffersize: int,
         ordered: bool,
     ) -> None:
-        super().__init__(iterator, buffer_size, ordered)
+        super().__init__(iterator, buffersize, ordered)
         self.transformation = noop_stopiteration(transformation)
 
     async def _safe_transformation(
@@ -634,7 +634,7 @@ class AsyncConcurrentMapIterator(_RaisingIterator[U]):
         self,
         iterator: Iterator[T],
         transformation: Callable[[T], Coroutine[Any, Any, U]],
-        buffer_size: int,
+        buffersize: int,
         ordered: bool,
     ) -> None:
         super().__init__(
@@ -642,7 +642,7 @@ class AsyncConcurrentMapIterator(_RaisingIterator[U]):
                 _AsyncConcurrentMapIterable(
                     iterator,
                     transformation,
-                    buffer_size,
+                    buffersize,
                     ordered,
                 )
             )
@@ -656,13 +656,13 @@ class _ConcurrentFlattenIterable(
         self,
         iterables_iterator: Iterator[Iterable[T]],
         concurrency: int,
-        buffer_size: int,
+        buffersize: int,
     ) -> None:
         validate_iterator(iterables_iterator)
         validate_concurrency(concurrency)
         self.iterables_iterator = iterables_iterator
         self.concurrency = concurrency
-        self.buffer_size = buffer_size
+        self.buffersize = buffersize
 
     def __iter__(self) -> Iterator[Union[T, _RaisingIterator.ExceptionContainer]]:
         with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
@@ -684,8 +684,8 @@ class _ConcurrentFlattenIterable(
                         element_to_yield.append(_RaisingIterator.ExceptionContainer(e))
                         iterator_to_queue.append(iterator)
 
-                # queue tasks up to buffer_size
-                while len(iterator_and_future_pairs) < self.buffer_size:
+                # queue tasks up to buffersize
+                while len(iterator_and_future_pairs) < self.buffersize:
                     if iterator_to_queue:
                         iterator = iterator_to_queue.pop()
                     else:
@@ -713,14 +713,14 @@ class ConcurrentFlattenIterator(_RaisingIterator[T]):
         self,
         iterables_iterator: Iterator[Iterable[T]],
         concurrency: int,
-        buffer_size: int,
+        buffersize: int,
     ) -> None:
         super().__init__(
             iter(
                 _ConcurrentFlattenIterable(
                     iterables_iterator,
                     concurrency,
-                    buffer_size,
+                    buffersize,
                 )
             )
         )

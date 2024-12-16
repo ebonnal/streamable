@@ -19,10 +19,10 @@ def validate_concurrency(concurrency: int) -> None:
         )
 
 
-def validate_buffer_size(buffer_size: int) -> None:
-    if buffer_size < 1:
+def validate_buffersize(buffersize: int) -> None:
+    if buffersize < 1:
         raise ValueError(
-            f"`buffer_size` should be greater or equal to 1, but got {buffer_size}."
+            f"`buffersize` should be greater or equal to 1, but got {buffersize}."
         )
 
 
