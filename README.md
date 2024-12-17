@@ -268,7 +268,7 @@ assert list(integers_by_parity_by_2) == [[0, 2], [1, 3], [4, 6], [5, 7], [8], [9
 
 > Like `.group`, but groups into `(key, elements)` tuples:
 ```python
-integers_by_parity: Stream[Tuple[str, List[int]]] = integers.groupby(lambda n: "odd" if n % 2 else "pair")
+integers_by_parity: Stream[Tuple[str, List[int]]] = integers.group(by=lambda n: "odd" if n % 2 else "pair")
 
 assert list(integers_by_parity) == [("pair", [0, 2, 4, 6, 8]), ("odd", [1, 3, 5, 7, 9])]
 ```
