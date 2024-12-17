@@ -627,6 +627,9 @@ class TestStream(unittest.TestCase):
         ):
             next(iter(Stream(cast(Iterable, src)).flatten()))
 
+        # test typing with ranges
+        _: Stream[int] = Stream((src, src)).flatten()
+
     def test_flatten_concurrency(self) -> None:
         iterable_size = 5
         runtime, res = timestream(
