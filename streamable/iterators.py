@@ -176,10 +176,8 @@ class _GroupIteratorInitMixin(Generic[T]):
         validate_group_size(size)
         validate_group_interval(interval)
         self.iterator = iterator
-        self.size = size if size else cast(int, float("inf"))
-        self._interval_seconds = (
-            float("inf") if interval is None else interval.total_seconds()
-        )
+        self.size = size or cast(int, float("inf"))
+        self._interval_seconds = interval.total_seconds() if interval else float("inf")
         self._to_be_raised: Optional[Exception] = None
         self._last_group_yielded_at: float = 0
 
