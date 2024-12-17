@@ -242,6 +242,11 @@ class TestReadme(unittest.TestCase):
     def test_observe_example(self) -> None:
         observed_slow_integers: Stream[int] = slow_integers.observe("integers")
 
+    def test_plus_example(self) -> None:
+        # fmt: off
+        assert list(integers + integers) == [0, 1, 2, 3 ,4, 5, 6, 7, 8, 9, 0, 1, 2, 3 ,4, 5, 6, 7, 8, 9]
+        # fmt: on
+
     def test_zip_example(self) -> None:
         from streamable import star
 

@@ -410,6 +410,11 @@ INFO: [duration=0:00:05.039571 errors=0] 10 integers yielded
 > [!WARNING]
 > It is mute between *v1.1.0* and *v1.3.1*, please `pip install --upgrade streamable`
 
+## `+`
+
+> Concatenates streams:
+assert list(integers + integers) == [0, 1, 2, 3 ,4, 5, 6, 7, 8, 9, 0, 1, 2, 3 ,4, 5, 6, 7, 8, 9]
+
 ## `zip`
 
 > [!TIP]
