@@ -116,25 +116,25 @@ class TestReadme(unittest.TestCase):
 
     def test_group_example(self) -> None:
         global integers_by_parity
-        integers_5_by_5: Stream[List[int]] = integers.group(size=5)
+        integers_by_5: Stream[List[int]] = integers.group(size=5)
 
-        assert list(integers_5_by_5) == [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]]
+        assert list(integers_by_5) == [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]]
 
         assert list(integers_by_parity) == [[0, 2, 4, 6, 8], [1, 3, 5, 7, 9]]
 
         from datetime import timedelta
 
-        integers_within_1s: Stream[List[int]] = integers.throttle(per_second=2).group(
-            interval=timedelta(seconds=0.99)
-        )
+        integers_within_1_sec: Stream[List[int]] = integers.throttle(
+            per_second=2
+        ).group(interval=timedelta(seconds=0.99))
 
-        assert list(integers_within_1s) == [[0, 1, 2], [3, 4], [5, 6], [7, 8], [9]]
+        assert list(integers_within_1_sec) == [[0, 1, 2], [3, 4], [5, 6], [7, 8], [9]]
 
-        integers_2_by_2_by_parity: Stream[List[int]] = integers.group(
+        integers_by_parity_by_2: Stream[List[int]] = integers.group(
             by=lambda n: n % 2, size=2
         )
 
-        assert list(integers_2_by_2_by_parity) == [
+        assert list(integers_by_parity_by_2) == [
             [0, 2],
             [1, 3],
             [4, 6],
