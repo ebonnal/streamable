@@ -35,8 +35,13 @@ class ToStringVisitor(Visitor[str], ABC):
     def to_string(o: object) -> str: ...
 
     def visit_catch_stream(self, stream: CatchStream[T]) -> str:
+        replacement = (
+            f", replacement={self.to_string(stream._replacement)}"
+            if stream._replacement is not NO_REPLACEMENT
+            else ""
+        )
         self.methods_reprs.append(
-            f"catch({self.to_string(stream._kind)}, when={self.to_string(stream._when)}{(', replacement=' + self.to_string(stream._replacement)) if stream._replacement is not NO_REPLACEMENT else ''}, finally_raise={self.to_string(stream._finally_raise)})"
+            f"catch({self.to_string(stream._kind)}, when={self.to_string(stream._when)}{replacement}, finally_raise={self.to_string(stream._finally_raise)})"
         )
         return stream.upstream.accept(self)
 
