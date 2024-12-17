@@ -251,6 +251,12 @@ class Stream(Iterable[T]):
         self: "Stream[Set[U]]",
         concurrency: int = 1,
     ) -> "Stream[U]": ...
+
+    @overload
+    def flatten(
+        self: "Stream[range]",
+        concurrency: int = 1,
+    ) -> "Stream[int]": ...
     # fmt: on
 
     def flatten(
