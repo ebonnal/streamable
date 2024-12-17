@@ -86,7 +86,7 @@ class Stream(Iterable[T]):
         """
         `a + b` returns a stream yielding all elements of `a`, followed by all elements of `b`.
         """
-        return cast(Stream[T], Stream([self, other].__iter__).flatten())
+        return cast(Stream[T], Stream((self, other)).flatten())
 
     def __iter__(self) -> Iterator[T]:
         from streamable.visitors.iterator import IteratorVisitor
