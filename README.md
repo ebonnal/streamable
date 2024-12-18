@@ -101,7 +101,11 @@ inverses: Stream[float] = (
 > Applies a transformation on elements:
 
 ```python
-negative_integer_strings: Stream[str] = integers.map(lambda n: -n).map(str)
+negative_integer_strings: Stream[str] = (
+    integers
+    .map(lambda n: -n)
+    .map(str)
+)
 
 assert list(negative_integer_strings) == ['0', '-1', '-2', '-3', '-4', '-5', '-6', '-7', '-8', '-9']
 ```
@@ -135,9 +139,10 @@ assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
 ```python
 if __name__ == "__main__":
     state: List[int] = []
-    n_integers: int = integers.map(state.append, concurrency=4, via="process").count()
-    assert n_integers == 10
-    assert state == [] # main process's state not mutated
+    # integers are mapped
+    assert integers.map(state.append, concurrency=4, via="process").count() == 10
+    # but the `state` of the main process is not mutated
+    assert state == []
 ```
 
 ### async-based concurrency
@@ -184,9 +189,11 @@ assert list(zeros) == [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 > Applies a side effect on elements:
 
 ```python
-self_printing_integers: Stream[int] = integers.foreach(print)
+state: List[int] = []
+appending_integers: Stream[int] = integers.foreach(state.append)
 
-assert list(self_printing_integers) == list(integers)  # triggers the printing
+assert list(appending_integers) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 
 ### thread-based concurrency
@@ -216,9 +223,10 @@ assert list(pair_integers) == [0, 2, 4, 6, 8]
 > Limits the number of yields `per_second`/`per_minute`/`per_hour`:
 
 ```python
-slow_integers: Stream[int] = integers.throttle(per_second=5)
+integers_5_per_sec: Stream[int] = integers.throttle(per_second=3)
 
-assert list(slow_integers) == list(integers)  # takes 10 / 5 = 2 seconds
+# takes 3s: ceil(10 integers / 3 per_second) - 1
+assert list(integers_5_per_sec) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 
 > and/or ensure a minimum time `interval` separates successive yields:
@@ -226,9 +234,13 @@ assert list(slow_integers) == list(integers)  # takes 10 / 5 = 2 seconds
 ```python
 from datetime import timedelta
 
-slow_integers = integers.throttle(interval=timedelta(milliseconds=100))
+integers_every_100_millis = (
+    integers
+    .throttle(interval=timedelta(milliseconds=100))
+)
 
-assert list(slow_integers) == list(integers)  # takes 10 * 0.1 = 1 second
+# takes 900 millis: (10 integers - 1) * 100 millis
+assert list(integers_every_100_millis) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 
 ## `.group`
@@ -259,7 +271,10 @@ assert list(integers_within_1_sec) == [[0, 1, 2], [3, 4], [5, 6], [7, 8], [9]]
 
 > Mix `size`/`by`/`interval` parameters:
 ```python
-integers_by_parity_by_2: Stream[List[int]] = integers.group(by=lambda n: n % 2, size=2)
+integers_by_parity_by_2: Stream[List[int]] = (
+    integers
+    .group(by=lambda n: n % 2, size=2)
+)
 
 assert list(integers_by_parity_by_2) == [[0, 2], [1, 3], [4, 6], [5, 7], [8], [9]]
 ```
@@ -271,7 +286,10 @@ assert list(integers_by_parity_by_2) == [[0, 2], [1, 3], [4, 6], [5, 7], [8], [9
 
 > Like `.group`, but groups into `(key, elements)` tuples:
 ```python
-integers_by_parity: Stream[Tuple[str, List[int]]] = integers.groupby(lambda n: "odd" if n % 2 else "pair")
+integers_by_parity: Stream[Tuple[str, List[int]]] = (
+    integers
+    .groupby(lambda n: "odd" if n % 2 else "pair")
+)
 
 assert list(integers_by_parity) == [("pair", [0, 2, 4, 6, 8]), ("odd", [1, 3, 5, 7, 9])]
 ```
@@ -282,7 +300,10 @@ assert list(integers_by_parity) == [("pair", [0, 2, 4, 6, 8]), ("odd", [1, 3, 5,
 ```python
 from streamable import star
 
-counts_by_parity: Stream[Tuple[str, int]] = integers_by_parity.map(star(lambda parity, ints: (parity, len(ints))))
+counts_by_parity: Stream[Tuple[str, int]] = (
+    integers_by_parity
+    .map(star(lambda parity, ints: (parity, len(ints))))
+)
 
 assert list(counts_by_parity) == [("pair", 5), ("odd", 5)]
 ```
@@ -302,8 +323,11 @@ assert list(pair_then_odd_integers) == [0, 2, 4, 6, 8, 1, 3, 5, 7, 9]
 > Flattens `concurrency` iterables concurrently:
 
 ```python
-mix_of_0s_and_1s: Stream[int] = Stream([[0] * 4, [1] * 4]).flatten(concurrency=2)
-assert list(mix_of_0s_and_1s) == [0, 1, 0, 1, 0, 1, 0, 1]
+mixed_ones_and_zeros: Stream[int] = (
+    Stream([[0] * 4, [1] * 4])
+    .flatten(concurrency=2)
+)
+assert list(mixed_ones_and_zeros) == [0, 1, 0, 1, 0, 1, 0, 1]
 ```
 
 
@@ -384,7 +408,10 @@ assert list(distinct_chars) == ["f", "o", "b", "a", "r"]
 > Specify a function to deduplicate based on the value it returns when applied to elements:
 
 ```python
-strings_of_distinct_lengths: Stream[str] = Stream(["a", "foo", "bar", "z"]).distinct(len)
+strings_of_distinct_lengths: Stream[str] = (
+    Stream(["a", "foo", "bar", "z"])
+    .distinct(len)
+)
 
 assert list(strings_of_distinct_lengths) == ["a", "foo"]
 ```
@@ -393,7 +420,10 @@ assert list(strings_of_distinct_lengths) == ["a", "foo"]
 > During iteration, all distinct elements that are yielded are retained in memory to perform deduplication. However, you can remove only consecutive duplicates without a memory footprint by setting `consecutive_only=True`:
 
 ```python
-consecutively_distinct_chars: Stream[str] = Stream("foobarfooo").distinct(consecutive_only=True)
+consecutively_distinct_chars: Stream[str] = (
+    Stream("foobarfooo")
+    .distinct(consecutive_only=True)
+)
 
 assert list(consecutively_distinct_chars) == ["f", "o", "b", "a", "r", "f", "o"]
 ```
@@ -402,18 +432,19 @@ assert list(consecutively_distinct_chars) == ["f", "o", "b", "a", "r", "f", "o"]
 
 > Logs the progress of iterations over this stream, if you iterate on:
 ```python
-observed_slow_integers: Stream[int] = slow_integers.observe("integers")
+assert list(integers.throttle(per_second=2).observe("integers")) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 > you will get these logs:
 ```
-INFO: [duration=0:00:00.502155 errors=0] 1 integers yielded
-INFO: [duration=0:00:01.006336 errors=0] 2 integers yielded
-INFO: [duration=0:00:02.011921 errors=0] 4 integers yielded
-INFO: [duration=0:00:04.029666 errors=0] 8 integers yielded
-INFO: [duration=0:00:05.039571 errors=0] 10 integers yielded
+INFO: [duration=0:00:00.001793 errors=0] 1 integers yielded
+INFO: [duration=0:00:00.004388 errors=0] 2 integers yielded
+INFO: [duration=0:00:01.003655 errors=0] 4 integers yielded
+INFO: [duration=0:00:03.003196 errors=0] 8 integers yielded
+INFO: [duration=0:00:04.003852 errors=0] 10 integers yielded
 ```
 
-> The amount of logs will never be overwhelming because they are produced logarithmically e.g. the 11th log will be produced when the iteration reaches the 1024th element.
+> [!NOTE]
+> The amount of logs will never be overwhelming because they are produced logarithmically (base 2): the 11th log will be produced after 1024th elements have been yielded, the 21th log after 1,048,576 elements, ...
 
 > [!WARNING]
 > It is mute between *v1.1.0* and *v1.3.1*, please `pip install --upgrade streamable`
@@ -435,45 +466,45 @@ assert list(integers + integers) == [0, 1, 2, 3 ,4, 5, 6, 7, 8, 9, 0, 1, 2, 3 ,4
 from streamable import star
 
 cubes: Stream[int] = (
-    Stream(zip(integers, integers, integers)) # Stream[Tuple[int, int, int]]
-    .map(star(lambda a, b, c: a * b * c))
+    Stream(zip(integers, integers, integers))  # Stream[Tuple[int, int, int]]
+    .map(star(lambda a, b, c: a * b * c))  # Stream[int]
 )
 
 assert list(cubes) == [0, 1, 8, 27, 64, 125, 216, 343, 512, 729]
+```
+
+
+## Shorthands to consume the stream
+
+> [!TIP]
+> Although consuming the stream is beyond the scope of this library, it provides two basic shorthands to trigger an iteration:
+
+### `.count`
+
+> Iterates over the stream until exhaustion and returns the number of elements yielded:
+
+```python
+assert integers.count() == 10
+```
+
+### `()`
+
+> *Calling* the stream iterates over it until exhaustion and returns it:
+```python
+state: List[int] = []
+appending_integers: Stream[int] = integers.foreach(state.append)
+assert appending_integers() is appending_integers
+assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 
 ---
 
 # 📦 ***Notes Box***
 ## Contribute
-Please help us ! Feel very welcome to:
+Feel very welcome to:
 - [open issues](https://github.com/ebonnal/streamable/issues)
 - [open pull requests](https://github.com/ebonnal/streamable/pulls)
 - check [CONTRIBUTING.md](CONTRIBUTING.md)
-
-
-## exhaust the stream
-
-> `.count` iterates over the stream until exhaustion and returns the count of elements yielded.
-```python
->>> assert integers.count() == 10
-```
-
-> ***calling*** the stream iterates over it until exhaustion and returns it.
-```python
->>> verbose_integers: Stream[int] = integers.foreach(print)
->>> assert verbose_integers() is verbose_integers
-0
-1
-2
-3
-4
-5
-6
-7
-8
-9
-```
 
 
 ## Extract-Transform-Load

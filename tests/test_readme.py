@@ -1,3 +1,4 @@
+import time
 import unittest
 from typing import List, Tuple
 
@@ -11,9 +12,9 @@ inverses: Stream[float] = integers.map(lambda n: round(1 / n, 2)).catch(
 
 integers_by_parity: Stream[List[int]] = integers.group(by=lambda n: n % 2)
 
-slow_integers: Stream[int] = integers.throttle(per_second=5)
+integers_5_per_sec: Stream[int] = integers.throttle(per_second=5)
 
-
+# fmt: off
 class TestReadme(unittest.TestCase):
     def test_collect_it(self) -> None:
         self.assertListEqual(
@@ -31,37 +32,15 @@ class TestReadme(unittest.TestCase):
         self.assertEqual(next(inverses_iter), 1.0)
         self.assertEqual(next(inverses_iter), 0.5)
 
-    def test_starmap_example(self) -> None:
-        from streamable import star
-
-        zeros: Stream[int] = Stream(enumerate(integers)).map(
-            star(lambda index, integer: index - integer)
-        )
-
-        assert list(zeros) == [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
     def test_map_example(self) -> None:
-        negative_integer_strings: Stream[str] = integers.map(lambda n: -n).map(str)
-        assert list(negative_integer_strings) == [
-            "0",
-            "-1",
-            "-2",
-            "-3",
-            "-4",
-            "-5",
-            "-6",
-            "-7",
-            "-8",
-            "-9",
-        ]
+        negative_integer_strings: Stream[str] = (
+            integers
+            .map(lambda n: -n)
+            .map(str)
+        )
 
-    def test_process_concurrent_map_example(self) -> None:
-        state: List[int] = []
-        n_integers: int = integers.map(
-            state.append, concurrency=4, via="process"
-        ).count()
-        assert n_integers == 10
-        assert state == []  # main process's state not mutated
+        assert list(negative_integer_strings) == ['0', '-1', '-2', '-3', '-4', '-5', '-6', '-7', '-8', '-9']
 
     def test_thread_concurrent_map_example(self) -> None:
         import requests
@@ -73,7 +52,14 @@ class TestReadme(unittest.TestCase):
             .map(requests.Response.json)
             .map(lambda poke: poke["name"])
         )
-        assert list(pokemon_names) == ["bulbasaur", "ivysaur", "venusaur"]
+        assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
+
+    def test_process_concurrent_map_example(self) -> None:
+        state: List[int] = []
+        # integers are mapped
+        assert integers.map(state.append, concurrency=4, via="process").count() == 10
+        # but the `state` of the main process is not mutated
+        assert state == []
 
     def test_async_concurrent_map_example(self) -> None:
         import asyncio
@@ -90,13 +76,25 @@ class TestReadme(unittest.TestCase):
             .map(lambda poke: poke["name"])
         )
 
-        assert list(pokemon_names) == ["bulbasaur", "ivysaur", "venusaur"]
+        assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
         asyncio.get_event_loop().run_until_complete(http_async_client.aclose())
 
-    def test_foreach_example(self) -> None:
-        self_printing_integers: Stream[int] = integers.foreach(print)
+    def test_starmap_example(self) -> None:
+        from streamable import star
 
-        assert list(self_printing_integers) == list(integers)  # triggers the printing
+        zeros: Stream[int] = (
+            Stream(enumerate(integers))
+            .map(star(lambda index, integer: index - integer))
+        )
+
+        assert list(zeros) == [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+    def test_foreach_example(self) -> None:
+        state: List[int] = []
+        appending_integers: Stream[int] = integers.foreach(state.append)
+
+        assert list(appending_integers) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
     def test_filter_example(self) -> None:
         pair_integers: Stream[int] = integers.filter(lambda n: n % 2 == 0)
@@ -104,15 +102,25 @@ class TestReadme(unittest.TestCase):
         assert list(pair_integers) == [0, 2, 4, 6, 8]
 
     def test_throttle_example(self) -> None:
-        slow_integers: Stream[int] = integers.throttle(per_second=5)
 
-        assert list(slow_integers) == list(integers)  # takes 10 / 5 = 2 seconds
+        integers_5_per_sec: Stream[int] = integers.throttle(per_second=3)
+
+        start = time.time()
+        # takes 3s: ceil(10 integers / 3 per_second) - 1
+        assert list(integers_5_per_sec) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        assert 2.99 < time.time() - start < 3.25
 
         from datetime import timedelta
 
-        slow_integers = integers.throttle(interval=timedelta(milliseconds=100))
+        integers_every_100_millis = (
+            integers
+            .throttle(interval=timedelta(milliseconds=100))
+        )
 
-        assert list(slow_integers) == list(integers)  # takes 10 * 0.1 = 1 second
+        start = time.time()
+        # takes 900 millis: (10 integers - 1) * 100 millis
+        assert list(integers_every_100_millis) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        assert 0.89 < time.time() - start < 0.95
 
     def test_group_example(self) -> None:
         global integers_by_parity
@@ -120,43 +128,40 @@ class TestReadme(unittest.TestCase):
 
         assert list(integers_by_5) == [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]]
 
+        integers_by_parity = integers.group(by=lambda n: n % 2)
+
         assert list(integers_by_parity) == [[0, 2, 4, 6, 8], [1, 3, 5, 7, 9]]
 
         from datetime import timedelta
 
-        integers_within_1_sec: Stream[List[int]] = integers.throttle(
-            per_second=2
-        ).group(interval=timedelta(seconds=0.99))
+        integers_within_1_sec: Stream[List[int]] = (
+            integers
+            .throttle(per_second=2)
+            .group(interval=timedelta(seconds=0.99))
+        )
 
         assert list(integers_within_1_sec) == [[0, 1, 2], [3, 4], [5, 6], [7, 8], [9]]
 
-        integers_by_parity_by_2: Stream[List[int]] = integers.group(
-            by=lambda n: n % 2, size=2
+        integers_by_parity_by_2: Stream[List[int]] = (
+            integers
+            .group(by=lambda n: n % 2, size=2)
         )
 
-        assert list(integers_by_parity_by_2) == [
-            [0, 2],
-            [1, 3],
-            [4, 6],
-            [5, 7],
-            [8],
-            [9],
-        ]
+        assert list(integers_by_parity_by_2) == [[0, 2], [1, 3], [4, 6], [5, 7], [8], [9]]
 
     def test_groupby_example(self) -> None:
-        integers_by_parity: Stream[Tuple[str, List[int]]] = integers.groupby(
-            lambda n: "odd" if n % 2 else "pair"
+        integers_by_parity: Stream[Tuple[str, List[int]]] = (
+            integers
+            .groupby(lambda n: "odd" if n % 2 else "pair")
         )
 
-        assert list(integers_by_parity) == [
-            ("pair", [0, 2, 4, 6, 8]),
-            ("odd", [1, 3, 5, 7, 9]),
-        ]
+        assert list(integers_by_parity) == [("pair", [0, 2, 4, 6, 8]), ("odd", [1, 3, 5, 7, 9])]
 
         from streamable import star
 
-        counts_by_parity: Stream[Tuple[str, int]] = integers_by_parity.map(
-            star(lambda parity, ints: (parity, len(ints)))
+        counts_by_parity: Stream[Tuple[str, int]] = (
+            integers_by_parity
+            .map(star(lambda parity, ints: (parity, len(ints))))
         )
 
         assert list(counts_by_parity) == [("pair", 5), ("odd", 5)]
@@ -167,42 +172,28 @@ class TestReadme(unittest.TestCase):
 
         assert list(pair_then_odd_integers) == [0, 2, 4, 6, 8, 1, 3, 5, 7, 9]
 
-    def test_concurrent_flatten_example(self) -> None:
-        mix_of_0s_and_1s: Stream[int] = Stream([[0] * 4, [1] * 4]).flatten(
-            concurrency=2
+        mixed_ones_and_zeros: Stream[int] = (
+            Stream([[0] * 4, [1] * 4])
+            .flatten(concurrency=2)
         )
-        assert list(mix_of_0s_and_1s) == [0, 1, 0, 1, 0, 1, 0, 1]
+        assert list(mixed_ones_and_zeros) == [0, 1, 0, 1, 0, 1, 0, 1]
 
     def test_catch_example(self) -> None:
-        inverses: Stream[float] = integers.map(lambda n: round(1 / n, 2)).catch(
-            ZeroDivisionError, replacement=float("inf")
+        inverses: Stream[float] = (
+            integers
+            .map(lambda n: round(1 / n, 2))
+            .catch(ZeroDivisionError, replacement=float("inf"))
         )
 
-        assert list(inverses) == [
-            float("inf"),
-            1.0,
-            0.5,
-            0.33,
-            0.25,
-            0.2,
-            0.17,
-            0.14,
-            0.12,
-            0.11,
-        ]
+        assert list(inverses) == [float("inf"), 1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
 
         import requests
-        from requests.exceptions import ConnectionError
+        from requests.exceptions import SSLError
 
         status_codes_ignoring_resolution_errors: Stream[int] = (
-            Stream(
-                ["https://github.com", "https://foo.bar", "https://github.com/foo/bar"]
-            )
+            Stream(["https://github.com", "https://foo.bar", "https://github.com/foo/bar"])
             .map(requests.get, concurrency=2)
-            .catch(
-                ConnectionError,
-                when=lambda exception: "Max retries exceeded" in str(exception),
-            )
+            .catch(SSLError, when=lambda exception: "Max retries exceeded with url" in str(exception))
             .map(lambda response: response.status_code)
         )
 
@@ -227,44 +218,45 @@ class TestReadme(unittest.TestCase):
 
         assert list(distinct_chars) == ["f", "o", "b", "a", "r"]
 
-        strings_of_distinct_lengths: Stream[str] = Stream(
-            ["a", "foo", "bar", "z"]
-        ).distinct(len)
+        strings_of_distinct_lengths: Stream[str] = (
+            Stream(["a", "foo", "bar", "z"])
+            .distinct(len)
+        )
 
         assert list(strings_of_distinct_lengths) == ["a", "foo"]
 
-        consecutively_distinct_chars: Stream[str] = Stream("foobarfooo").distinct(
-            consecutive_only=True
+        consecutively_distinct_chars: Stream[str] = (
+            Stream("foobarfooo")
+            .distinct(consecutive_only=True)
         )
 
         assert list(consecutively_distinct_chars) == ["f", "o", "b", "a", "r", "f", "o"]
 
     def test_observe_example(self) -> None:
-        observed_slow_integers: Stream[int] = slow_integers.observe("integers")
+        assert list(integers.throttle(per_second=2).observe("integers")) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
     def test_plus_example(self) -> None:
-        # fmt: off
         assert list(integers + integers) == [0, 1, 2, 3 ,4, 5, 6, 7, 8, 9, 0, 1, 2, 3 ,4, 5, 6, 7, 8, 9]
-        # fmt: on
 
     def test_zip_example(self) -> None:
         from streamable import star
 
-        cubes: Stream[int] = Stream(
-            zip(integers, integers, integers)
-        ).map(  # Stream[Tuple[int, int, int]]
-            star(lambda a, b, c: a * b * c)
+        cubes: Stream[int] = (
+            Stream(zip(integers, integers, integers))  # Stream[Tuple[int, int, int]]
+            .map(star(lambda a, b, c: a * b * c))  # Stream[int]
         )
+
         assert list(cubes) == [0, 1, 8, 27, 64, 125, 216, 343, 512, 729]
 
     def test_count_example(self) -> None:
         assert integers.count() == 10
 
-    def test_call(self) -> None:
-        verbose_integers: Stream[int] = integers.foreach(print)
-        assert verbose_integers() is verbose_integers
+    def test_call_example(self) -> None:
+        state: List[int] = []
+        appending_integers: Stream[int] = integers.foreach(state.append)
+        assert appending_integers() is appending_integers
+        assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
-    # fmt: off
     def test_etl_example(self) -> None: # pragma: no cover
         # for mypy typing check only
         if not self:
@@ -311,4 +303,4 @@ class TestReadme(unittest.TestCase):
                     # Actually triggers an iteration (the lines above define lazy operations)
                     .count()
                 )
-    # fmt: on
+# fmt: on
