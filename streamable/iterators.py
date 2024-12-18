@@ -344,10 +344,11 @@ class PredicateTruncateIterator(Iterator[T]):
 
 
 class ObserveIterator(Iterator[T]):
-    def __init__(self, iterator: Iterator[T], what: str) -> None:
+    def __init__(self, iterator: Iterator[T], what: str, base: int = 2) -> None:
         validate_iterator(iterator)
         self.iterator = iterator
         self.what = what
+        self.base = base
         self._n_yields = 0
         self._n_errors = 0
         self._logged_n_calls = 0
@@ -374,11 +375,11 @@ class ObserveIterator(Iterator[T]):
             if self._n_calls() != self._logged_n_calls:
                 self._log()
             raise
-        except Exception as e:
+        except Exception:
             self._n_errors += 1
-            raise e
+            raise
         finally:
-            if self._n_calls() >= 2 * self._logged_n_calls:
+            if self._n_calls() >= self.base * self._logged_n_calls:
                 self._log()
 
 
