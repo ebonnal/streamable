@@ -266,6 +266,9 @@ assert list(integers_by_parity_by_2) == [[0, 2], [1, 3], [4, 6], [5, 7], [8], [9
 
 ### `.groupby`
 
+> [!NOTE]
+> Available in the 1.4.0 release candidate: `pip install streamable==1.4.0-rc3`
+
 > Like `.group`, but groups into `(key, elements)` tuples:
 ```python
 integers_by_parity: Stream[Tuple[str, List[int]]] = integers.groupby(lambda n: "odd" if n % 2 else "pair")
@@ -355,6 +358,9 @@ assert list(five_first_integers) == [0, 1, 2, 3, 4]
 
 ## `.skip`
 
+> [!NOTE]
+> Available in the 1.4.0 release candidate: `pip install streamable==1.4.0-rc3`
+
 > Skips the first specified number of elements:
 
 ```python
@@ -364,6 +370,8 @@ assert list(integers_after_five) == [5, 6, 7, 8, 9]
 ```
 
 ## `.distinct`
+> [!NOTE]
+> Available in the 1.4.0 release candidate: `pip install streamable==1.4.0-rc3`
 
 > Removes duplicates:
 
