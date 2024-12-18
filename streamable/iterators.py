@@ -208,7 +208,7 @@ class GroupIterator(_GroupIteratorInitMixin[T], Iterator[List[T]]):
                 self._current_group.append(next(self.iterator))
         except Exception as e:
             if not self._current_group:
-                raise e
+                raise
             self._to_be_raised = e
 
         group, self._current_group = self._current_group, []
@@ -270,8 +270,7 @@ class GroupbyIterator(_GroupIteratorInitMixin[T], Iterator[Tuple[U, List[T]]]):
         if self._to_be_raised:
             if self._groups_by:
                 return self._return_group(self._pop_first_group())
-            e = self._to_be_raised
-            self._to_be_raised = None
+            e, self._to_be_raised = self._to_be_raised, None
             raise e
 
         try:
@@ -345,10 +344,11 @@ class PredicateTruncateIterator(Iterator[T]):
 
 
 class ObserveIterator(Iterator[T]):
-    def __init__(self, iterator: Iterator[T], what: str) -> None:
+    def __init__(self, iterator: Iterator[T], what: str, base: int = 2) -> None:
         validate_iterator(iterator)
         self.iterator = iterator
         self.what = what
+        self.base = base
         self._n_yields = 0
         self._n_errors = 0
         self._logged_n_calls = 0
@@ -375,11 +375,11 @@ class ObserveIterator(Iterator[T]):
             if self._n_calls() != self._logged_n_calls:
                 self._log()
             raise
-        except Exception as e:
+        except Exception:
             self._n_errors += 1
-            raise e
+            raise
         finally:
-            if self._n_calls() >= 2 * self._logged_n_calls:
+            if self._n_calls() >= self.base * self._logged_n_calls:
                 self._log()
 
 
@@ -389,13 +389,15 @@ class IntervalThrottleIterator(Iterator[T]):
         validate_throttle_interval(interval)
         self.iterator = iterator
         self._interval_seconds = interval.total_seconds()
+        self._last_yield_at: float = 0
 
     def __next__(self) -> T:
-        start_time = time.time()
         elem = next(self.iterator)
-        elapsed_time = time.time() - start_time
-        if self._interval_seconds > elapsed_time:
-            time.sleep(self._interval_seconds - elapsed_time)
+        if self._last_yield_at:
+            elapsed_time = time.time() - self._last_yield_at
+            if elapsed_time < self._interval_seconds:
+                time.sleep(self._interval_seconds - elapsed_time)
+        self._last_yield_at = time.time()
         return elem
 
 
@@ -417,25 +419,25 @@ class YieldsPerPeriodThrottleIterator(Iterator[T]):
         self._offset: Optional[float] = None
 
     def __next__(self) -> T:
-        current_time = time.time()
-        if not self._offset:
-            self._offset = current_time
-        current_time -= self._offset
+        elem = next(self.iterator)
 
-        num_periods = current_time / self._period_seconds
+        now = time.time()
+        if not self._offset:
+            self._offset = now
+        now -= self._offset
+
+        num_periods = now / self._period_seconds
         period_index = int(num_periods)
 
         if self._period_index != period_index:
             self._period_index = period_index
-            self._yields_in_period = 0
+            self._yields_in_period = max(0, self._yields_in_period - self.max_yields)
 
         if self._yields_in_period >= self.max_yields:
             time.sleep((ceil(num_periods) - num_periods) * self._period_seconds)
-            return next(self)
-
-        # yield
         self._yields_in_period += 1
-        return next(self.iterator)
+
+        return elem
 
 
 class _RaisingIterator(Iterator[T]):
