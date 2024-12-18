@@ -188,12 +188,12 @@ class TestReadme(unittest.TestCase):
         assert list(inverses) == [float("inf"), 1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
 
         import requests
-        from requests.exceptions import SSLError
+        from requests.exceptions import ConnectionError
 
         status_codes_ignoring_resolution_errors: Stream[int] = (
             Stream(["https://github.com", "https://foo.bar", "https://github.com/foo/bar"])
             .map(requests.get, concurrency=2)
-            .catch(SSLError, when=lambda exception: "Max retries exceeded with url" in str(exception))
+            .catch(ConnectionError, when=lambda exception: "Max retries exceeded with url" in str(exception))
             .map(lambda response: response.status_code)
         )
 
