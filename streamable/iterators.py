@@ -208,7 +208,7 @@ class GroupIterator(_GroupIteratorInitMixin[T], Iterator[List[T]]):
                 self._current_group.append(next(self.iterator))
         except Exception as e:
             if not self._current_group:
-                raise e
+                raise
             self._to_be_raised = e
 
         group, self._current_group = self._current_group, []
@@ -270,8 +270,7 @@ class GroupbyIterator(_GroupIteratorInitMixin[T], Iterator[Tuple[U, List[T]]]):
         if self._to_be_raised:
             if self._groups_by:
                 return self._return_group(self._pop_first_group())
-            e = self._to_be_raised
-            self._to_be_raised = None
+            e, self._to_be_raised = self._to_be_raised, None
             raise e
 
         try:
