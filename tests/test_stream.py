@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import logging
+import math
 import random
 import time
 import timeit
@@ -1067,7 +1068,7 @@ class TestStream(unittest.TestCase):
         self.assertListEqual(
             list(
                 Stream(lambda: map(slow_identity, range(10))).group(
-                    interval=datetime.timedelta(seconds=slow_identity_duration * 2.90),
+                    interval=datetime.timedelta(seconds=slow_identity_duration * 2.9),
                     by=lambda n: n % 4 == 0,
                 )
             ),
@@ -1121,7 +1122,7 @@ class TestStream(unittest.TestCase):
 
         # test interval
         interval_seconds = 0.3
-        super_slow_elem_pull_seconds = 1
+        super_slow_elem_pull_seconds = 2 * interval_seconds
         N = 10
         duration, res = timestream(
             Stream(
@@ -1163,42 +1164,25 @@ class TestStream(unittest.TestCase):
 
         # test per_second
 
-        N = 11
-        assert N % 2
-        duration, res = timestream(Stream(range(11)).throttle(per_second=2))
-        self.assertEqual(
-            res,
-            list(range(11)),
-            msg="`throttle` with `per_second` must yield upstream elements",
-        )
-        expected_duration = N // 2
-        self.assertAlmostEqual(
-            duration,
-            expected_duration,
-            delta=0.01 * expected_duration,
-            msg="`throttle` must slow according to `per_second`",
-        )
-
-        # # per_second and per_minute
-        # N = 11
-        # assert N % 2
-        # per_minute = 8
-        # per_second = 2
-        # duration, res = timestream(
-        #     Stream(range(11)).throttle(per_second=per_second, per_minute=per_minute)
-        # )
-        # self.assertEqual(
-        #     res,
-        #     list(range(11)),
-        #     msg="`throttle` with `per_second` must yield upstream elements",
-        # )
-        # expected_duration = (N // per_minute) * 60 + (N % per_minute) // per_second
-        # self.assertAlmostEqual(
-        #     duration,
-        #     expected_duration,
-        #     delta=0.01 * expected_duration,
-        #     msg="`throttle` must slow according to `per_second` and `per_minute`",
-        # )
+        for N in [1, 10, 11]:
+            with self.subTest(N=N):
+                integers = range(N)
+                per_second = 2
+                duration, res = timestream(
+                    Stream(integers).throttle(per_second=per_second)
+                )
+                self.assertEqual(
+                    res,
+                    list(integers),
+                    msg="`throttle` with `per_second` must yield upstream elements",
+                )
+                expected_duration = math.ceil(N / per_second) - 1
+                self.assertAlmostEqual(
+                    duration,
+                    expected_duration,
+                    delta=0.01 * expected_duration + 0.01,
+                    msg="`throttle` must slow according to `per_second`",
+                )
 
         # test both
 
@@ -1211,13 +1195,14 @@ class TestStream(unittest.TestCase):
                 per_second=20, interval=datetime.timedelta(seconds=0.2)
             ),
         ]:
-            duration, _ = timestream(stream)
-            self.assertAlmostEqual(
-                duration,
-                expected_duration,
-                delta=0.1 * expected_duration,
-                msg="`throttle` with both `per_second` and `interval` set should follow the most restrictive",
-            )
+            with self.subTest(stream=stream):
+                duration, _ = timestream(stream)
+                self.assertAlmostEqual(
+                    duration,
+                    expected_duration,
+                    delta=0.1 * expected_duration,
+                    msg="`throttle` with both `per_second` and `interval` set should follow the most restrictive",
+                )
 
     def test_distinct(self) -> None:
         self.assertEqual(
