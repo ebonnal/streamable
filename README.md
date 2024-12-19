@@ -31,6 +31,10 @@ A `Stream[T]` decorates an `Iterable[T]` with a **fluent interface** enabling th
 pip install streamable
 ```
 
+> [!TIP]
+> To install the latest release candidate: `pip install streamable==1.4.0-rc4`
+
+
 ## 2. import
 ```python
 from streamable import Stream
