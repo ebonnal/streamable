@@ -24,7 +24,7 @@ from parameterized import parameterized  # type: ignore
 
 from streamable import Stream
 from streamable.util.exceptions import NoopStopIteration
-from streamable.util.functiontools import sidify, star
+from streamable.util.functiontools import star
 
 T = TypeVar("T")
 R = TypeVar("R")
@@ -85,12 +85,12 @@ def throw(exc: Type[Exception]):
     raise exc()
 
 
-def throw_func(exc: Type[Exception]) -> Callable[[Any], None]:
+def throw_func(exc: Type[Exception]) -> Callable[[T], T]:
     return lambda _: throw(exc)
 
 
-def async_throw_func(exc: Type[Exception]) -> Callable[[Any], Coroutine]:
-    async def f(_: Any) -> None:
+def async_throw_func(exc: Type[Exception]) -> Callable[[T], Coroutine[Any, Any, T]]:
+    async def f(_: T) -> T:
         raise exc
 
     return f
@@ -1124,31 +1124,44 @@ class TestStream(unittest.TestCase):
         interval_seconds = 0.3
         super_slow_elem_pull_seconds = 2 * interval_seconds
         N = 10
-        duration, res = timestream(
-            Stream(
-                map(
-                    sidify(
-                        lambda e: (
-                            time.sleep(super_slow_elem_pull_seconds) if e == 0 else None
-                        )
-                    ),
-                    range(N),
-                )
-            ).throttle(interval=datetime.timedelta(seconds=interval_seconds))
-        )
+        integers = range(N)
 
-        self.assertEqual(
-            res,
-            list(range(N)),
-            msg="`throttle` with `interval` must yield upstream elements",
-        )
-        expected_duration = (N - 1) * interval_seconds + super_slow_elem_pull_seconds
-        self.assertAlmostEqual(
-            duration,
-            expected_duration,
-            delta=0.1 * expected_duration,
-            msg="avoid bursts after very slow particular upstream elements",
-        )
+        def slow_first_elem(elem: int):
+            if elem == 0:
+                time.sleep(super_slow_elem_pull_seconds)
+            return elem
+
+        for stream, expected_elems in [
+            (
+                Stream(map(slow_first_elem, integers)).throttle(
+                    interval=datetime.timedelta(seconds=interval_seconds)
+                ),
+                list(integers),
+            ),
+            (
+                Stream(map(throw_func(TestError), map(slow_first_elem, integers)))
+                .throttle(interval=datetime.timedelta(seconds=interval_seconds))
+                .catch(TestError),
+                [],
+            ),
+        ]:
+            with self.subTest(stream=stream):
+                duration, res = timestream(stream)
+
+                self.assertEqual(
+                    res,
+                    expected_elems,
+                    msg="`throttle` with `interval` must yield upstream elements",
+                )
+                expected_duration = (
+                    N - 1
+                ) * interval_seconds + super_slow_elem_pull_seconds
+                self.assertAlmostEqual(
+                    duration,
+                    expected_duration,
+                    delta=0.1 * expected_duration,
+                    msg="avoid bursts after very slow particular upstream elements",
+                )
 
         self.assertEqual(
             next(
@@ -1165,24 +1178,34 @@ class TestStream(unittest.TestCase):
         # test per_second
 
         for N in [1, 10, 11]:
-            with self.subTest(N=N):
-                integers = range(N)
-                per_second = 2
-                duration, res = timestream(
-                    Stream(integers).throttle(per_second=per_second)
-                )
-                self.assertEqual(
-                    res,
+            integers = range(N)
+            per_second = 2
+            for stream, expected_elems in [
+                (
+                    Stream(integers).throttle(per_second=per_second),
                     list(integers),
-                    msg="`throttle` with `per_second` must yield upstream elements",
-                )
-                expected_duration = math.ceil(N / per_second) - 1
-                self.assertAlmostEqual(
-                    duration,
-                    expected_duration,
-                    delta=0.01 * expected_duration + 0.01,
-                    msg="`throttle` must slow according to `per_second`",
-                )
+                ),
+                (
+                    Stream(map(throw_func(TestError), integers))
+                    .throttle(per_second=per_second)
+                    .catch(TestError),
+                    [],
+                ),
+            ]:
+                with self.subTest(N=N, stream=stream):
+                    duration, res = timestream(stream)
+                    self.assertEqual(
+                        res,
+                        expected_elems,
+                        msg="`throttle` with `per_second` must yield upstream elements",
+                    )
+                    expected_duration = math.ceil(N / per_second) - 1
+                    self.assertAlmostEqual(
+                        duration,
+                        expected_duration,
+                        delta=0.01 * expected_duration + 0.01,
+                        msg="`throttle` must slow according to `per_second`",
+                    )
 
         # test both
 
