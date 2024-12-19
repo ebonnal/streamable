@@ -383,33 +383,49 @@ class ObserveIterator(Iterator[T]):
                 self._log()
 
 
-class IntervalThrottleIterator(Iterator[T]):
-    def __init__(self, iterator: Iterator[T], interval: datetime.timedelta) -> None:
+class _ThrottleIterator(Iterator[T]):
+    def __init__(self, iterator: Iterator[T]) -> None:
         validate_iterator(iterator)
+        self.iterator = iterator
+
+    def safe_next(self) -> Tuple[Optional[T], Optional[Exception]]:
+        try:
+            return next(self.iterator), None
+        except StopIteration:
+            raise
+        except Exception as e:
+            return None, e
+
+
+class IntervalThrottleIterator(_ThrottleIterator[T]):
+    def __init__(self, iterator: Iterator[T], interval: datetime.timedelta) -> None:
+        super().__init__(iterator)
         validate_throttle_interval(interval)
         self.iterator = iterator
         self._interval_seconds = interval.total_seconds()
         self._last_yield_at: float = 0
 
     def __next__(self) -> T:
-        elem = next(self.iterator)
+        elem, catched_error = self.safe_next()
         if self._last_yield_at:
             elapsed_time = time.time() - self._last_yield_at
             if elapsed_time < self._interval_seconds:
                 time.sleep(self._interval_seconds - elapsed_time)
         self._last_yield_at = time.time()
-        return elem
+
+        if catched_error:
+            raise catched_error
+        return cast(T, elem)
 
 
-class YieldsPerPeriodThrottleIterator(Iterator[T]):
+class YieldsPerPeriodThrottleIterator(_ThrottleIterator[T]):
     def __init__(
         self,
         iterator: Iterator[T],
         max_yields: int,
         period: datetime.timedelta,
     ) -> None:
-        validate_iterator(iterator)
-        self.iterator = iterator
+        super().__init__(iterator)
         self.max_yields = max_yields
         self._period_seconds = period.total_seconds()
 
@@ -419,7 +435,7 @@ class YieldsPerPeriodThrottleIterator(Iterator[T]):
         self._offset: Optional[float] = None
 
     def __next__(self) -> T:
-        elem = next(self.iterator)
+        elem, catched_error = self.safe_next()
 
         now = time.time()
         if not self._offset:
@@ -437,7 +453,9 @@ class YieldsPerPeriodThrottleIterator(Iterator[T]):
             time.sleep((ceil(num_periods) - num_periods) * self._period_seconds)
         self._yields_in_period += 1
 
-        return elem
+        if catched_error:
+            raise catched_error
+        return cast(T, elem)
 
 
 class _RaisingIterator(Iterator[T]):

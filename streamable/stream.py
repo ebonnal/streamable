@@ -453,6 +453,8 @@ class Stream(Iterable[T]):
         - a maximum number of yields `per_hour`
         - a minimum `interval` elapses between yields
 
+        The upstream exceptions are slowed too.
+
         Args:
             per_second (float, optional): Maximum number of yields per second. (by default: no limit per second)
             per_minute (float, optional): Maximum number of yields per minute. (by default: no limit per minute)
