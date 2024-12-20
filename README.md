@@ -434,11 +434,10 @@ assert list(consecutively_distinct_chars) == ["f", "o", "b", "a", "r", "f", "o"]
 
 ## `.observe`
 
-> Logs the progress of iterations over this stream, if you iterate on:
+> Logs the progress of iterations:
 ```python
-assert list(integers.throttle(per_second=2).observe("integers")) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+>>> assert list(integers.throttle(per_second=2).observe("integers")) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
-> you will get these logs:
 ```
 INFO: [duration=0:00:00.001793 errors=0] 1 integers yielded
 INFO: [duration=0:00:00.004388 errors=0] 2 integers yielded
@@ -448,7 +447,7 @@ INFO: [duration=0:00:04.003852 errors=0] 10 integers yielded
 ```
 
 > [!NOTE]
-> The amount of logs will never be overwhelming because they are produced logarithmically (base 2): the 11th log will be produced after 1024th elements have been yielded, the 21th log after 1,048,576 elements, ...
+> The amount of logs will never be overwhelming because they are produced logarithmically (base 2): the 11th log will be produced after 1,024 elements have been yielded, the 21th log after 1,048,576 elements, ...
 
 > [!WARNING]
 > It is mute between *v1.1.0* and *v1.3.1*, please `pip install --upgrade streamable`
