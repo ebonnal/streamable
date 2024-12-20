@@ -43,7 +43,7 @@ class CallbackFutureResultCollection(FutureResultCollection[T]):
         self._n_futures += 1
 
 
-class FIFOThreadFutureResultCollection(DequeFutureResultCollection[T]):
+class FIFOOSFutureResultCollection(DequeFutureResultCollection[T]):
     """
     First In First Out
     """
@@ -52,7 +52,7 @@ class FIFOThreadFutureResultCollection(DequeFutureResultCollection[T]):
         return self._futures.popleft().result()
 
 
-class FDFOThreadFutureResultCollection(CallbackFutureResultCollection[T]):
+class FDFOOSFutureResultCollection(CallbackFutureResultCollection[T]):
     """
     First Done First Out
     """

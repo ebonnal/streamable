@@ -45,9 +45,9 @@ U = TypeVar("U")
 from streamable.util.constants import NO_REPLACEMENT
 from streamable.util.futuretools import (
     FDFOAsyncFutureResultCollection,
-    FDFOThreadFutureResultCollection,
+    FDFOOSFutureResultCollection,
     FIFOAsyncFutureResultCollection,
-    FIFOThreadFutureResultCollection,
+    FIFOOSFutureResultCollection,
     FutureResultCollection,
 )
 
@@ -577,9 +577,9 @@ class _OSConcurrentMapIterable(_ConcurrentMapIterable[T, U]):
         self,
     ) -> FutureResultCollection[Union[U, _RaisingIterator.ExceptionContainer]]:
         if self.ordered:
-            return FIFOThreadFutureResultCollection()
+            return FIFOOSFutureResultCollection()
         else:
-            return FDFOThreadFutureResultCollection()
+            return FDFOOSFutureResultCollection()
 
 
 class OSConcurrentMapIterator(_RaisingIterator[U]):
