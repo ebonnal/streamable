@@ -61,8 +61,8 @@ inverses: Stream[float] = (
 ```
 
 ## 5. iterate
-- Iterate over a `Stream[T]` as you would over any other `Iterable[T]`.
-- Source elements are ***processed on-the-fly***.
+- Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`.
+- Elements are ***processed on-the-fly***.
 
 ### collect it
 ```python
@@ -100,6 +100,9 @@ inverses: Stream[float] = (
 ---
 
 # 📒 ***Operations***
+
+A dozen expressive operations and that’s it!
+
 ## `.map`
 
 > Applies a transformation on elements:
@@ -503,17 +506,10 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ---
 
 # 📦 ***Notes Box***
-## Contribute
-Feel very welcome to:
-- [open issues](https://github.com/ebonnal/streamable/issues)
-- [open pull requests](https://github.com/ebonnal/streamable/pulls)
-- check [CONTRIBUTING.md](CONTRIBUTING.md)
-
-
 ## Extract-Transform-Load
-ETL scripts (i.e. scripts fetching -> processing -> pushing data) can benefit from the expressivity of this library.
 
-Here is an example that you can **copy-paste and try** (it only requires `requests`): it creates a CSV file containing all the 67 quadrupeds from the 1st, 2nd and 3rd generations of Pokémons (kudos to [PokéAPI](https://pokeapi.co/))
+**Custom ETL scripts** can benefit from the expressiveness of this library. Below is a pipeline that extracts the 67 quadruped Pokémon from the first three generations using [PokéAPI](https://pokeapi.co/) and loads them into a CSV:
+
 ```python
 import csv
 from datetime import timedelta
@@ -525,7 +521,8 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
     fields = ["id", "name", "is_legendary", "base_happiness", "capture_rate"]
     writer = csv.DictWriter(file, fields, extrasaction='ignore')
     writer.writeheader()
-    (
+
+    pipeline: Stream = (
         # Infinite Stream[int] of Pokemon ids starting from Pokémon #1: Bulbasaur
         Stream(itertools.count(1))
         # Limits to 16 requests per second to be friendly to our fellow PokéAPI devs
@@ -553,9 +550,9 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
         .observe("written pokemons")
         # Catches exceptions and raises the 1st one at the end of the iteration
         .catch(finally_raise=True)
-        # Actually triggers an iteration (the lines above define lazy operations)
-        .count()
     )
+
+    pipeline()
 ```
 
 ## logging level
@@ -592,6 +589,12 @@ safe_inverse_integers: Iterator[int] = catch(inverse_integers, ZeroDivisionError
 
 ## *free-threaded* Python 3.13+
 Benefits from [free-threaded](https://docs.python.org/3/using/configure.html#cmdoption-disable-gil) Python 3.13+ builds, run via `python -X gil=0`.
+
+## Contribute
+Feel very welcome to:
+- [open issues](https://github.com/ebonnal/streamable/issues)
+- [open pull requests](https://github.com/ebonnal/streamable/pulls)
+- check [CONTRIBUTING.md](CONTRIBUTING.md)
 
 ## Thank you for the highlights 🙏
 - [Tryolabs' Top Python libraries of 2024](https://tryolabs.com/blog/top-python-libraries-2024#top-10---general-use) ([LinkedIn](https://www.linkedin.com/posts/tryolabs_top-python-libraries-2024-activity-7273052840984539137-bcGs?utm_source=share&utm_medium=member_desktop), [Reddit](https://www.reddit.com/r/Python/comments/1hbs4t8/the_handpicked_selection_of_the_best_python/))

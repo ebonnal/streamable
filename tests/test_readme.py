@@ -272,7 +272,7 @@ class TestReadme(unittest.TestCase):
                 fields = ["id", "name", "is_legendary", "base_happiness", "capture_rate"]
                 writer = csv.DictWriter(file, fields, extrasaction='ignore')
                 writer.writeheader()
-                (
+                pipeline = (
                     # Infinite Stream[int] of Pokemon ids starting from Pokémon #1: Bulbasaur
                     Stream(itertools.count(1))
                     # Limits to 16 requests per second to be friendly to our fellow PokéAPI devs
@@ -300,7 +300,7 @@ class TestReadme(unittest.TestCase):
                     .observe("written pokemons")
                     # Catches exceptions and raises the 1st one at the end of the iteration
                     .catch(finally_raise=True)
-                    # Actually triggers an iteration (the lines above define lazy operations)
-                    .count()
                 )
+
+                pipeline()
 # fmt: on
