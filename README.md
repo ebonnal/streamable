@@ -11,13 +11,14 @@
 [![PyPI](https://github.com/ebonnal/streamable/actions/workflows/pypi.yml/badge.svg?branch=main)](https://pypi.org/project/streamable)
 
 
-|||
-|--|--|
-|🔗 *Fluent*|chain methods!|
-|🇹 *Typed*|generically **type-annotated**, `Stream[T]` is an `Iterable[T]`|
-|💤 *Lazy*|operations **evaluated** at iteration time|
-|🔀 *Concurrent*|via **threads** or **processes** or `asyncio`|
-|🛡️ *Robust*|unit-tested for **Python 3.7 to 3.14** with 100% coverage|
+||
+|--|
+|🔗 ***Fluent*** chainable operations|
+|💤 ***Lazy*** operations|
+|🔀 ***Concurrent*** via *threads*/*processes*/`asyncio`|
+|🇹 ***Typed***, fully annotated, `Stream[T]` is an `Iterable[T]`|
+|🛡️ ***Tested*** extensively on **Python 3.7 to 3.14**|
+|🪶 ***Light***, no dependencies|
 
 ---
 
@@ -34,6 +35,7 @@ from streamable import Stream
 ```
 
 ## 3. init
+
 Create a `Stream[T]` *decorating* an `Iterable[T]`:
 
 ```python
@@ -41,9 +43,8 @@ integers: Stream[int] = Stream(range(10))
 ```
 
 ## 4. operate
-- `Stream`s are ***immutable***: applying an operation returns a new stream.
 
-- Operations are ***lazy***: only evaluated at iteration time.
+Chain ***lazy*** operations (only evaluated during iteration), each returning a new ***immutable*** `Stream`:
 
 ```python
 inverses: Stream[float] = (
@@ -54,10 +55,10 @@ inverses: Stream[float] = (
 ```
 
 ## 5. iterate
-- Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`.
-- Elements are ***processed on-the-fly***.
 
-### collect it
+Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`, elements are processed *on-the-fly*:
+
+- **collect**
 ```python
 >>> list(inverses)
 [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
@@ -65,38 +66,35 @@ inverses: Stream[float] = (
 {0.5, 1.0, 0.2, 0.33, 0.25, 0.17, 0.14, 0.12, 0.11}
 ```
 
-### reduce it
+- **reduce**
 ```python
 >>> sum(inverses)
 2.82
->>> max(inverses)
-1.0
 >>> from functools import reduce
 >>> reduce(..., inverses)
 ```
 
-### loop it
+- **loop**
 ```python
 >>> for inverse in inverses:
 >>>    ...
 ```
 
-### next it
+- **next**
 ```python
->>> inverses_iter = iter(inverses)
->>> next(inverses_iter)
+>>> next(iter(inverses))
 1.0
->>> next(inverses_iter)
-0.5
 ```
+
+
 
 ---
 
 # 📒 ***Operations***
 
-A dozen expressive operations and that’s it!
+A dozen expressive lazy operations and that’s it!
 
-## `.map`
+# `.map`
 
 > Applies a transformation on elements:
 
@@ -127,10 +125,13 @@ pokemon_names: Stream[str] = (
 assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
 ```
 
-> Preserves the upstream order by default (FIFO), but you can set `ordered=False` for *First Done First Out*.
+> Preserves the upstream order by default (FIFO), but you can set `ordered=False` for ***First Done First Out***.
 
+> [!NOTE]
 > `concurrency` is also the size of the buffer containing not-yet-yielded results. **If the buffer is full, the iteration over the upstream is paused** until a result is yielded from the buffer.
 
+> [!TIP]
+> The performance of thread-based concurrency in a CPU-bound script can be drastically improved by using a [Python 3.13+ free-threaded build](https://docs.python.org/3/using/configure.html#cmdoption-disable-gil).
 
 ### process-based concurrency
 
@@ -182,9 +183,7 @@ zeros: Stream[int] = (
 assert list(zeros) == [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 ```
 
-> Also convenient with `.foreach`, `.filter`, ...
-
-## `.foreach`
+# `.foreach`
 
 > Applies a side effect on elements:
 
@@ -199,6 +198,7 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ### thread-based concurrency
 
 > Like `.map` it has an optional `concurrency` parameter.
+> Preserves the upstream order by default (FIFO), but you can set `ordered=False` for ***First Done First Out***.
 
 ### process-based concurrency
 
@@ -208,7 +208,7 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 > Like `.map` it has a sibling `.aforeach` operation for async.
 
-## `.filter`
+# `.filter`
 
 > Keeps only the elements that satisfy a condition:
 
@@ -218,7 +218,7 @@ pair_integers: Stream[int] = integers.filter(lambda n: n % 2 == 0)
 assert list(pair_integers) == [0, 2, 4, 6, 8]
 ```
 
-## `.throttle`
+# `.throttle`
 
 > Limits the number of yields `per_second`/`per_minute`/`per_hour`:
 
@@ -243,7 +243,7 @@ integers_every_100_millis = (
 assert list(integers_every_100_millis) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 
-## `.group`
+# `.group`
 
 > Groups elements into `List`s:
 
@@ -269,7 +269,7 @@ integers_within_1_sec: Stream[List[int]] = (
 assert list(integers_within_1_sec) == [[0, 1, 2], [3, 4], [5, 6], [7, 8], [9]]
 ```
 
-> Mix `size`/`by`/`interval` parameters:
+> Mix the `size`/`by`/`interval` parameters:
 ```python
 integers_by_parity_by_2: Stream[List[int]] = (
     integers
@@ -279,7 +279,7 @@ integers_by_parity_by_2: Stream[List[int]] = (
 assert list(integers_by_parity_by_2) == [[0, 2], [1, 3], [4, 6], [5, 7], [8], [9]]
 ```
 
-### `.groupby`
+## `.groupby`
 
 > Like `.group`, but groups into `(key, elements)` tuples:
 ```python
@@ -305,7 +305,7 @@ counts_by_parity: Stream[Tuple[str, int]] = (
 assert list(counts_by_parity) == [("pair", 5), ("odd", 5)]
 ```
 
-## `.flatten`
+# `.flatten`
 
 > Ungroups elements assuming that they are `Iterable`s:
 
@@ -328,7 +328,7 @@ assert list(mixed_ones_and_zeros) == [0, 1, 0, 1, 0, 1, 0, 1]
 ```
 
 
-## `.catch`
+# `.catch`
 
 > Catches a given type of exceptions, and optionally yields a `replacement` value:
 
@@ -359,7 +359,7 @@ assert list(status_codes_ignoring_resolution_errors) == [200, 404]
 
 > It has an optional `finally_raise: bool` parameter to raise the first catched exception when iteration ends.
 
-## `.truncate`
+# `.truncate`
 
 > Ends iteration once a given number of elements have been yielded:
 
@@ -377,7 +377,7 @@ five_first_integers: Stream[int] = integers.truncate(when=lambda n: n == 5)
 assert list(five_first_integers) == [0, 1, 2, 3, 4]
 ```
 
-## `.skip`
+# `.skip`
 
 > Skips the first specified number of elements:
 
@@ -387,7 +387,7 @@ integers_after_five: Stream[int] = integers.skip(5)
 assert list(integers_after_five) == [5, 6, 7, 8, 9]
 ```
 
-## `.distinct`
+# `.distinct`
 
 > Removes duplicates:
 
@@ -420,7 +420,7 @@ consecutively_distinct_chars: Stream[str] = (
 assert list(consecutively_distinct_chars) == ["f", "o", "b", "a", "r", "f", "o"]
 ```
 
-## `.observe`
+# `.observe`
 
 > Logs the progress of iterations:
 ```python
@@ -437,10 +437,7 @@ INFO: [duration=0:00:04.003852 errors=0] 10 integers yielded
 > [!NOTE]
 > The amount of logs will never be overwhelming because they are produced logarithmically (base 2): the 11th log will be produced after 1,024 elements have been yielded, the 21th log after 1,048,576 elements, ...
 
-> [!WARNING]
-> It is mute between *v1.1.0* and *v1.3.1*, please `pip install --upgrade streamable`
-
-## `+`
+# `+`
 
 > Concatenates streams:
 
@@ -448,7 +445,7 @@ INFO: [duration=0:00:04.003852 errors=0] 10 integers yielded
 assert list(integers + integers) == [0, 1, 2, 3 ,4, 5, 6, 7, 8, 9, 0, 1, 2, 3 ,4, 5, 6, 7, 8, 9]
 ```
 
-## `zip`
+# `zip`
 
 > [!TIP]
 > Use the standard `zip` function:
@@ -464,13 +461,12 @@ cubes: Stream[int] = (
 assert list(cubes) == [0, 1, 8, 27, 64, 125, 216, 343, 512, 729]
 ```
 
+# Shorthands to consume the stream
 
-## Shorthands to consume the stream
-
-> [!TIP]
+> [!NOTE]
 > Although consuming the stream is beyond the scope of this library, it provides two basic shorthands to trigger an iteration:
 
-### `.count`
+## `.count`
 
 > Iterates over the stream until exhaustion and returns the number of elements yielded:
 
@@ -478,7 +474,7 @@ assert list(cubes) == [0, 1, 8, 27, 64, 125, 216, 343, 512, 729]
 assert integers.count() == 10
 ```
 
-### `()`
+## `()`
 
 > *Calling* the stream iterates over it until exhaustion and returns it:
 ```python
@@ -490,10 +486,10 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 ---
 
-# 📦 ***Notes Box***
+# 💡 Tips
 ## Extract-Transform-Load
-
-**Custom ETL scripts** can benefit from the expressiveness of this library. Below is a pipeline that extracts the 67 quadruped Pokémon from the first three generations using [PokéAPI](https://pokeapi.co/) and loads them into a CSV:
+> [!TIP]
+> **Custom ETL scripts** can benefit from the expressiveness of this library. Below is a pipeline that extracts the 67 quadruped Pokémon from the first three generations using [PokéAPI](https://pokeapi.co/) and loads them into a CSV:
 
 ```python
 import csv
@@ -540,13 +536,9 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
     pipeline()
 ```
 
-## logging level
-```python
-logging.getLogger("streamable").setLevel(logging.WARNING)  # default is INFO
-```
-
-## visitor pattern
-The `Stream` class exposes an `.accept` method and you can implement a [***visitor***](https://en.wikipedia.org/wiki/Visitor_pattern) by extending the `streamable.visitors.Visitor` abstract class:
+## Visitor Pattern
+> [!TIP]
+> A `Stream` can be visited via its `.accept` method: implement a custom [***visitor***](https://en.wikipedia.org/wiki/Visitor_pattern) by extending the abstract class `streamable.visitors.Visitor`:
 
 ```python
 from streamable.visitors import Visitor
@@ -563,8 +555,9 @@ def depth(stream: Stream) -> int:
 assert depth(Stream(range(10)).map(str).filter()) == 3
 ```
 
-## as functions
-The `Stream`'s methods are also exposed as functions:
+## Functions
+> [!TIP]
+> The `Stream`'s methods are also exposed as functions:
 ```python
 from streamable.functions import catch
 
@@ -572,16 +565,23 @@ inverse_integers: Iterator[int] = map(lambda n: 1 / n, range(10))
 safe_inverse_integers: Iterator[int] = catch(inverse_integers, ZeroDivisionError)
 ```
 
-## *free-threaded* Python 3.13+
-Benefits from [free-threaded](https://docs.python.org/3/using/configure.html#cmdoption-disable-gil) Python 3.13+ builds, run via `python -X gil=0`.
+## Logging Level
+> [!TIP]
+> This mutes the `.observe` operations which log at `INFO` level:
 
-## Contribute
+```python
+import logging
+logging.getLogger("streamable").setLevel(logging.WARNING)
+```
+
+# Contributing
+
 Feel very welcome to:
 - [open issues](https://github.com/ebonnal/streamable/issues)
 - [open pull requests](https://github.com/ebonnal/streamable/pulls)
 - check [CONTRIBUTING.md](CONTRIBUTING.md)
 
-## Thank you for the highlights 🙏
+# 🙏 Thanks for the highlight to 
 - [Tryolabs' Top Python libraries of 2024](https://tryolabs.com/blog/top-python-libraries-2024#top-10---general-use) ([LinkedIn](https://www.linkedin.com/posts/tryolabs_top-python-libraries-2024-activity-7273052840984539137-bcGs?utm_source=share&utm_medium=member_desktop), [Reddit](https://www.reddit.com/r/Python/comments/1hbs4t8/the_handpicked_selection_of_the_best_python/))
 - [PyCoder’s Weekly](https://pycoders.com/issues/651) x [Real Python](https://realpython.com/)
 - [@PythonHub's tweet](https://x.com/PythonHub/status/1842886311369142713)
