@@ -2,8 +2,6 @@
 
 > Stream-like manipulation of iterables
 
-A `Stream[T]` decorates an `Iterable[T]` with a **fluent interface** enabling the chaining of lazy operations.
-
 ---
 
 [![codecov](https://codecov.io/gh/ebonnal/streamable/graph/badge.svg?token=S62T0JQK9N)](https://codecov.io/gh/ebonnal/streamable)
@@ -20,7 +18,6 @@ A `Stream[T]` decorates an `Iterable[T]` with a **fluent interface** enabling th
 |💤 *Lazy*|operations **evaluated** at iteration time|
 |🔀 *Concurrent*|via **threads** or **processes** or `asyncio`|
 |🛡️ *Robust*|unit-tested for **Python 3.7 to 3.14** with 100% coverage|
-|🪶 *Light*|`pip install streamable` with **no additional dependencies**|
 
 ---
 
@@ -41,7 +38,7 @@ from streamable import Stream
 ```
 
 ## 3. init
-Instantiate a `Stream[T]` from an `Iterable[T]`.
+Create a `Stream[T]` *decorating* an `Iterable[T]`:
 
 ```python
 integers: Stream[int] = Stream(range(10))
