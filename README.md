@@ -229,7 +229,7 @@ integers_5_per_sec: Stream[int] = integers.throttle(per_second=3)
 assert list(integers_5_per_sec) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 
-> and/or ensure a minimum time `interval` separates successive yields:
+> and/or ensures a minimum `interval` between two successive yields:
 
 ```python
 from datetime import timedelta
