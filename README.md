@@ -1,6 +1,6 @@
 # ༄ `streamable`
 
-> Stream-like manipulation of iterables
+***Pythonic Stream-like manipulation of iterables***
 
 ---
 
