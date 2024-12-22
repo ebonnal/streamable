@@ -117,7 +117,7 @@ N = 256
 
 src = range(N)
 
-pair_src = range(0, N, 2)
+even_src = range(0, N, 2)
 
 
 def randomly_slowed(
@@ -570,7 +570,7 @@ class TestStream(unittest.TestCase):
             list(
                 method(Stream(src), throw_for_odd_func(raised_exc), concurrency).catch(catched_exc)  # type: ignore
             ),
-            list(pair_src),
+            list(even_src),
             msg="At any concurrency, `map` and `foreach` and `amap` must not stop after one exception occured.",
         )
 
@@ -1010,7 +1010,7 @@ class TestStream(unittest.TestCase):
                     ),
                 )
             ),
-            list(map(lambda e: [e, e + 1], pair_src)),
+            list(map(lambda e: [e, e + 1], even_src)),
             msg="`group` should yield upstream elements in a two-element group if `interval` inferior to twice the upstream yield period",
         )
 

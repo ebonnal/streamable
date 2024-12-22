@@ -97,9 +97,9 @@ class TestReadme(unittest.TestCase):
         assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
     def test_filter_example(self) -> None:
-        pair_integers: Stream[int] = integers.filter(lambda n: n % 2 == 0)
+        even_integers: Stream[int] = integers.filter(lambda n: n % 2 == 0)
 
-        assert list(pair_integers) == [0, 2, 4, 6, 8]
+        assert list(even_integers) == [0, 2, 4, 6, 8]
 
     def test_throttle_example(self) -> None:
 
@@ -152,10 +152,10 @@ class TestReadme(unittest.TestCase):
     def test_groupby_example(self) -> None:
         integers_by_parity: Stream[Tuple[str, List[int]]] = (
             integers
-            .groupby(lambda n: "odd" if n % 2 else "pair")
+            .groupby(lambda n: "odd" if n % 2 else "even")
         )
 
-        assert list(integers_by_parity) == [("pair", [0, 2, 4, 6, 8]), ("odd", [1, 3, 5, 7, 9])]
+        assert list(integers_by_parity) == [("even", [0, 2, 4, 6, 8]), ("odd", [1, 3, 5, 7, 9])]
 
         from streamable import star
 
@@ -164,13 +164,13 @@ class TestReadme(unittest.TestCase):
             .map(star(lambda parity, ints: (parity, len(ints))))
         )
 
-        assert list(counts_by_parity) == [("pair", 5), ("odd", 5)]
+        assert list(counts_by_parity) == [("even", 5), ("odd", 5)]
 
     def test_flatten_example(self) -> None:
         global integers_by_parity
-        pair_then_odd_integers: Stream[int] = integers_by_parity.flatten()
+        even_then_odd_integers: Stream[int] = integers_by_parity.flatten()
 
-        assert list(pair_then_odd_integers) == [0, 2, 4, 6, 8, 1, 3, 5, 7, 9]
+        assert list(even_then_odd_integers) == [0, 2, 4, 6, 8, 1, 3, 5, 7, 9]
 
         mixed_ones_and_zeros: Stream[int] = (
             Stream([[0] * 4, [1] * 4])
