@@ -1,4 +1,19 @@
-# Design Overview
+# Make
+
+`make all` or a specific target:
+```bash
+make venv
+make test
+make type-check
+make lint
+```
+
+Run a specific test:
+```bash
+python -m unittest tests.test_stream.TestStream.test_distinct
+```
+
+# Design principles
 
 ## Fluent Interface Pattern
 The lib is built around a single entry point, the `Stream` class. This is the only import required. This lib must be trivial to use, all the behaviors it exposes should be carefully named and designed to make them as self-explanatory as possible. A stream declaration should resemble natural language:
@@ -16,30 +31,3 @@ Each node in this composite structure exposes an `.accept` method enabling trave
 
 ## Decorator Pattern
 A `Stream[T]` both inherits from `Iterable[T]` and holds an `Iterable[T]` as its `.source`: when you instantiate a stream from an iterable you decorate it with a fluent interface.
-
-# Cheat Sheet: commands for contributors
-
-```bash
-git clone git@github.com:ebonnal/streamable
-cd streamable
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements-dev.txt
-```
-
-## run unittest and check coverage
-```bash
-python -m coverage run -m unittest && coverage report
-```
-
-## check typing
-```bash
-python -m mypy streamable tests
-```
-
-## lint
-```bash
-python -m autoflake --in-place --remove-all-unused-imports --remove-unused-variables --ignore-init-module -r streamable tests \
-&& python -m isort streamable tests \
-&& python -m black .
-```

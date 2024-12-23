@@ -18,6 +18,4 @@ jobs:
         python-version: 3.8
 
     - name: mypy
-      run: |
-        python -m pip install -r requirements-dev.txt
-        python -m mypy --install-types --non-interactive streamable tests
+      run: make venv type-check
