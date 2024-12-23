@@ -2,8 +2,6 @@
 
 ***Pythonic Stream-like manipulation of iterables***
 
----
-
 [![codecov](https://codecov.io/gh/ebonnal/streamable/graph/badge.svg?token=S62T0JQK9N)](https://codecov.io/gh/ebonnal/streamable)
 [![unittest](https://github.com/ebonnal/streamable/actions/workflows/unittest.yml/badge.svg?branch=main)](https://github.com/ebonnal/streamable/actions)
 [![typing](https://github.com/ebonnal/streamable/actions/workflows/typing.yml/badge.svg?branch=main)](https://github.com/ebonnal/streamable/actions)
@@ -19,8 +17,6 @@
 |🇹 ***Typed***, fully annotated, `Stream[T]` is an `Iterable[T]`|
 |🛡️ ***Tested*** extensively on **Python 3.7 to 3.14**|
 |🪶 ***Light***, no dependencies|
-
----
 
 
 ## 1. install
@@ -92,7 +88,7 @@ Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`, eleme
 
 # 📒 ***Operations***
 
-A dozen expressive lazy operations and that’s it!
+*A dozen expressive lazy operations and that’s it!*
 
 # `.map`
 
@@ -461,7 +457,7 @@ cubes: Stream[int] = (
 assert list(cubes) == [0, 1, 8, 27, 64, 125, 216, 343, 512, 729]
 ```
 
-# Shorthands to consume the stream
+# Shorthands for consuming the stream
 
 > [!NOTE]
 > Although consuming the stream is beyond the scope of this library, it provides two basic shorthands to trigger an iteration:
