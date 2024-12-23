@@ -1,5 +1,7 @@
 import asyncio
 import datetime
+import multiprocessing
+import queue
 import time
 from abc import ABC, abstractmethod
 from collections import defaultdict, deque
@@ -578,8 +580,9 @@ class _OSConcurrentMapIterable(_ConcurrentMapIterable[T, U]):
     ) -> FutureResultCollection[Union[U, _RaisingIterator.ExceptionContainer]]:
         if self.ordered:
             return FIFOOSFutureResultCollection()
-        else:
-            return FDFOOSFutureResultCollection()
+        return FDFOOSFutureResultCollection(
+            multiprocessing.Queue if self.via == "process" else queue.Queue
+        )
 
 
 class OSConcurrentMapIterator(_RaisingIterator[U]):

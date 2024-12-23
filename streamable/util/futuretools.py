@@ -2,8 +2,8 @@ import asyncio
 from abc import ABC, abstractmethod
 from collections import deque
 from concurrent.futures import Future
-from multiprocessing import Queue
-from typing import Deque, Iterator, Sized, TypeVar
+from queue import Queue
+from typing import Deque, Iterator, Sized, Type, TypeVar
 
 T = TypeVar("T")
 
@@ -57,9 +57,9 @@ class FDFOOSFutureResultCollection(CallbackFutureResultCollection[T]):
     First Done First Out
     """
 
-    def __init__(self) -> None:
+    def __init__(self, queue_type: Type[Queue]) -> None:
         super().__init__()
-        self._results: "Queue[T]" = Queue()
+        self._results: "Queue[T]" = queue_type()
 
     def _done_callback(self, future: "Future[T]") -> None:
         self._results.put(future.result())
