@@ -108,7 +108,7 @@ class DistinctIterator(Iterator[T]):
     def _see(self, elem: Any):
         value = self._value(elem)
         try:
-            value = hash(value)
+            hash(value)
         except TypeError:
             self._already_seen_list.append(value)
         else:
@@ -117,7 +117,7 @@ class DistinctIterator(Iterator[T]):
     def _has_been_seen(self, elem: Any):
         value = self._value(elem)
         try:
-            value = hash(value)
+            hash(value)
         except TypeError:
             return value in self._already_seen_list
         return value in self._already_seen_set
