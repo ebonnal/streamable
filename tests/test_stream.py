@@ -1253,16 +1253,12 @@ class TestStream(unittest.TestCase):
                 [],
                 msg="`distinct` should yield zero elements on empty stream",
             )
-        self.assertEqual(
-            list(Stream([[1], [2], [1], [2]]).distinct()),
-            [[1], [2]],
-            msg="`distinct` should work with non-hashable elements",
-        )
-        self.assertEqual(
-            list(Stream([[1], "foo", [2], [1], [2], "foo"]).distinct()),
-            [[1], "foo", [2]],
-            msg="`distinct` should work with a mix of hashable and non-hashable elements",
-        )
+        with self.assertRaisesRegex(
+            TypeError,
+            "unhashable type: 'list'",
+            msg="`distinct` should raise for non-hashable elements",
+        ):
+            list(Stream([[1]]).distinct())
 
     def test_catch(self) -> None:
         self.assertEqual(

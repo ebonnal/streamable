@@ -99,31 +99,15 @@ class DistinctIterator(Iterator[T]):
         validate_iterator(iterator)
         self.iterator = iterator
         self.by = noop_stopiteration(by) if by else None
-        self._already_seen_set: Set[Any] = set()
-        self._already_seen_list: List[Any] = list()
-
-    def _value(self, elem):
-        return self.by(elem) if self.by else elem
-
-    def _see(self, elem: Any):
-        value = self._value(elem)
-        try:
-            self._already_seen_set.add(value)
-        except TypeError:
-            self._already_seen_list.append(value)
-
-    def _has_been_seen(self, elem: Any):
-        value = self._value(elem)
-        try:
-            return value in self._already_seen_set
-        except TypeError:
-            return value in self._already_seen_list
+        self._already_seen: Set[Any] = set()
 
     def __next__(self) -> T:
-        elem = next(self.iterator)
-        while self._has_been_seen(elem):
+        while True:
             elem = next(self.iterator)
-        self._see(elem)
+            value = self.by(elem) if self.by else elem
+            if value not in self._already_seen:
+                break
+        self._already_seen.add(value)
         return elem
 
 
