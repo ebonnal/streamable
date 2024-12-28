@@ -192,11 +192,13 @@ class GroupIterator(_GroupIteratorInitMixin[T], Iterator[List[T]]):
         self._current_group: List[T] = []
 
     def _interval_seconds_have_elapsed(self) -> bool:
-        return (time.time() - self._last_group_yielded_at) >= self._interval_seconds
+        return (
+            time.perf_counter() - self._last_group_yielded_at
+        ) >= self._interval_seconds
 
     def __next__(self) -> List[T]:
         if not self._last_group_yielded_at:
-            self._last_group_yielded_at = time.time()
+            self._last_group_yielded_at = time.perf_counter()
         if self._to_be_raised:
             e, self._to_be_raised = self._to_be_raised, None
             raise e
@@ -211,7 +213,7 @@ class GroupIterator(_GroupIteratorInitMixin[T], Iterator[List[T]]):
             self._to_be_raised = e
 
         group, self._current_group = self._current_group, []
-        self._last_group_yielded_at = time.time()
+        self._last_group_yielded_at = time.perf_counter()
         return group
 
 
@@ -229,7 +231,9 @@ class GroupbyIterator(_GroupIteratorInitMixin[T], Iterator[Tuple[U, List[T]]]):
         self._groups_by: DefaultDict[U, List[T]] = defaultdict(list)
 
     def _interval_seconds_have_elapsed(self) -> bool:
-        return (time.time() - self._last_group_yielded_at) >= self._interval_seconds
+        return (
+            time.perf_counter() - self._last_group_yielded_at
+        ) >= self._interval_seconds
 
     def _group_next_elem(self) -> None:
         elem = next(self.iterator)
@@ -255,12 +259,12 @@ class GroupbyIterator(_GroupIteratorInitMixin[T], Iterator[Tuple[U, List[T]]]):
         return largest_group_key, self._groups_by.pop(largest_group_key)
 
     def _return_group(self, group: Tuple[U, List[T]]) -> Tuple[U, List[T]]:
-        self._last_group_yielded_at = time.time()
+        self._last_group_yielded_at = time.perf_counter()
         return group
 
     def __next__(self) -> Tuple[U, List[T]]:
         if not self._last_group_yielded_at:
-            self._last_group_yielded_at = time.time()
+            self._last_group_yielded_at = time.perf_counter()
         if self._is_exhausted:
             if self._groups_by:
                 return self._return_group(self._pop_first_group())
@@ -351,12 +355,12 @@ class ObserveIterator(Iterator[T]):
         self._n_yields = 0
         self._n_errors = 0
         self._logged_n_calls = 0
-        self._start_time = time.time()
+        self._start_time = time.perf_counter()
 
     def _log(self) -> None:
         get_logger().info(
             "[%s %s] %s",
-            f"duration={datetime.datetime.fromtimestamp(time.time()) - datetime.datetime.fromtimestamp(self._start_time)}",
+            f"duration={datetime.datetime.fromtimestamp(time.perf_counter()) - datetime.datetime.fromtimestamp(self._start_time)}",
             f"errors={self._n_errors}",
             f"{self._n_yields} {self.what} yielded",
         )
@@ -407,10 +411,10 @@ class IntervalThrottleIterator(_ThrottleIterator[T]):
     def __next__(self) -> T:
         elem, catched_error = self.safe_next()
         if self._last_yield_at:
-            elapsed_time = time.time() - self._last_yield_at
+            elapsed_time = time.perf_counter() - self._last_yield_at
             if elapsed_time < self._interval_seconds:
                 time.sleep(self._interval_seconds - elapsed_time)
-        self._last_yield_at = time.time()
+        self._last_yield_at = time.perf_counter()
 
         if catched_error:
             raise catched_error
@@ -436,7 +440,7 @@ class YieldsPerPeriodThrottleIterator(_ThrottleIterator[T]):
     def __next__(self) -> T:
         elem, catched_error = self.safe_next()
 
-        now = time.time()
+        now = time.perf_counter()
         if not self._offset:
             self._offset = now
         now -= self._offset
