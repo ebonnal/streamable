@@ -1,31 +1,29 @@
 from typing import Any, Callable, Coroutine, Generic, Tuple, Type, TypeVar, overload
 
-from streamable.util.exceptions import NoopStopIteration
-
 T = TypeVar("T")
 R = TypeVar("R")
 
 
-class _CatchAndRaiseAs(Generic[T, R]):
-    def __init__(
-        self,
-        func: Callable[[T], R],
-        catched_error: Type[Exception],
-        raised_error: Type[Exception],
-    ) -> None:
+class WrappedError(Exception):
+    def __init__(self, error: Exception):
+        super().__init__(repr(error))
+        self.error = error
+
+
+class _ErrorWrappingDecorator(Generic[T, R]):
+    def __init__(self, func: Callable[[T], R], error_type: Type[Exception]) -> None:
         self.func = func
-        self.catched_error = catched_error
-        self.raised_error = raised_error
+        self.error_type = error_type
 
     def __call__(self, arg: T) -> R:
         try:
             return self.func(arg)
-        except self.catched_error as e:
-            raise self.raised_error(str(e)) from e
+        except self.error_type as e:
+            raise WrappedError(e) from e
 
 
-def noop_stopiteration(func: Callable[[T], R]) -> Callable[[T], R]:
-    return _CatchAndRaiseAs(func, StopIteration, NoopStopIteration)
+def wrap_error(func: Callable[[T], R], error_type: Type[Exception]) -> Callable[[T], R]:
+    return _ErrorWrappingDecorator(func, error_type)
 
 
 class _Sidify(Generic[T]):

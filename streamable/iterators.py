@@ -29,7 +29,7 @@ from typing import (
     cast,
 )
 
-from streamable.util.functiontools import noop_stopiteration
+from streamable.util.functiontools import wrap_error
 from streamable.util.loggertools import get_logger
 from streamable.util.validationtools import (
     validate_buffersize,
@@ -69,7 +69,7 @@ class CatchIterator(Iterator[T]):
         validate_iterator(iterator)
         self.iterator = iterator
         self.kind = kind
-        self.when = noop_stopiteration(when)
+        self.when = wrap_error(when, StopIteration)
         self.replacement = replacement
         self.finally_raise = finally_raise
         self._to_be_finally_raised: Optional[Exception] = None
@@ -98,7 +98,7 @@ class DistinctIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], by: Optional[Callable[[T], Any]]) -> None:
         validate_iterator(iterator)
         self.iterator = iterator
-        self.by = noop_stopiteration(by) if by else None
+        self.by = wrap_error(by, StopIteration) if by else None
         self._already_seen: Set[Any] = set()
 
     def __next__(self) -> T:
@@ -115,7 +115,7 @@ class ConsecutiveDistinctIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], by: Optional[Callable[[T], Any]]) -> None:
         validate_iterator(iterator)
         self.iterator = iterator
-        self.by = noop_stopiteration(by) if by else None
+        self.by = wrap_error(by, StopIteration) if by else None
         self._has_yielded = False
         self._last_value: Any = None
 
@@ -145,7 +145,9 @@ class FlattenIterator(Iterator[U]):
                 return next(self._current_iterator_elem)
             except StopIteration:
                 iterable_elem = next(self.iterator)
-                self._current_iterator_elem = noop_stopiteration(iter)(iterable_elem)
+                self._current_iterator_elem = wrap_error(iter, StopIteration)(
+                    iterable_elem
+                )
 
 
 class GroupIteratorMixin(Generic[T]):
@@ -220,7 +222,7 @@ class GroupbyIterator(GroupIteratorMixin[T], Iterator[Tuple[U, List[T]]]):
         interval: Optional[datetime.timedelta],
     ) -> None:
         super().__init__(iterator, size, interval)
-        self.by = noop_stopiteration(by)
+        self.by = wrap_error(by, StopIteration)
         self._is_exhausted = False
         self._groups_by: DefaultDict[U, List[T]] = defaultdict(list)
 
@@ -317,7 +319,7 @@ class PredicateTruncateIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], when: Callable[[T], Any]) -> None:
         validate_iterator(iterator)
         self.iterator = iterator
-        self.when = noop_stopiteration(when)
+        self.when = wrap_error(when, StopIteration)
         self._satisfied = False
 
     def __next__(self):
@@ -531,7 +533,7 @@ class _OSConcurrentMapIterable(_ConcurrentMapIterable[T, U]):
     ) -> None:
         super().__init__(iterator, buffersize, ordered)
         validate_concurrency(concurrency)
-        self.transformation = noop_stopiteration(transformation)
+        self.transformation = wrap_error(transformation, StopIteration)
         self.concurrency = concurrency
         self.executor: Executor
         self.via = via
@@ -603,7 +605,7 @@ class _AsyncConcurrentMapIterable(_ConcurrentMapIterable[T, U]):
         ordered: bool,
     ) -> None:
         super().__init__(iterator, buffersize, ordered)
-        self.transformation = noop_stopiteration(transformation)
+        self.transformation = wrap_error(transformation, StopIteration)
 
     async def _safe_transformation(
         self, elem: T
@@ -700,7 +702,7 @@ class _ConcurrentFlattenIterable(
                         except StopIteration:
                             break
                         try:
-                            iterator = noop_stopiteration(iter)(iterable)
+                            iterator = wrap_error(iter, StopIteration)(iterable)
                         except Exception as e:
                             yield _RaisingIterator.ExceptionContainer(e)
                             continue
