@@ -17,6 +17,7 @@ venv:
 
 test:
 	$(VENV_DIR)/bin/python -m coverage run -m unittest --failfast
+	$(VENV_DIR)/bin/coverage report
 	$(VENV_DIR)/bin/coverage html
 
 type-check:
