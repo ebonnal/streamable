@@ -148,7 +148,7 @@ class FlattenIterator(Iterator[U]):
                 self._current_iterator_elem = noop_stopiteration(iter)(iterable_elem)
 
 
-class _GroupIteratorInitMixin(Generic[T]):
+class GroupIteratorMixin(Generic[T]):
     def __init__(
         self,
         iterator: Iterator[T],
@@ -160,12 +160,28 @@ class _GroupIteratorInitMixin(Generic[T]):
         validate_group_interval(interval)
         self.iterator = iterator
         self.size = size or cast(int, float("inf"))
+        self.interval = interval
         self._interval_seconds = interval.total_seconds() if interval else float("inf")
         self._to_be_raised: Optional[Exception] = None
         self._last_group_yielded_at: float = 0
 
+    def _interval_seconds_have_elapsed(self) -> bool:
+        if not self.interval:
+            return False
+        return (
+            time.perf_counter() - self._last_group_yielded_at
+        ) >= self._interval_seconds
 
-class GroupIterator(_GroupIteratorInitMixin[T], Iterator[List[T]]):
+    def _remember_group_time(self) -> None:
+        if self.interval:
+            self._last_group_yielded_at = time.perf_counter()
+
+    def _init_last_group_time(self) -> None:
+        if self.interval and not self._last_group_yielded_at:
+            self._last_group_yielded_at = time.perf_counter()
+
+
+class GroupIterator(GroupIteratorMixin[T], Iterator[List[T]]):
     def __init__(
         self,
         iterator: Iterator[T],
@@ -175,14 +191,8 @@ class GroupIterator(_GroupIteratorInitMixin[T], Iterator[List[T]]):
         super().__init__(iterator, size, interval)
         self._current_group: List[T] = []
 
-    def _interval_seconds_have_elapsed(self) -> bool:
-        return (
-            time.perf_counter() - self._last_group_yielded_at
-        ) >= self._interval_seconds
-
     def __next__(self) -> List[T]:
-        if not self._last_group_yielded_at:
-            self._last_group_yielded_at = time.perf_counter()
+        self._init_last_group_time()
         if self._to_be_raised:
             e, self._to_be_raised = self._to_be_raised, None
             raise e
@@ -197,11 +207,11 @@ class GroupIterator(_GroupIteratorInitMixin[T], Iterator[List[T]]):
             self._to_be_raised = e
 
         group, self._current_group = self._current_group, []
-        self._last_group_yielded_at = time.perf_counter()
+        self._remember_group_time()
         return group
 
 
-class GroupbyIterator(_GroupIteratorInitMixin[T], Iterator[Tuple[U, List[T]]]):
+class GroupbyIterator(GroupIteratorMixin[T], Iterator[Tuple[U, List[T]]]):
     def __init__(
         self,
         iterator: Iterator[T],
@@ -213,11 +223,6 @@ class GroupbyIterator(_GroupIteratorInitMixin[T], Iterator[Tuple[U, List[T]]]):
         self.by = noop_stopiteration(by)
         self._is_exhausted = False
         self._groups_by: DefaultDict[U, List[T]] = defaultdict(list)
-
-    def _interval_seconds_have_elapsed(self) -> bool:
-        return (
-            time.perf_counter() - self._last_group_yielded_at
-        ) >= self._interval_seconds
 
     def _group_next_elem(self) -> None:
         elem = next(self.iterator)
@@ -242,21 +247,17 @@ class GroupbyIterator(_GroupIteratorInitMixin[T], Iterator[Tuple[U, List[T]]]):
 
         return largest_group_key, self._groups_by.pop(largest_group_key)
 
-    def _return_group(self, group: Tuple[U, List[T]]) -> Tuple[U, List[T]]:
-        self._last_group_yielded_at = time.perf_counter()
-        return group
-
     def __next__(self) -> Tuple[U, List[T]]:
-        if not self._last_group_yielded_at:
-            self._last_group_yielded_at = time.perf_counter()
+        self._init_last_group_time()
         if self._is_exhausted:
             if self._groups_by:
-                return self._return_group(self._pop_first_group())
+                return self._pop_first_group()
             raise StopIteration
 
         if self._to_be_raised:
             if self._groups_by:
-                return self._return_group(self._pop_first_group())
+                self._remember_group_time()
+                return self._pop_first_group()
             e, self._to_be_raised = self._to_be_raised, None
             raise e
 
@@ -268,9 +269,8 @@ class GroupbyIterator(_GroupIteratorInitMixin[T], Iterator[Tuple[U, List[T]]]):
                 self._group_next_elem()
                 full_group = self._pop_full_group()
 
-            if full_group:
-                return self._return_group(full_group)
-            return self._return_group(self._pop_largest_group())
+            self._remember_group_time()
+            return full_group or self._pop_largest_group()
 
         except StopIteration:
             self._is_exhausted = True
