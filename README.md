@@ -82,15 +82,13 @@ Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`, eleme
 1.0
 ```
 
-
-
----
-
 # 📒 ***Operations***
 
 *A dozen expressive lazy operations and that’s it!*
 
-# `.map`
+## `.map`
+
+<details open><summary>expand doc</summary>
 
 > Applies a transformation on elements:
 
@@ -179,7 +177,11 @@ zeros: Stream[int] = (
 assert list(zeros) == [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 ```
 
-# `.foreach`
+</details>
+
+## `.foreach`
+
+<details><summary>expand doc</summary>
 
 > Applies a side effect on elements:
 
@@ -203,8 +205,11 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ### async-based concurrency
 
 > Like `.map` it has a sibling `.aforeach` operation for async.
+</details>
 
-# `.filter`
+## `.filter`
+
+<details><summary>expand doc</summary>
 
 > Keeps only the elements that satisfy a condition:
 
@@ -213,8 +218,11 @@ even_integers: Stream[int] = integers.filter(lambda n: n % 2 == 0)
 
 assert list(even_integers) == [0, 2, 4, 6, 8]
 ```
+</details>
 
-# `.throttle`
+## `.throttle`
+
+<details><summary>expand doc</summary>
 
 > Limits the number of yields `per_second`/`per_minute`/`per_hour`:
 
@@ -238,8 +246,11 @@ integers_every_100_millis = (
 # takes 900 millis: (10 integers - 1) * 100 millis
 assert list(integers_every_100_millis) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
+</details>
 
-# `.group`
+## `.group`
+
+<details><summary>expand doc</summary>
 
 > Groups elements into `List`s:
 
@@ -274,8 +285,11 @@ integers_by_parity_by_2: Stream[List[int]] = (
 
 assert list(integers_by_parity_by_2) == [[0, 2], [1, 3], [4, 6], [5, 7], [8], [9]]
 ```
+</details>
 
-## `.groupby`
+### `.groupby`
+
+<details><summary>expand doc</summary>
 
 > Like `.group`, but groups into `(key, elements)` tuples:
 ```python
@@ -300,8 +314,11 @@ counts_by_parity: Stream[Tuple[str, int]] = (
 
 assert list(counts_by_parity) == [("even", 5), ("odd", 5)]
 ```
+</details>
 
-# `.flatten`
+## `.flatten`
+
+<details><summary>expand doc</summary>
 
 > Ungroups elements assuming that they are `Iterable`s:
 
@@ -323,8 +340,11 @@ mixed_ones_and_zeros: Stream[int] = (
 assert list(mixed_ones_and_zeros) == [0, 1, 0, 1, 0, 1, 0, 1]
 ```
 
+</details>
 
-# `.catch`
+## `.catch`
+
+<details><summary>expand doc</summary>
 
 > Catches a given type of exceptions, and optionally yields a `replacement` value:
 
@@ -354,8 +374,11 @@ assert list(status_codes_ignoring_resolution_errors) == [200, 404]
 ```
 
 > It has an optional `finally_raise: bool` parameter to raise the first catched exception when iteration ends.
+</details>
 
-# `.truncate`
+## `.truncate`
+
+<details><summary>expand doc</summary>
 
 > Ends iteration once a given number of elements have been yielded:
 
@@ -372,8 +395,11 @@ five_first_integers: Stream[int] = integers.truncate(when=lambda n: n == 5)
 
 assert list(five_first_integers) == [0, 1, 2, 3, 4]
 ```
+</details>
 
-# `.skip`
+## `.skip`
+
+<details><summary>expand doc</summary>
 
 > Skips the first specified number of elements:
 
@@ -382,8 +408,11 @@ integers_after_five: Stream[int] = integers.skip(5)
 
 assert list(integers_after_five) == [5, 6, 7, 8, 9]
 ```
+</details>
 
-# `.distinct`
+## `.distinct`
+
+<details><summary>expand doc</summary>
 
 > Removes duplicates:
 
@@ -415,8 +444,11 @@ consecutively_distinct_chars: Stream[str] = (
 
 assert list(consecutively_distinct_chars) == ["f", "o", "b", "a", "r", "f", "o"]
 ```
+</details>
 
-# `.observe`
+## `.observe`
+
+<details><summary>expand doc</summary>
 
 > Logs the progress of iterations:
 ```python
@@ -432,16 +464,22 @@ INFO: [duration=0:00:04.003852 errors=0] 10 integers yielded
 
 > [!NOTE]
 > The amount of logs will never be overwhelming because they are produced logarithmically (base 2): the 11th log will be produced after 1,024 elements have been yielded, the 21th log after 1,048,576 elements, ...
+</details>
 
-# `+`
+## `+`
+
+<details><summary>expand doc</summary>
 
 > Concatenates streams:
 
 ```python
 assert list(integers + integers) == [0, 1, 2, 3 ,4, 5, 6, 7, 8, 9, 0, 1, 2, 3 ,4, 5, 6, 7, 8, 9]
 ```
+</details>
 
-# `zip`
+## `zip`
+
+<details><summary>expand doc</summary>
 
 > [!TIP]
 > Use the standard `zip` function:
@@ -456,21 +494,26 @@ cubes: Stream[int] = (
 
 assert list(cubes) == [0, 1, 8, 27, 64, 125, 216, 343, 512, 729]
 ```
+</details>
 
-# Shorthands for consuming the stream
-
+## Shorthands for consuming the stream
 > [!NOTE]
 > Although consuming the stream is beyond the scope of this library, it provides two basic shorthands to trigger an iteration:
 
-## `.count`
+### `.count`
+
+<details><summary>expand doc</summary>
 
 > Iterates over the stream until exhaustion and returns the number of elements yielded:
 
 ```python
 assert integers.count() == 10
 ```
+</details>
 
-## `()`
+### `()`
+
+<details><summary>expand doc</summary>
 
 > *Calling* the stream iterates over it until exhaustion and returns it:
 ```python
@@ -479,8 +522,8 @@ appending_integers: Stream[int] = integers.foreach(state.append)
 assert appending_integers() is appending_integers
 assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
+</details>
 
----
 
 # 💡 Tips
 ## Extract-Transform-Load
