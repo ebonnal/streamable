@@ -167,8 +167,8 @@ class Stream(Iterable[T]):
         self, by: Optional[Callable[[T], Any]] = None, consecutive_only: bool = False
     ) -> "Stream":
         """
-        Filters the stream to yield only distinct elements, `foo` and `bar` considered duplicates if `foo == bar`.
-        If `by` is specified, `foo` and `bar` are considered duplicates if `by(foo) == by(bar)`.
+        Filters the stream to yield only distinct elements, `foo` and `bar` considered duplicates if `hash(foo) == hash(bar)`.
+        If `by` is specified, `foo` and `bar` are considered duplicates if `hash(by(foo)) == hash(by(bar))`.
 
         Among duplicates, the first encountered occurence in upstream order is yielded.
 
