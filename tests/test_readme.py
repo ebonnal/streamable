@@ -105,10 +105,10 @@ class TestReadme(unittest.TestCase):
 
         integers_5_per_sec: Stream[int] = integers.throttle(per_second=3)
 
-        start = time.time()
+        start = time.perf_counter()
         # takes 3s: ceil(10 integers / 3 per_second) - 1
         assert list(integers_5_per_sec) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-        assert 2.99 < time.time() - start < 3.25
+        assert 2.99 < time.perf_counter() - start < 3.25
 
         from datetime import timedelta
 
@@ -117,10 +117,10 @@ class TestReadme(unittest.TestCase):
             .throttle(interval=timedelta(milliseconds=100))
         )
 
-        start = time.time()
+        start = time.perf_counter()
         # takes 900 millis: (10 integers - 1) * 100 millis
         assert list(integers_every_100_millis) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-        assert 0.89 < time.time() - start < 0.95
+        assert 0.89 < time.perf_counter() - start < 0.95
 
     def test_group_example(self) -> None:
         global integers_by_parity
