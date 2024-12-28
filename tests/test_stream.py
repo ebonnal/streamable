@@ -23,8 +23,7 @@ from typing import (
 from parameterized import parameterized  # type: ignore
 
 from streamable import Stream
-from streamable.util.exceptions import NoopStopIteration
-from streamable.util.functiontools import star
+from streamable.util.functiontools import WrappedError, star
 
 T = TypeVar("T")
 R = TypeVar("R")
@@ -541,7 +540,7 @@ class TestStream(unittest.TestCase):
             ]
             for raised_exc, catched_exc in [
                 (TestError, TestError),
-                (StopIteration, (NoopStopIteration, RuntimeError)),
+                (StopIteration, (WrappedError, RuntimeError)),
             ]
             for concurrency in [1, 2]
             for method, throw_func_, throw_for_odd_func_ in [
@@ -673,7 +672,7 @@ class TestStream(unittest.TestCase):
             [exception_type, mapped_exception_type, concurrency]
             for exception_type, mapped_exception_type in [
                 (TestError, TestError),
-                (StopIteration, NoopStopIteration),
+                (StopIteration, WrappedError),
             ]
             for concurrency in [1, 2]
         ]
@@ -1086,8 +1085,9 @@ class TestStream(unittest.TestCase):
             [[0], [1]],
             msg="`group` should yield incomplete groups when `by` raises",
         )
-        with self.assertRaises(
-            NoopStopIteration,
+        with self.assertRaisesRegex(
+            WrappedError,
+            "StopIteration()",
             msg="`group` should raise and skip `elem` if `by(elem)` raises",
         ):
             next(stream_iter)

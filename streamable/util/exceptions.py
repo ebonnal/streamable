@@ -1,2 +1,0 @@
-class NoopStopIteration(Exception):
-    pass
