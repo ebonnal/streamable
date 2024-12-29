@@ -119,15 +119,12 @@ class ConsecutiveDistinctIterator(Iterator[T]):
         self._has_yielded = False
         self._last_value: Any = None
 
-    def _next_elem_and_value(self) -> Tuple[T, Any]:
-        elem = next(self.iterator)
-        value = self.by(elem) if self.by else elem
-        return elem, value
-
     def __next__(self) -> T:
-        elem, value = self._next_elem_and_value()
-        while self._has_yielded and value == self._last_value:
-            elem, value = self._next_elem_and_value()
+        while True:
+            elem = next(self.iterator)
+            value = self.by(elem) if self.by else elem
+            if not self._has_yielded or value != self._last_value:
+                break
         self._has_yielded = True
         self._last_value = value
         return elem
