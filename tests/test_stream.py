@@ -291,14 +291,14 @@ class TestStream(unittest.TestCase):
 
         with self.assertRaisesRegex(
             TypeError,
-            r"`source` must be either a Callable\[\[\], Iterable\] or an Iterable, but got a int",
+            r"`source` must be an Iterable or a Callable\[\[\], Iterable\] but got a <class 'int'>",
             msg="Getting an Iterator from a Stream with a source not being a Union[Callable[[], Iterator], ITerable] must raise TypeError.",
         ):
             iter(Stream(1))  # type: ignore
 
         with self.assertRaisesRegex(
             TypeError,
-            r"`source` must be either a Callable\[\[\], Iterable\] or an Iterable, but got a Callable\[\[\], int\]",
+            r"`source` must be an Iterable or a Callable\[\[\], Iterable\] but got a Callable\[\[\], <class 'int'>\]",
             msg="Getting an Iterator from a Stream with a source not being a Union[Callable[[], Iterator], ITerable] must raise TypeError.",
         ):
             iter(Stream(lambda: 1))  # type: ignore
@@ -360,7 +360,7 @@ class TestStream(unittest.TestCase):
     def test_sanitize_via(self, method) -> None:
         with self.assertRaisesRegex(
             TypeError,
-            "`via` should be 'thread' or 'process', but got 'foo'.",
+            "`via` must be 'thread' or 'process' but got 'foo'",
             msg=f"`{method}` must raise a TypeError for invalid via",
         ):
             method(Stream(src), identity, via="foo")
@@ -806,7 +806,7 @@ class TestStream(unittest.TestCase):
     def test_skip(self) -> None:
         with self.assertRaisesRegex(
             ValueError,
-            "`count` must be >= 0 but got -1.",
+            "`count` must be >= 0 but got -1",
             msg="`skip` must raise ValueError if `count` is negative",
         ):
             Stream(src).skip(-1)
@@ -831,7 +831,7 @@ class TestStream(unittest.TestCase):
     def test_truncate(self) -> None:
         with self.assertRaisesRegex(
             ValueError,
-            "`count` and `when` can't be both None.",
+            "`count` and `when` cannot both be None",
         ):
             Stream(src).truncate()
 
@@ -858,7 +858,7 @@ class TestStream(unittest.TestCase):
 
         with self.assertRaisesRegex(
             ValueError,
-            "`count` must be >= 0 but got -1.",
+            "`count` must be >= 0 but got -1",
             msg="`truncate` must raise ValueError if `count` is negative",
         ):
             Stream(src).truncate(-1)
@@ -1099,23 +1099,27 @@ class TestStream(unittest.TestCase):
 
     def test_throttle(self) -> None:
         # behavior with invalid arguments
-        with self.assertRaises(
+        with self.assertRaisesRegex(
             ValueError,
+            r"`interval` must be >= 0 but got datetime\.timedelta\(days=-1, seconds=86399, microseconds=999999\)",
             msg="`throttle` should raise error when called with `interval` is negative.",
         ):
             list(Stream([1]).throttle(interval=datetime.timedelta(microseconds=-1)))
-        with self.assertRaises(
+        with self.assertRaisesRegex(
             ValueError,
+            "`per_second` must be >= 1 but got 0",
             msg="`throttle` should raise error when called with `per_second` < 1.",
         ):
             list(Stream([1]).throttle(per_second=0))
-        with self.assertRaises(
+        with self.assertRaisesRegex(
             ValueError,
+            "`per_minute` must be >= 1 but got 0",
             msg="`throttle` should raise error when called with `per_minute` < 1.",
         ):
             list(Stream([1]).throttle(per_minute=0))
-        with self.assertRaises(
+        with self.assertRaisesRegex(
             ValueError,
+            "`per_hour` must be >= 1 but got 0",
             msg="`throttle` should raise error when called with `per_hour` < 1.",
         ):
             list(Stream([1]).throttle(per_hour=0))
@@ -1268,7 +1272,7 @@ class TestStream(unittest.TestCase):
         )
         with self.assertRaisesRegex(
             TypeError,
-            "`iterator` should be an Iterator, but got a <class 'list'>",
+            "`iterator` must be an Iterator but got a <class 'list'>",
             msg="`catch` function should raise TypError when first argument is not an Iterator",
         ):
             from streamable.functions import catch
@@ -1489,7 +1493,7 @@ class TestStream(unittest.TestCase):
         stream = Stream(src).amap(identity)  # type: ignore
         with self.assertRaisesRegex(
             TypeError,
-            "The function is expected to be an async function, i.e. it must be a function returning a Coroutine object, but returned a <class 'int'>.",
+            r"`transformation` must be an async function i\.e\. a function returning a Coroutine but it returned a <class 'int'>",
             msg="`amap` should raise a TypeError if a non async function is passed to it.",
         ):
             next(iter(stream))
@@ -1513,7 +1517,7 @@ class TestStream(unittest.TestCase):
         stream = Stream(src).aforeach(identity)  # type: ignore
         with self.assertRaisesRegex(
             TypeError,
-            "The function is expected to be an async function, i.e. it must be a function returning a Coroutine object, but returned a <class 'int'>.",
+            r"`transformation` must be an async function i\.e\. a function returning a Coroutine but it returned a <class 'int'>",
             msg="`aforeach` should raise a TypeError if a non async function is passed to it.",
         ):
             next(iter(stream))

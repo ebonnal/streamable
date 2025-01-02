@@ -611,7 +611,7 @@ class _AsyncConcurrentMapIterable(_ConcurrentMapIterable[T, U]):
             coroutine = self.transformation(elem)
             if not isinstance(coroutine, Coroutine):
                 raise TypeError(
-                    f"The function is expected to be an async function, i.e. it must be a function returning a Coroutine object, but returned a {type(coroutine)}."
+                    f"`transformation` must be an async function i.e. a function returning a Coroutine but it returned a {type(coroutine)}",
                 )
             return await coroutine
         except Exception as e:
