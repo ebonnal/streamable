@@ -282,13 +282,16 @@ class SkipIterator(Iterator[T]):
         validate_count(count)
         self.iterator = iterator
         self.count = count
-        self._skipped = 0
+        self._n_skipped = 0
+        self._done_skipping = False
 
     def __next__(self):
-        while self._skipped < self.count:
-            next(self.iterator)
-            # do not count exceptions as skipped elements
-            self._skipped += 1
+        if not self._done_skipping:
+            while self._n_skipped < self.count:
+                next(self.iterator)
+                # do not count exceptions as skipped elements
+                self._n_skipped += 1
+            self._done_skipping = True
         return next(self.iterator)
 
 
