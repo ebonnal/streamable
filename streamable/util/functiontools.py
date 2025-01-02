@@ -26,6 +26,9 @@ def wrap_error(func: Callable[[T], R], error_type: Type[Exception]) -> Callable[
     return _ErrorWrappingDecorator(func, error_type)
 
 
+iter_wo_stopiteration = wrap_error(iter, StopIteration)
+
+
 class _Sidify(Generic[T]):
     def __init__(self, func: Callable[[T], Any]) -> None:
         self.func = func
