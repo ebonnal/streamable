@@ -29,7 +29,7 @@ from typing import (
     cast,
 )
 
-from streamable.util.functiontools import wrap_error
+from streamable.util.functiontools import iter_wo_stopiteration, wrap_error
 from streamable.util.loggertools import get_logger
 from streamable.util.validationtools import (
     validate_base,
@@ -133,17 +133,14 @@ class FlattenIterator(Iterator[U]):
     def __init__(self, iterator: Iterator[Iterable[U]]) -> None:
         validate_iterator(iterator)
         self.iterator = iterator
-        self._current_iterator_elem: Iterator[U] = iter([])
+        self._current_iterator_elem: Iterator[U] = iter(tuple())
 
     def __next__(self) -> U:
         while True:
             try:
                 return next(self._current_iterator_elem)
             except StopIteration:
-                iterable_elem = next(self.iterator)
-                self._current_iterator_elem = wrap_error(iter, StopIteration)(
-                    iterable_elem
-                )
+                self._current_iterator_elem = iter_wo_stopiteration(next(self.iterator))
 
 
 class GroupIteratorMixin(Generic[T]):
