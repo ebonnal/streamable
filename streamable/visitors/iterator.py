@@ -149,10 +149,10 @@ class IteratorVisitor(Visitor[Iterator[T]]):
             iterable = stream.source()
             if not isinstance(iterable, Iterable):
                 raise TypeError(
-                    f"`source` must be either a Callable[[], Iterable] or an Iterable, but got a Callable[[], {type(iterable).__name__}]"
+                    f"`source` must be an Iterable or a Callable[[], Iterable] but got a Callable[[], {type(iterable)}]"
                 )
         else:
             raise TypeError(
-                f"`source` must be either a Callable[[], Iterable] or an Iterable, but got a {type(stream.source).__name__}"
+                f"`source` must be an Iterable or a Callable[[], Iterable] but got a {type(stream.source)}"
             )
         return iter(iterable)
