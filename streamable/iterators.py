@@ -117,16 +117,14 @@ class ConsecutiveDistinctIterator(Iterator[T]):
         validate_iterator(iterator)
         self.iterator = iterator
         self.by = wrap_error(by, StopIteration) if by else None
-        self._has_yielded = False
-        self._last_value: Any = None
+        self._last_value: Any = object()
 
     def __next__(self) -> T:
         while True:
             elem = next(self.iterator)
             value = self.by(elem) if self.by else elem
-            if not self._has_yielded or value != self._last_value:
+            if value != self._last_value:
                 break
-        self._has_yielded = True
         self._last_value = value
         return elem
 
