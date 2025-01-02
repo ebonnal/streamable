@@ -143,7 +143,7 @@ class FlattenIterator(Iterator[U]):
                 self._current_iterator_elem = iter_wo_stopiteration(next(self.iterator))
 
 
-class GroupIteratorMixin(Generic[T]):
+class _GroupIteratorMixin(Generic[T]):
     def __init__(
         self,
         iterator: Iterator[T],
@@ -176,7 +176,7 @@ class GroupIteratorMixin(Generic[T]):
             self._last_group_yielded_at = time.perf_counter()
 
 
-class GroupIterator(GroupIteratorMixin[T], Iterator[List[T]]):
+class GroupIterator(_GroupIteratorMixin[T], Iterator[List[T]]):
     def __init__(
         self,
         iterator: Iterator[T],
@@ -206,7 +206,7 @@ class GroupIterator(GroupIteratorMixin[T], Iterator[List[T]]):
         return group
 
 
-class GroupbyIterator(GroupIteratorMixin[T], Iterator[Tuple[U, List[T]]]):
+class GroupbyIterator(_GroupIteratorMixin[T], Iterator[Tuple[U, List[T]]]):
     def __init__(
         self,
         iterator: Iterator[T],
