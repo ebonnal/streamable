@@ -324,7 +324,7 @@ class PredicateTruncateIterator(Iterator[T]):
         elem = next(self.iterator)
         if self.when(elem):
             self._satisfied = True
-            return next(self)
+            raise StopIteration()
         return elem
 
 
