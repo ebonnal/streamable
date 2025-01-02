@@ -374,7 +374,7 @@ class ObserveIterator(Iterator[T]):
                 self._log()
 
 
-class _ThrottleIterator(Iterator[T]):
+class _ThrottleIteratorMixin(Generic[T]):
     def __init__(self, iterator: Iterator[T]) -> None:
         validate_iterator(iterator)
         self.iterator = iterator
@@ -388,7 +388,7 @@ class _ThrottleIterator(Iterator[T]):
             return None, e
 
 
-class IntervalThrottleIterator(_ThrottleIterator[T]):
+class IntervalThrottleIterator(_ThrottleIteratorMixin[T], Iterator[T]):
     def __init__(self, iterator: Iterator[T], interval: datetime.timedelta) -> None:
         super().__init__(iterator)
         validate_throttle_interval(interval)
@@ -409,7 +409,7 @@ class IntervalThrottleIterator(_ThrottleIterator[T]):
         return cast(T, elem)
 
 
-class YieldsPerPeriodThrottleIterator(_ThrottleIterator[T]):
+class YieldsPerPeriodThrottleIterator(_ThrottleIteratorMixin[T], Iterator[T]):
     def __init__(
         self,
         iterator: Iterator[T],
