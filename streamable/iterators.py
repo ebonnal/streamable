@@ -32,6 +32,7 @@ from typing import (
 from streamable.util.functiontools import wrap_error
 from streamable.util.loggertools import get_logger
 from streamable.util.validationtools import (
+    validate_base,
     validate_buffersize,
     validate_concurrency,
     validate_count,
@@ -332,12 +333,18 @@ class PredicateTruncateIterator(Iterator[T]):
 class ObserveIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], what: str, base: int = 2) -> None:
         validate_iterator(iterator)
+        validate_base(base)
+
         self.iterator = iterator
         self.what = what
         self.base = base
+
         self._n_yields = 0
         self._n_errors = 0
-        self._logged_n_calls = 0
+        self._n_nexts = 0
+        self._logged_n_nexts = 0
+        self._next_threshold = 0
+
         self._start_time = time.perf_counter()
 
     def _log(self) -> None:
@@ -347,25 +354,25 @@ class ObserveIterator(Iterator[T]):
             f"errors={self._n_errors}",
             f"{self._n_yields} {self.what} yielded",
         )
-        self._logged_n_calls = self._n_calls()
-
-    def _n_calls(self) -> int:
-        return self._n_yields + self._n_errors
+        self._logged_n_nexts = self._n_nexts
+        self._next_threshold = self.base * self._logged_n_nexts
 
     def __next__(self) -> T:
         try:
             elem = next(self.iterator)
+            self._n_nexts += 1
             self._n_yields += 1
             return elem
         except StopIteration:
-            if self._n_calls() != self._logged_n_calls:
+            if self._n_nexts != self._logged_n_nexts:
                 self._log()
             raise
         except Exception:
+            self._n_nexts += 1
             self._n_errors += 1
             raise
         finally:
-            if self._n_calls() >= self.base * self._logged_n_calls:
+            if self._n_nexts >= self._next_threshold:
                 self._log()
 
 
