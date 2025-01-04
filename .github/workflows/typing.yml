@@ -5,6 +5,7 @@ on:
     paths:
       - 'streamable/**'
       - 'tests/**'
+      - '.github/workflows/typing.yml'
 
 jobs:
   mypy:
@@ -12,10 +13,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v1
-    - name: Set up Python 3.8
+    - name: Set up Python 3.9
       uses: actions/setup-python@v1
       with:
-        python-version: 3.8
+        python-version: 3.9
 
     - name: mypy
       run: make venv type-check
