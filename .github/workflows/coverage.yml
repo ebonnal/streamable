@@ -13,10 +13,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python 3.9
-        uses: actions/setup-python@v1
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v4
         with:
-          python-version: 3.9
+          python-version: '3.14.0-alpha.3'
           
       - name: unittest
         run: |
@@ -24,7 +24,7 @@ jobs:
           coverage run -m unittest
         
       - name: Generate coverage report
-        run: coverage report --fail-under=100  # Adjust minimum coverage threshold as needed
+        run: coverage report -m --fail-under=100
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v3

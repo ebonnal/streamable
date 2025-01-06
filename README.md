@@ -2,7 +2,7 @@
 
 ***Pythonic Stream-like manipulation of iterables***
 
-[![codecov](https://codecov.io/gh/ebonnal/streamable/graph/badge.svg?token=S62T0JQK9N)](https://codecov.io/gh/ebonnal/streamable)
+[![coverage](https://codecov.io/gh/ebonnal/streamable/graph/badge.svg?token=S62T0JQK9N)](https://codecov.io/gh/ebonnal/streamable)
 [![unittest](https://github.com/ebonnal/streamable/actions/workflows/unittest.yml/badge.svg?branch=main)](https://github.com/ebonnal/streamable/actions)
 [![typing](https://github.com/ebonnal/streamable/actions/workflows/typing.yml/badge.svg?branch=main)](https://github.com/ebonnal/streamable/actions)
 [![lint](https://github.com/ebonnal/streamable/actions/workflows/lint.yml/badge.svg?branch=main)](https://github.com/ebonnal/streamable/actions)
