@@ -608,6 +608,12 @@ class _AsyncConcurrentMapIterable(_ConcurrentMapIterable[T, U]):
     ) -> None:
         super().__init__(iterator, buffersize, ordered)
         self.transformation = wrap_error(transformation, StopIteration)
+        self.event_loop: asyncio.AbstractEventLoop
+        try:
+            self.event_loop = asyncio.get_event_loop()
+        except RuntimeError:
+            self.event_loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(self.event_loop)
 
     async def _safe_transformation(
         self, elem: T
@@ -627,16 +633,16 @@ class _AsyncConcurrentMapIterable(_ConcurrentMapIterable[T, U]):
     ) -> "Future[Union[U, _RaisingIterator.ExceptionContainer]]":
         return cast(
             "Future[Union[U, _RaisingIterator.ExceptionContainer]]",
-            asyncio.get_event_loop().create_task(self._safe_transformation(elem)),
+            self.event_loop.create_task(self._safe_transformation(elem)),
         )
 
     def _future_result_collection(
         self,
     ) -> FutureResultCollection[Union[U, _RaisingIterator.ExceptionContainer]]:
         if self.ordered:
-            return FIFOAsyncFutureResultCollection()
+            return FIFOAsyncFutureResultCollection(self.event_loop)
         else:
-            return FDFOAsyncFutureResultCollection()
+            return FDFOAsyncFutureResultCollection(self.event_loop)
 
 
 class AsyncConcurrentMapIterator(_RaisingIterator[U]):
