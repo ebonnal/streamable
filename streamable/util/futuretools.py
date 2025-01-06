@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from collections import deque
 from concurrent.futures import Future
 from queue import Queue
-from typing import Deque, Iterator, Sized, Type, TypeVar
+from typing import Awaitable, Deque, Iterator, Sized, Type, TypeVar, cast
 
 T = TypeVar("T")
 
@@ -75,8 +75,14 @@ class FIFOAsyncFutureResultCollection(DequeFutureResultCollection[T]):
     First In First Out
     """
 
+    def __init__(self, event_loop: asyncio.AbstractEventLoop) -> None:
+        super().__init__()
+        self.event_loop = event_loop
+
     def __next__(self) -> T:
-        return asyncio.get_event_loop().run_until_complete(self._futures.popleft())  # type: ignore
+        return self.event_loop.run_until_complete(
+            cast(Awaitable[T], self._futures.popleft())
+        )
 
 
 class FDFOAsyncFutureResultCollection(CallbackFutureResultCollection[T]):
@@ -84,17 +90,16 @@ class FDFOAsyncFutureResultCollection(CallbackFutureResultCollection[T]):
     First Done First Out
     """
 
-    def __init__(self) -> None:
+    def __init__(self, event_loop: asyncio.AbstractEventLoop) -> None:
         super().__init__()
-        self._waiter: asyncio.futures.Future[T] = (
-            asyncio.get_event_loop().create_future()
-        )
+        self.event_loop = event_loop
+        self._waiter: asyncio.futures.Future[T] = self.event_loop.create_future()
 
     def _done_callback(self, future: "Future[T]") -> None:
         self._waiter.set_result(future.result())
 
     def __next__(self) -> T:
-        result = asyncio.get_event_loop().run_until_complete(self._waiter)
+        result = self.event_loop.run_until_complete(self._waiter)
         self._n_futures -= 1
-        self._waiter = asyncio.get_event_loop().create_future()
+        self._waiter = self.event_loop.create_future()
         return result
