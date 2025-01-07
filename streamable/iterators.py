@@ -96,36 +96,36 @@ class CatchIterator(Iterator[T]):
 
 
 class DistinctIterator(Iterator[T]):
-    def __init__(self, iterator: Iterator[T], by: Optional[Callable[[T], Any]]) -> None:
+    def __init__(self, iterator: Iterator[T], key: Optional[Callable[[T], Any]]) -> None:
         validate_iterator(iterator)
         self.iterator = iterator
-        self.by = wrap_error(by, StopIteration) if by else None
+        self.key = wrap_error(key, StopIteration) if key else None
         self._already_seen: Set[Any] = set()
 
     def __next__(self) -> T:
         while True:
             elem = next(self.iterator)
-            value = self.by(elem) if self.by else elem
-            if value not in self._already_seen:
+            key = self.key(elem) if self.key else elem
+            if key not in self._already_seen:
                 break
-        self._already_seen.add(value)
+        self._already_seen.add(key)
         return elem
 
 
 class ConsecutiveDistinctIterator(Iterator[T]):
-    def __init__(self, iterator: Iterator[T], by: Optional[Callable[[T], Any]]) -> None:
+    def __init__(self, iterator: Iterator[T], key: Optional[Callable[[T], Any]]) -> None:
         validate_iterator(iterator)
         self.iterator = iterator
-        self.by = wrap_error(by, StopIteration) if by else None
-        self._last_value: Any = object()
+        self.key = wrap_error(key, StopIteration) if key else None
+        self._last_key: Any = object()
 
     def __next__(self) -> T:
         while True:
             elem = next(self.iterator)
-            value = self.by(elem) if self.by else elem
-            if value != self._last_value:
+            key = self.key(elem) if self.key else elem
+            if key != self._last_key:
                 break
-        self._last_value = value
+        self._last_key = key
         return elem
 
 
@@ -210,18 +210,18 @@ class GroupbyIterator(_GroupIteratorMixin[T], Iterator[Tuple[U, List[T]]]):
     def __init__(
         self,
         iterator: Iterator[T],
-        by: Callable[[T], U],
+        key: Callable[[T], U],
         size: Optional[int],
         interval: Optional[datetime.timedelta],
     ) -> None:
         super().__init__(iterator, size, interval)
-        self.by = wrap_error(by, StopIteration)
+        self.key = wrap_error(key, StopIteration)
         self._is_exhausted = False
         self._groups_by: DefaultDict[U, List[T]] = defaultdict(list)
 
     def _group_next_elem(self) -> None:
         elem = next(self.iterator)
-        self._groups_by[self.by(elem)].append(elem)
+        self._groups_by[self.key(elem)].append(elem)
 
     def _pop_full_group(self) -> Optional[Tuple[U, List[T]]]:
         for key, group in self._groups_by.items():
