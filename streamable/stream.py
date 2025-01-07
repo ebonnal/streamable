@@ -164,11 +164,12 @@ class Stream(Iterable[T]):
         return self
 
     def distinct(
-        self, by: Optional[Callable[[T], Any]] = None, consecutive_only: bool = False
+        self, key: Optional[Callable[[T], Any]] = None, consecutive_only: bool = False
     ) -> "Stream":
         """
-        Filters the stream to yield only distinct elements, `foo` and `bar` considered duplicates if `hash(foo) == hash(bar)`.
-        If `by` is specified, `foo` and `bar` are considered duplicates if `hash(by(foo)) == hash(by(bar))`.
+        Filters the stream to yield only distinct elements.
+        If a deduplication `key` is specified, `foo` and `bar` are treated as duplicates when `key(foo) == key(bar)`.
+
 
         Among duplicates, the first encountered occurence in upstream order is yielded.
 
@@ -177,17 +178,17 @@ class Stream(Iterable[T]):
             Alternatively, remove only consecutive duplicates without memory footprint by setting `consecutive_only=True`.
 
         Args:
-            by (Callable[[T], Any], optional): Elements are deduplicated based on the value returned by `by(elem)`. (by default: the deduplication is performed on the elements themselves)
+            key (Callable[[T], Any], optional): Elements are deduplicated based on `key(elem)`. (by default: the deduplication is performed on the elements themselves)
             consecutive_only (bool, optional): Whether to deduplicate only consecutive duplicates, or globally. (by default: the deduplication is global)
 
         Returns:
             Stream: A stream containing only unique upstream elements.
         """
-        return DistinctStream(self, by, consecutive_only)
+        return DistinctStream(self, key, consecutive_only)
 
     def filter(self, when: Callable[[T], Any] = bool) -> "Stream[T]":
         """
-        Yields only upstream elements satisfying the `when` predicate.
+        Filters the stream to yield only elements satisfying the `when` predicate.
 
         Args:
             when (Callable[[T], Any], optional): An element is kept when `when(elem)` is truthy. (by default: keeps all truthy elements)
@@ -324,17 +325,19 @@ class Stream(Iterable[T]):
         by: Optional[Callable[[T], Any]] = None,
     ) -> "Stream[List[T]]":
         """
-        Yields upstream elements grouped into lists.
-        A group is a list of `size` elements for which `by` returns the same value, but it may contain fewer elements in these cases:
-        - `interval` have passed since the last yield of a group
-        - upstream is exhausted
-        - upstream raises an exception
+        Groups upstream elements into lists.
+
+        A group is yielded when any of the following conditions is met:
+        - The group reaches `size` elements.
+        - `interval` seconds have passed since the last group was yielded.
+        - The upstream source is exhausted.
+
+        If `by` is specified, groups will only contain elements sharing the same `by(elem)` value (see `.groupby` for `(key, elements)` pairs).
 
         Args:
-            size (Optional[int], optional): Maximum number of elements per group. (by default: no limit on the size of the group)
+            size (Optional[int], optional): The maximum number of elements per group (default: no size limit).
             interval (float, optional): Yields a group if `interval` seconds have passed since the last group was yielded. (by default: no limit on the time interval between yields)
-            by (Optional[Callable[[T], Any]], optional): If specified, a group will only contain elements for which this function returns the same value. (by default: does not cogroup)
-
+            by (Optional[Callable[[T], Any]], optional): If specified, groups will only contain elements sharing the same `by(elem)` value. (Default: does not co-group elements.)
         Returns:
             Stream[List[T]]: A stream of upstream elements grouped into lists.
         """
@@ -344,27 +347,27 @@ class Stream(Iterable[T]):
 
     def groupby(
         self,
-        by: Callable[[T], U],
+        key: Callable[[T], U],
         size: Optional[int] = None,
         interval: Optional[datetime.timedelta] = None,
     ) -> "Stream[Tuple[U, List[T]]]":
         """
-        Yields elements grouped by key as `(key, elements)` tuples.
-        Key is returned by `by(elem)`.
-        The group will contain `size` elements, but it may contain fewer elements in these cases:
-        - `interval` have passed since the last yield of a group
-        - upstream is exhausted
-        - upstream raises an exception
+        Groups upstream elements into `(key, elements)` tuples.
+
+        A group is yielded when any of the following conditions is met:
+        - A group reaches `size` elements.
+        - `interval` seconds have passed since the last group was yielded.
+        - The upstream source is exhausted.
 
         Args:
-            by (Callable[[T], Any]): Function returning the group's key.
-            size (Optional[int], optional): Maximum number of elements per group. (by default: no limit on the size of the group)
-            interval (float, optional): Yields a group if `interval` seconds have passed since the last group was yielded. (by default: no limit on the time interval between yields)
+            key (Callable[[T], U]): A function that returns the group key for an element.
+            size (Optional[int], optional): The maximum number of elements per group (default: no size limit).
+            interval (Optional[datetime.timedelta], optional): If specified, yields a group if `interval` seconds have passed since the last group was yielded (default: no time interval limit).
 
         Returns:
             Stream[Tuple[U, List[T]]]: A stream of upstream elements grouped by key, as `(key, elements)` tuples.
         """
-        return GroupbyStream(self, by, size, interval)
+        return GroupbyStream(self, key, size, interval)
 
     def map(
         self,
@@ -528,11 +531,11 @@ class DistinctStream(DownStream[T, T]):
     def __init__(
         self,
         upstream: Stream[T],
-        by: Optional[Callable[[T], Any]],
+        key: Optional[Callable[[T], Any]],
         consecutive_only: bool,
     ) -> None:
         super().__init__(upstream)
-        self._by = by
+        self._key = key
         self._consecutive_only = consecutive_only
 
     def accept(self, visitor: "Visitor[V]") -> V:
@@ -614,12 +617,12 @@ class GroupbyStream(DownStream[T, Tuple[U, List[T]]]):
     def __init__(
         self,
         upstream: Stream[T],
-        by: Callable[[T], U],
+        key: Callable[[T], U],
         size: Optional[int],
         interval: Optional[datetime.timedelta],
     ) -> None:
         super().__init__(upstream)
-        self._by = by
+        self._key = key
         self._size = size
         self._interval = interval
 

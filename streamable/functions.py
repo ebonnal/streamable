@@ -72,13 +72,13 @@ def catch(
 
 def distinct(
     iterator: Iterator[T],
-    by: Optional[Callable[[T], Any]] = None,
+    key: Optional[Callable[[T], Any]] = None,
     consecutive_only: bool = False,
 ) -> Iterator[T]:
     validate_iterator(iterator)
     if consecutive_only:
-        return ConsecutiveDistinctIterator(iterator, by)
-    return DistinctIterator(iterator, by)
+        return ConsecutiveDistinctIterator(iterator, key)
+    return DistinctIterator(iterator, key)
 
 
 def flatten(iterator: Iterator[Iterable[T]], concurrency: int = 1) -> Iterator[T]:
@@ -110,14 +110,14 @@ def group(
 
 def groupby(
     iterator: Iterator[T],
-    by: Callable[[T], U],
+    key: Callable[[T], U],
     size: Optional[int] = None,
     interval: Optional[datetime.timedelta] = None,
 ) -> Iterator[Tuple[U, List[T]]]:
     validate_iterator(iterator)
     validate_group_size(size)
     validate_group_interval(interval)
-    return GroupbyIterator(iterator, by, size, interval)
+    return GroupbyIterator(iterator, key, size, interval)
 
 
 def map(

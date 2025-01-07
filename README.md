@@ -300,7 +300,7 @@ assert list(integers_by_parity) == [("even", [0, 2, 4, 6, 8]), ("odd", [1, 3, 5,
 ```
 
 > [!TIP]
-> Then *"star map"* over the tuples:
+> Then *"starmap"* over the tuples:
 
 ```python
 from streamable import star
@@ -386,7 +386,7 @@ five_first_integers: Stream[int] = integers.truncate(5)
 assert list(five_first_integers) == [0, 1, 2, 3, 4]
 ```
 
-> ... or when a condition has become satisfied:
+> or `when` a condition is satisfied:
 
 ```python
 five_first_integers: Stream[int] = integers.truncate(when=lambda n: n == 5)
@@ -420,7 +420,7 @@ distinct_chars: Stream[str] = Stream("foobarfooo").distinct()
 assert list(distinct_chars) == ["f", "o", "b", "a", "r"]
 ```
 
-> Specify a function to deduplicate based on the value it returns when applied to elements:
+> specifying a deduplication `key`:
 
 ```python
 strings_of_distinct_lengths: Stream[str] = (
