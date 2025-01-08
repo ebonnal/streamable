@@ -1,22 +1,19 @@
-# ༄ `streamable`
-
-***Pythonic Stream-like manipulation of iterables***
-
 [![coverage](https://codecov.io/gh/ebonnal/streamable/graph/badge.svg?token=S62T0JQK9N)](https://codecov.io/gh/ebonnal/streamable)
 [![unittest](https://github.com/ebonnal/streamable/actions/workflows/unittest.yml/badge.svg?branch=main)](https://github.com/ebonnal/streamable/actions)
 [![typing](https://github.com/ebonnal/streamable/actions/workflows/typing.yml/badge.svg?branch=main)](https://github.com/ebonnal/streamable/actions)
 [![lint](https://github.com/ebonnal/streamable/actions/workflows/lint.yml/badge.svg?branch=main)](https://github.com/ebonnal/streamable/actions)
 [![PyPI](https://github.com/ebonnal/streamable/actions/workflows/pypi.yml/badge.svg?branch=main)](https://pypi.org/project/streamable)
 
+# ༄ `streamable`
 
-||
-|--|
-|🔗 ***Fluent*** chainable operations|
-|💤 ***Lazy*** operations|
-|🔀 ***Concurrent*** via *threads*/*processes*/`asyncio`|
-|🇹 ***Typed***, fully annotated, `Stream[T]` is an `Iterable[T]`|
-|🛡️ ***Tested*** extensively with **Python 3.7 to 3.14**|
-|🪶 ***Light***, no dependencies|
+### *Pythonic Stream-like manipulation of iterables*
+
+- 🔗 ***Fluent*** chainable lazy operations
+- 🔀 ***Concurrent*** via *threads*/*processes*/`asyncio`
+- 🇹 ***Typed***, fully annotated, `Stream[T]` is an `Iterable[T]`
+- 🛡️ ***Tested*** extensively with **Python 3.7 to 3.14**
+- 🪶 ***Light***, no dependencies
+
 
 
 ## 1. install
