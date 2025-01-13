@@ -47,7 +47,7 @@ class ToStringVisitor(Visitor[str], ABC):
 
     def visit_distinct_stream(self, stream: DistinctStream[T]) -> str:
         self.methods_reprs.append(
-            f"distinct({self.to_string(stream._by)}, consecutive_only={self.to_string(stream._consecutive_only)})"
+            f"distinct({self.to_string(stream._key)}, consecutive_only={self.to_string(stream._consecutive_only)})"
         )
         return stream.upstream.accept(self)
 
@@ -82,7 +82,7 @@ class ToStringVisitor(Visitor[str], ABC):
 
     def visit_groupby_stream(self, stream: GroupbyStream[U, T]) -> str:
         self.methods_reprs.append(
-            f"groupby({self.to_string(stream._by)}, size={self.to_string(stream._size)}, interval={self.to_string(stream._interval)})"
+            f"groupby({self.to_string(stream._key)}, size={self.to_string(stream._size)}, interval={self.to_string(stream._interval)})"
         )
         return stream.upstream.accept(self)
 

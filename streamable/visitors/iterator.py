@@ -38,7 +38,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
     def visit_distinct_stream(self, stream: DistinctStream[T]) -> Iterator[T]:
         return functions.distinct(
             stream.upstream.accept(self),
-            stream._by,
+            stream._key,
             stream._consecutive_only,
         )
 
@@ -91,7 +91,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
             Iterator[T],
             functions.groupby(
                 stream.upstream.accept(IteratorVisitor[U]()),
-                stream._by,
+                stream._key,
                 stream._size,
                 stream._interval,
             ),
