@@ -165,7 +165,7 @@ class Stream(Iterable[T]):
 
     def distinct(
         self, key: Optional[Callable[[T], Any]] = None, consecutive_only: bool = False
-    ) -> "Stream":
+    ) -> "Stream[T]":
         """
         Filters the stream to yield only distinct elements.
         If a deduplication `key` is specified, `foo` and `bar` are treated as duplicates when `key(foo) == key(bar)`.
@@ -429,7 +429,7 @@ class Stream(Iterable[T]):
         """
         return ObserveStream(self, what)
 
-    def skip(self, count: int) -> "Stream":
+    def skip(self, count: int) -> "Stream[T]":
         """
         Skips the first `count` elements.
 
