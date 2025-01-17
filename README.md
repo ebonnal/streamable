@@ -394,12 +394,18 @@ assert list(five_first_integers) == [0, 1, 2, 3, 4]
 
 ## `.skip`
 
-
-
 > Skips the first specified number of elements:
 
 ```python
 integers_after_five: Stream[int] = integers.skip(5)
+
+assert list(integers_after_five) == [5, 6, 7, 8, 9]
+```
+
+> or skips elements `until` a predicate is satisfied:
+
+```python
+integers_after_five: Stream[int] = integers.skip(until=lambda n: n >= 5)
 
 assert list(integers_after_five) == [5, 6, 7, 8, 9]
 ```

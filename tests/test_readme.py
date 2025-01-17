@@ -213,6 +213,10 @@ class TestReadme(unittest.TestCase):
 
         assert list(integers_after_five) == [5, 6, 7, 8, 9]
 
+        integers_after_five = integers.skip(until=lambda n: n >= 5)
+
+        assert list(integers_after_five) == [5, 6, 7, 8, 9]
+
     def test_distinct_example(self) -> None:
         distinct_chars: Stream[str] = Stream("foobarfooo").distinct()
 
