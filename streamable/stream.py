@@ -120,10 +120,10 @@ class Stream(Iterable[T]):
         Catches the upstream exceptions if they are instances of `kind` and they satisfy the `when` predicate.
 
         Args:
-            kind (Type[Exception], optional): The type of exceptions to catch. (by default: catches base Exception)
-            when (Callable[[Exception], Any], optional): An additional condition that must be satisfied to catch the exception, i.e. `when(exception)` must be truthy. (by default: no additional condition)
-            replacement (T, optional): The value to yield when an exception is catched. (by default: do not yield any replacement value)
-            finally_raise (bool, optional): If True the first catched exception is raised when upstream's iteration ends. (by default: iteration ends without raising)
+            kind (Type[Exception], optional): The type of exceptions to catch. (default: catches base Exception)
+            when (Callable[[Exception], Any], optional): An additional condition that must be satisfied to catch the exception, i.e. `when(exception)` must be truthy. (default: no additional condition)
+            replacement (T, optional): The value to yield when an exception is catched. (default: do not yield any replacement value)
+            finally_raise (bool, optional): If True the first catched exception is raised when upstream's iteration ends. (default: iteration ends without raising)
 
         Returns:
             Stream[T]: A stream of upstream elements catching the eligible exceptions.
@@ -155,7 +155,7 @@ class Stream(Iterable[T]):
         Logs (INFO level) a representation of the stream.
 
         Args:
-            level (int, optional): The level of the log. (by default: INFO)
+            level (int, optional): The level of the log. (default: INFO)
 
         Returns:
             Stream[T]: This stream.
@@ -178,8 +178,8 @@ class Stream(Iterable[T]):
             Alternatively, remove only consecutive duplicates without memory footprint by setting `consecutive_only=True`.
 
         Args:
-            key (Callable[[T], Any], optional): Elements are deduplicated based on `key(elem)`. (by default: the deduplication is performed on the elements themselves)
-            consecutive_only (bool, optional): Whether to deduplicate only consecutive duplicates, or globally. (by default: the deduplication is global)
+            key (Callable[[T], Any], optional): Elements are deduplicated based on `key(elem)`. (default: the deduplication is performed on the elements themselves)
+            consecutive_only (bool, optional): Whether to deduplicate only consecutive duplicates, or globally. (default: the deduplication is global)
 
         Returns:
             Stream: A stream containing only unique upstream elements.
@@ -191,7 +191,7 @@ class Stream(Iterable[T]):
         Filters the stream to yield only elements satisfying the `when` predicate.
 
         Args:
-            when (Callable[[T], Any], optional): An element is kept when `when(elem)` is truthy. (by default: keeps all truthy elements)
+            when (Callable[[T], Any], optional): An element is kept when `when(elem)` is truthy. (default: keeps all truthy elements)
 
         Returns:
             Stream[T]: A stream of upstream elements satisfying the `when` predicate.
@@ -268,7 +268,7 @@ class Stream(Iterable[T]):
         Iterates over upstream elements assumed to be iterables, and individually yields their items.
 
         Args:
-            concurrency (int, optional): Represents both the number of threads used to concurrently flatten the upstream iterables and the number of iterables buffered. (by default: no concurrency)
+            concurrency (int, optional): Represents both the number of threads used to concurrently flatten the upstream iterables and the number of iterables buffered. (default: no concurrency)
         Returns:
             Stream[R]: A stream of flattened elements from upstream iterables.
         """
@@ -288,9 +288,9 @@ class Stream(Iterable[T]):
 
         Args:
             effect (Callable[[T], Any]): The function to be applied to each element as a side effect.
-            concurrency (int, optional): Represents both the number of threads used to concurrently apply the `effect` and the size of the buffer containing not-yet-yielded elements. If the buffer is full, the iteration over the upstream is paused until an element is yielded from the buffer. (by default: no concurrency)
-            ordered (bool, optional): If `concurrency` > 1, whether to preserve the order of upstream elements or to yield them as soon as they are processed. (by default: preserves upstream order)
-            via ("thread" or "process", optional): If `concurrency` > 1, whether to apply `transformation` using processes or threads. (by default: via threads)
+            concurrency (int, optional): Represents both the number of threads used to concurrently apply the `effect` and the size of the buffer containing not-yet-yielded elements. If the buffer is full, the iteration over the upstream is paused until an element is yielded from the buffer. (default: no concurrency)
+            ordered (bool, optional): If `concurrency` > 1, whether to preserve the order of upstream elements or to yield them as soon as they are processed. (default: preserves upstream order)
+            via ("thread" or "process", optional): If `concurrency` > 1, whether to apply `transformation` using processes or threads. (default: via threads)
         Returns:
             Stream[T]: A stream of upstream elements, unchanged.
         """
@@ -310,8 +310,8 @@ class Stream(Iterable[T]):
 
         Args:
             effect (Callable[[T], Any]): The asynchronous function to be applied to each element as a side effect.
-            concurrency (int, optional): Represents both the number of async tasks concurrently applying the `effect` and the size of the buffer containing not-yet-yielded elements. If the buffer is full, the iteration over the upstream is paused until an element is yielded from the buffer. (by default: no concurrency)
-            ordered (bool, optional): If `concurrency` > 1, whether to preserve the order of upstream elements or to yield them as soon as they are processed. (by default: preserves upstream order)
+            concurrency (int, optional): Represents both the number of async tasks concurrently applying the `effect` and the size of the buffer containing not-yet-yielded elements. If the buffer is full, the iteration over the upstream is paused until an element is yielded from the buffer. (default: no concurrency)
+            ordered (bool, optional): If `concurrency` > 1, whether to preserve the order of upstream elements or to yield them as soon as they are processed. (default: preserves upstream order)
         Returns:
             Stream[T]: A stream of upstream elements, unchanged.
         """
@@ -335,9 +335,9 @@ class Stream(Iterable[T]):
         If `by` is specified, groups will only contain elements sharing the same `by(elem)` value (see `.groupby` for `(key, elements)` pairs).
 
         Args:
-            size (Optional[int], optional): The maximum number of elements per group (default: no size limit).
-            interval (float, optional): Yields a group if `interval` seconds have passed since the last group was yielded. (by default: no limit on the time interval between yields)
-            by (Optional[Callable[[T], Any]], optional): If specified, groups will only contain elements sharing the same `by(elem)` value. (Default: does not co-group elements.)
+            size (Optional[int], optional): The maximum number of elements per group. (default: no size limit)
+            interval (float, optional): Yields a group if `interval` seconds have passed since the last group was yielded. (default: no interval limit)
+            by (Optional[Callable[[T], Any]], optional): If specified, groups will only contain elements sharing the same `by(elem)` value. (default: does not co-group elements)
         Returns:
             Stream[List[T]]: A stream of upstream elements grouped into lists.
         """
@@ -361,8 +361,8 @@ class Stream(Iterable[T]):
 
         Args:
             key (Callable[[T], U]): A function that returns the group key for an element.
-            size (Optional[int], optional): The maximum number of elements per group (default: no size limit).
-            interval (Optional[datetime.timedelta], optional): If specified, yields a group if `interval` seconds have passed since the last group was yielded (default: no time interval limit).
+            size (Optional[int], optional): The maximum number of elements per group. (default: no size limit)
+            interval (Optional[datetime.timedelta], optional): If specified, yields a group if `interval` seconds have passed since the last group was yielded. (default: no interval limit)
 
         Returns:
             Stream[Tuple[U, List[T]]]: A stream of upstream elements grouped by key, as `(key, elements)` tuples.
@@ -381,9 +381,9 @@ class Stream(Iterable[T]):
 
         Args:
             transformation (Callable[[T], R]): The function to be applied to each element.
-            concurrency (int, optional): Represents both the number of threads used to concurrently apply `transformation` and the size of the buffer containing not-yet-yielded results. If the buffer is full, the iteration over the upstream is paused until a result is yielded from the buffer. (by default: no concurrency)
-            ordered (bool, optional): If `concurrency` > 1, whether to preserve the order of upstream elements or to yield them as soon as they are processed. (by default: preserves upstream order)
-            via ("thread" or "process", optional): If `concurrency` > 1, whether to apply `transformation` using processes or threads. (by default: via threads)
+            concurrency (int, optional): Represents both the number of threads used to concurrently apply `transformation` and the size of the buffer containing not-yet-yielded results. If the buffer is full, the iteration over the upstream is paused until a result is yielded from the buffer. (default: no concurrency)
+            ordered (bool, optional): If `concurrency` > 1, whether to preserve the order of upstream elements or to yield them as soon as they are processed. (default: preserves upstream order)
+            via ("thread" or "process", optional): If `concurrency` > 1, whether to apply `transformation` using processes or threads. (default: via threads)
         Returns:
             Stream[R]: A stream of transformed elements.
         """
@@ -402,8 +402,8 @@ class Stream(Iterable[T]):
 
         Args:
             transformation (Callable[[T], Coroutine[Any, Any, U]]): The asynchronous function to be applied to each element.
-            concurrency (int, optional): Represents both the number of async tasks concurrently applying `transformation` and the size of the buffer containing not-yet-yielded results. If the buffer is full, the iteration over the upstream is paused until a result is yielded from the buffer. (by default: no concurrency)
-            ordered (bool, optional): If `concurrency` > 1, whether to preserve the order of upstream elements or to yield them as soon as they are processed. (by default: preserves upstream order)
+            concurrency (int, optional): Represents both the number of async tasks concurrently applying `transformation` and the size of the buffer containing not-yet-yielded results. If the buffer is full, the iteration over the upstream is paused until a result is yielded from the buffer. (default: no concurrency)
+            ordered (bool, optional): If `concurrency` > 1, whether to preserve the order of upstream elements or to yield them as soon as they are processed. (default: preserves upstream order)
         Returns:
             Stream[R]: A stream of transformed elements.
         """
@@ -436,8 +436,8 @@ class Stream(Iterable[T]):
         Skips the first `count` elements, or skips `until` a predicate becomes satisfied.
 
         Args:
-            count (Optional[int], optional): The number of elements to skip. (by default: no count-based skipping)
-            until (Optional[Callable[[T], Any]], optional): Elements are skipped until the first one for which `until(elem)` is truthy. This element and all the subsequent ones will be yielded. (by default: no predicate-based skipping)
+            count (Optional[int], optional): The number of elements to skip. (default: no count-based skipping)
+            until (Optional[Callable[[T], Any]], optional): Elements are skipped until the first one for which `until(elem)` is truthy. This element and all the subsequent ones will be yielded. (default: no predicate-based skipping)
 
         Returns:
             Stream: A stream of the upstream elements remaining after skipping.
@@ -462,10 +462,10 @@ class Stream(Iterable[T]):
         The upstream exceptions are slowed too.
 
         Args:
-            per_second (float, optional): Maximum number of yields per second. (by default: no limit per second)
-            per_minute (float, optional): Maximum number of yields per minute. (by default: no limit per minute)
-            per_hour (float, optional): Maximum number of yields per hour. (by default: no limit per hour)
-            interval (datetime.timedelta, optional): Minimum interval between yields. (by default: no interval constraint)
+            per_second (float, optional): Maximum number of yields per second. (default: no limit per second)
+            per_minute (float, optional): Maximum number of yields per minute. (default: no limit per minute)
+            per_hour (float, optional): Maximum number of yields per hour. (default: no limit per hour)
+            interval (datetime.timedelta, optional): Minimum interval between yields. (default: no interval constraint)
 
         Returns:
             Stream[T]: A stream yielding upstream elements according to the specified rate constraints.
@@ -483,8 +483,8 @@ class Stream(Iterable[T]):
         Stops an iteration as soon as the `when` predicate is satisfied or `count` elements have been yielded.
 
         Args:
-            count (int, optional): The maximum number of elements to yield. (by default: no count-based truncation)
-            when (Optional[Callable[[T], Any]], optional): A predicate function that determines when to stop the iteration. Iteration stops immediately after encountering the first element for which `when(elem)` is truthy, and that element will not be yielded. (by default: no predicate-based truncation)
+            count (int, optional): The maximum number of elements to yield. (default: no count-based truncation)
+            when (Optional[Callable[[T], Any]], optional): A predicate function that determines when to stop the iteration. Iteration stops immediately after encountering the first element for which `when(elem)` is truthy, and that element will not be yielded. (default: no predicate-based truncation)
 
         Returns:
             Stream[T]: A stream of at most `count` upstream elements not satisfying the `when` predicate.
