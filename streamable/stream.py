@@ -26,9 +26,9 @@ from streamable.util.constants import NO_REPLACEMENT
 from streamable.util.loggertools import get_logger
 from streamable.util.validationtools import (
     validate_concurrency,
-    validate_count,
     validate_group_interval,
     validate_group_size,
+    validate_skip_args,
     validate_throttle_interval,
     validate_throttle_per_period,
     validate_truncate_args,
@@ -429,18 +429,21 @@ class Stream(Iterable[T]):
         """
         return ObserveStream(self, what)
 
-    def skip(self, count: int) -> "Stream[T]":
+    def skip(
+        self, count: Optional[int] = None, until: Optional[Callable[[T], Any]] = None
+    ) -> "Stream[T]":
         """
-        Skips the first `count` elements.
+        Skips the first `count` elements, or skips `until` a predicate becomes satisfied.
 
         Args:
-            count (int): The number of elements to skip.
+            count (Optional[int], optional): The number of elements to skip. (by default: no count-based skipping)
+            until (Optional[Callable[[T], Any]], optional): Elements are skipped until the first one for which `until(elem)` is truthy. This element and all the subsequent ones will be yielded. (by default: no predicate-based skipping)
 
         Returns:
             Stream: A stream of the upstream elements remaining after skipping.
         """
-        validate_count(count)
-        return SkipStream(self, count)
+        validate_skip_args(count, until)
+        return SkipStream(self, count, until)
 
     def throttle(
         self,
@@ -679,10 +682,12 @@ class SkipStream(DownStream[T, T]):
     def __init__(
         self,
         upstream: Stream[T],
-        count: int,
+        count: Optional[int],
+        until: Optional[Callable[[T], Any]],
     ) -> None:
         super().__init__(upstream)
         self._count = count
+        self._until = until
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_skip_stream(self)

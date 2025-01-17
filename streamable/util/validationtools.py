@@ -65,3 +65,15 @@ def validate_truncate_args(
             raise ValueError("`count` and `when` cannot both be None")
     else:
         validate_count(count)
+
+
+def validate_skip_args(
+    count: Optional[int] = None, until: Optional[Callable[[T], Any]] = None
+) -> None:
+    if count is None:
+        if until is None:
+            raise ValueError("`count` and `until` cannot both be None")
+    else:
+        if until is not None:
+            raise ValueError("`count` and `until` cannot both be set")
+        validate_count(count)

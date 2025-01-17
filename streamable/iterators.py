@@ -96,7 +96,9 @@ class CatchIterator(Iterator[T]):
 
 
 class DistinctIterator(Iterator[T]):
-    def __init__(self, iterator: Iterator[T], key: Optional[Callable[[T], Any]]) -> None:
+    def __init__(
+        self, iterator: Iterator[T], key: Optional[Callable[[T], Any]]
+    ) -> None:
         validate_iterator(iterator)
         self.iterator = iterator
         self.key = wrap_error(key, StopIteration) if key else None
@@ -113,7 +115,9 @@ class DistinctIterator(Iterator[T]):
 
 
 class ConsecutiveDistinctIterator(Iterator[T]):
-    def __init__(self, iterator: Iterator[T], key: Optional[Callable[[T], Any]]) -> None:
+    def __init__(
+        self, iterator: Iterator[T], key: Optional[Callable[[T], Any]]
+    ) -> None:
         validate_iterator(iterator)
         self.iterator = iterator
         self.key = wrap_error(key, StopIteration) if key else None
@@ -276,7 +280,7 @@ class GroupbyIterator(_GroupIteratorMixin[T], Iterator[Tuple[U, List[T]]]):
             return next(self)
 
 
-class SkipIterator(Iterator[T]):
+class CountSkipIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], count: int) -> None:
         validate_iterator(iterator)
         validate_count(count)
@@ -285,7 +289,7 @@ class SkipIterator(Iterator[T]):
         self._n_skipped = 0
         self._done_skipping = False
 
-    def __next__(self):
+    def __next__(self) -> T:
         if not self._done_skipping:
             while self._n_skipped < self.count:
                 next(self.iterator)
@@ -293,6 +297,22 @@ class SkipIterator(Iterator[T]):
                 self._n_skipped += 1
             self._done_skipping = True
         return next(self.iterator)
+
+
+class PredicateSkipIterator(Iterator[T]):
+    def __init__(self, iterator: Iterator[T], until: Callable[[T], Any]) -> None:
+        validate_iterator(iterator)
+        self.iterator = iterator
+        self.until = wrap_error(until, StopIteration)
+        self._done_skipping = False
+
+    def __next__(self) -> T:
+        elem = next(self.iterator)
+        if not self._done_skipping:
+            while not self.until(elem):
+                elem = next(self.iterator)
+            self._done_skipping = True
+        return elem
 
 
 class CountTruncateIterator(Iterator[T]):
@@ -303,7 +323,7 @@ class CountTruncateIterator(Iterator[T]):
         self.count = count
         self._current_count = 0
 
-    def __next__(self):
+    def __next__(self) -> T:
         if self._current_count == self.count:
             raise StopIteration()
         elem = next(self.iterator)
@@ -318,7 +338,7 @@ class PredicateTruncateIterator(Iterator[T]):
         self.when = wrap_error(when, StopIteration)
         self._satisfied = False
 
-    def __next__(self):
+    def __next__(self) -> T:
         if self._satisfied:
             raise StopIteration()
         elem = next(self.iterator)

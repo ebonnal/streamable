@@ -124,6 +124,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         return functions.skip(
             stream.upstream.accept(self),
             stream._count,
+            stream._until,
         )
 
     def visit_throttle_stream(self, stream: ThrottleStream[T]) -> Iterator[T]:

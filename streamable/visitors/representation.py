@@ -104,7 +104,9 @@ class ToStringVisitor(Visitor[str], ABC):
         return stream.upstream.accept(self)
 
     def visit_skip_stream(self, stream: SkipStream[T]) -> str:
-        self.methods_reprs.append(f"skip({self.to_string(stream._count)})")
+        self.methods_reprs.append(
+            f"skip({self.to_string(stream._count)}, until={self.to_string(stream._until)})"
+        )
         return stream.upstream.accept(self)
 
     def visit_throttle_stream(self, stream: ThrottleStream[T]) -> str:
