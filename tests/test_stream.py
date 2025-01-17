@@ -201,6 +201,7 @@ class TestStream(unittest.TestCase):
             Stream(src)
             .truncate(1024, when=lambda _: False)
             .skip(10)
+            .skip(until=lambda _: True)
             .distinct(lambda _: _)
             .filter()
             .map(lambda i: (i,))
@@ -258,7 +259,8 @@ class TestStream(unittest.TestCase):
             """(
     Stream(range(0, 256))
     .truncate(count=1024, when=<lambda>)
-    .skip(10)
+    .skip(10, until=None)
+    .skip(None, until=<lambda>)
     .distinct(<lambda>, consecutive_only=False)
     .filter(bool)
     .map(<lambda>, concurrency=1, ordered=True)
@@ -811,6 +813,20 @@ class TestStream(unittest.TestCase):
         ):
             Stream(src).skip(-1)
 
+        with self.assertRaisesRegex(
+            ValueError,
+            "`count` and `until` cannot both be set",
+            msg="`skip` must raise ValueError if both `count` and `until` are set",
+        ):
+            Stream(src).skip(0, until=bool)
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "`count` and `until` cannot both be None",
+            msg="`skip` must raise ValueError if both `count` and `until` are None",
+        ):
+            Stream(src).skip()
+
         for count in [0, 1, 3]:
             self.assertEqual(
                 list(Stream(src).skip(count)),
@@ -827,6 +843,18 @@ class TestStream(unittest.TestCase):
                 list(filter(lambda i: i % 2 == 0, src))[count:],
                 msg="`skip` must not count exceptions as skipped elements",
             )
+
+            self.assertEqual(
+                list(Stream(src).skip(until=lambda n: n >= count)),
+                list(src)[count:],
+                msg="`skip` must yield starting from the first element satisfying `until`",
+            )
+
+        self.assertEqual(
+            list(Stream(src).skip(until=lambda n: False)),
+            [],
+            msg="`skip` must not yield any element if `until` is never satisfied",
+        )
 
     def test_truncate(self) -> None:
         with self.assertRaisesRegex(

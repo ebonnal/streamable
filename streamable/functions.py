@@ -21,6 +21,7 @@ from streamable.iterators import (
     CatchIterator,
     ConcurrentFlattenIterator,
     ConsecutiveDistinctIterator,
+    CountSkipIterator,
     CountTruncateIterator,
     DistinctIterator,
     FlattenIterator,
@@ -29,18 +30,18 @@ from streamable.iterators import (
     IntervalThrottleIterator,
     ObserveIterator,
     OSConcurrentMapIterator,
+    PredicateSkipIterator,
     PredicateTruncateIterator,
-    SkipIterator,
     YieldsPerPeriodThrottleIterator,
 )
 from streamable.util.constants import NO_REPLACEMENT
 from streamable.util.functiontools import wrap_error
 from streamable.util.validationtools import (
     validate_concurrency,
-    validate_count,
     validate_group_interval,
     validate_group_size,
     validate_iterator,
+    validate_skip_args,
     validate_throttle_interval,
     validate_throttle_per_period,
     validate_truncate_args,
@@ -165,12 +166,15 @@ def observe(iterator: Iterator[T], what: str) -> Iterator[T]:
 
 def skip(
     iterator: Iterator[T],
-    count: int,
+    count: Optional[int] = None,
+    until: Optional[Callable[[T], Any]] = None,
 ) -> Iterator[T]:
     validate_iterator(iterator)
-    validate_count(count)
-    if count > 0:
-        iterator = SkipIterator(iterator, count)
+    validate_skip_args(count, until)
+    if until is not None:
+        iterator = PredicateSkipIterator(iterator, until)
+    elif count is not None:
+        iterator = CountSkipIterator(iterator, count)
     return iterator
 
 
