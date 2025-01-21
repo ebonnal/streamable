@@ -28,10 +28,10 @@ from streamable.util.validationtools import (
     validate_concurrency,
     validate_group_interval,
     validate_group_size,
+    validate_optional_count,
     validate_skip_args,
     validate_throttle_interval,
     validate_throttle_per_period,
-    validate_truncate_args,
     validate_via,
 )
 
@@ -489,7 +489,7 @@ class Stream(Iterable[T]):
         Returns:
             Stream[T]: A stream of at most `count` upstream elements not satisfying the `when` predicate.
         """
-        validate_truncate_args(count, when)
+        validate_optional_count(count)
         return TruncateStream(self, count, when)
 
 

@@ -41,10 +41,10 @@ from streamable.util.validationtools import (
     validate_group_interval,
     validate_group_size,
     validate_iterator,
+    validate_optional_count,
     validate_skip_args,
     validate_throttle_interval,
     validate_throttle_per_period,
-    validate_truncate_args,
 )
 
 with suppress(ImportError):
@@ -210,7 +210,7 @@ def truncate(
     when: Optional[Callable[[T], Any]] = None,
 ) -> Iterator[T]:
     validate_iterator(iterator)
-    validate_truncate_args(count, when)
+    validate_optional_count(count)
     if count is not None:
         iterator = CountTruncateIterator(iterator, count)
     if when is not None:
