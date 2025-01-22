@@ -186,12 +186,12 @@ class Stream(Iterable[T]):
         """
         return DistinctStream(self, key, consecutive_only)
 
-    def filter(self, when: Callable[[T], Any] = bool) -> "Stream[T]":
+    def filter(self, when: Optional[Callable[[T], Any]] = None) -> "Stream[T]":
         """
         Filters the stream to yield only elements satisfying the `when` predicate.
 
         Args:
-            when (Callable[[T], Any], optional): An element is kept when `when(elem)` is truthy. (default: keeps all truthy elements)
+            when (Optional[Callable[[T], Any]], optional): An element is kept when `when(elem)` is truthy. If `when` is None, elements that are truthy themselves are kept. (default: keeps truthy elements)
 
         Returns:
             Stream[T]: A stream of upstream elements satisfying the `when` predicate.
@@ -546,7 +546,7 @@ class DistinctStream(DownStream[T, T]):
 
 
 class FilterStream(DownStream[T, T]):
-    def __init__(self, upstream: Stream[T], when: Callable[[T], Any]) -> None:
+    def __init__(self, upstream: Stream[T], when: Optional[Callable[[T], Any]]) -> None:
         super().__init__(upstream)
         self._when = when
 
