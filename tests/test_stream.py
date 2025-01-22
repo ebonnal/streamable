@@ -262,7 +262,7 @@ class TestStream(unittest.TestCase):
     .skip(10, until=None)
     .skip(None, until=<lambda>)
     .distinct(<lambda>, consecutive_only=False)
-    .filter(bool)
+    .filter(None)
     .map(<lambda>, concurrency=1, ordered=True)
     .map(<lambda>, concurrency=2, ordered=True, via='thread')
     .filter(star(bool))
@@ -798,6 +798,11 @@ class TestStream(unittest.TestCase):
             list(Stream(src).filter(keep)),
             list(filter(keep, src)),
             msg="`filter` must act like builtin filter",
+        )
+        self.assertListEqual(
+            list(Stream(src).filter(None)),
+            list(filter(None, src)),
+            msg="`filter` with None predicate must act like builtin filter with None predicate.",
         )
         self.assertListEqual(
             list(Stream(src).filter()),
