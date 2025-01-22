@@ -370,6 +370,23 @@ assert list(status_codes_ignoring_resolution_errors) == [200, 404]
 
 > It has an optional `finally_raise: bool` parameter to raise the first catched exception when iteration ends.
 
+> [!TIP]
+> You can add side effects for exception handling by passing a `when` function that incorporates the side effect and always returns `True`:
+
+```python
+def side_effect(e):
+    print("Uh-oh!")
+    return True
+
+even_numbers: Stream[float] = (
+    Stream(["1", 1, 2, "3", 5]
+    .map(lambda n: n % 2 == 0)
+    .catch(TypeError, when=side_effect)
+)"
+
+# prints Uh-oh twice
+even_number()
+```
 
 ## `.truncate`
 
