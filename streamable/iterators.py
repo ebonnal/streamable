@@ -315,6 +315,29 @@ class PredicateSkipIterator(Iterator[T]):
         return elem
 
 
+class CountAndPredicateSkipIterator(Iterator[T]):
+    def __init__(
+        self, iterator: Iterator[T], count: int, until: Callable[[T], Any]
+    ) -> None:
+        validate_iterator(iterator)
+        validate_count(count)
+        self.iterator = iterator
+        self.count = count
+        self.until = wrap_error(until, StopIteration)
+        self._n_skipped = 0
+        self._done_skipping = False
+
+    def __next__(self) -> T:
+        elem = next(self.iterator)
+        if not self._done_skipping:
+            while self._n_skipped < self.count and not self.until(elem):
+                elem = next(self.iterator)
+                # do not count exceptions as skipped elements
+                self._n_skipped += 1
+            self._done_skipping = True
+        return elem
+
+
 class CountTruncateIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], count: int) -> None:
         validate_iterator(iterator)
