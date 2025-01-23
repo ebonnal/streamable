@@ -29,7 +29,6 @@ from streamable.util.validationtools import (
     validate_group_interval,
     validate_group_size,
     validate_optional_count,
-    validate_skip_args,
     validate_throttle_interval,
     validate_throttle_per_period,
     validate_via,
@@ -433,16 +432,16 @@ class Stream(Iterable[T]):
         self, count: Optional[int] = None, until: Optional[Callable[[T], Any]] = None
     ) -> "Stream[T]":
         """
-        Skips the first `count` elements, or skips `until` a predicate becomes satisfied.
+        Skips elements until `until(elem)` is truthy or `count` elements have been skipped.
 
         Args:
-            count (Optional[int], optional): The number of elements to skip. (default: no count-based skipping)
+            count (Optional[int], optional): The maximum number of elements to skip. (default: no count-based skipping)
             until (Optional[Callable[[T], Any]], optional): Elements are skipped until the first one for which `until(elem)` is truthy. This element and all the subsequent ones will be yielded. (default: no predicate-based skipping)
 
         Returns:
             Stream: A stream of the upstream elements remaining after skipping.
         """
-        validate_skip_args(count, until)
+        validate_optional_count(count)
         return SkipStream(self, count, until)
 
     def throttle(
@@ -480,7 +479,7 @@ class Stream(Iterable[T]):
         self, count: Optional[int] = None, when: Optional[Callable[[T], Any]] = None
     ) -> "Stream[T]":
         """
-        Stops an iteration as soon as the `when` predicate is satisfied or `count` elements have been yielded.
+        Stops an iteration as soon as `when(elem)` is truthy or `count` elements have been yielded.
 
         Args:
             count (int, optional): The maximum number of elements to yield. (default: no count-based truncation)

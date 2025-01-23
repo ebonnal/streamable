@@ -21,6 +21,7 @@ from streamable.iterators import (
     CatchIterator,
     ConcurrentFlattenIterator,
     ConsecutiveDistinctIterator,
+    CountAndPredicateSkipIterator,
     CountSkipIterator,
     CountTruncateIterator,
     DistinctIterator,
@@ -42,7 +43,6 @@ from streamable.util.validationtools import (
     validate_group_size,
     validate_iterator,
     validate_optional_count,
-    validate_skip_args,
     validate_throttle_interval,
     validate_throttle_per_period,
 )
@@ -170,11 +170,13 @@ def skip(
     until: Optional[Callable[[T], Any]] = None,
 ) -> Iterator[T]:
     validate_iterator(iterator)
-    validate_skip_args(count, until)
+    validate_optional_count(count)
     if until is not None:
-        iterator = PredicateSkipIterator(iterator, until)
-    elif count is not None:
-        iterator = CountSkipIterator(iterator, count)
+        if count is not None:
+            return CountAndPredicateSkipIterator(iterator, count, until)
+        return PredicateSkipIterator(iterator, until)
+    if count is not None:
+        return CountSkipIterator(iterator, count)
     return iterator
 
 

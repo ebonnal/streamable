@@ -813,15 +813,14 @@ class TestStream(unittest.TestCase):
         ):
             Stream(src).skip(-1)
 
-        with self.assertRaisesRegex(
-            ValueError,
-            "`count` and `until` cannot both be set",
-            msg="`skip` must raise ValueError if both `count` and `until` are set",
-        ):
-            Stream(src).skip(0, until=bool)
-
         self.assertListEqual(
             list(Stream(src).skip()),
+            list(src),
+            msg="`skip` must be no-op if both `count` and `until` are None",
+        )
+
+        self.assertListEqual(
+            list(Stream(src).skip(None)),
             list(src),
             msg="`skip` must be no-op if both `count` and `until` are None",
         )
@@ -849,6 +848,18 @@ class TestStream(unittest.TestCase):
                 msg="`skip` must yield starting from the first element satisfying `until`",
             )
 
+            self.assertListEqual(
+                list(Stream(src).skip(count, until=lambda n: False)),
+                list(src)[count:],
+                msg="`skip` must ignore `count` elements if `until` is never satisfied",
+            )
+
+            self.assertListEqual(
+                list(Stream(src).skip(count * 2, until=lambda n: n >= count)),
+                list(src)[count:],
+                msg="`skip` must ignore less than `count` elements if `until` is satisfied first",
+            )
+
         self.assertListEqual(
             list(Stream(src).skip(until=lambda n: False)),
             [],
@@ -864,6 +875,12 @@ class TestStream(unittest.TestCase):
 
         self.assertListEqual(
             list(Stream(src).truncate()),
+            list(src),
+            msg="`truncate must be no-op if both `count` and `when` are None",
+        )
+
+        self.assertListEqual(
+            list(Stream(src).truncate(None)),
             list(src),
             msg="`truncate must be no-op if both `count` and `when` are None",
         )
