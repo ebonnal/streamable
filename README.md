@@ -347,6 +347,8 @@ five_first_integers: Stream[int] = integers.truncate(when=lambda n: n == 5)
 assert list(five_first_integers) == [0, 1, 2, 3, 4]
 ```
 
+> If both `count` and `when` are set, truncation occurs as soon as either condition is met.
+
 ## `.skip`
 
 > Skips the first specified number of elements:
@@ -364,6 +366,8 @@ integers_after_five: Stream[int] = integers.skip(until=lambda n: n >= 5)
 
 assert list(integers_after_five) == [5, 6, 7, 8, 9]
 ```
+
+> If both `count` and `until` are set, skipping stops as soon as either condition is met.
 
 ## `.catch`
 
