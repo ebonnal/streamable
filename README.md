@@ -361,7 +361,7 @@ from requests.exceptions import ConnectionError
 status_codes_ignoring_resolution_errors: Stream[int] = (
     Stream(["https://github.com", "https://foo.bar", "https://github.com/foo/bar"])
     .map(requests.get, concurrency=2)
-    .catch(ConnectionError, when=lambda exception: "Max retries exceeded with url" in str(exception))
+    .catch(ConnectionError, when=lambda error: "Max retries exceeded with url" in str(error))
     .map(lambda response: response.status_code)
 )
 
@@ -370,6 +370,25 @@ assert list(status_codes_ignoring_resolution_errors) == [200, 404]
 
 > It has an optional `finally_raise: bool` parameter to raise the first catched exception when iteration ends.
 
+> [!TIP]
+> Apply side effects when catching an exception by integrating them into `when`:
+
+```python
+errors: List[Exception] = []
+
+def store_error(error: Exception) -> bool:
+    errors.append(error)  # applies effect
+    return True  # signals to catch the error
+
+integers_in_string: Stream[int] = (
+    Stream("012345foo6789")
+    .map(int)
+    .catch(ValueError, when=store_error)
+)
+
+assert list(integers_in_string) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+assert len(errors) == len("foo")
+```
 
 ## `.truncate`
 
