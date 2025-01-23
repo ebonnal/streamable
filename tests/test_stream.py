@@ -1577,3 +1577,20 @@ class TestStream(unittest.TestCase):
             msg="`aforeach` should raise a TypeError if a non async function is passed to it.",
         ):
             next(iter(stream))
+
+    def test_pipe(self) -> None:
+        def multi_arg_func(stream: Iterable[T], first: int, *, second: int) -> int:
+            return first + second
+
+        stream = Stream(src)
+        self.assertListEqual(
+            list(stream),
+            stream.pipe(list),
+            msg="The pipe method should forward the stream to the function it accepts.",
+        )
+
+        self.assertEqual(
+            multi_arg_func(stream, 1, second=2),
+            stream.pipe(multi_arg_func, 1, second=2),
+            msg="The pipe method should pass on both args and kwargs correctly.",
+        )
