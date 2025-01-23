@@ -199,6 +199,21 @@ class TestReadme(unittest.TestCase):
 
         assert list(status_codes_ignoring_resolution_errors) == [200, 404]
 
+        errors: List[Exception] = []
+
+        def store_error(error: Exception) -> bool:
+            errors.append(error)
+            return True
+
+        integers_in_string: Stream[int] = (
+            Stream("012345foo6789")
+            .map(int)
+            .catch(ValueError, when=store_error)
+        )
+
+        assert list(integers_in_string) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        assert len(errors) == len("foo")
+
     def test_truncate_example(self) -> None:
         five_first_integers: Stream[int] = integers.truncate(5)
 
