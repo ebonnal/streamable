@@ -201,51 +201,7 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 > Like `.map` it has a sibling `.aforeach` operation for async.
 
-
-## `.filter`
-
-
-
-> Keeps only the elements that satisfy a condition:
-
-```python
-even_integers: Stream[int] = integers.filter(lambda n: n % 2 == 0)
-
-assert list(even_integers) == [0, 2, 4, 6, 8]
-```
-
-
-## `.throttle`
-
-
-
-> Limits the number of yields `per_second`/`per_minute`/`per_hour`:
-
-```python
-integers_5_per_sec: Stream[int] = integers.throttle(per_second=3)
-
-# takes 3s: ceil(10 integers / 3 per_second) - 1
-assert list(integers_5_per_sec) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-```
-
-> and/or ensures a minimum `interval` between two successive yields:
-
-```python
-from datetime import timedelta
-
-integers_every_100_millis = (
-    integers
-    .throttle(interval=timedelta(milliseconds=100))
-)
-
-# takes 900 millis: (10 integers - 1) * 100 millis
-assert list(integers_every_100_millis) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-```
-
-
 ## `.group`
-
-
 
 > Groups elements into `List`s:
 
@@ -284,8 +240,6 @@ assert list(integers_by_parity_by_2) == [[0, 2], [1, 3], [4, 6], [5, 7], [8], [9
 
 ### `.groupby`
 
-
-
 > Like `.group`, but groups into `(key, elements)` tuples:
 ```python
 integers_by_parity: Stream[Tuple[str, List[int]]] = (
@@ -310,10 +264,7 @@ counts_by_parity: Stream[Tuple[str, int]] = (
 assert list(counts_by_parity) == [("even", 5), ("odd", 5)]
 ```
 
-
 ## `.flatten`
-
-
 
 > Ungroups elements assuming that they are `Iterable`s:
 
@@ -335,11 +286,86 @@ mixed_ones_and_zeros: Stream[int] = (
 assert list(mixed_ones_and_zeros) == [0, 1, 0, 1, 0, 1, 0, 1]
 ```
 
+## `.filter`
 
+> Keeps only the elements that satisfy a condition:
+
+```python
+even_integers: Stream[int] = integers.filter(lambda n: n % 2 == 0)
+
+assert list(even_integers) == [0, 2, 4, 6, 8]
+```
+
+## `.distinct`
+
+> Removes duplicates:
+
+```python
+distinct_chars: Stream[str] = Stream("foobarfooo").distinct()
+
+assert list(distinct_chars) == ["f", "o", "b", "a", "r"]
+```
+
+> specifying a deduplication `key`:
+
+```python
+strings_of_distinct_lengths: Stream[str] = (
+    Stream(["a", "foo", "bar", "z"])
+    .distinct(len)
+)
+
+assert list(strings_of_distinct_lengths) == ["a", "foo"]
+```
+
+> [!WARNING]
+> During iteration, all distinct elements that are yielded are retained in memory to perform deduplication. However, you can remove only consecutive duplicates without a memory footprint by setting `consecutive_only=True`:
+
+```python
+consecutively_distinct_chars: Stream[str] = (
+    Stream("foobarfooo")
+    .distinct(consecutive_only=True)
+)
+
+assert list(consecutively_distinct_chars) == ["f", "o", "b", "a", "r", "f", "o"]
+```
+
+## `.truncate`
+
+> Ends iteration once a given number of elements have been yielded:
+
+```python
+five_first_integers: Stream[int] = integers.truncate(5)
+
+assert list(five_first_integers) == [0, 1, 2, 3, 4]
+```
+
+> or `when` a condition is satisfied:
+
+```python
+five_first_integers: Stream[int] = integers.truncate(when=lambda n: n == 5)
+
+assert list(five_first_integers) == [0, 1, 2, 3, 4]
+```
+
+## `.skip`
+
+> Skips the first specified number of elements:
+
+```python
+integers_after_five: Stream[int] = integers.skip(5)
+
+assert list(integers_after_five) == [5, 6, 7, 8, 9]
+```
+
+> or skips elements `until` a predicate is satisfied:
+
+```python
+integers_after_five: Stream[int] = integers.skip(until=lambda n: n >= 5)
+
+assert list(integers_after_five) == [5, 6, 7, 8, 9]
+```
 
 ## `.catch`
-
-
 
 > Catches a given type of exceptions, and optionally yields a `replacement` value:
 
@@ -390,85 +416,34 @@ assert list(integers_in_string) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 assert len(errors) == len("foo")
 ```
 
-## `.truncate`
 
+## `.throttle`
 
-
-> Ends iteration once a given number of elements have been yielded:
+> Limits the number of yields `per_second`/`per_minute`/`per_hour`:
 
 ```python
-five_first_integers: Stream[int] = integers.truncate(5)
+integers_5_per_sec: Stream[int] = integers.throttle(per_second=3)
 
-assert list(five_first_integers) == [0, 1, 2, 3, 4]
+# takes 3s: ceil(10 integers / 3 per_second) - 1
+assert list(integers_5_per_sec) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 
-> or `when` a condition is satisfied:
+> and/or ensures a minimum `interval` between two successive yields:
 
 ```python
-five_first_integers: Stream[int] = integers.truncate(when=lambda n: n == 5)
+from datetime import timedelta
 
-assert list(five_first_integers) == [0, 1, 2, 3, 4]
-```
-
-
-## `.skip`
-
-> Skips the first specified number of elements:
-
-```python
-integers_after_five: Stream[int] = integers.skip(5)
-
-assert list(integers_after_five) == [5, 6, 7, 8, 9]
-```
-
-> or skips elements `until` a predicate is satisfied:
-
-```python
-integers_after_five: Stream[int] = integers.skip(until=lambda n: n >= 5)
-
-assert list(integers_after_five) == [5, 6, 7, 8, 9]
-```
-
-
-## `.distinct`
-
-
-
-> Removes duplicates:
-
-```python
-distinct_chars: Stream[str] = Stream("foobarfooo").distinct()
-
-assert list(distinct_chars) == ["f", "o", "b", "a", "r"]
-```
-
-> specifying a deduplication `key`:
-
-```python
-strings_of_distinct_lengths: Stream[str] = (
-    Stream(["a", "foo", "bar", "z"])
-    .distinct(len)
+integers_every_100_millis = (
+    integers
+    .throttle(interval=timedelta(milliseconds=100))
 )
 
-assert list(strings_of_distinct_lengths) == ["a", "foo"]
-```
-
-> [!WARNING]
-> During iteration, all distinct elements that are yielded are retained in memory to perform deduplication. However, you can remove only consecutive duplicates without a memory footprint by setting `consecutive_only=True`:
-
-```python
-consecutively_distinct_chars: Stream[str] = (
-    Stream("foobarfooo")
-    .distinct(consecutive_only=True)
-)
-
-assert list(consecutively_distinct_chars) == ["f", "o", "b", "a", "r", "f", "o"]
+# takes 900 millis: (10 integers - 1) * 100 millis
+assert list(integers_every_100_millis) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 
 
 ## `.observe`
-
-
 
 > Logs the progress of iterations:
 ```python
