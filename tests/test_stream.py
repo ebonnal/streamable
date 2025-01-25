@@ -10,6 +10,7 @@ from typing import (
     Any,
     Callable,
     Coroutine,
+    Dict,
     Iterable,
     Iterator,
     List,
@@ -1577,3 +1578,24 @@ class TestStream(unittest.TestCase):
             msg="`aforeach` should raise a TypeError if a non async function is passed to it.",
         ):
             next(iter(stream))
+
+    def test_pipe(self) -> None:
+        def func(
+            stream: Stream, *ints: int, **strings: str
+        ) -> Tuple[Stream, Tuple[int, ...], Dict[str, str]]:
+            return stream, ints, strings
+
+        stream = Stream(src)
+        ints = (0, 1, 2, 3)
+        strings = {"foo": "bar", "bar": "foo"}
+
+        self.assertTupleEqual(
+            stream.pipe(func, *ints, **strings),
+            (stream, ints, strings),
+            msg="`pipe` should pass the stream and args/kwargs to `func`.",
+        )
+        self.assertListEqual(
+            stream.pipe(list),
+            list(stream),
+            msg="`pipe` should be ok without args and kwargs.",
+        )

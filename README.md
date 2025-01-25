@@ -523,6 +523,23 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 
 
+## `.pipe`
+
+> Calls a function, passing the stream as first argument, followed by `*args/**kwargs` if any:
+
+```python
+import pandas as pd
+
+(
+    integers
+    .observe("ints")
+    .pipe(pd.DataFrame, columns=["integer"])
+    .to_csv("integers.csv", index=False)
+)
+```
+
+> Inspired by the `.pipe` from [pandas](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.pipe.html) or [polars](https://docs.pola.rs/api/python/stable/reference/dataframe/api/polars.DataFrame.pipe.html).
+
 
 # 💡 Tips
 ## Extract-Transform-Load
