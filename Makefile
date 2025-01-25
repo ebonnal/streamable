@@ -9,10 +9,9 @@ help:
 	@echo "  make test            - Run unittests and check coverage"
 	@echo "  make type-check      - Check typing with mypy"
 	@echo "  make lint            - Lint the codebase"
-	@echo "  make clean           - Clean up the environment"
 
 venv:
-	python3 -m venv $(VENV_DIR)
+	python3 -m venv $(VENV_DIR) --clear
 	$(VENV_DIR)/bin/pip install -r requirements-dev.txt
 
 test:
