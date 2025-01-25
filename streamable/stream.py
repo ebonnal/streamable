@@ -1,6 +1,5 @@
 import datetime
 import logging
-import sys
 from contextlib import suppress
 from typing import (
     TYPE_CHECKING,
@@ -38,20 +37,18 @@ from streamable.util.validationtools import (
 with suppress(ImportError):
     from typing import Literal
 
-# fmt: off
-if TYPE_CHECKING: import builtins
-if TYPE_CHECKING: from streamable.visitors import Visitor
-# fmt: on
+if TYPE_CHECKING:  # pragma: no cover
+    import builtins
 
-if sys.version_info >= (3, 10):
-    from typing import Concatenate, ParamSpec
-else:
     from typing_extensions import Concatenate, ParamSpec
+
+    from streamable.visitors import Visitor
+
+    P = ParamSpec("P")
 
 U = TypeVar("U")
 T = TypeVar("T")
 V = TypeVar("V")
-P = ParamSpec("P")
 
 
 class Stream(Iterable[T]):
@@ -435,6 +432,25 @@ class Stream(Iterable[T]):
         """
         return ObserveStream(self, what)
 
+    def pipe(
+        self,
+        func: Callable["Concatenate[Stream[T], P]", U],
+        *args: "P.args",
+        **kwargs: "P.kwargs",
+    ) -> U:
+        """
+        Calls `func`, with this stream as the first positional argument, optionally followed by `*args` and `**kwargs`.
+
+        Args:
+            func (Callable[Concatenate["Stream[T]", P], U]): The function to apply.
+            *args (optional): Passed to `func`.
+            **kwargs (optional): Passed to `func`.
+
+        Returns:
+            U: Result of `func(self, *args, **kwargs)`.
+        """
+        return func(self, *args, **kwargs)
+
     def skip(
         self, count: Optional[int] = None, until: Optional[Callable[[T], Any]] = None
     ) -> "Stream[T]":
@@ -499,14 +515,6 @@ class Stream(Iterable[T]):
         """
         validate_optional_count(count)
         return TruncateStream(self, count, when)
-
-    def pipe(
-        self,
-        func: Callable[Concatenate["Stream[T]", P], V],
-        *args: P.args,
-        **kwargs: P.kwargs,
-    ) -> V:
-        return func(self, *args, **kwargs)
 
 
 class DownStream(Stream[U], Generic[T, U]):

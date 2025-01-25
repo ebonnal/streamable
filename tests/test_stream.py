@@ -10,6 +10,7 @@ from typing import (
     Any,
     Callable,
     Coroutine,
+    Dict,
     Iterable,
     Iterator,
     List,
@@ -1579,18 +1580,23 @@ class TestStream(unittest.TestCase):
             next(iter(stream))
 
     def test_pipe(self) -> None:
-        def multi_arg_func(stream: Iterable[T], first: int, *, second: int) -> int:
-            return first + second
+        def func(
+            stream: Stream, *ints: int, **strings: str
+        ) -> Tuple[Stream, Tuple[int, ...], Dict[str, str]]:
+            return stream, ints, strings
 
         stream = Stream(src)
-        self.assertListEqual(
-            list(stream),
-            stream.pipe(list),
-            msg="The pipe method should forward the stream to the function it accepts.",
-        )
+        ints = (1, 2, 3)
+        strings = {"foo": "bar", "bar": "foo"}
+        pipe_result = stream.pipe(func, *ints, **strings)
 
-        self.assertEqual(
-            multi_arg_func(stream, 1, second=2),
-            stream.pipe(multi_arg_func, 1, second=2),
-            msg="The pipe method should pass on both args and kwargs correctly.",
+        self.assertTupleEqual(
+            pipe_result,
+            (stream, ints, strings),
+            msg="`pipe` should pass the stream and args/kwargs to `func`.",
+        )
+        self.assertListEqual(
+            stream.pipe(list),
+            list(stream),
+            msg="`pipe` should work without args and kwargs.",
         )
