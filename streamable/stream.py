@@ -37,10 +37,14 @@ from streamable.util.validationtools import (
 with suppress(ImportError):
     from typing import Literal
 
-# fmt: off
-if TYPE_CHECKING: import builtins
-if TYPE_CHECKING: from streamable.visitors import Visitor
-# fmt: on
+if TYPE_CHECKING:  # pragma: no cover
+    import builtins
+
+    from typing_extensions import Concatenate, ParamSpec
+
+    from streamable.visitors import Visitor
+
+    P = ParamSpec("P")
 
 U = TypeVar("U")
 T = TypeVar("T")
@@ -427,6 +431,25 @@ class Stream(Iterable[T]):
             Stream[T]: A stream of upstream elements whose iteration's progress is logged.
         """
         return ObserveStream(self, what)
+
+    def pipe(
+        self,
+        func: "Callable[Concatenate[Stream[T], P], U]",
+        *args: "P.args",
+        **kwargs: "P.kwargs",
+    ) -> U:
+        """
+        Calls `func`, with this stream as the first positional argument, optionally followed by `*args` and `**kwargs`.
+
+        Args:
+            func (Callable[Concatenate[Stream[T], P], U]): The function to apply.
+            *args (optional): Passed to `func`.
+            **kwargs (optional): Passed to `func`.
+
+        Returns:
+            U: Result of `func(self, *args, **kwargs)`.
+        """
+        return func(self, *args, **kwargs)
 
     def skip(
         self, count: Optional[int] = None, until: Optional[Callable[[T], Any]] = None
