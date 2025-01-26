@@ -220,7 +220,8 @@ class TestStream(unittest.TestCase):
             .flatten(concurrency=4)
             .throttle(64, interval=datetime.timedelta(seconds=1))
             .observe("foos")
-            .catch(TypeError, finally_raise=True)
+            .catch(finally_raise=True)
+            .catch(TypeError, ValueError, ZeroDivisionError)
             .catch(TypeError, replacement=None, finally_raise=True)
         )
 
@@ -279,8 +280,9 @@ class TestStream(unittest.TestCase):
     .flatten(concurrency=4)
     .throttle(per_second=64, per_minute=inf, per_hour=inf, interval=datetime.timedelta(seconds=1))
     .observe('foos')
-    .catch(TypeError, when=bool, finally_raise=True)
-    .catch(TypeError, when=bool, replacement=None, finally_raise=True)
+    .catch(Exception, when=None, finally_raise=True)
+    .catch(TypeError, ValueError, ZeroDivisionError, when=None, finally_raise=False)
+    .catch(TypeError, when=None, replacement=None, finally_raise=True)
 )""",
             msg="`repr` should work as expected on a stream with many operation",
         )
@@ -542,7 +544,7 @@ class TestStream(unittest.TestCase):
                 throw_for_odd_func_,
             ]
             for raised_exc, catched_exc in [
-                (TestError, TestError),
+                (TestError, (TestError,)),
                 (StopIteration, (WrappedError, RuntimeError)),
             ]
             for concurrency in [1, 2]
@@ -556,11 +558,11 @@ class TestStream(unittest.TestCase):
     def test_map_or_foreach_with_exception(
         self,
         raised_exc: Type[Exception],
-        catched_exc: Type[Exception],
+        catched_exc: Tuple[Type[Exception], ...],
         concurrency: int,
         method: Callable[[Stream, Callable[[Any], int], int], Stream],
         throw_func: Callable[[Exception], Callable[[Any], int]],
-        throw_for_odd_func: Callable[[Exception], Callable[[Any], int]],
+        throw_for_odd_func: Callable[[Type[Exception]], Callable[[Any], int]],
     ) -> None:
         with self.assertRaises(
             catched_exc,
@@ -570,7 +572,9 @@ class TestStream(unittest.TestCase):
 
         self.assertListEqual(
             list(
-                method(Stream(src), throw_for_odd_func(raised_exc), concurrency).catch(catched_exc)  # type: ignore
+                method(Stream(src), throw_for_odd_func(raised_exc), concurrency).catch(
+                    *catched_exc
+                )
             ),
             list(even_src),
             msg="At any concurrency, `map` and `foreach` and `amap` must not stop after one exception occured.",
@@ -1463,6 +1467,24 @@ class TestStream(unittest.TestCase):
             ),
             [None, 1, 0.5, 0.25],
             msg="`catch` should be able to yield a None replacement",
+        )
+        self.assertListEqual(
+            list(
+                Stream(
+                    map(
+                        lambda n: 1 / n,  # potential ZeroDivisionError
+                        map(
+                            throw_for_odd_func(TestError),  # potential TestError
+                            map(
+                                int,  # potential ValueError
+                                "01234foo56789",
+                            ),
+                        ),
+                    )
+                ).catch(ValueError, TestError, ZeroDivisionError)
+            ),
+            list(map(lambda n: 1 / n, range(2, 10, 2))),
+            msg="`catch` should accept multiple types",
         )
 
     def test_observe(self) -> None:

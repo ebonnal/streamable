@@ -35,13 +35,13 @@ class ToStringVisitor(Visitor[str], ABC):
     def to_string(o: object) -> str: ...
 
     def visit_catch_stream(self, stream: CatchStream[T]) -> str:
-        replacement = (
-            f", replacement={self.to_string(stream._replacement)}"
-            if stream._replacement is not NO_REPLACEMENT
-            else ""
-        )
+        replacement = ""
+        if stream._replacement is not NO_REPLACEMENT:
+            replacement = f", replacement={self.to_string(stream._replacement)}"
+
+        kinds = ', '.join(map(lambda err: getattr(err, "__name__", self.to_string(err)), (stream._kind, *stream._others)))
         self.methods_reprs.append(
-            f"catch({self.to_string(stream._kind)}, when={self.to_string(stream._when)}{replacement}, finally_raise={self.to_string(stream._finally_raise)})"
+            f"catch({kinds}, when={self.to_string(stream._when)}{replacement}, finally_raise={self.to_string(stream._finally_raise)})"
         )
         return stream.upstream.accept(self)
 
@@ -142,8 +142,5 @@ class StrVisitor(ToStringVisitor):
         if isinstance(o, _Star):
             return f"star({StrVisitor.to_string(o.func)})"
         if repr(o).startswith("<"):
-            try:
-                return getattr(o, "__name__")
-            except AttributeError:
-                return f"{o.__class__.__name__}(...)"
+            return getattr(o, "__name__", f"{o.__class__.__name__}(...)")
         return repr(o)

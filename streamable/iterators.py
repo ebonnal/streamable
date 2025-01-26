@@ -62,15 +62,15 @@ class CatchIterator(Iterator[T]):
     def __init__(
         self,
         iterator: Iterator[T],
-        kind: Type[Exception],
-        when: Callable[[Exception], Any],
+        kinds: Tuple[Type[Exception], ...],
+        when: Optional[Callable[[Exception], Any]],
         replacement: T,
         finally_raise: bool,
     ) -> None:
         validate_iterator(iterator)
         self.iterator = iterator
-        self.kind = kind
-        self.when = wrap_error(when, StopIteration)
+        self.kinds = kinds
+        self.when = wrap_error(when, StopIteration) if when else None
         self.replacement = replacement
         self.finally_raise = finally_raise
         self._to_be_finally_raised: Optional[Exception] = None
@@ -85,8 +85,8 @@ class CatchIterator(Iterator[T]):
                     self._to_be_finally_raised = None
                     raise exception
                 raise
-            except Exception as exception:
-                if isinstance(exception, self.kind) and self.when(exception):
+            except self.kinds as exception:
+                if not self.when or self.when(exception):
                     if self._to_be_finally_raised is None:
                         self._to_be_finally_raised = exception
                     if self.replacement is not NO_REPLACEMENT:
