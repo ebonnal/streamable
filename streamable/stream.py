@@ -115,23 +115,32 @@ class Stream(Iterable[T]):
     def catch(
         self,
         kind: Type[Exception] = Exception,
-        when: Callable[[Exception], Any] = bool,
+        *others: Type[Exception],
+        when: Optional[Callable[[Exception], Any]] = None,
         replacement: T = NO_REPLACEMENT,  # type: ignore
         finally_raise: bool = False,
     ) -> "Stream[T]":
         """
-        Catches the upstream exceptions if they are instances of `kind` and they satisfy the `when` predicate.
+        Catches the upstream exceptions if they are instances of `kind` (or `others`) and they satisfy the `when` predicate.
 
         Args:
-            kind (Type[Exception], optional): The type of exceptions to catch. (default: catches base Exception)
-            when (Callable[[Exception], Any], optional): An additional condition that must be satisfied to catch the exception, i.e. `when(exception)` must be truthy. (default: no additional condition)
+            kind (Type[Exception], optional): The type of exceptions to catch. (default: catches `Exception`)
+            *others (Type[Exception], optional): Additional types of exceptions to catch.
+            when (Optional[Callable[[Exception], Any]], optional): An additional condition that must be satisfied to catch the exception, i.e. `when(exception)` must be truthy. (default: no additional condition)
             replacement (T, optional): The value to yield when an exception is catched. (default: do not yield any replacement value)
             finally_raise (bool, optional): If True the first catched exception is raised when upstream's iteration ends. (default: iteration ends without raising)
 
         Returns:
             Stream[T]: A stream of upstream elements catching the eligible exceptions.
         """
-        return CatchStream(self, kind, when, replacement, finally_raise)
+        return CatchStream(
+            self,
+            kind,
+            *others,
+            when=when,
+            replacement=replacement,
+            finally_raise=finally_raise,
+        )
 
     def count(self) -> int:
         """
@@ -540,12 +549,14 @@ class CatchStream(DownStream[T, T]):
         self,
         upstream: Stream[T],
         kind: Type[Exception],
-        when: Callable[[Exception], Any],
+        *others: Type[Exception],
+        when: Optional[Callable[[Exception], Any]],
         replacement: T,
         finally_raise: bool,
     ) -> None:
         super().__init__(upstream)
         self._kind = kind
+        self._others = others
         self._when = when
         self._replacement = replacement
         self._finally_raise = finally_raise
