@@ -52,7 +52,7 @@ async def async_identity_sleep(seconds: float) -> float:
 
 
 # simulates an I/0 bound function
-slow_identity_duration = 0.01
+slow_identity_duration = 0.05
 
 
 def slow_identity(x: T) -> T:
