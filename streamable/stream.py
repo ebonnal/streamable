@@ -187,7 +187,10 @@ class Stream(Iterable[T]):
         return self
 
     def distinct(
-        self, key: Optional[Callable[[T], Any]] = None, consecutive_only: bool = False
+        self,
+        key: Optional[Callable[[T], Any]] = None,
+        *,
+        consecutive_only: bool = False,
     ) -> "Stream[T]":
         """
         Filters the stream to yield only distinct elements.
@@ -225,68 +228,75 @@ class Stream(Iterable[T]):
     @overload
     def flatten(
         self: "Stream[Iterable[U]]",
+        *,
         concurrency: int = 1,
     ) -> "Stream[U]": ...
 
     @overload
     def flatten(
         self: "Stream[Collection[U]]",
+        *,
         concurrency: int = 1,
     ) -> "Stream[U]": ...
 
     @overload
     def flatten(
         self: "Stream[Stream[U]]",
+        *,
         concurrency: int = 1,
     ) -> "Stream[U]": ...
 
     @overload
     def flatten(
         self: "Stream[Iterator[U]]",
+        *,
         concurrency: int = 1,
     ) -> "Stream[U]": ...
 
     @overload
     def flatten(
         self: "Stream[List[U]]",
+        *,
         concurrency: int = 1,
     ) -> "Stream[U]": ...
 
     @overload
     def flatten(
         self: "Stream[Sequence[U]]",
+        *,
         concurrency: int = 1,
     ) -> "Stream[U]": ...
 
     @overload
     def flatten(
         self: "Stream[builtins.map[U]]",
+        *,
         concurrency: int = 1,
     ) -> "Stream[U]": ...
 
     @overload
     def flatten(
         self: "Stream[builtins.filter[U]]",
+        *,
         concurrency: int = 1,
     ) -> "Stream[U]": ...
 
     @overload
     def flatten(
         self: "Stream[Set[U]]",
+        *,
         concurrency: int = 1,
     ) -> "Stream[U]": ...
 
     @overload
     def flatten(
         self: "Stream[range]",
+        *,
         concurrency: int = 1,
     ) -> "Stream[int]": ...
     # fmt: on
 
-    def flatten(
-        self: "Stream[Iterable[U]]",
-        concurrency: int = 1,
-    ) -> "Stream[U]":
+    def flatten(self: "Stream[Iterable[U]]", *, concurrency: int = 1) -> "Stream[U]":
         """
         Iterates over upstream elements assumed to be iterables, and individually yields their items.
 
@@ -301,6 +311,7 @@ class Stream(Iterable[T]):
     def foreach(
         self,
         effect: Callable[[T], Any],
+        *,
         concurrency: int = 1,
         ordered: bool = True,
         via: "Literal['thread', 'process']" = "thread",
@@ -324,6 +335,7 @@ class Stream(Iterable[T]):
     def aforeach(
         self,
         effect: Callable[[T], Coroutine],
+        *,
         concurrency: int = 1,
         ordered: bool = True,
     ) -> "Stream[T]":
@@ -344,6 +356,7 @@ class Stream(Iterable[T]):
     def group(
         self,
         size: Optional[int] = None,
+        *,
         interval: Optional[datetime.timedelta] = None,
         by: Optional[Callable[[T], Any]] = None,
     ) -> "Stream[List[T]]":
@@ -371,6 +384,7 @@ class Stream(Iterable[T]):
     def groupby(
         self,
         key: Callable[[T], U],
+        *,
         size: Optional[int] = None,
         interval: Optional[datetime.timedelta] = None,
     ) -> "Stream[Tuple[U, List[T]]]":
@@ -395,6 +409,7 @@ class Stream(Iterable[T]):
     def map(
         self,
         transformation: Callable[[T], U],
+        *,
         concurrency: int = 1,
         ordered: bool = True,
         via: "Literal['thread', 'process']" = "thread",
@@ -417,6 +432,7 @@ class Stream(Iterable[T]):
     def amap(
         self,
         transformation: Callable[[T], Coroutine[Any, Any, U]],
+        *,
         concurrency: int = 1,
         ordered: bool = True,
     ) -> "Stream[U]":
@@ -472,7 +488,7 @@ class Stream(Iterable[T]):
         return func(self, *args, **kwargs)
 
     def skip(
-        self, count: Optional[int] = None, until: Optional[Callable[[T], Any]] = None
+        self, count: Optional[int] = None, *, until: Optional[Callable[[T], Any]] = None
     ) -> "Stream[T]":
         """
         Skips elements until `until(elem)` is truthy, or `count` elements have been skipped.
@@ -490,6 +506,7 @@ class Stream(Iterable[T]):
 
     def throttle(
         self,
+        *,
         per_second: int = cast(int, float("inf")),
         per_minute: int = cast(int, float("inf")),
         per_hour: int = cast(int, float("inf")),
@@ -520,7 +537,7 @@ class Stream(Iterable[T]):
         return ThrottleStream(self, per_second, per_minute, per_hour, interval)
 
     def truncate(
-        self, count: Optional[int] = None, when: Optional[Callable[[T], Any]] = None
+        self, count: Optional[int] = None, *, when: Optional[Callable[[T], Any]] = None
     ) -> "Stream[T]":
         """
         Stops an iteration as soon as `when(elem)` is truthy, or `count` elements have been yielded.
