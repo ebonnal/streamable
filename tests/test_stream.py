@@ -177,7 +177,7 @@ class TestStream(unittest.TestCase):
             .aforeach(async_identity)
             .catch()
             .observe()
-            .throttle(1)
+            .throttle(per_second=1)
             .source,
             src,
             msg="`source` must be propagated by operations",
@@ -219,7 +219,7 @@ class TestStream(unittest.TestCase):
             .map(star(lambda key, group: group))
             .observe("groups")
             .flatten(concurrency=4)
-            .throttle(64, interval=datetime.timedelta(seconds=1))
+            .throttle(per_second=64, interval=datetime.timedelta(seconds=1))
             .observe("foos")
             .catch(finally_raise=True)
             .catch(TypeError, ValueError, ZeroDivisionError)
@@ -569,13 +569,13 @@ class TestStream(unittest.TestCase):
             catched_exc,
             msg="At any concurrency, `map` and `foreach` and `amap` must raise",
         ):
-            list(method(Stream(src), throw_func(raised_exc), concurrency))  # type: ignore
+            list(method(Stream(src), throw_func(raised_exc), concurrency=concurrency))  # type: ignore
 
         self.assertListEqual(
             list(
-                method(Stream(src), throw_for_odd_func(raised_exc), concurrency).catch(
-                    *catched_exc
-                )
+                method(
+                    Stream(src), throw_for_odd_func(raised_exc), concurrency=concurrency  # type: ignore
+                ).catch(*catched_exc)
             ),
             list(even_src),
             msg="At any concurrency, `map` and `foreach` and `amap` must not stop after one exception occured.",
@@ -1504,7 +1504,7 @@ class TestStream(unittest.TestCase):
     def test_observe(self) -> None:
         value_error_rainsing_stream: Stream[List[int]] = (
             Stream("123--678")
-            .throttle(10)
+            .throttle(per_second=10)
             .observe("chars")
             .map(int)
             .observe("ints")
@@ -1646,7 +1646,7 @@ class TestStream(unittest.TestCase):
             .foreach(identity, concurrency=3)
             .aforeach(async_identity, concurrency=3)
             .group(3, by=bool)
-            .flatten(3)
+            .flatten(concurrency=3)
             .groupby(bool)
             .map(identity, via="process")
             .amap(async_identity)
@@ -1665,7 +1665,7 @@ class TestStream(unittest.TestCase):
             .foreach(identity, concurrency=3)
             .aforeach(async_identity, concurrency=3)
             .group(3, by=bool)
-            .flatten(3)
+            .flatten(concurrency=3)
             .groupby(bool)
             .map(identity, via="process")
             .amap(async_identity)
@@ -1683,7 +1683,7 @@ class TestStream(unittest.TestCase):
             .foreach(identity, concurrency=3)
             .aforeach(async_identity, concurrency=3)
             .group(3, by=bool)
-            .flatten(3)
+            .flatten(concurrency=3)
             .groupby(bool)
             .map(identity, via="process")
             .amap(async_identity)
@@ -1701,7 +1701,7 @@ class TestStream(unittest.TestCase):
             .foreach(identity, concurrency=3)
             .aforeach(async_identity, concurrency=3)
             .group(3, by=bool)
-            .flatten(3)
+            .flatten(concurrency=3)
             .groupby(bool)
             .map(identity, via="process")
             .amap(async_identity)
