@@ -56,7 +56,7 @@ def validate_optional_count(count: Optional[int]):
 
 def validate_optional_positive_count(count: Optional[int]):
     if count is not None:
-        validate_count(count)
+        validate_positive_count(count)
 
 
 def validate_throttle_per_period(per_period_arg_name: str, value: int) -> None:
