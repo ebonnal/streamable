@@ -222,7 +222,6 @@ class TestStream(unittest.TestCase):
             .throttle(
                 64,
                 per=datetime.timedelta(seconds=1),
-                interval=datetime.timedelta(seconds=1),
             )
             .observe("foos")
             .catch(finally_raise=True)
@@ -283,7 +282,7 @@ class TestStream(unittest.TestCase):
     .map(star(<lambda>), concurrency=1, ordered=True)
     .observe('groups')
     .flatten(concurrency=4)
-    .throttle(64, per=datetime.timedelta(seconds=1), per_minute=inf, per_hour=inf, interval=datetime.timedelta(seconds=1))
+    .throttle(64, per=datetime.timedelta(seconds=1))
     .observe('foos')
     .catch(Exception, when=None, finally_raise=True)
     .catch(TypeError, ValueError, ZeroDivisionError, when=None, finally_raise=False)
@@ -1172,7 +1171,6 @@ class TestStream(unittest.TestCase):
         ):
             list(Stream([1]).throttle(0, per=datetime.timedelta(seconds=1)))
 
-
         # test interval
         interval_seconds = 0.3
         super_slow_elem_pull_seconds = 2 * interval_seconds
@@ -1189,7 +1187,7 @@ class TestStream(unittest.TestCase):
             [
                 (
                     Stream(map(slow_first_elem, integers)).throttle(
-                        interval=datetime.timedelta(seconds=interval_seconds)
+                        1, per=datetime.timedelta(seconds=interval_seconds)
                     ),
                     list(integers),
                 ),
@@ -1240,7 +1238,9 @@ class TestStream(unittest.TestCase):
                 List[Tuple[Stream, List]],
                 [
                     (
-                        Stream(integers).throttle(per_second, per=datetime.timedelta(seconds=1)),
+                        Stream(integers).throttle(
+                            per_second, per=datetime.timedelta(seconds=1)
+                        ),
                         list(integers),
                     ),
                     (
