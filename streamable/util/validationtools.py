@@ -53,7 +53,6 @@ def validate_throttle_per_period(per_period_arg_name: str, value: int) -> None:
     if value < 1:
         raise ValueError(f"`{per_period_arg_name}` must be >= 1 but got {value}")
 
-
-def validate_throttle_interval(interval: datetime.timedelta) -> None:
-    if interval < datetime.timedelta(0):
-        raise ValueError(f"`interval` must be >= 0 but got {repr(interval)}")
+def validate_throttle_per(per: datetime.timedelta) -> None:
+    if per is not None and per < datetime.timedelta(0):
+        raise ValueError(f"`per` must be >= 0 but got {repr(per)}")

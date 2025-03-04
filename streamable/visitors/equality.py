@@ -135,10 +135,8 @@ class EqualityVisitor(Visitor[bool]):
         return (
             isinstance(self.other, ThrottleStream)
             and stream.upstream.accept(EqualityVisitor(self.other.upstream))
-            and stream._per_second == self.other._per_second
-            and stream._per_minute == self.other._per_minute
-            and stream._per_hour == self.other._per_hour
-            and stream._interval == self.other._interval
+            and stream._count == self.other._count
+            and stream._per == self.other._per
         )
 
     def visit_truncate_stream(self, stream: TruncateStream[T]) -> bool:

@@ -131,10 +131,8 @@ class IteratorVisitor(Visitor[Iterator[T]]):
     def visit_throttle_stream(self, stream: ThrottleStream[T]) -> Iterator[T]:
         return functions.throttle(
             stream.upstream.accept(self),
-            stream._per_second,
-            stream._per_minute,
-            stream._per_hour,
-            stream._interval,
+            stream._count,
+            stream._per,
         )
 
     def visit_truncate_stream(self, stream: TruncateStream[T]) -> Iterator[T]:
