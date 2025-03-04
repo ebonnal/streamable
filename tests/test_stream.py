@@ -175,7 +175,7 @@ class TestStream(unittest.TestCase):
             .filter()
             .foreach(identity)
             .aforeach(async_identity)
-            .catch()
+            .catch(Exception)
             .observe()
             .throttle(per_second=1)
             .source,
@@ -221,7 +221,7 @@ class TestStream(unittest.TestCase):
             .flatten(concurrency=4)
             .throttle(per_second=64, interval=datetime.timedelta(seconds=1))
             .observe("foos")
-            .catch(finally_raise=True)
+            .catch(Exception, finally_raise=True)
             .catch(TypeError, ValueError, ZeroDivisionError)
             .catch(TypeError, replacement=None, finally_raise=True)
         )
@@ -1328,7 +1328,7 @@ class TestStream(unittest.TestCase):
 
     def test_catch(self) -> None:
         self.assertListEqual(
-            list(Stream(src).catch(finally_raise=True)),
+            list(Stream(src).catch(Exception, finally_raise=True)),
             list(src),
             msg="`catch` should yield elements in exception-less scenarios",
         )
@@ -1339,7 +1339,7 @@ class TestStream(unittest.TestCase):
         ):
             from streamable.functions import catch
 
-            catch(cast(Iterator[int], [3, 4]))
+            catch(cast(Iterator[int], [3, 4]), Exception)
 
         def f(i):
             return i / (3 - i)
@@ -1353,7 +1353,7 @@ class TestStream(unittest.TestCase):
             msg="If the exception type matches the `kind`, then the impacted element should be ignored.",
         )
         self.assertListEqual(
-            list(stream.catch()),
+            list(stream.catch(Exception)),
             list(map(f, safe_src)),
             msg="If the predicate is not specified, then all exceptions should be catched.",
         )
@@ -1379,7 +1379,7 @@ class TestStream(unittest.TestCase):
 
         erroring_stream: Stream[int] = Stream(lambda: map(lambda f: f(), functions))
         for catched_erroring_stream in [
-            erroring_stream.catch(finally_raise=True),
+            erroring_stream.catch(Exception, finally_raise=True),
             erroring_stream.catch(Exception, finally_raise=True),
         ]:
             erroring_stream_iterator = iter(catched_erroring_stream)

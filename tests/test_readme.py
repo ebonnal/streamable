@@ -318,7 +318,7 @@ class TestReadme(unittest.TestCase):
                     .flatten()
                     .observe("written pokemons")
                     # Catches exceptions and raises the 1st one at the end of the iteration
-                    .catch(finally_raise=True)
+                    .catch(Exception, finally_raise=True)
                 )
 
                 pipeline()
