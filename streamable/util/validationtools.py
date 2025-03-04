@@ -43,8 +43,16 @@ def validate_count(count: int):
     if count < 0:
         raise ValueError(f"`count` must be >= 0 but got {count}")
 
+def validate_positive_count(count: int):
+    if count < 1:
+        raise ValueError(f"`count` must be >= 1 but got {count}")
+
 
 def validate_optional_count(count: Optional[int]):
+    if count is not None:
+        validate_count(count)
+
+def validate_optional_positive_count(count: Optional[int]):
     if count is not None:
         validate_count(count)
 
@@ -52,6 +60,7 @@ def validate_optional_count(count: Optional[int]):
 def validate_throttle_per_period(per_period_arg_name: str, value: int) -> None:
     if value < 1:
         raise ValueError(f"`{per_period_arg_name}` must be >= 1 but got {value}")
+
 
 def validate_throttle_per(per: datetime.timedelta) -> None:
     if per is not None and per < datetime.timedelta(0):

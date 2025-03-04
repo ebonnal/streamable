@@ -220,7 +220,7 @@ from datetime import timedelta
 
 integers_within_1_sec: Stream[List[int]] = (
     integers
-    .throttle(per_second=2)
+    .throttle(2, per=datetime.timedelta(seconds=1))
     .group(interval=timedelta(seconds=0.99))
 )
 
@@ -426,7 +426,7 @@ assert len(errors) == len("foo")
 > Limits the number of yields `per_second`/`per_minute`/`per_hour`:
 
 ```python
-integers_5_per_sec: Stream[int] = integers.throttle(per_second=3)
+integers_5_per_sec: Stream[int] = integers.throttle(3, per=datetime.timedelta(seconds=1))
 
 # takes 3s: ceil(10 integers / 3 per_second) - 1
 assert list(integers_5_per_sec) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
@@ -439,7 +439,7 @@ from datetime import timedelta
 
 integers_every_100_millis = (
     integers
-    .throttle(interval=timedelta(milliseconds=100))
+    .throttle(1, per=timedelta(milliseconds=100))
 )
 
 # takes 900 millis: (10 integers - 1) * 100 millis
@@ -451,7 +451,7 @@ assert list(integers_every_100_millis) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 > Logs the progress of iterations:
 ```python
->>> assert list(integers.throttle(per_second=2).observe("integers")) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+>>> assert list(integers.throttle(2, per=datetime.timedelta(seconds=1)).observe("integers")) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 ```
 INFO: [duration=0:00:00.001793 errors=0] 1 integers yielded
@@ -562,7 +562,7 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
         # Infinite Stream[int] of Pokemon ids starting from Pokémon #1: Bulbasaur
         Stream(itertools.count(1))
         # Limits to 16 requests per second to be friendly to our fellow PokéAPI devs
-        .throttle(per_second=16)
+        .throttle(16, per=datetime.timedelta(seconds=1))
         # GETs pokemons concurrently using a pool of 8 threads
         .map(lambda poke_id: f"https://pokeapi.co/api/v2/pokemon-species/{poke_id}")
         .map(requests.get, concurrency=8)
