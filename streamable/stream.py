@@ -746,7 +746,7 @@ class ThrottleStream(DownStream[T, T]):
         self,
         upstream: Stream[T],
         count: Optional[int],
-        per: datetime.timedelta,
+        per: Optional[datetime.timedelta],
     ) -> None:
         super().__init__(upstream)
         self._count = count
