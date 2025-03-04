@@ -28,7 +28,6 @@ from streamable.iterators import (
     FlattenIterator,
     GroupbyIterator,
     GroupIterator,
-    IntervalThrottleIterator,
     ObserveIterator,
     OSConcurrentMapIterator,
     PredicateSkipIterator,
@@ -183,27 +182,13 @@ def skip(
 
 def throttle(
     iterator: Iterator[T],
-    per_second: int = cast(int, float("inf")),
-    per_minute: int = cast(int, float("inf")),
-    per_hour: int = cast(int, float("inf")),
-    interval: datetime.timedelta = datetime.timedelta(0),
+    count: Optional[int],
+    per: Optional[datetime.timedelta] = None,
 ) -> Iterator[T]:
-    validate_iterator(iterator)
-    validate_throttle_per_period("per_second", per_second)
-    validate_throttle_per_period("per_minute", per_minute)
-    validate_throttle_per_period("per_hour", per_hour)
-    validate_throttle_interval(interval)
-
-    for per_period, period in (
-        (per_second, datetime.timedelta(seconds=1)),
-        (per_minute, datetime.timedelta(minutes=1)),
-        (per_hour, datetime.timedelta(hours=1)),
-    ):
-        if per_period < float("inf"):
-            iterator = YieldsPerPeriodThrottleIterator(iterator, per_period, period)
-
-    if interval > datetime.timedelta(0):
-        iterator = IntervalThrottleIterator(iterator, interval)
+    validate_optional_count(count)
+    validate_throttle_interval(per)
+    if count and per:
+        iterator = YieldsPerPeriodThrottleIterator(iterator, count, per)
     return iterator
 
 

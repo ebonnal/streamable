@@ -29,8 +29,7 @@ from streamable.util.validationtools import (
     validate_group_interval,
     validate_group_size,
     validate_optional_count,
-    validate_throttle_interval,
-    validate_throttle_per_period,
+    validate_throttle_per,
     validate_via,
 )
 
@@ -506,35 +505,23 @@ class Stream(Iterable[T]):
 
     def throttle(
         self,
+        count: Optional[int] = None,
         *,
-        per_second: int = cast(int, float("inf")),
-        per_minute: int = cast(int, float("inf")),
-        per_hour: int = cast(int, float("inf")),
-        interval: datetime.timedelta = datetime.timedelta(0),
+        per: Optional[datetime.timedelta] = None
     ) -> "Stream[T]":
         """
-        Slows iteration to respect:
-        - a maximum number of yields `per_second`
-        - a maximum number of yields `per_minute`
-        - a maximum number of yields `per_hour`
-        - a minimum `interval` between successive yields
-
-        The upstream exceptions are slowed too.
+        Slows iteration down to `count` elements (or exceptions) `per` time interval.
 
         Args:
-            per_second (float, optional): Maximum number of yields per second. (default: no limit per second)
-            per_minute (float, optional): Maximum number of yields per minute. (default: no limit per minute)
-            per_hour (float, optional): Maximum number of yields per hour. (default: no limit per hour)
-            interval (datetime.timedelta, optional): Minimum interval between yields. (default: no interval constraint)
+            count (int, optional): Maximum number of elements (or exceptions) that must be yielded within the given time interval. (default: no throttling)
+            per (datetime.timedelta, optional): The time interval during which maximum `count` elements (or exceptions) must be yielded. (default: no throttling)
 
         Returns:
-            Stream[T]: A stream yielding upstream elements according to the specified rate constraints.
+            Stream[T]: A stream yielding maximum `count` upstream elements (or exceptions) `per` time interval.
         """
-        validate_throttle_per_period("per_second", per_second)
-        validate_throttle_per_period("per_minute", per_minute)
-        validate_throttle_per_period("per_hour", per_hour)
-        validate_throttle_interval(interval)
-        return ThrottleStream(self, per_second, per_minute, per_hour, interval)
+        validate_optional_count(count)
+        validate_throttle_per(per)
+        return ThrottleStream(self, count, per)
 
     def truncate(
         self, count: Optional[int] = None, *, when: Optional[Callable[[T], Any]] = None
@@ -760,16 +747,12 @@ class ThrottleStream(DownStream[T, T]):
     def __init__(
         self,
         upstream: Stream[T],
-        per_second: int,
-        per_minute: int,
-        per_hour: int,
-        interval: datetime.timedelta,
+        count: Optional[int],
+        per: datetime.timedelta,
     ) -> None:
         super().__init__(upstream)
-        self._per_second = per_second
-        self._per_minute = per_minute
-        self._per_hour = per_hour
-        self._interval = interval
+        self._count = count
+        self._per = per
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_throttle_stream(self)
