@@ -29,6 +29,7 @@ from streamable.util.validationtools import (
     validate_group_interval,
     validate_group_size,
     validate_optional_count,
+    validate_optional_positive_count,
     validate_throttle_per,
     validate_via,
 )
@@ -504,10 +505,7 @@ class Stream(Iterable[T]):
         return SkipStream(self, count, until)
 
     def throttle(
-        self,
-        count: Optional[int] = None,
-        *,
-        per: Optional[datetime.timedelta] = None
+        self, count: Optional[int] = None, *, per: Optional[datetime.timedelta] = None
     ) -> "Stream[T]":
         """
         Slows iteration down to `count` elements (or exceptions) `per` time interval.
@@ -519,7 +517,7 @@ class Stream(Iterable[T]):
         Returns:
             Stream[T]: A stream yielding maximum `count` upstream elements (or exceptions) `per` time interval.
         """
-        validate_optional_count(count)
+        validate_optional_positive_count(count)
         validate_throttle_per(per)
         return ThrottleStream(self, count, per)
 

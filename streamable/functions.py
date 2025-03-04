@@ -13,7 +13,6 @@ from typing import (
     Tuple,
     Type,
     TypeVar,
-    cast,
 )
 
 from streamable.iterators import (
@@ -42,8 +41,8 @@ from streamable.util.validationtools import (
     validate_group_size,
     validate_iterator,
     validate_optional_count,
-    validate_throttle_interval,
-    validate_throttle_per_period,
+    validate_optional_positive_count,
+    validate_throttle_per,
 )
 
 with suppress(ImportError):
@@ -185,8 +184,8 @@ def throttle(
     count: Optional[int],
     per: Optional[datetime.timedelta] = None,
 ) -> Iterator[T]:
-    validate_optional_count(count)
-    validate_throttle_interval(per)
+    validate_optional_positive_count(count)
+    validate_throttle_per(per)
     if count and per:
         iterator = YieldsPerPeriodThrottleIterator(iterator, count, per)
     return iterator

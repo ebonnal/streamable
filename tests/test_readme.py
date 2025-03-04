@@ -1,3 +1,4 @@
+from datetime import timedelta
 import time
 import unittest
 from typing import List, Tuple
@@ -12,7 +13,10 @@ inverses: Stream[float] = integers.map(lambda n: round(1 / n, 2)).catch(
 
 integers_by_parity: Stream[List[int]] = integers.group(by=lambda n: n % 2)
 
-integers_5_per_sec: Stream[int] = integers.throttle(per_second=5)
+integers_5_per_sec: Stream[int] = integers.throttle(
+    5,
+    per=timedelta(seconds=1)
+)
 
 # fmt: off
 class TestReadme(unittest.TestCase):
@@ -103,7 +107,7 @@ class TestReadme(unittest.TestCase):
 
     def test_throttle_example(self) -> None:
 
-        integers_5_per_sec: Stream[int] = integers.throttle(per_second=3)
+        integers_5_per_sec: Stream[int] = integers.throttle(3, per=timedelta(seconds=1))
 
         start = time.perf_counter()
         # takes 3s: ceil(10 integers / 3 per_second) - 1
@@ -114,7 +118,7 @@ class TestReadme(unittest.TestCase):
 
         integers_every_100_millis = (
             integers
-            .throttle(interval=timedelta(milliseconds=100))
+            .throttle(1, per=timedelta(milliseconds=100))
         )
 
         start = time.perf_counter()
@@ -136,7 +140,7 @@ class TestReadme(unittest.TestCase):
 
         integers_within_1_sec: Stream[List[int]] = (
             integers
-            .throttle(per_second=2)
+            .throttle(2, per=timedelta(seconds=1))
             .group(interval=timedelta(seconds=0.99))
         )
 
@@ -252,7 +256,7 @@ class TestReadme(unittest.TestCase):
         assert list(consecutively_distinct_chars) == ["f", "o", "b", "a", "r", "f", "o"]
 
     def test_observe_example(self) -> None:
-        assert list(integers.throttle(per_second=2).observe("integers")) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        assert list(integers.throttle(2, per=timedelta(seconds=1)).observe("integers")) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
     def test_plus_example(self) -> None:
         assert list(integers + integers) == [0, 1, 2, 3 ,4, 5, 6, 7, 8, 9, 0, 1, 2, 3 ,4, 5, 6, 7, 8, 9]
@@ -295,7 +299,7 @@ class TestReadme(unittest.TestCase):
                     # Infinite Stream[int] of Pokemon ids starting from Pokémon #1: Bulbasaur
                     Stream(itertools.count(1))
                     # Limits to 16 requests per second to be friendly to our fellow PokéAPI devs
-                    .throttle(per_second=16)
+                    .throttle(16, per=timedelta(seconds=1))
                     # GETs pokemons concurrently using a pool of 8 threads
                     .map(lambda poke_id: f"https://pokeapi.co/api/v2/pokemon-species/{poke_id}")
                     .map(requests.get, concurrency=8)

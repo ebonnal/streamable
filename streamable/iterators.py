@@ -39,7 +39,6 @@ from streamable.util.validationtools import (
     validate_group_interval,
     validate_group_size,
     validate_iterator,
-    validate_throttle_per,
 )
 
 T = TypeVar("T")
