@@ -426,10 +426,10 @@ assert len(errors) == len("foo")
 > Limits the maximum number of yields (`count`) per time interval (`per`):
 
 ```python
-integers_5_per_sec: Stream[int] = integers.throttle(3, per=timedelta(seconds=1))
+three_integers_per_second: Stream[int] = integers.throttle(3, per=timedelta(seconds=1))
 
 # takes 3s: ceil(10 integers / 3 per_second) - 1
-assert list(integers_5_per_sec) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+assert list(three_integers_per_second) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 
 

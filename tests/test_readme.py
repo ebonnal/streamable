@@ -13,7 +13,7 @@ inverses: Stream[float] = integers.map(lambda n: round(1 / n, 2)).catch(
 
 integers_by_parity: Stream[List[int]] = integers.group(by=lambda n: n % 2)
 
-integers_5_per_sec: Stream[int] = integers.throttle(5, per=timedelta(seconds=1))
+three_integers_per_second: Stream[int] = integers.throttle(5, per=timedelta(seconds=1))
 
 # fmt: off
 class TestReadme(unittest.TestCase):
@@ -105,11 +105,11 @@ class TestReadme(unittest.TestCase):
     def test_throttle_example(self) -> None:
         from datetime import timedelta
 
-        integers_5_per_sec: Stream[int] = integers.throttle(3, per=timedelta(seconds=1))
+        three_integers_per_second: Stream[int] = integers.throttle(3, per=timedelta(seconds=1))
 
         start = time.perf_counter()
         # takes 3s: ceil(10 integers / 3 per_second) - 1
-        assert list(integers_5_per_sec) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        assert list(three_integers_per_second) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
         assert 2.99 < time.perf_counter() - start < 3.25
 
         integers_every_100_millis = (
