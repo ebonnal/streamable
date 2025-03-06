@@ -116,7 +116,7 @@ class ToStringVisitor(Visitor[str], ABC):
 
     def visit_throttle_stream(self, stream: ThrottleStream[T]) -> str:
         self.methods_reprs.append(
-            f"throttle(per_second={self.to_string(stream._per_second)}, per_minute={self.to_string(stream._per_minute)}, per_hour={self.to_string(stream._per_hour)}, interval={self.to_string(stream._interval)})"
+            f"throttle({self.to_string(stream._count)}, per={self.to_string(stream._per)})"
         )
         return stream.upstream.accept(self)
 
