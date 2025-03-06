@@ -423,7 +423,7 @@ assert len(errors) == len("foo")
 
 ## `.throttle`
 
-> Limits the maximum number of yields (`count`) per time interval (`per`):
+> Limits the number of yields `per` time interval:
 
 ```python
 from datetime import timedelta
