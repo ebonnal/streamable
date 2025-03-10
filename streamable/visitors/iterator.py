@@ -29,7 +29,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
     def visit_catch_stream(self, stream: CatchStream[T]) -> Iterator[T]:
         return functions.catch(
             stream.upstream.accept(self),
-            stream._kind,
+            stream._error_type,
             *stream._others,
             when=stream._when,
             replacement=stream._replacement,
