@@ -1,5 +1,5 @@
 import datetime
-from typing import Iterator, Optional, TypeVar
+from typing import Iterable, Iterator, Optional, TypeVar
 
 T = TypeVar("T")
 
@@ -7,6 +7,11 @@ T = TypeVar("T")
 def validate_iterator(iterator: Iterator):
     if not isinstance(iterator, Iterator):
         raise TypeError(f"`iterator` must be an Iterator but got a {type(iterator)}")
+
+
+def validate_iterable(iterable: Iterable):
+    if not isinstance(iterable, Iterable):
+        raise TypeError(f"`iterable` must be an Iterator but got a {type(iterable)}")
 
 
 def validate_base(base: int):
