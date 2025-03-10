@@ -39,7 +39,6 @@ from streamable.util.validationtools import (
     validate_group_interval,
     validate_group_size,
     validate_iterator,
-    validate_throttle_interval,
 )
 
 T = TypeVar("T")
@@ -62,14 +61,14 @@ class CatchIterator(Iterator[T]):
     def __init__(
         self,
         iterator: Iterator[T],
-        kinds: Tuple[Type[Exception], ...],
+        error_types: Iterable[Optional[Type[Exception]]],
         when: Optional[Callable[[Exception], Any]],
         replacement: T,
         finally_raise: bool,
     ) -> None:
         validate_iterator(iterator)
         self.iterator = iterator
-        self.kinds = kinds
+        self.error_types: Tuple[Type[Exception], ...] = tuple(filter(None, error_types))
         self.when = wrap_error(when, StopIteration) if when else None
         self.replacement = replacement
         self.finally_raise = finally_raise
@@ -85,7 +84,7 @@ class CatchIterator(Iterator[T]):
                     self._to_be_finally_raised = None
                     raise exception
                 raise
-            except self.kinds as exception:
+            except self.error_types as exception:
                 if not self.when or self.when(exception):
                     if self._to_be_finally_raised is None:
                         self._to_be_finally_raised = exception
@@ -417,10 +416,22 @@ class ObserveIterator(Iterator[T]):
                 self._log()
 
 
-class _ThrottleIteratorMixin(Generic[T]):
-    def __init__(self, iterator: Iterator[T]) -> None:
+class YieldsPerPeriodThrottleIterator(Iterator[T]):
+    def __init__(
+        self,
+        iterator: Iterator[T],
+        max_yields: int,
+        period: datetime.timedelta,
+    ) -> None:
         validate_iterator(iterator)
         self.iterator = iterator
+        self.max_yields = max_yields
+        self._period_seconds = period.total_seconds()
+
+        self._period_index: int = -1
+        self._yields_in_period = 0
+
+        self._offset: Optional[float] = None
 
     def safe_next(self) -> Tuple[Optional[T], Optional[Exception]]:
         try:
@@ -429,44 +440,6 @@ class _ThrottleIteratorMixin(Generic[T]):
             raise
         except Exception as e:
             return None, e
-
-
-class IntervalThrottleIterator(_ThrottleIteratorMixin[T], Iterator[T]):
-    def __init__(self, iterator: Iterator[T], interval: datetime.timedelta) -> None:
-        super().__init__(iterator)
-        validate_throttle_interval(interval)
-        self.iterator = iterator
-        self._interval_seconds = interval.total_seconds()
-        self._last_yield_at: float = 0
-
-    def __next__(self) -> T:
-        elem, catched_error = self.safe_next()
-        if self._last_yield_at:
-            elapsed_time = time.perf_counter() - self._last_yield_at
-            if elapsed_time < self._interval_seconds:
-                time.sleep(self._interval_seconds - elapsed_time)
-        self._last_yield_at = time.perf_counter()
-
-        if catched_error:
-            raise catched_error
-        return cast(T, elem)
-
-
-class YieldsPerPeriodThrottleIterator(_ThrottleIteratorMixin[T], Iterator[T]):
-    def __init__(
-        self,
-        iterator: Iterator[T],
-        max_yields: int,
-        period: datetime.timedelta,
-    ) -> None:
-        super().__init__(iterator)
-        self.max_yields = max_yields
-        self._period_seconds = period.total_seconds()
-
-        self._period_index: int = -1
-        self._yields_in_period = 0
-
-        self._offset: Optional[float] = None
 
     def __next__(self) -> T:
         elem, catched_error = self.safe_next()

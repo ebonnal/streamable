@@ -175,9 +175,9 @@ class TestStream(unittest.TestCase):
             .filter()
             .foreach(identity)
             .aforeach(async_identity)
-            .catch()
+            .catch(Exception)
             .observe()
-            .throttle(1)
+            .throttle(1, per=datetime.timedelta(seconds=1))
             .source,
             src,
             msg="`source` must be propagated by operations",
@@ -219,9 +219,12 @@ class TestStream(unittest.TestCase):
             .map(star(lambda key, group: group))
             .observe("groups")
             .flatten(concurrency=4)
-            .throttle(64, interval=datetime.timedelta(seconds=1))
+            .throttle(
+                64,
+                per=datetime.timedelta(seconds=1),
+            )
             .observe("foos")
-            .catch(finally_raise=True)
+            .catch(Exception, finally_raise=True)
             .catch(TypeError, ValueError, ZeroDivisionError)
             .catch(TypeError, replacement=None, finally_raise=True)
         )
@@ -279,7 +282,7 @@ class TestStream(unittest.TestCase):
     .map(star(<lambda>), concurrency=1, ordered=True)
     .observe('groups')
     .flatten(concurrency=4)
-    .throttle(per_second=64, per_minute=inf, per_hour=inf, interval=datetime.timedelta(seconds=1))
+    .throttle(64, per=datetime.timedelta(seconds=1))
     .observe('foos')
     .catch(Exception, when=None, finally_raise=True)
     .catch(TypeError, ValueError, ZeroDivisionError, when=None, finally_raise=False)
@@ -569,13 +572,13 @@ class TestStream(unittest.TestCase):
             catched_exc,
             msg="At any concurrency, `map` and `foreach` and `amap` must raise",
         ):
-            list(method(Stream(src), throw_func(raised_exc), concurrency))  # type: ignore
+            list(method(Stream(src), throw_func(raised_exc), concurrency=concurrency))  # type: ignore
 
         self.assertListEqual(
             list(
-                method(Stream(src), throw_for_odd_func(raised_exc), concurrency).catch(
-                    *catched_exc
-                )
+                method(
+                    Stream(src), throw_for_odd_func(raised_exc), concurrency=concurrency  # type: ignore
+                ).catch(*catched_exc)
             ),
             list(even_src),
             msg="At any concurrency, `map` and `foreach` and `amap` must not stop after one exception occured.",
@@ -1157,28 +1160,16 @@ class TestStream(unittest.TestCase):
         # behavior with invalid arguments
         with self.assertRaisesRegex(
             ValueError,
-            r"`interval` must be >= 0 but got datetime\.timedelta\(days=-1, seconds=86399, microseconds=999999\)",
-            msg="`throttle` should raise error when called with `interval` is negative.",
+            r"`per` must be >= 0 but got datetime\.timedelta\(days=-1, seconds=86399, microseconds=999999\)",
+            msg="`throttle` should raise error when called with negative `per`.",
         ):
-            list(Stream([1]).throttle(interval=datetime.timedelta(microseconds=-1)))
+            list(Stream([1]).throttle(1, per=datetime.timedelta(microseconds=-1)))
         with self.assertRaisesRegex(
             ValueError,
-            "`per_second` must be >= 1 but got 0",
-            msg="`throttle` should raise error when called with `per_second` < 1.",
+            "`count` must be >= 1 but got 0",
+            msg="`throttle` should raise error when called with `count` < 1.",
         ):
-            list(Stream([1]).throttle(per_second=0))
-        with self.assertRaisesRegex(
-            ValueError,
-            "`per_minute` must be >= 1 but got 0",
-            msg="`throttle` should raise error when called with `per_minute` < 1.",
-        ):
-            list(Stream([1]).throttle(per_minute=0))
-        with self.assertRaisesRegex(
-            ValueError,
-            "`per_hour` must be >= 1 but got 0",
-            msg="`throttle` should raise error when called with `per_hour` < 1.",
-        ):
-            list(Stream([1]).throttle(per_hour=0))
+            list(Stream([1]).throttle(0, per=datetime.timedelta(seconds=1)))
 
         # test interval
         interval_seconds = 0.3
@@ -1196,13 +1187,13 @@ class TestStream(unittest.TestCase):
             [
                 (
                     Stream(map(slow_first_elem, integers)).throttle(
-                        interval=datetime.timedelta(seconds=interval_seconds)
+                        1, per=datetime.timedelta(seconds=interval_seconds)
                     ),
                     list(integers),
                 ),
                 (
                     Stream(map(throw_func(TestError), map(slow_first_elem, integers)))
-                    .throttle(interval=datetime.timedelta(seconds=interval_seconds))
+                    .throttle(1, per=datetime.timedelta(seconds=interval_seconds))
                     .catch(TestError),
                     [],
                 ),
@@ -1230,8 +1221,8 @@ class TestStream(unittest.TestCase):
             next(
                 iter(
                     Stream(src)
-                    .throttle(interval=datetime.timedelta(seconds=0.2))
-                    .throttle(interval=datetime.timedelta(seconds=0.1))
+                    .throttle(1, per=datetime.timedelta(seconds=0.2))
+                    .throttle(1, per=datetime.timedelta(seconds=0.1))
                 )
             ),
             0,
@@ -1247,12 +1238,14 @@ class TestStream(unittest.TestCase):
                 List[Tuple[Stream, List]],
                 [
                     (
-                        Stream(integers).throttle(per_second=per_second),
+                        Stream(integers).throttle(
+                            per_second, per=datetime.timedelta(seconds=1)
+                        ),
                         list(integers),
                     ),
                     (
                         Stream(map(throw_func(TestError), integers))
-                        .throttle(per_second=per_second)
+                        .throttle(per_second, per=datetime.timedelta(seconds=1))
                         .catch(TestError),
                         [],
                     ),
@@ -1273,16 +1266,16 @@ class TestStream(unittest.TestCase):
                         msg="`throttle` must slow according to `per_second`",
                     )
 
-        # test both
+        # test chain
 
         expected_duration = 2
         for stream in [
-            Stream(range(11)).throttle(
-                per_second=5, interval=datetime.timedelta(seconds=0.01)
-            ),
-            Stream(range(10)).throttle(
-                per_second=20, interval=datetime.timedelta(seconds=0.2)
-            ),
+            Stream(range(11))
+            .throttle(5, per=datetime.timedelta(seconds=1))
+            .throttle(1, per=datetime.timedelta(seconds=0.01)),
+            Stream(range(11))
+            .throttle(20, per=datetime.timedelta(seconds=1))
+            .throttle(1, per=datetime.timedelta(seconds=0.2)),
         ]:
             with self.subTest(stream=stream):
                 duration, _ = timestream(stream)
@@ -1328,7 +1321,7 @@ class TestStream(unittest.TestCase):
 
     def test_catch(self) -> None:
         self.assertListEqual(
-            list(Stream(src).catch(finally_raise=True)),
+            list(Stream(src).catch(Exception, finally_raise=True)),
             list(src),
             msg="`catch` should yield elements in exception-less scenarios",
         )
@@ -1339,7 +1332,7 @@ class TestStream(unittest.TestCase):
         ):
             from streamable.functions import catch
 
-            catch(cast(Iterator[int], [3, 4]))
+            catch(cast(Iterator[int], [3, 4]), Exception)
 
         def f(i):
             return i / (3 - i)
@@ -1350,10 +1343,10 @@ class TestStream(unittest.TestCase):
         self.assertListEqual(
             list(stream.catch(ZeroDivisionError)),
             list(map(f, safe_src)),
-            msg="If the exception type matches the `kind`, then the impacted element should be ignored.",
+            msg="If the exception type matches the `error_type`, then the impacted element should be ignored.",
         )
         self.assertListEqual(
-            list(stream.catch()),
+            list(stream.catch(Exception)),
             list(map(f, safe_src)),
             msg="If the predicate is not specified, then all exceptions should be catched.",
         )
@@ -1379,7 +1372,7 @@ class TestStream(unittest.TestCase):
 
         erroring_stream: Stream[int] = Stream(lambda: map(lambda f: f(), functions))
         for catched_erroring_stream in [
-            erroring_stream.catch(finally_raise=True),
+            erroring_stream.catch(Exception, finally_raise=True),
             erroring_stream.catch(Exception, finally_raise=True),
         ]:
             erroring_stream_iterator = iter(catched_erroring_stream)
@@ -1504,7 +1497,7 @@ class TestStream(unittest.TestCase):
     def test_observe(self) -> None:
         value_error_rainsing_stream: Stream[List[int]] = (
             Stream("123--678")
-            .throttle(10)
+            .throttle(10, per=datetime.timedelta(seconds=1))
             .observe("chars")
             .map(int)
             .observe("ints")
@@ -1646,14 +1639,14 @@ class TestStream(unittest.TestCase):
             .foreach(identity, concurrency=3)
             .aforeach(async_identity, concurrency=3)
             .group(3, by=bool)
-            .flatten(3)
+            .flatten(concurrency=3)
             .groupby(bool)
             .map(identity, via="process")
             .amap(async_identity)
             .observe("foo")
             .skip(3)
             .truncate(4)
-            .throttle(interval=datetime.timedelta(seconds=1))
+            .throttle(1, per=datetime.timedelta(seconds=1))
         )
 
         self.assertEqual(
@@ -1665,14 +1658,14 @@ class TestStream(unittest.TestCase):
             .foreach(identity, concurrency=3)
             .aforeach(async_identity, concurrency=3)
             .group(3, by=bool)
-            .flatten(3)
+            .flatten(concurrency=3)
             .groupby(bool)
             .map(identity, via="process")
             .amap(async_identity)
             .observe("foo")
             .skip(3)
             .truncate(4)
-            .throttle(interval=datetime.timedelta(seconds=1)),
+            .throttle(1, per=datetime.timedelta(seconds=1)),
         )
         self.assertNotEqual(
             stream,
@@ -1683,14 +1676,14 @@ class TestStream(unittest.TestCase):
             .foreach(identity, concurrency=3)
             .aforeach(async_identity, concurrency=3)
             .group(3, by=bool)
-            .flatten(3)
+            .flatten(concurrency=3)
             .groupby(bool)
             .map(identity, via="process")
             .amap(async_identity)
             .observe("foo")
             .skip(3)
             .truncate(4)
-            .throttle(interval=datetime.timedelta(seconds=1)),
+            .throttle(1, per=datetime.timedelta(seconds=1)),
         )
         self.assertNotEqual(
             stream,
@@ -1701,12 +1694,12 @@ class TestStream(unittest.TestCase):
             .foreach(identity, concurrency=3)
             .aforeach(async_identity, concurrency=3)
             .group(3, by=bool)
-            .flatten(3)
+            .flatten(concurrency=3)
             .groupby(bool)
             .map(identity, via="process")
             .amap(async_identity)
             .observe("foo")
             .skip(3)
             .truncate(4)
-            .throttle(interval=datetime.timedelta(seconds=2)),  # not the same interval
+            .throttle(1, per=datetime.timedelta(seconds=2)),  # not the same interval
         )

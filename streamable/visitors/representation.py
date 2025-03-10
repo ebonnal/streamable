@@ -39,14 +39,14 @@ class ToStringVisitor(Visitor[str], ABC):
         if stream._replacement is not NO_REPLACEMENT:
             replacement = f", replacement={self.to_string(stream._replacement)}"
 
-        kinds = ", ".join(
+        error_types = ", ".join(
             map(
                 lambda err: getattr(err, "__name__", self.to_string(err)),
-                (stream._kind, *stream._others),
+                (stream._error_type, *stream._others),
             )
         )
         self.methods_reprs.append(
-            f"catch({kinds}, when={self.to_string(stream._when)}{replacement}, finally_raise={self.to_string(stream._finally_raise)})"
+            f"catch({error_types}, when={self.to_string(stream._when)}{replacement}, finally_raise={self.to_string(stream._finally_raise)})"
         )
         return stream.upstream.accept(self)
 
@@ -116,7 +116,7 @@ class ToStringVisitor(Visitor[str], ABC):
 
     def visit_throttle_stream(self, stream: ThrottleStream[T]) -> str:
         self.methods_reprs.append(
-            f"throttle(per_second={self.to_string(stream._per_second)}, per_minute={self.to_string(stream._per_minute)}, per_hour={self.to_string(stream._per_hour)}, interval={self.to_string(stream._interval)})"
+            f"throttle({self.to_string(stream._count)}, per={self.to_string(stream._per)})"
         )
         return stream.upstream.accept(self)
 

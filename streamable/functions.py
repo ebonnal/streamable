@@ -13,7 +13,6 @@ from typing import (
     Tuple,
     Type,
     TypeVar,
-    cast,
 )
 
 from streamable.iterators import (
@@ -28,7 +27,6 @@ from streamable.iterators import (
     FlattenIterator,
     GroupbyIterator,
     GroupIterator,
-    IntervalThrottleIterator,
     ObserveIterator,
     OSConcurrentMapIterator,
     PredicateSkipIterator,
@@ -43,8 +41,8 @@ from streamable.util.validationtools import (
     validate_group_size,
     validate_iterator,
     validate_optional_count,
-    validate_throttle_interval,
-    validate_throttle_per_period,
+    validate_optional_positive_count,
+    validate_throttle_per,
 )
 
 with suppress(ImportError):
@@ -56,8 +54,8 @@ U = TypeVar("U")
 
 def catch(
     iterator: Iterator[T],
-    kind: Type[Exception] = Exception,
-    *others: Type[Exception],
+    error_type: Optional[Type[Exception]],
+    *others: Optional[Type[Exception]],
     when: Optional[Callable[[Exception], Any]] = None,
     replacement: T = NO_REPLACEMENT,  # type: ignore
     finally_raise: bool = False,
@@ -65,7 +63,7 @@ def catch(
     validate_iterator(iterator)
     return CatchIterator(
         iterator,
-        (kind, *others),
+        (error_type, *others),
         when,
         replacement,
         finally_raise,
@@ -75,6 +73,7 @@ def catch(
 def distinct(
     iterator: Iterator[T],
     key: Optional[Callable[[T], Any]] = None,
+    *,
     consecutive_only: bool = False,
 ) -> Iterator[T]:
     validate_iterator(iterator)
@@ -83,7 +82,7 @@ def distinct(
     return DistinctIterator(iterator, key)
 
 
-def flatten(iterator: Iterator[Iterable[T]], concurrency: int = 1) -> Iterator[T]:
+def flatten(iterator: Iterator[Iterable[T]], *, concurrency: int = 1) -> Iterator[T]:
     validate_iterator(iterator)
     validate_concurrency(concurrency)
     if concurrency == 1:
@@ -99,6 +98,7 @@ def flatten(iterator: Iterator[Iterable[T]], concurrency: int = 1) -> Iterator[T
 def group(
     iterator: Iterator[T],
     size: Optional[int] = None,
+    *,
     interval: Optional[datetime.timedelta] = None,
     by: Optional[Callable[[T], Any]] = None,
 ) -> Iterator[List[T]]:
@@ -113,6 +113,7 @@ def group(
 def groupby(
     iterator: Iterator[T],
     key: Callable[[T], U],
+    *,
     size: Optional[int] = None,
     interval: Optional[datetime.timedelta] = None,
 ) -> Iterator[Tuple[U, List[T]]]:
@@ -125,6 +126,7 @@ def groupby(
 def map(
     transformation: Callable[[T], U],
     iterator: Iterator[T],
+    *,
     concurrency: int = 1,
     ordered: bool = True,
     via: "Literal['thread', 'process']" = "thread",
@@ -147,6 +149,7 @@ def map(
 def amap(
     transformation: Callable[[T], Coroutine[Any, Any, U]],
     iterator: Iterator[T],
+    *,
     concurrency: int = 1,
     ordered: bool = True,
 ) -> Iterator[U]:
@@ -168,6 +171,7 @@ def observe(iterator: Iterator[T], what: str) -> Iterator[T]:
 def skip(
     iterator: Iterator[T],
     count: Optional[int] = None,
+    *,
     until: Optional[Callable[[T], Any]] = None,
 ) -> Iterator[T]:
     validate_iterator(iterator)
@@ -183,33 +187,21 @@ def skip(
 
 def throttle(
     iterator: Iterator[T],
-    per_second: int = cast(int, float("inf")),
-    per_minute: int = cast(int, float("inf")),
-    per_hour: int = cast(int, float("inf")),
-    interval: datetime.timedelta = datetime.timedelta(0),
+    count: Optional[int],
+    *,
+    per: Optional[datetime.timedelta] = None,
 ) -> Iterator[T]:
-    validate_iterator(iterator)
-    validate_throttle_per_period("per_second", per_second)
-    validate_throttle_per_period("per_minute", per_minute)
-    validate_throttle_per_period("per_hour", per_hour)
-    validate_throttle_interval(interval)
-
-    for per_period, period in (
-        (per_second, datetime.timedelta(seconds=1)),
-        (per_minute, datetime.timedelta(minutes=1)),
-        (per_hour, datetime.timedelta(hours=1)),
-    ):
-        if per_period < float("inf"):
-            iterator = YieldsPerPeriodThrottleIterator(iterator, per_period, period)
-
-    if interval > datetime.timedelta(0):
-        iterator = IntervalThrottleIterator(iterator, interval)
+    validate_optional_positive_count(count)
+    validate_throttle_per(per)
+    if count and per:
+        iterator = YieldsPerPeriodThrottleIterator(iterator, count, per)
     return iterator
 
 
 def truncate(
     iterator: Iterator[T],
     count: Optional[int] = None,
+    *,
     when: Optional[Callable[[T], Any]] = None,
 ) -> Iterator[T]:
     validate_iterator(iterator)

@@ -35,6 +35,8 @@ class TestFunctions(unittest.TestCase):
         catched_it_2: Iterator[int] = catch(iterator, Exception, finally_raise=True)
         observed_it_1: Iterator[int] = observe(iterator, what="objects")
         throttleed_it_1: Iterator[int] = throttle(
-            iterator, per_second=1, interval=datetime.timedelta(seconds=0.1)
+            iterator,
+            1,
+            per=datetime.timedelta(seconds=1),
         )
         truncated_it_1: Iterator[int] = truncate(iterator, count=1)

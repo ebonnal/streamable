@@ -29,8 +29,8 @@ from streamable.util.validationtools import (
     validate_group_interval,
     validate_group_size,
     validate_optional_count,
-    validate_throttle_interval,
-    validate_throttle_per_period,
+    validate_optional_positive_count,
+    validate_throttle_per,
     validate_via,
 )
 
@@ -135,17 +135,17 @@ class Stream(Iterable[T]):
 
     def catch(
         self,
-        kind: Type[Exception] = Exception,
-        *others: Type[Exception],
+        error_type: Optional[Type[Exception]],
+        *others: Optional[Type[Exception]],
         when: Optional[Callable[[Exception], Any]] = None,
         replacement: T = NO_REPLACEMENT,  # type: ignore
         finally_raise: bool = False,
     ) -> "Stream[T]":
         """
-        Catches the upstream exceptions if they are instances of `kind` (or `others`) and they satisfy the `when` predicate.
+        Catches the upstream exceptions if they are instances of `error_type` (or `others`) and they satisfy the `when` predicate.
 
         Args:
-            kind (Type[Exception], optional): The type of exceptions to catch. (default: catches `Exception`)
+            error_type (Type[Exception], optional): The type of exceptions to catch.
             *others (Type[Exception], optional): Additional types of exceptions to catch.
             when (Optional[Callable[[Exception], Any]], optional): An additional condition that must be satisfied to catch the exception, i.e. `when(exception)` must be truthy. (default: no additional condition)
             replacement (T, optional): The value to yield when an exception is catched. (default: do not yield any replacement value)
@@ -156,7 +156,7 @@ class Stream(Iterable[T]):
         """
         return CatchStream(
             self,
-            kind,
+            error_type,
             *others,
             when=when,
             replacement=replacement,
@@ -187,7 +187,10 @@ class Stream(Iterable[T]):
         return self
 
     def distinct(
-        self, key: Optional[Callable[[T], Any]] = None, consecutive_only: bool = False
+        self,
+        key: Optional[Callable[[T], Any]] = None,
+        *,
+        consecutive_only: bool = False,
     ) -> "Stream[T]":
         """
         Filters the stream to yield only distinct elements.
@@ -225,68 +228,75 @@ class Stream(Iterable[T]):
     @overload
     def flatten(
         self: "Stream[Iterable[U]]",
+        *,
         concurrency: int = 1,
     ) -> "Stream[U]": ...
 
     @overload
     def flatten(
         self: "Stream[Collection[U]]",
+        *,
         concurrency: int = 1,
     ) -> "Stream[U]": ...
 
     @overload
     def flatten(
         self: "Stream[Stream[U]]",
+        *,
         concurrency: int = 1,
     ) -> "Stream[U]": ...
 
     @overload
     def flatten(
         self: "Stream[Iterator[U]]",
+        *,
         concurrency: int = 1,
     ) -> "Stream[U]": ...
 
     @overload
     def flatten(
         self: "Stream[List[U]]",
+        *,
         concurrency: int = 1,
     ) -> "Stream[U]": ...
 
     @overload
     def flatten(
         self: "Stream[Sequence[U]]",
+        *,
         concurrency: int = 1,
     ) -> "Stream[U]": ...
 
     @overload
     def flatten(
         self: "Stream[builtins.map[U]]",
+        *,
         concurrency: int = 1,
     ) -> "Stream[U]": ...
 
     @overload
     def flatten(
         self: "Stream[builtins.filter[U]]",
+        *,
         concurrency: int = 1,
     ) -> "Stream[U]": ...
 
     @overload
     def flatten(
         self: "Stream[Set[U]]",
+        *,
         concurrency: int = 1,
     ) -> "Stream[U]": ...
 
     @overload
     def flatten(
         self: "Stream[range]",
+        *,
         concurrency: int = 1,
     ) -> "Stream[int]": ...
     # fmt: on
 
-    def flatten(
-        self: "Stream[Iterable[U]]",
-        concurrency: int = 1,
-    ) -> "Stream[U]":
+    def flatten(self: "Stream[Iterable[U]]", *, concurrency: int = 1) -> "Stream[U]":
         """
         Iterates over upstream elements assumed to be iterables, and individually yields their items.
 
@@ -301,6 +311,7 @@ class Stream(Iterable[T]):
     def foreach(
         self,
         effect: Callable[[T], Any],
+        *,
         concurrency: int = 1,
         ordered: bool = True,
         via: "Literal['thread', 'process']" = "thread",
@@ -324,6 +335,7 @@ class Stream(Iterable[T]):
     def aforeach(
         self,
         effect: Callable[[T], Coroutine],
+        *,
         concurrency: int = 1,
         ordered: bool = True,
     ) -> "Stream[T]":
@@ -344,6 +356,7 @@ class Stream(Iterable[T]):
     def group(
         self,
         size: Optional[int] = None,
+        *,
         interval: Optional[datetime.timedelta] = None,
         by: Optional[Callable[[T], Any]] = None,
     ) -> "Stream[List[T]]":
@@ -371,6 +384,7 @@ class Stream(Iterable[T]):
     def groupby(
         self,
         key: Callable[[T], U],
+        *,
         size: Optional[int] = None,
         interval: Optional[datetime.timedelta] = None,
     ) -> "Stream[Tuple[U, List[T]]]":
@@ -395,6 +409,7 @@ class Stream(Iterable[T]):
     def map(
         self,
         transformation: Callable[[T], U],
+        *,
         concurrency: int = 1,
         ordered: bool = True,
         via: "Literal['thread', 'process']" = "thread",
@@ -417,6 +432,7 @@ class Stream(Iterable[T]):
     def amap(
         self,
         transformation: Callable[[T], Coroutine[Any, Any, U]],
+        *,
         concurrency: int = 1,
         ordered: bool = True,
     ) -> "Stream[U]":
@@ -472,7 +488,7 @@ class Stream(Iterable[T]):
         return func(self, *args, **kwargs)
 
     def skip(
-        self, count: Optional[int] = None, until: Optional[Callable[[T], Any]] = None
+        self, count: Optional[int] = None, *, until: Optional[Callable[[T], Any]] = None
     ) -> "Stream[T]":
         """
         Skips elements until `until(elem)` is truthy, or `count` elements have been skipped.
@@ -489,38 +505,24 @@ class Stream(Iterable[T]):
         return SkipStream(self, count, until)
 
     def throttle(
-        self,
-        per_second: int = cast(int, float("inf")),
-        per_minute: int = cast(int, float("inf")),
-        per_hour: int = cast(int, float("inf")),
-        interval: datetime.timedelta = datetime.timedelta(0),
+        self, count: Optional[int] = None, *, per: Optional[datetime.timedelta] = None
     ) -> "Stream[T]":
         """
-        Slows iteration to respect:
-        - a maximum number of yields `per_second`
-        - a maximum number of yields `per_minute`
-        - a maximum number of yields `per_hour`
-        - a minimum `interval` between successive yields
-
-        The upstream exceptions are slowed too.
+        Slows iteration down to `count` elements (or exceptions) `per` time interval.
 
         Args:
-            per_second (float, optional): Maximum number of yields per second. (default: no limit per second)
-            per_minute (float, optional): Maximum number of yields per minute. (default: no limit per minute)
-            per_hour (float, optional): Maximum number of yields per hour. (default: no limit per hour)
-            interval (datetime.timedelta, optional): Minimum interval between yields. (default: no interval constraint)
+            count (int, optional): Maximum number of elements (or exceptions) that must be yielded within the given time interval. (default: no throttling)
+            per (datetime.timedelta, optional): The time interval during which maximum `count` elements (or exceptions) must be yielded. (default: no throttling)
 
         Returns:
-            Stream[T]: A stream yielding upstream elements according to the specified rate constraints.
+            Stream[T]: A stream yielding maximum `count` upstream elements (or exceptions) `per` time interval.
         """
-        validate_throttle_per_period("per_second", per_second)
-        validate_throttle_per_period("per_minute", per_minute)
-        validate_throttle_per_period("per_hour", per_hour)
-        validate_throttle_interval(interval)
-        return ThrottleStream(self, per_second, per_minute, per_hour, interval)
+        validate_optional_positive_count(count)
+        validate_throttle_per(per)
+        return ThrottleStream(self, count, per)
 
     def truncate(
-        self, count: Optional[int] = None, when: Optional[Callable[[T], Any]] = None
+        self, count: Optional[int] = None, *, when: Optional[Callable[[T], Any]] = None
     ) -> "Stream[T]":
         """
         Stops an iteration as soon as `when(elem)` is truthy, or `count` elements have been yielded.
@@ -559,14 +561,14 @@ class CatchStream(DownStream[T, T]):
     def __init__(
         self,
         upstream: Stream[T],
-        kind: Type[Exception],
-        *others: Type[Exception],
+        error_type: Optional[Type[Exception]],
+        *others: Optional[Type[Exception]],
         when: Optional[Callable[[Exception], Any]],
         replacement: T,
         finally_raise: bool,
     ) -> None:
         super().__init__(upstream)
-        self._kind = kind
+        self._error_type = error_type
         self._others = others
         self._when = when
         self._replacement = replacement
@@ -743,16 +745,12 @@ class ThrottleStream(DownStream[T, T]):
     def __init__(
         self,
         upstream: Stream[T],
-        per_second: int,
-        per_minute: int,
-        per_hour: int,
-        interval: datetime.timedelta,
+        count: Optional[int],
+        per: Optional[datetime.timedelta],
     ) -> None:
         super().__init__(upstream)
-        self._per_second = per_second
-        self._per_minute = per_minute
-        self._per_hour = per_hour
-        self._interval = interval
+        self._count = count
+        self._per = per
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_throttle_stream(self)
