@@ -1,2 +1,2 @@
 # to show the CHANGELOG: git log -- version.py
-__version__ = "1.4.8"
+__version__ = "1.5.0-rc"
