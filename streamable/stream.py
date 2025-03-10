@@ -135,17 +135,17 @@ class Stream(Iterable[T]):
 
     def catch(
         self,
-        kind: Type[Exception] = Exception,
-        *others: Type[Exception],
+        error_type: Optional[Type[Exception]],
+        *others: Optional[Type[Exception]],
         when: Optional[Callable[[Exception], Any]] = None,
         replacement: T = NO_REPLACEMENT,  # type: ignore
         finally_raise: bool = False,
     ) -> "Stream[T]":
         """
-        Catches the upstream exceptions if they are instances of `kind` (or `others`) and they satisfy the `when` predicate.
+        Catches the upstream exceptions if they are instances of `error_type` (or `others`) and they satisfy the `when` predicate.
 
         Args:
-            kind (Type[Exception], optional): The type of exceptions to catch. (default: catches `Exception`)
+            error_type (Type[Exception], optional): The type of exceptions to catch.
             *others (Type[Exception], optional): Additional types of exceptions to catch.
             when (Optional[Callable[[Exception], Any]], optional): An additional condition that must be satisfied to catch the exception, i.e. `when(exception)` must be truthy. (default: no additional condition)
             replacement (T, optional): The value to yield when an exception is catched. (default: do not yield any replacement value)
@@ -156,7 +156,7 @@ class Stream(Iterable[T]):
         """
         return CatchStream(
             self,
-            kind,
+            error_type,
             *others,
             when=when,
             replacement=replacement,
@@ -561,14 +561,14 @@ class CatchStream(DownStream[T, T]):
     def __init__(
         self,
         upstream: Stream[T],
-        kind: Type[Exception],
-        *others: Type[Exception],
+        error_type: Optional[Type[Exception]],
+        *others: Optional[Type[Exception]],
         when: Optional[Callable[[Exception], Any]],
         replacement: T,
         finally_raise: bool,
     ) -> None:
         super().__init__(upstream)
-        self._kind = kind
+        self._error_type = error_type
         self._others = others
         self._when = when
         self._replacement = replacement
