@@ -28,7 +28,7 @@ U = TypeVar("U")
 class IteratorVisitor(Visitor[Iterator[T]]):
     def visit_catch_stream(self, stream: CatchStream[T]) -> Iterator[T]:
         return functions.catch(
-            stream.upstream.accept(self),
+            cast(Iterable, stream.upstream.accept(self)),
             stream._error_type,
             *stream._others,
             when=stream._when,
@@ -38,7 +38,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
 
     def visit_distinct_stream(self, stream: DistinctStream[T]) -> Iterator[T]:
         return functions.distinct(
-            stream.upstream.accept(self),
+            cast(Iterable, stream.upstream.accept(self)),
             stream._key,
             stream._consecutive_only,
         )
@@ -46,12 +46,12 @@ class IteratorVisitor(Visitor[Iterator[T]]):
     def visit_filter_stream(self, stream: FilterStream[T]) -> Iterator[T]:
         return filter(
             wrap_error(stream._when, StopIteration) if stream._when else None,
-            cast(Iterable[T], stream.upstream.accept(self)),
+            cast(Iterable[T], cast(Iterable, stream.upstream.accept(self))),
         )
 
     def visit_flatten_stream(self, stream: FlattenStream[T]) -> Iterator[T]:
         return functions.flatten(
-            stream.upstream.accept(IteratorVisitor[Iterable]()),
+            cast(Iterable, stream.upstream.accept(IteratorVisitor[Iterable]())),
             concurrency=stream._concurrency,
         )
 
@@ -80,7 +80,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         return cast(
             Iterator[T],
             functions.group(
-                stream.upstream.accept(IteratorVisitor[U]()),
+                cast(Iterable, stream.upstream.accept(IteratorVisitor[U]())),
                 stream._size,
                 stream._interval,
                 stream._by,
@@ -91,7 +91,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         return cast(
             Iterator[T],
             functions.groupby(
-                stream.upstream.accept(IteratorVisitor[U]()),
+                cast(Iterable, stream.upstream.accept(IteratorVisitor[U]())),
                 stream._key,
                 stream._size,
                 stream._interval,
@@ -101,7 +101,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
     def visit_map_stream(self, stream: MapStream[U, T]) -> Iterator[T]:
         return functions.map(
             stream._transformation,
-            stream.upstream.accept(IteratorVisitor[U]()),
+            cast(Iterable, stream.upstream.accept(IteratorVisitor[U]())),
             concurrency=stream._concurrency,
             ordered=stream._ordered,
             via=stream._via,
@@ -110,34 +110,34 @@ class IteratorVisitor(Visitor[Iterator[T]]):
     def visit_amap_stream(self, stream: AMapStream[U, T]) -> Iterator[T]:
         return functions.amap(
             stream._transformation,
-            stream.upstream.accept(IteratorVisitor[U]()),
+            cast(Iterable, stream.upstream.accept(IteratorVisitor[U]())),
             concurrency=stream._concurrency,
             ordered=stream._ordered,
         )
 
     def visit_observe_stream(self, stream: ObserveStream[T]) -> Iterator[T]:
         return functions.observe(
-            stream.upstream.accept(self),
+            cast(Iterable, stream.upstream.accept(self)),
             stream._what,
         )
 
     def visit_skip_stream(self, stream: SkipStream[T]) -> Iterator[T]:
         return functions.skip(
-            stream.upstream.accept(self),
+            cast(Iterable, stream.upstream.accept(self)),
             stream._count,
             stream._until,
         )
 
     def visit_throttle_stream(self, stream: ThrottleStream[T]) -> Iterator[T]:
         return functions.throttle(
-            stream.upstream.accept(self),
+            cast(Iterable, stream.upstream.accept(self)),
             stream._count,
             stream._per,
         )
 
     def visit_truncate_stream(self, stream: TruncateStream[T]) -> Iterator[T]:
         return functions.truncate(
-            stream.upstream.accept(self),
+            cast(Iterable, stream.upstream.accept(self)),
             stream._count,
             stream._when,
         )
