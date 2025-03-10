@@ -40,7 +40,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         return functions.distinct(
             stream.upstream.accept(self),
             stream._key,
-            stream._consecutive_only,
+            consecutive_only=stream._consecutive_only,
         )
 
     def visit_filter_stream(self, stream: FilterStream[T]) -> Iterator[T]:
@@ -82,8 +82,8 @@ class IteratorVisitor(Visitor[Iterator[T]]):
             functions.group(
                 stream.upstream.accept(IteratorVisitor[U]()),
                 stream._size,
-                stream._interval,
-                stream._by,
+                interval=stream._interval,
+                by=stream._by,
             ),
         )
 
@@ -93,8 +93,8 @@ class IteratorVisitor(Visitor[Iterator[T]]):
             functions.groupby(
                 stream.upstream.accept(IteratorVisitor[U]()),
                 stream._key,
-                stream._size,
-                stream._interval,
+                size=stream._size,
+                interval=stream._interval,
             ),
         )
 
@@ -125,21 +125,21 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         return functions.skip(
             stream.upstream.accept(self),
             stream._count,
-            stream._until,
+            until=stream._until,
         )
 
     def visit_throttle_stream(self, stream: ThrottleStream[T]) -> Iterator[T]:
         return functions.throttle(
             stream.upstream.accept(self),
             stream._count,
-            stream._per,
+            per=stream._per,
         )
 
     def visit_truncate_stream(self, stream: TruncateStream[T]) -> Iterator[T]:
         return functions.truncate(
             stream.upstream.accept(self),
             stream._count,
-            stream._when,
+            when=stream._when,
         )
 
     def visit_stream(self, stream: Stream[T]) -> Iterator[T]:
