@@ -145,7 +145,7 @@ class Stream(Iterable[T]):
         Catches the upstream exceptions if they are instances of `error_type` (or `others`) and they satisfy the `when` predicate.
 
         Args:
-            error_type (Type[Exception], optional): The type of exceptions to catch. (default: catches `Exception`)
+            error_type (Type[Exception], optional): The type of exceptions to catch.
             *others (Type[Exception], optional): Additional types of exceptions to catch.
             when (Optional[Callable[[Exception], Any]], optional): An additional condition that must be satisfied to catch the exception, i.e. `when(exception)` must be truthy. (default: no additional condition)
             replacement (T, optional): The value to yield when an exception is catched. (default: do not yield any replacement value)
