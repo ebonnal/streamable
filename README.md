@@ -595,7 +595,7 @@ class DepthVisitor(Visitor[int]):
 def depth(stream: Stream) -> int:
     return stream.accept(DepthVisitor())
 
-assert depth(Stream(range(10)).map(str).filter()) == 3
+assert depth(Stream(range(10)).map(str).foreach(print)) == 3
 ```
 
 ## Functions
