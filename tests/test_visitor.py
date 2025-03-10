@@ -57,7 +57,7 @@ class TestVisitor(unittest.TestCase):
             return stream.accept(DepthVisitor())
 
         self.assertEqual(
-            depth(Stream(range(10)).map(str).filter()),
+            depth(Stream(range(10)).map(str).foreach(print)),
             3,
             msg="DepthVisitor example should work",
         )

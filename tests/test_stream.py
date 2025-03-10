@@ -172,7 +172,7 @@ class TestStream(unittest.TestCase):
             .flatten()
             .map(identity)
             .amap(async_identity)
-            .filter()
+            .filter(None)
             .foreach(identity)
             .aforeach(async_identity)
             .catch(Exception)
@@ -205,7 +205,7 @@ class TestStream(unittest.TestCase):
             .skip(10)
             .skip(until=lambda _: True)
             .distinct(lambda _: _)
-            .filter()
+            .filter(None)
             .map(lambda i: (i,))
             .map(lambda i: (i,), concurrency=2)
             .filter(star(bool))
@@ -812,11 +812,6 @@ class TestStream(unittest.TestCase):
             list(Stream(src).filter(None)),
             list(filter(None, src)),
             msg="`filter` with None predicate must act like builtin filter with None predicate.",
-        )
-        self.assertListEqual(
-            list(Stream(src).filter()),
-            list(filter(None, src)),
-            msg="`filter` without predicate must act like builtin filter with None predicate.",
         )
 
     def test_skip(self) -> None:
