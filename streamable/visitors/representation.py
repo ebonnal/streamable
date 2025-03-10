@@ -39,14 +39,14 @@ class ToStringVisitor(Visitor[str], ABC):
         if stream._replacement is not NO_REPLACEMENT:
             replacement = f", replacement={self.to_string(stream._replacement)}"
 
-        kinds = ", ".join(
+        error_types = ", ".join(
             map(
                 lambda err: getattr(err, "__name__", self.to_string(err)),
-                (stream._kind, *stream._others),
+                (stream._error_type, *stream._others),
             )
         )
         self.methods_reprs.append(
-            f"catch({kinds}, when={self.to_string(stream._when)}{replacement}, finally_raise={self.to_string(stream._finally_raise)})"
+            f"catch({error_types}, when={self.to_string(stream._when)}{replacement}, finally_raise={self.to_string(stream._finally_raise)})"
         )
         return stream.upstream.accept(self)
 
