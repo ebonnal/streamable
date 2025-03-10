@@ -73,6 +73,7 @@ def catch(
 def distinct(
     iterator: Iterator[T],
     key: Optional[Callable[[T], Any]] = None,
+    *,
     consecutive_only: bool = False,
 ) -> Iterator[T]:
     validate_iterator(iterator)
@@ -81,7 +82,7 @@ def distinct(
     return DistinctIterator(iterator, key)
 
 
-def flatten(iterator: Iterator[Iterable[T]], concurrency: int = 1) -> Iterator[T]:
+def flatten(iterator: Iterator[Iterable[T]], *, concurrency: int = 1) -> Iterator[T]:
     validate_iterator(iterator)
     validate_concurrency(concurrency)
     if concurrency == 1:
@@ -97,6 +98,7 @@ def flatten(iterator: Iterator[Iterable[T]], concurrency: int = 1) -> Iterator[T
 def group(
     iterator: Iterator[T],
     size: Optional[int] = None,
+    *,
     interval: Optional[datetime.timedelta] = None,
     by: Optional[Callable[[T], Any]] = None,
 ) -> Iterator[List[T]]:
@@ -111,6 +113,7 @@ def group(
 def groupby(
     iterator: Iterator[T],
     key: Callable[[T], U],
+    *,
     size: Optional[int] = None,
     interval: Optional[datetime.timedelta] = None,
 ) -> Iterator[Tuple[U, List[T]]]:
@@ -123,6 +126,7 @@ def groupby(
 def map(
     transformation: Callable[[T], U],
     iterator: Iterator[T],
+    *,
     concurrency: int = 1,
     ordered: bool = True,
     via: "Literal['thread', 'process']" = "thread",
@@ -145,6 +149,7 @@ def map(
 def amap(
     transformation: Callable[[T], Coroutine[Any, Any, U]],
     iterator: Iterator[T],
+    *,
     concurrency: int = 1,
     ordered: bool = True,
 ) -> Iterator[U]:
@@ -166,6 +171,7 @@ def observe(iterator: Iterator[T], what: str) -> Iterator[T]:
 def skip(
     iterator: Iterator[T],
     count: Optional[int] = None,
+    *,
     until: Optional[Callable[[T], Any]] = None,
 ) -> Iterator[T]:
     validate_iterator(iterator)
@@ -182,6 +188,7 @@ def skip(
 def throttle(
     iterator: Iterator[T],
     count: Optional[int],
+    *,
     per: Optional[datetime.timedelta] = None,
 ) -> Iterator[T]:
     validate_optional_positive_count(count)
@@ -194,6 +201,7 @@ def throttle(
 def truncate(
     iterator: Iterator[T],
     count: Optional[int] = None,
+    *,
     when: Optional[Callable[[T], Any]] = None,
 ) -> Iterator[T]:
     validate_iterator(iterator)
