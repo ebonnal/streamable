@@ -31,8 +31,8 @@ class EqualityVisitor(Visitor[bool]):
         return (
             isinstance(self.other, CatchStream)
             and stream.upstream.accept(EqualityVisitor(self.other.upstream))
-            and set(stream._others).union((stream._kind,))
-            == set(self.other._others).union((self.other._kind,))
+            and set(stream._others).union((stream._error_type,))
+            == set(self.other._others).union((self.other._error_type,))
             and stream._when == self.other._when
             and stream._replacement == self.other._replacement
             and stream._finally_raise == self.other._finally_raise
