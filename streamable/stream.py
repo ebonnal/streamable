@@ -212,7 +212,7 @@ class Stream(Iterable[T]):
         """
         return DistinctStream(self, key, consecutive_only)
 
-    def filter(self, when: Optional[Callable[[T], Any]] = None) -> "Stream[T]":
+    def filter(self, when: Optional[Callable[[T], Any]]) -> "Stream[T]":
         """
         Filters the stream to yield only elements satisfying the `when` predicate.
 
