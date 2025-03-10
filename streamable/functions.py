@@ -54,8 +54,8 @@ U = TypeVar("U")
 
 def catch(
     iterator: Iterator[T],
-    error_type: Type[Exception],
-    *others: Type[Exception],
+    error_type: Optional[Type[Exception]],
+    *others: Optional[Type[Exception]],
     when: Optional[Callable[[Exception], Any]] = None,
     replacement: T = NO_REPLACEMENT,  # type: ignore
     finally_raise: bool = False,

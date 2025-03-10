@@ -61,14 +61,14 @@ class CatchIterator(Iterator[T]):
     def __init__(
         self,
         iterator: Iterator[T],
-        error_types: Tuple[Type[Exception], ...],
+        error_types: Iterable[Optional[Type[Exception]]],
         when: Optional[Callable[[Exception], Any]],
         replacement: T,
         finally_raise: bool,
     ) -> None:
         validate_iterator(iterator)
         self.iterator = iterator
-        self.error_types = error_types
+        self.error_types: Tuple[Type[Exception], ...] = tuple(filter(None, error_types))
         self.when = wrap_error(when, StopIteration) if when else None
         self.replacement = replacement
         self.finally_raise = finally_raise

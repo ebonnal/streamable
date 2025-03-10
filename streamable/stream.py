@@ -135,8 +135,8 @@ class Stream(Iterable[T]):
 
     def catch(
         self,
-        error_type: Type[Exception],
-        *others: Type[Exception],
+        error_type: Optional[Type[Exception]],
+        *others: Optional[Type[Exception]],
         when: Optional[Callable[[Exception], Any]] = None,
         replacement: T = NO_REPLACEMENT,  # type: ignore
         finally_raise: bool = False,
@@ -561,8 +561,8 @@ class CatchStream(DownStream[T, T]):
     def __init__(
         self,
         upstream: Stream[T],
-        error_type: Type[Exception],
-        *others: Type[Exception],
+        error_type: Optional[Type[Exception]],
+        *others: Optional[Type[Exception]],
         when: Optional[Callable[[Exception], Any]],
         replacement: T,
         finally_raise: bool,
