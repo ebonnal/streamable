@@ -61,7 +61,7 @@ def validate_optional_positive_count(count: Optional[int]):
 
 def validate_throttle_per(per: Optional[datetime.timedelta]) -> None:
     if per is not None and per < datetime.timedelta(0):
-        raise ValueError(f"`per` must be positive but got {repr(per)}")
+        raise ValueError(f"`per` must be >= 0 but got {repr(per)}")
 
 
 def validate_not_none(name: str, value: Any) -> None:
