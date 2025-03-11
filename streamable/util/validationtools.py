@@ -36,7 +36,7 @@ def validate_group_size(size: Optional[int]) -> None:
 
 def validate_group_interval(interval: Optional[datetime.timedelta]) -> None:
     if interval is not None and interval <= datetime.timedelta(0):
-        raise ValueError(f"`interval` must None or > 0 but got {repr(interval)}")
+        raise ValueError(f"`interval` must be None or > 0 but got {repr(interval)}")
 
 
 def validate_count(count: int):
