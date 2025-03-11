@@ -172,7 +172,7 @@ class TestStream(unittest.TestCase):
             .flatten()
             .map(identity)
             .amap(async_identity)
-            .filter(None)
+            .filter(bool)
             .foreach(identity)
             .aforeach(async_identity)
             .catch(Exception)
@@ -205,7 +205,7 @@ class TestStream(unittest.TestCase):
             .skip(10)
             .skip(until=lambda _: True)
             .distinct(lambda _: _)
-            .filter(None)
+            .filter(bool)
             .map(lambda i: (i,))
             .map(lambda i: (i,), concurrency=2)
             .filter(star(bool))
@@ -268,7 +268,7 @@ class TestStream(unittest.TestCase):
     .skip(10, until=None)
     .skip(None, until=<lambda>)
     .distinct(<lambda>, consecutive_only=False)
-    .filter(None)
+    .filter(bool)
     .map(<lambda>, concurrency=1, ordered=True)
     .map(<lambda>, concurrency=2, ordered=True, via='thread')
     .filter(star(bool))
@@ -809,10 +809,15 @@ class TestStream(unittest.TestCase):
             msg="`filter` must act like builtin filter",
         )
         self.assertListEqual(
-            list(Stream(src).filter(None)),
+            list(Stream(src).filter(bool)),
             list(filter(None, src)),
-            msg="`filter` with None predicate must act like builtin filter with None predicate.",
+            msg="`filter` with `bool` as predicate must act like builtin filter with None predicate.",
         )
+        with self.assertRaises(
+            TypeError,
+            msg="`filter` does not accept a None predicate",
+        ):
+            list(Stream(src).filter(None))  # type: ignore
 
     def test_skip(self) -> None:
         with self.assertRaisesRegex(

@@ -28,6 +28,7 @@ from streamable.util.validationtools import (
     validate_concurrency,
     validate_group_interval,
     validate_group_size,
+    validate_not_none,
     validate_optional_count,
     validate_optional_positive_count,
     validate_throttle_per,
@@ -212,16 +213,17 @@ class Stream(Iterable[T]):
         """
         return DistinctStream(self, key, consecutive_only)
 
-    def filter(self, when: Optional[Callable[[T], Any]]) -> "Stream[T]":
+    def filter(self, when: Callable[[T], Any]) -> "Stream[T]":
         """
         Filters the stream to yield only elements satisfying the `when` predicate.
 
         Args:
-            when (Optional[Callable[[T], Any]], optional): An element is kept when `when(elem)` is truthy. If `when` is None, elements that are truthy themselves are kept.
+            when (Callable[[T], Any]): An element is kept if `when(elem)` is truthy. Set `when=bool` to keep elements that are truthy themselves.
 
         Returns:
             Stream[T]: A stream of upstream elements satisfying the `when` predicate.
         """
+        validate_not_none("when", when)
         return FilterStream(self, when)
 
     # fmt: off
@@ -594,7 +596,7 @@ class DistinctStream(DownStream[T, T]):
 
 
 class FilterStream(DownStream[T, T]):
-    def __init__(self, upstream: Stream[T], when: Optional[Callable[[T], Any]]) -> None:
+    def __init__(self, upstream: Stream[T], when: Callable[[T], Any]) -> None:
         super().__init__(upstream)
         self._when = when
 
