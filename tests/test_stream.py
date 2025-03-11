@@ -1160,10 +1160,10 @@ class TestStream(unittest.TestCase):
         # behavior with invalid arguments
         with self.assertRaisesRegex(
             ValueError,
-            r"`per` must be >= 0 but got datetime\.timedelta\(days=-1, seconds=86399, microseconds=999999\)",
+            r"`per` must be None or positive but got datetime\.timedelta\(days=0, seconds=0, microseconds=0\)",
             msg="`throttle` should raise error when called with negative `per`.",
         ):
-            list(Stream([1]).throttle(1, per=datetime.timedelta(microseconds=-1)))
+            list(Stream([1]).throttle(1, per=datetime.timedelta(microseconds=0)))
         with self.assertRaisesRegex(
             ValueError,
             "`count` must be >= 1 but got 0",

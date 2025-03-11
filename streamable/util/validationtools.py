@@ -34,9 +34,11 @@ def validate_group_size(size: Optional[int]) -> None:
         raise ValueError(f"`size` must be None or >= 1 but got {size}")
 
 
-def validate_group_interval(interval: Optional[datetime.timedelta]) -> None:
+def validate_optional_positive_interval(
+    interval: Optional[datetime.timedelta], *, name: str = "interval"
+) -> None:
     if interval is not None and interval <= datetime.timedelta(0):
-        raise ValueError(f"`interval` must be None or > 0 but got {repr(interval)}")
+        raise ValueError(f"`{name}` must be None or positive but got {repr(interval)}")
 
 
 def validate_count(count: int):
@@ -57,11 +59,6 @@ def validate_optional_count(count: Optional[int]):
 def validate_optional_positive_count(count: Optional[int]):
     if count is not None:
         validate_positive_count(count)
-
-
-def validate_throttle_per(per: Optional[datetime.timedelta]) -> None:
-    if per is not None and per < datetime.timedelta(0):
-        raise ValueError(f"`per` must be >= 0 but got {repr(per)}")
 
 
 def validate_not_none(name: str, value: Any) -> None:
