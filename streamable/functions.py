@@ -37,12 +37,13 @@ from streamable.util.constants import NO_REPLACEMENT
 from streamable.util.functiontools import wrap_error
 from streamable.util.validationtools import (
     validate_concurrency,
-    validate_group_interval,
     validate_group_size,
     validate_iterator,
+    validate_not_none,
     validate_optional_count,
     validate_optional_positive_count,
-    validate_throttle_per,
+    validate_optional_positive_interval,
+    validate_via,
 )
 
 with suppress(ImportError):
@@ -61,6 +62,7 @@ def catch(
     finally_raise: bool = False,
 ) -> Iterator[T]:
     validate_iterator(iterator)
+    validate_not_none(finally_raise, "finally_raise")
     return CatchIterator(
         iterator,
         (error_type, *others),
@@ -77,6 +79,7 @@ def distinct(
     consecutive_only: bool = False,
 ) -> Iterator[T]:
     validate_iterator(iterator)
+    validate_not_none(consecutive_only, "consecutive_only")
     if consecutive_only:
         return ConsecutiveDistinctIterator(iterator, key)
     return DistinctIterator(iterator, key)
@@ -104,7 +107,7 @@ def group(
 ) -> Iterator[List[T]]:
     validate_iterator(iterator)
     validate_group_size(size)
-    validate_group_interval(interval)
+    validate_optional_positive_interval(interval)
     if by is None:
         return GroupIterator(iterator, size, interval)
     return map(itemgetter(1), GroupbyIterator(iterator, by, size, interval))
@@ -119,7 +122,7 @@ def groupby(
 ) -> Iterator[Tuple[U, List[T]]]:
     validate_iterator(iterator)
     validate_group_size(size)
-    validate_group_interval(interval)
+    validate_optional_positive_interval(interval)
     return GroupbyIterator(iterator, key, size, interval)
 
 
@@ -132,7 +135,10 @@ def map(
     via: "Literal['thread', 'process']" = "thread",
 ) -> Iterator[U]:
     validate_iterator(iterator)
+    validate_not_none(transformation, "transformation")
+    validate_not_none(ordered, "ordered")
     validate_concurrency(concurrency)
+    validate_via(via)
     if concurrency == 1:
         return builtins.map(wrap_error(transformation, StopIteration), iterator)
     else:
@@ -154,6 +160,8 @@ def amap(
     ordered: bool = True,
 ) -> Iterator[U]:
     validate_iterator(iterator)
+    validate_not_none(transformation, "transformation")
+    validate_not_none(ordered, "ordered")
     validate_concurrency(concurrency)
     return AsyncConcurrentMapIterator(
         iterator,
@@ -165,6 +173,7 @@ def amap(
 
 def observe(iterator: Iterator[T], what: str) -> Iterator[T]:
     validate_iterator(iterator)
+    validate_not_none(what, "what")
     return ObserveIterator(iterator, what)
 
 
@@ -192,7 +201,7 @@ def throttle(
     per: Optional[datetime.timedelta] = None,
 ) -> Iterator[T]:
     validate_optional_positive_count(count)
-    validate_throttle_per(per)
+    validate_optional_positive_interval(per, name="per")
     if count and per:
         iterator = YieldsPerPeriodThrottleIterator(iterator, count, per)
     return iterator
