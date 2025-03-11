@@ -813,8 +813,9 @@ class TestStream(unittest.TestCase):
             list(filter(None, src)),
             msg="`filter` with `bool` as predicate must act like builtin filter with None predicate.",
         )
-        with self.assertRaises(
+        with self.assertRaisesRegex(
             TypeError,
+            "`when` cannot be None",
             msg="`filter` does not accept a None predicate",
         ):
             list(Stream(src).filter(None))  # type: ignore

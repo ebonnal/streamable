@@ -66,7 +66,7 @@ class Stream(Iterable[T]):
         Args:
             source (Union[Iterable[T], Callable[[], Iterable[T]]]): The iterable to decorate. Can be specified via a function that will be called each time an iteration is started over the stream.
         """
-        validate_not_none("source", source)
+        validate_not_none(source, "source")
         self._source = source
         self._upstream: "Optional[Stream]" = None
 
@@ -90,7 +90,7 @@ class Stream(Iterable[T]):
         """
         `a + b` returns a stream yielding all elements of `a`, followed by all elements of `b`.
         """
-        validate_not_none("other", other)
+        validate_not_none(other, "other")
         return cast(Stream[T], Stream((self, other)).flatten())
 
     def __iter__(self) -> Iterator[T]:
@@ -133,7 +133,7 @@ class Stream(Iterable[T]):
         """
         Entry point to visit this stream (en.wikipedia.org/wiki/Visitor_pattern).
         """
-        validate_not_none("visitor", visitor)
+        validate_not_none(visitor, "visitor")
         return visitor.visit_stream(self)
 
     def catch(
@@ -157,7 +157,7 @@ class Stream(Iterable[T]):
         Returns:
             Stream[T]: A stream of upstream elements catching the eligible exceptions.
         """
-        validate_not_none("finally_raise", finally_raise)
+        validate_not_none(finally_raise, "finally_raise")
         return CatchStream(
             self,
             error_type,
@@ -187,7 +187,7 @@ class Stream(Iterable[T]):
         Returns:
             Stream[T]: This stream.
         """
-        validate_not_none("level", level)
+        validate_not_none(level, "level")
         get_logger().log(level, str(self))
         return self
 
@@ -215,7 +215,7 @@ class Stream(Iterable[T]):
         Returns:
             Stream: A stream containing only unique upstream elements.
         """
-        validate_not_none("consecutive_only", consecutive_only)
+        validate_not_none(consecutive_only, "consecutive_only")
         return DistinctStream(self, key, consecutive_only)
 
     def filter(self, when: Callable[[T], Any]) -> "Stream[T]":
@@ -228,7 +228,7 @@ class Stream(Iterable[T]):
         Returns:
             Stream[T]: A stream of upstream elements satisfying the `when` predicate.
         """
-        validate_not_none("when", when)
+        validate_not_none(when, "when")
         return FilterStream(self, when)
 
     # fmt: off
@@ -312,7 +312,7 @@ class Stream(Iterable[T]):
         Returns:
             Stream[R]: A stream of flattened elements from upstream iterables.
         """
-        validate_not_none("concurrency", concurrency)
+        validate_not_none(concurrency, "concurrency")
         validate_concurrency(concurrency)
         return FlattenStream(self, concurrency)
 
@@ -336,10 +336,10 @@ class Stream(Iterable[T]):
         Returns:
             Stream[T]: A stream of upstream elements, unchanged.
         """
-        validate_not_none("effect", effect)
-        validate_not_none("concurrency", concurrency)
-        validate_not_none("ordered", ordered)
-        validate_not_none("via", via)
+        validate_not_none(effect, "effect")
+        validate_not_none(concurrency, "concurrency")
+        validate_not_none(ordered, "ordered")
+        validate_not_none(via, "via")
         validate_concurrency(concurrency)
         validate_via(via)
         return ForeachStream(self, effect, concurrency, ordered, via)
@@ -362,9 +362,9 @@ class Stream(Iterable[T]):
         Returns:
             Stream[T]: A stream of upstream elements, unchanged.
         """
-        validate_not_none("effect", effect)
-        validate_not_none("concurrency", concurrency)
-        validate_not_none("ordered", ordered)
+        validate_not_none(effect, "effect")
+        validate_not_none(concurrency, "concurrency")
+        validate_not_none(ordered, "ordered")
         validate_concurrency(concurrency)
         return AForeachStream(self, effect, concurrency, ordered)
 
@@ -419,7 +419,7 @@ class Stream(Iterable[T]):
         Returns:
             Stream[Tuple[U, List[T]]]: A stream of upstream elements grouped by key, as `(key, elements)` tuples.
         """
-        validate_not_none("key", key)
+        validate_not_none(key, "key")
         return GroupbyStream(self, key, size, interval)
 
     def map(
@@ -441,10 +441,10 @@ class Stream(Iterable[T]):
         Returns:
             Stream[R]: A stream of transformed elements.
         """
-        validate_not_none("transformation", transformation)
-        validate_not_none("concurrency", concurrency)
-        validate_not_none("ordered", ordered)
-        validate_not_none("via", via)
+        validate_not_none(transformation, "transformation")
+        validate_not_none(concurrency, "concurrency")
+        validate_not_none(ordered, "ordered")
+        validate_not_none(via, "via")
         validate_concurrency(concurrency)
         validate_via(via)
         return MapStream(self, transformation, concurrency, ordered, via)
@@ -466,9 +466,9 @@ class Stream(Iterable[T]):
         Returns:
             Stream[R]: A stream of transformed elements.
         """
-        validate_not_none("transformation", transformation)
-        validate_not_none("concurrency", concurrency)
-        validate_not_none("ordered", ordered)
+        validate_not_none(transformation, "transformation")
+        validate_not_none(concurrency, "concurrency")
+        validate_not_none(ordered, "ordered")
         validate_concurrency(concurrency)
         return AMapStream(self, transformation, concurrency, ordered)
 
@@ -489,7 +489,7 @@ class Stream(Iterable[T]):
         Returns:
             Stream[T]: A stream of upstream elements whose iteration's progress is logged.
         """
-        validate_not_none("what", what)
+        validate_not_none(what, "what")
         return ObserveStream(self, what)
 
     def pipe(
@@ -509,7 +509,7 @@ class Stream(Iterable[T]):
         Returns:
             U: Result of `func(self, *args, **kwargs)`.
         """
-        validate_not_none("func", func)
+        validate_not_none(func, "func")
         return func(self, *args, **kwargs)
 
     def skip(
