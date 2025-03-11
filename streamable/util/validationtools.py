@@ -1,5 +1,9 @@
 import datetime
+from contextlib import suppress
 from typing import Any, Iterator, Optional, TypeVar
+
+with suppress(ImportError):
+    from typing import Literal
 
 T = TypeVar("T")
 
@@ -15,7 +19,7 @@ def validate_base(base: int):
 
 
 def validate_concurrency(concurrency: int) -> None:
-    if concurrency < 1:
+    if concurrency is None or concurrency < 1:
         raise ValueError(f"`concurrency` must be >= 1 but got {concurrency}")
 
 
@@ -24,7 +28,7 @@ def validate_buffersize(buffersize: int) -> None:
         raise ValueError(f"`buffersize` must be >= 1 but got {buffersize}")
 
 
-def validate_via(via: str) -> None:
+def validate_via(via: "Literal['thread', 'process']") -> None:
     if via not in ["thread", "process"]:
         raise TypeError(f"`via` must be 'thread' or 'process' but got {repr(via)}")
 
@@ -34,9 +38,13 @@ def validate_group_size(size: Optional[int]) -> None:
         raise ValueError(f"`size` must be None or >= 1 but got {size}")
 
 
-def validate_group_interval(interval: Optional[datetime.timedelta]) -> None:
+def validate_optional_positive_interval(
+    interval: Optional[datetime.timedelta], *, name: str = "interval"
+) -> None:
     if interval is not None and interval <= datetime.timedelta(0):
-        raise ValueError(f"`interval` must None or > 0 but got {repr(interval)}")
+        raise ValueError(
+            f"`{name}` must be None or a positive timedelta but got {repr(interval)}"
+        )
 
 
 def validate_count(count: int):
@@ -59,11 +67,6 @@ def validate_optional_positive_count(count: Optional[int]):
         validate_positive_count(count)
 
 
-def validate_throttle_per(per: Optional[datetime.timedelta]) -> None:
-    if per is not None and per < datetime.timedelta(0):
-        raise ValueError(f"`per` must be >= 0 but got {repr(per)}")
-
-
-def validate_not_none(name: str, value: Any) -> None:
+def validate_not_none(value: Any, name: str) -> None:
     if value is None:
-        raise TypeError("`{name}` cannot be None")
+        raise TypeError(f"`{name}` cannot be None")

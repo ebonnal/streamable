@@ -813,8 +813,9 @@ class TestStream(unittest.TestCase):
             list(filter(None, src)),
             msg="`filter` with `bool` as predicate must act like builtin filter with None predicate.",
         )
-        with self.assertRaises(
+        with self.assertRaisesRegex(
             TypeError,
+            "`when` cannot be None",
             msg="`filter` does not accept a None predicate",
         ):
             list(Stream(src).filter(None))  # type: ignore
@@ -1160,10 +1161,10 @@ class TestStream(unittest.TestCase):
         # behavior with invalid arguments
         with self.assertRaisesRegex(
             ValueError,
-            r"`per` must be >= 0 but got datetime\.timedelta\(days=-1, seconds=86399, microseconds=999999\)",
+            r"`per` must be None or a positive timedelta but got datetime\.timedelta\(0\)",
             msg="`throttle` should raise error when called with negative `per`.",
         ):
-            list(Stream([1]).throttle(1, per=datetime.timedelta(microseconds=-1)))
+            list(Stream([1]).throttle(1, per=datetime.timedelta(microseconds=0)))
         with self.assertRaisesRegex(
             ValueError,
             "`count` must be >= 1 but got 0",

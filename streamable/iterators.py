@@ -36,9 +36,9 @@ from streamable.util.validationtools import (
     validate_buffersize,
     validate_concurrency,
     validate_count,
-    validate_group_interval,
     validate_group_size,
     validate_iterator,
+    validate_optional_positive_interval,
 )
 
 T = TypeVar("T")
@@ -155,7 +155,7 @@ class _GroupIteratorMixin(Generic[T]):
     ) -> None:
         validate_iterator(iterator)
         validate_group_size(size)
-        validate_group_interval(interval)
+        validate_optional_positive_interval(interval)
         self.iterator = iterator
         self.size = size or cast(int, float("inf"))
         self.interval = interval
