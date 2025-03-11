@@ -37,11 +37,11 @@ from streamable.util.constants import NO_REPLACEMENT
 from streamable.util.functiontools import wrap_error
 from streamable.util.validationtools import (
     validate_concurrency,
-    validate_optional_positive_interval,
     validate_group_size,
     validate_iterator,
     validate_optional_count,
     validate_optional_positive_count,
+    validate_optional_positive_interval,
 )
 
 with suppress(ImportError):
