@@ -1489,6 +1489,32 @@ class TestStream(unittest.TestCase):
             msg="`catch` should accept multiple types",
         )
 
+        with self.assertRaises(
+            TypeError,
+            msg="`catch` without any error type must raise",
+        ):
+            Stream(src).catch()  # type: ignore
+
+        self.assertEqual(
+            list(
+                Stream(map(int, "foo")).catch(
+                    None, None, ValueError, None, replacement=0
+                )
+            ),
+            [0] * len("foo"),
+            msg="`catch` must catch the provided non-None error types",
+        )
+        with self.assertRaises(
+            ValueError,
+            msg="`catch` must be noop if error type is None",
+        ):
+            list(Stream(map(int, "foo")).catch(None))
+        with self.assertRaises(
+            ValueError,
+            msg="`catch` must be noop if error types are None",
+        ):
+            list(Stream(map(int, "foo")).catch(None, None, None))
+
     def test_observe(self) -> None:
         value_error_rainsing_stream: Stream[List[int]] = (
             Stream("123--678")
