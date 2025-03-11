@@ -1,5 +1,9 @@
 import datetime
-from typing import Any, Iterator, Literal, Optional, TypeVar
+from contextlib import suppress
+from typing import Any, Iterator, Optional, TypeVar
+
+with suppress(ImportError):
+    from typing import Literal
 
 T = TypeVar("T")
 
@@ -24,7 +28,7 @@ def validate_buffersize(buffersize: int) -> None:
         raise ValueError(f"`buffersize` must be >= 1 but got {buffersize}")
 
 
-def validate_via(via: Literal["thread", "process"]) -> None:
+def validate_via(via: "Literal['thread', 'process']") -> None:
     if via not in ["thread", "process"]:
         raise TypeError(f"`via` must be 'thread' or 'process' but got {repr(via)}")
 
