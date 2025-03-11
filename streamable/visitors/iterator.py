@@ -45,7 +45,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
 
     def visit_filter_stream(self, stream: FilterStream[T]) -> Iterator[T]:
         return filter(
-            wrap_error(stream._when, StopIteration) if stream._when else None,
+            wrap_error(stream._when, StopIteration),
             cast(Iterable[T], stream.upstream.accept(self)),
         )
 
