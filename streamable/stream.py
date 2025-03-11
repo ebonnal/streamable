@@ -218,7 +218,7 @@ class Stream(Iterable[T]):
         Filters the stream to yield only elements satisfying the `when` predicate.
 
         Args:
-            when (Callable[[T], Any]): An element is kept if `when(elem)` is truthy. Use `when=bool` to keep elements that are truthy themselves.
+            when (Callable[[T], Any]): An element is kept if `when(elem)` is truthy. Set `when=bool` to keep elements that are truthy themselves.
 
         Returns:
             Stream[T]: A stream of upstream elements satisfying the `when` predicate.
