@@ -39,9 +39,11 @@ from streamable.util.validationtools import (
     validate_concurrency,
     validate_group_size,
     validate_iterator,
+    validate_not_none,
     validate_optional_count,
     validate_optional_positive_count,
     validate_optional_positive_interval,
+    validate_via,
 )
 
 with suppress(ImportError):
@@ -60,6 +62,7 @@ def catch(
     finally_raise: bool = False,
 ) -> Iterator[T]:
     validate_iterator(iterator)
+    validate_not_none(finally_raise, "finally_raise")
     return CatchIterator(
         iterator,
         (error_type, *others),
@@ -76,6 +79,7 @@ def distinct(
     consecutive_only: bool = False,
 ) -> Iterator[T]:
     validate_iterator(iterator)
+    validate_not_none(consecutive_only, "consecutive_only")
     if consecutive_only:
         return ConsecutiveDistinctIterator(iterator, key)
     return DistinctIterator(iterator, key)
@@ -131,7 +135,10 @@ def map(
     via: "Literal['thread', 'process']" = "thread",
 ) -> Iterator[U]:
     validate_iterator(iterator)
+    validate_not_none(transformation, "transformation")
+    validate_not_none(ordered, "ordered")
     validate_concurrency(concurrency)
+    validate_via(via)
     if concurrency == 1:
         return builtins.map(wrap_error(transformation, StopIteration), iterator)
     else:
@@ -153,6 +160,8 @@ def amap(
     ordered: bool = True,
 ) -> Iterator[U]:
     validate_iterator(iterator)
+    validate_not_none(transformation, "transformation")
+    validate_not_none(ordered, "ordered")
     validate_concurrency(concurrency)
     return AsyncConcurrentMapIterator(
         iterator,
@@ -164,6 +173,7 @@ def amap(
 
 def observe(iterator: Iterator[T], what: str) -> Iterator[T]:
     validate_iterator(iterator)
+    validate_not_none(what, "what")
     return ObserveIterator(iterator, what)
 
 

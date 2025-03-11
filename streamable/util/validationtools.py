@@ -1,5 +1,5 @@
 import datetime
-from typing import Any, Iterator, Optional, TypeVar
+from typing import Any, Iterator, Literal, Optional, TypeVar
 
 T = TypeVar("T")
 
@@ -15,7 +15,7 @@ def validate_base(base: int):
 
 
 def validate_concurrency(concurrency: int) -> None:
-    if concurrency < 1:
+    if concurrency is None or concurrency < 1:
         raise ValueError(f"`concurrency` must be >= 1 but got {concurrency}")
 
 
@@ -24,7 +24,7 @@ def validate_buffersize(buffersize: int) -> None:
         raise ValueError(f"`buffersize` must be >= 1 but got {buffersize}")
 
 
-def validate_via(via: str) -> None:
+def validate_via(via: Literal["thread", "process"]) -> None:
     if via not in ["thread", "process"]:
         raise TypeError(f"`via` must be 'thread' or 'process' but got {repr(via)}")
 

@@ -312,7 +312,6 @@ class Stream(Iterable[T]):
         Returns:
             Stream[R]: A stream of flattened elements from upstream iterables.
         """
-        validate_not_none(concurrency, "concurrency")
         validate_concurrency(concurrency)
         return FlattenStream(self, concurrency)
 
@@ -337,9 +336,7 @@ class Stream(Iterable[T]):
             Stream[T]: A stream of upstream elements, unchanged.
         """
         validate_not_none(effect, "effect")
-        validate_not_none(concurrency, "concurrency")
         validate_not_none(ordered, "ordered")
-        validate_not_none(via, "via")
         validate_concurrency(concurrency)
         validate_via(via)
         return ForeachStream(self, effect, concurrency, ordered, via)
@@ -363,7 +360,6 @@ class Stream(Iterable[T]):
             Stream[T]: A stream of upstream elements, unchanged.
         """
         validate_not_none(effect, "effect")
-        validate_not_none(concurrency, "concurrency")
         validate_not_none(ordered, "ordered")
         validate_concurrency(concurrency)
         return AForeachStream(self, effect, concurrency, ordered)
@@ -442,9 +438,7 @@ class Stream(Iterable[T]):
             Stream[R]: A stream of transformed elements.
         """
         validate_not_none(transformation, "transformation")
-        validate_not_none(concurrency, "concurrency")
         validate_not_none(ordered, "ordered")
-        validate_not_none(via, "via")
         validate_concurrency(concurrency)
         validate_via(via)
         return MapStream(self, transformation, concurrency, ordered, via)
@@ -467,7 +461,6 @@ class Stream(Iterable[T]):
             Stream[R]: A stream of transformed elements.
         """
         validate_not_none(transformation, "transformation")
-        validate_not_none(concurrency, "concurrency")
         validate_not_none(ordered, "ordered")
         validate_concurrency(concurrency)
         return AMapStream(self, transformation, concurrency, ordered)
