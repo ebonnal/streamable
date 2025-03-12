@@ -218,18 +218,19 @@ class Stream(Iterable[T]):
         validate_not_none(consecutive_only, "consecutive_only")
         return DistinctStream(self, key, consecutive_only)
 
-    def filter(self, when: Callable[[T], Any]) -> "Stream[T]":
+    def filter(self, when: Callable[[T], Any] = bool) -> "Stream[T]":
         """
         Filters the stream to yield only elements satisfying the `when` predicate.
 
         Args:
-            when (Callable[[T], Any]): An element is kept if `when(elem)` is truthy. Set `when=bool` to keep elements that are truthy themselves.
+            when (Callable[[T], Any], optional): An element is kept if `when(elem)` is truthy. (default: keeps truthy elements)
 
         Returns:
             Stream[T]: A stream of upstream elements satisfying the `when` predicate.
         """
-        validate_not_none(when, "when")
-        return FilterStream(self, when)
+        # Unofficially accept `stream.filter(None)`, behaving as builtin `filter(None, iter)`
+        # validate_not_none(when, "when")
+        return FilterStream(self, cast(Optional[Callable[[T], Any]], when) or bool)
 
     # fmt: off
     @overload

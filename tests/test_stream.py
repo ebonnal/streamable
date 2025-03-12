@@ -815,12 +815,24 @@ class TestStream(unittest.TestCase):
             list(filter(None, src)),
             msg="`filter` with `bool` as predicate must act like builtin filter with None predicate.",
         )
-        with self.assertRaisesRegex(
-            TypeError,
-            "`when` cannot be None",
-            msg="`filter` does not accept a None predicate",
-        ):
-            list(Stream(src).filter(None))  # type: ignore
+        self.assertListEqual(
+            list(Stream(src).filter()),
+            list(filter(None, src)),
+            msg="`filter` without predicate must act like builtin filter with None predicate.",
+        )
+        self.assertListEqual(
+            list(Stream(src).filter(None)),  # type: ignore
+            list(filter(None, src)),
+            msg="`filter` with None predicate must act unofficially like builtin filter with None predicate.",
+        )
+
+        # Unofficially accept `stream.filter(None)`, behaving as builtin `filter(None, iter)`
+        # with self.assertRaisesRegex(
+        #     TypeError,
+        #     "`when` cannot be None",
+        #     msg="`filter` does not accept a None predicate",
+        # ):
+        #     list(Stream(src).filter(None))  # type: ignore
 
     def test_skip(self) -> None:
         with self.assertRaisesRegex(
