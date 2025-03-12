@@ -1,7 +1,7 @@
 [![coverage](https://codecov.io/gh/ebonnal/streamable/graph/badge.svg?token=S62T0JQK9N)](https://codecov.io/gh/ebonnal/streamable)
 [![unittest](https://github.com/ebonnal/streamable/actions/workflows/unittest.yml/badge.svg?branch=main)](https://github.com/ebonnal/streamable/actions)
 [![typing](https://github.com/ebonnal/streamable/actions/workflows/typing.yml/badge.svg?branch=main)](https://github.com/ebonnal/streamable/actions)
-[![lint](https://github.com/ebonnal/streamable/actions/workflows/lint.yml/badge.svg?branch=main)](https://github.com/ebonnal/streamable/actions)
+[![formatting](https://github.com/ebonnal/streamable/actions/workflows/formatting.yml/badge.svg?branch=main)](https://github.com/ebonnal/streamable/actions)
 [![PyPI](https://github.com/ebonnal/streamable/actions/workflows/pypi.yml/badge.svg?branch=main)](https://pypi.org/project/streamable)
 
 # ༄ `streamable`

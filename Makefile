@@ -1,14 +1,14 @@
 VENV_DIR := .venv
 
-all: venv test type-check lint
+all: venv test type-check format
 
 help:
 	@echo "Available commands:"
-	@echo "  make all             - Run all tasks: venv, test, type-check, lint"
+	@echo "  make all             - Run all tasks: venv, test, type-check, format"
 	@echo "  make venv            - Create a virtual environment and install dependencies"
 	@echo "  make test            - Run unittests and check coverage"
 	@echo "  make type-check      - Check typing with mypy"
-	@echo "  make lint            - Lint the codebase"
+	@echo "  make format          - Format the codebase"
 
 venv:
 	python3 -m venv $(VENV_DIR) --clear
@@ -22,7 +22,8 @@ test:
 type-check:
 	$(VENV_DIR)/bin/python -m mypy --install-types --non-interactive streamable tests
 
-lint:
-	$(VENV_DIR)/bin/python -m autoflake --in-place --remove-all-unused-imports --remove-unused-variables --ignore-init-module -r streamable tests
-	$(VENV_DIR)/bin/python -m isort streamable tests
-	$(VENV_DIR)/bin/python -m black .
+format:
+	$(VENV_DIR)/bin/python -m ruff format streamable tests
+
+format-check:
+	$(VENV_DIR)/bin/python -m ruff format --check streamable tests

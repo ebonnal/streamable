@@ -5,7 +5,7 @@
 make venv
 make test
 make type-check
-make lint
+make format
 ```
 
 Run a specific test:

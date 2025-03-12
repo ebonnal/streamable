@@ -8,7 +8,7 @@ on:
       - '.github/workflows/typing.yml'
 
 jobs:
-  mypy:
+  typing:
     runs-on: ubuntu-latest
 
     steps:

@@ -577,7 +577,9 @@ class TestStream(unittest.TestCase):
         self.assertListEqual(
             list(
                 method(
-                    Stream(src), throw_for_odd_func(raised_exc), concurrency=concurrency  # type: ignore
+                    Stream(src),
+                    throw_for_odd_func(raised_exc),
+                    concurrency=concurrency,  # type: ignore
                 ).catch(*catched_exc)
             ),
             list(even_src),
@@ -989,13 +991,14 @@ class TestStream(unittest.TestCase):
                     Stream([1]).group(
                         size=100, interval=datetime.timedelta(seconds=seconds)
                     )
-                ),
+                )
+
         for size in [-1, 0]:
             with self.assertRaises(
                 ValueError,
                 msg="`group` should raise error when called with `size` < 1.",
             ):
-                list(Stream([1]).group(size=size)),
+                list(Stream([1]).group(size=size))
 
         # group size
         self.assertListEqual(

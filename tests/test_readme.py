@@ -15,6 +15,7 @@ integers_by_parity: Stream[List[int]] = integers.group(by=lambda n: n % 2)
 
 three_integers_per_second: Stream[int] = integers.throttle(5, per=timedelta(seconds=1))
 
+
 # fmt: off
 class TestReadme(unittest.TestCase):
     def test_collect_it(self) -> None:

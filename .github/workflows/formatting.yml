@@ -1,4 +1,4 @@
-name: lint
+name: formatting
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
       - '.github/workflows/lint.yml'
 
 jobs:
-  lint:
+  formatting:
     runs-on: ubuntu-latest
 
     steps:
@@ -19,4 +19,4 @@ jobs:
         python-version: 3.9
 
     - name: checks
-      run: make venv lint
+      run: make venv format-check
