@@ -26,6 +26,7 @@ from streamable.util.constants import NO_REPLACEMENT
 from streamable.util.loggertools import get_logger
 from streamable.util.validationtools import (
     validate_concurrency,
+    validate_errors,
     validate_group_size,
     # validate_not_none,
     validate_optional_count,
@@ -138,30 +139,33 @@ class Stream(Iterable[T]):
 
     def catch(
         self,
-        error_type: Optional[Type[Exception]] = Exception,
-        *others: Optional[Type[Exception]],
+        errors: Union[
+            Optional[Type[Exception]], Iterable[Optional[Type[Exception]]]
+        ] = Exception,
+        *,
         when: Optional[Callable[[Exception], Any]] = None,
         replacement: T = NO_REPLACEMENT,  # type: ignore
         finally_raise: bool = False,
     ) -> "Stream[T]":
         """
-        Catches the upstream exceptions if they are instances of `error_type` (or `others`) and they satisfy the `when` predicate.
+        Catches the upstream exceptions if they are instances of `errors` type and they satisfy the `when` predicate.
+        Optionally yields a `replacement` value.
+        If any exception was caught during the iteration and `finally_raise=True`, the first caught exception will be raised when the iteration finishes.
 
         Args:
-            error_type (Type[Exception], optional): The exception type to catch. (default: catch all `Exception`s)
-            *others (Type[Exception], optional): Additional exception types to catch.
+            errors (Optional[Type[Exception]], Iterable[Optional[Type[Exception]]], optional): The exception type to catch, or an iterable of exception types to catch (default: catches all `Exception`s)
             when (Optional[Callable[[Exception], Any]], optional): An additional condition that must be satisfied to catch the exception, i.e. `when(exception)` must be truthy. (default: no additional condition)
-            replacement (T, optional): The value to yield when an exception is catched. (default: do not yield any replacement value)
-            finally_raise (bool, optional): If True the first catched exception is raised when upstream's iteration ends. (default: iteration ends without raising)
+            replacement (T, optional): The value to yield when an exception is caught. (default: do not yield any replacement value)
+            finally_raise (bool, optional): If True the first exception caught is raised when upstream's iteration ends. (default: iteration ends without raising)
 
         Returns:
             Stream[T]: A stream of upstream elements catching the eligible exceptions.
         """
+        validate_errors(errors)
         # validate_not_none(finally_raise, "finally_raise")
         return CatchStream(
             self,
-            error_type,
-            *others,
+            errors,
             when=when,
             replacement=replacement,
             finally_raise=finally_raise,
@@ -619,15 +623,13 @@ class CatchStream(DownStream[T, T]):
     def __init__(
         self,
         upstream: Stream[T],
-        error_type: Optional[Type[Exception]],
-        *others: Optional[Type[Exception]],
+        errors: Union[Optional[Type[Exception]], Iterable[Optional[Type[Exception]]]],
         when: Optional[Callable[[Exception], Any]],
         replacement: T,
         finally_raise: bool,
     ) -> None:
         super().__init__(upstream)
-        self._error_type = error_type
-        self._others = others
+        self._errors = errors
         self._when = when
         self._replacement = replacement
         self._finally_raise = finally_raise

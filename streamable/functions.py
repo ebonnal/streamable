@@ -13,6 +13,7 @@ from typing import (
     Tuple,
     Type,
     TypeVar,
+    Union,
 )
 
 from streamable.iterators import (
@@ -37,6 +38,7 @@ from streamable.util.constants import NO_REPLACEMENT
 from streamable.util.functiontools import wrap_error
 from streamable.util.validationtools import (
     validate_concurrency,
+    validate_errors,
     validate_group_size,
     validate_iterator,
     # validate_not_none,
@@ -55,20 +57,25 @@ U = TypeVar("U")
 
 def catch(
     iterator: Iterator[T],
-    error_type: Optional[Type[Exception]] = Exception,
-    *others: Optional[Type[Exception]],
+    errors: Union[
+        Optional[Type[Exception]], Iterable[Optional[Type[Exception]]]
+    ] = Exception,
+    *,
     when: Optional[Callable[[Exception], Any]] = None,
     replacement: T = NO_REPLACEMENT,  # type: ignore
     finally_raise: bool = False,
 ) -> Iterator[T]:
     validate_iterator(iterator)
+    validate_errors(errors)
     # validate_not_none(finally_raise, "finally_raise")
+    if errors is None:
+        return iterator
     return CatchIterator(
         iterator,
-        (error_type, *others),
-        when,
-        replacement,
-        finally_raise,
+        tuple(filter(None, errors)) if isinstance(errors, Iterable) else errors,
+        when=when,
+        replacement=replacement,
+        finally_raise=finally_raise,
     )
 
 
