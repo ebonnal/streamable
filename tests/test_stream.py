@@ -1302,6 +1302,60 @@ class TestStream(unittest.TestCase):
                     msg="`throttle` with both `per_second` and `interval` set should follow the most restrictive",
                 )
 
+        with self.assertRaisesRegex(
+            TypeError,
+            r"Stream.throttle\(\) got an unexpected keyword argument 'foo'",
+            msg="`throttle` must raise for unsupported kwarg",
+        ):
+            Stream(src).throttle(foo="bar")
+
+        self.assertEqual(
+            Stream(src)
+            .throttle(per_second=2)
+            .throttle(per_minute=3)
+            .throttle(per_hour=4)
+            .throttle(interval=datetime.timedelta(milliseconds=1)),
+            Stream(src)
+            .throttle(2, per=datetime.timedelta(seconds=1))
+            .throttle(3, per=datetime.timedelta(minutes=1))
+            .throttle(4, per=datetime.timedelta(hours=1))
+            .throttle(1, per=datetime.timedelta(milliseconds=1)),
+            msg="`throttle` must support legacy kwargs",
+        )
+
+        self.assertEqual(
+            Stream(src).throttle(
+                per_second=2,
+                per_minute=3,
+                per_hour=4,
+                interval=datetime.timedelta(milliseconds=1),
+            ),
+            Stream(src)
+            .throttle(2, per=datetime.timedelta(seconds=1))
+            .throttle(3, per=datetime.timedelta(minutes=1))
+            .throttle(4, per=datetime.timedelta(hours=1))
+            .throttle(1, per=datetime.timedelta(milliseconds=1)),
+            msg="`throttle` must support legacy kwargs",
+        )
+
+        self.assertEqual(
+            Stream(src).throttle(
+                5,
+                per=datetime.timedelta(microseconds=1),
+                per_second=2,
+                per_minute=3,
+                per_hour=4,
+                interval=datetime.timedelta(milliseconds=1),
+            ),
+            Stream(src)
+            .throttle(5, per=datetime.timedelta(microseconds=1))
+            .throttle(2, per=datetime.timedelta(seconds=1))
+            .throttle(3, per=datetime.timedelta(minutes=1))
+            .throttle(4, per=datetime.timedelta(hours=1))
+            .throttle(1, per=datetime.timedelta(milliseconds=1)),
+            msg="`throttle` must support legacy kwargs",
+        )
+
     def test_distinct(self) -> None:
         self.assertListEqual(
             list(Stream("abbcaabcccddd").distinct()),
