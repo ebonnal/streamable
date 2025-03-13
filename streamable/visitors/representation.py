@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, TypeVar
+from typing import Any, Iterable, List, Type, TypeVar
 
 from streamable.stream import (
     AForeachStream,
@@ -38,15 +38,12 @@ class ToStringVisitor(Visitor[str], ABC):
         replacement = ""
         if stream._replacement is not NO_REPLACEMENT:
             replacement = f", replacement={self.to_string(stream._replacement)}"
-
-        error_types = ", ".join(
-            map(
-                lambda err: getattr(err, "__name__", self.to_string(err)),
-                (stream._error_type, *stream._others),
-            )
-        )
+        if isinstance(stream._errors, Iterable):
+            errors = f"({', '.join(map(self.to_string, stream._errors))})"
+        else:
+            errors = self.to_string(stream._errors)
         self.methods_reprs.append(
-            f"catch({error_types}, when={self.to_string(stream._when)}{replacement}, finally_raise={self.to_string(stream._finally_raise)})"
+            f"catch({errors}, when={self.to_string(stream._when)}{replacement}, finally_raise={self.to_string(stream._finally_raise)})"
         )
         return stream.upstream.accept(self)
 
@@ -143,9 +140,11 @@ class ReprVisitor(ToStringVisitor):
 
 class StrVisitor(ToStringVisitor):
     @staticmethod
-    def to_string(o: object) -> str:
+    def to_string(o: Any) -> str:
         if isinstance(o, _Star):
             return f"star({StrVisitor.to_string(o.func)})"
+        if type(o) is type and issubclass(o, Exception):
+            return o.__name__
         if repr(o).startswith("<"):
             return getattr(o, "__name__", f"{o.__class__.__name__}(...)")
         return repr(o)

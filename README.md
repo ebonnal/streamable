@@ -371,7 +371,7 @@ assert list(integers_after_five) == [5, 6, 7, 8, 9]
 
 ## `.catch`
 
-> Catches a given type of exceptions, and optionally yields a `replacement` value:
+> Catches a given type of exception, and optionally yields a `replacement` value:
 
 ```python
 inverses: Stream[float] = (
@@ -398,7 +398,7 @@ status_codes_ignoring_resolution_errors: Stream[int] = (
 assert list(status_codes_ignoring_resolution_errors) == [200, 404]
 ```
 
-> It has an optional `finally_raise: bool` parameter to raise the first catched exception when iteration ends.
+> It has an optional `finally_raise: bool` parameter to raise the first exception caught (if any) when the iteration terminates.
 
 > [!TIP]
 > Apply side effects when catching an exception by integrating them into `when`:

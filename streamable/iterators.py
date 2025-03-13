@@ -36,6 +36,7 @@ from streamable.util.validationtools import (
     validate_buffersize,
     validate_concurrency,
     validate_count,
+    validate_errors,
     validate_group_size,
     validate_iterator,
     validate_optional_positive_interval,
@@ -61,14 +62,15 @@ class CatchIterator(Iterator[T]):
     def __init__(
         self,
         iterator: Iterator[T],
-        error_types: Iterable[Optional[Type[Exception]]],
+        errors: Union[Type[Exception], Tuple[Type[Exception], ...]],
         when: Optional[Callable[[Exception], Any]],
         replacement: T,
         finally_raise: bool,
     ) -> None:
         validate_iterator(iterator)
+        validate_errors(errors)
         self.iterator = iterator
-        self.error_types: Tuple[Type[Exception], ...] = tuple(filter(None, error_types))
+        self.errors = errors
         self.when = wrap_error(when, StopIteration) if when else None
         self.replacement = replacement
         self.finally_raise = finally_raise
@@ -84,7 +86,7 @@ class CatchIterator(Iterator[T]):
                     self._to_be_finally_raised = None
                     raise exception
                 raise
-            except self.error_types as exception:
+            except self.errors as exception:
                 if not self.when or self.when(exception):
                     if self._to_be_finally_raised is None:
                         self._to_be_finally_raised = exception
@@ -442,7 +444,7 @@ class YieldsPerPeriodThrottleIterator(Iterator[T]):
             return None, e
 
     def __next__(self) -> T:
-        elem, catched_error = self.safe_next()
+        elem, caught_error = self.safe_next()
 
         now = time.perf_counter()
         if not self._offset:
@@ -460,8 +462,8 @@ class YieldsPerPeriodThrottleIterator(Iterator[T]):
             time.sleep((ceil(num_periods) - num_periods) * self._period_seconds)
         self._yields_in_period += 1
 
-        if catched_error:
-            raise catched_error
+        if caught_error:
+            raise caught_error
         return cast(T, elem)
 
 

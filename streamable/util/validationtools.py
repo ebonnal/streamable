@@ -1,6 +1,6 @@
 import datetime
 from contextlib import suppress
-from typing import Any, Iterator, Optional, TypeVar
+from typing import Any, Iterable, Iterator, Optional, Type, TypeVar, Union
 
 with suppress(ImportError):
     from typing import Literal
@@ -70,3 +70,14 @@ def validate_optional_positive_count(count: Optional[int]):
 # def validate_not_none(value: Any, name: str) -> None:
 #     if value is None:
 #         raise TypeError(f"`{name}` cannot be None")
+
+
+def validate_errors(
+    errors: Union[Optional[Type[Exception]], Iterable[Optional[Type[Exception]]]],
+) -> None:
+    if errors is not None:
+        if not (type(errors) is type and issubclass(errors, Exception)):
+            if not isinstance(errors, Iterable):
+                raise TypeError(
+                    f"`errors` must be None, or a subclass of `Exception`, or an iterable of optional subclasses of `Exception`, but got {type(errors)}"
+                )
