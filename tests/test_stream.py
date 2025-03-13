@@ -175,7 +175,7 @@ class TestStream(unittest.TestCase):
             .filter(bool)
             .foreach(identity)
             .aforeach(async_identity)
-            .catch(Exception)
+            .catch()
             .observe()
             .throttle(1, per=datetime.timedelta(seconds=1))
             .source,
@@ -224,8 +224,8 @@ class TestStream(unittest.TestCase):
                 per=datetime.timedelta(seconds=1),
             )
             .observe("foos")
-            .catch(Exception, finally_raise=True)
-            .catch(TypeError, ValueError, ZeroDivisionError)
+            .catch(finally_raise=True)
+            .catch((TypeError, ValueError, None, ZeroDivisionError))
             .catch(TypeError, replacement=None, finally_raise=True)
         )
 
@@ -285,7 +285,7 @@ class TestStream(unittest.TestCase):
     .throttle(64, per=datetime.timedelta(seconds=1))
     .observe('foos')
     .catch(Exception, when=None, finally_raise=True)
-    .catch(TypeError, ValueError, ZeroDivisionError, when=None, finally_raise=False)
+    .catch((TypeError, ValueError, None, ZeroDivisionError), when=None, finally_raise=False)
     .catch(TypeError, when=None, replacement=None, finally_raise=True)
 )""",
             msg="`repr` should work as expected on a stream with many operation",
@@ -541,13 +541,13 @@ class TestStream(unittest.TestCase):
         [
             [
                 raised_exc,
-                catched_exc,
+                caught_exc,
                 concurrency,
                 method,
                 throw_func_,
                 throw_for_odd_func_,
             ]
-            for raised_exc, catched_exc in [
+            for raised_exc, caught_exc in [
                 (TestError, (TestError,)),
                 (StopIteration, (WrappedError, RuntimeError)),
             ]
@@ -562,14 +562,14 @@ class TestStream(unittest.TestCase):
     def test_map_or_foreach_with_exception(
         self,
         raised_exc: Type[Exception],
-        catched_exc: Tuple[Type[Exception], ...],
+        caught_exc: Tuple[Type[Exception], ...],
         concurrency: int,
         method: Callable[[Stream, Callable[[Any], int], int], Stream],
         throw_func: Callable[[Exception], Callable[[Any], int]],
         throw_for_odd_func: Callable[[Type[Exception]], Callable[[Any], int]],
     ) -> None:
         with self.assertRaises(
-            catched_exc,
+            caught_exc,
             msg="At any concurrency, `map` and `foreach` and `amap` must raise",
         ):
             list(method(Stream(src), throw_func(raised_exc), concurrency=concurrency))  # type: ignore
@@ -580,7 +580,7 @@ class TestStream(unittest.TestCase):
                     Stream(src),
                     throw_for_odd_func(raised_exc),
                     concurrency=concurrency,  # type: ignore
-                ).catch(*catched_exc)
+                ).catch(caught_exc)
             ),
             list(even_src),
             msg="At any concurrency, `map` and `foreach` and `amap` must not stop after one exception occured.",
@@ -1391,18 +1391,26 @@ class TestStream(unittest.TestCase):
 
     def test_catch(self) -> None:
         self.assertListEqual(
-            list(Stream(src).catch(Exception, finally_raise=True)),
+            list(Stream(src).catch(finally_raise=True)),
             list(src),
             msg="`catch` should yield elements in exception-less scenarios",
         )
+
         with self.assertRaisesRegex(
             TypeError,
             "`iterator` must be an Iterator but got a <class 'list'>",
-            msg="`catch` function should raise TypError when first argument is not an Iterator",
+            msg="`catch` function should raise TypeError when first argument is not an Iterator",
         ):
             from streamable.functions import catch
 
             catch(cast(Iterator[int], [3, 4]), Exception)
+
+        with self.assertRaisesRegex(
+            TypeError,
+            "`errors` must be None, or a subclass of `Exception`, or an iterable of optional subclasses of `Exception`, but got <class 'int'>",
+            msg="`catch` should raise TypeError when first argument is not None or Type[Exception], or Iterable[Optional[Type[Exception]]]",
+        ):
+            Stream(src).catch(1)  # type: ignore
 
         def f(i):
             return i / (3 - i)
@@ -1416,14 +1424,14 @@ class TestStream(unittest.TestCase):
             msg="If the exception type matches the `error_type`, then the impacted element should be ignored.",
         )
         self.assertListEqual(
-            list(stream.catch(Exception)),
+            list(stream.catch()),
             list(map(f, safe_src)),
-            msg="If the predicate is not specified, then all exceptions should be catched.",
+            msg="If the predicate is not specified, then all exceptions should be caught.",
         )
 
         with self.assertRaises(
             ZeroDivisionError,
-            msg="If a non catched exception type occurs, then it should be raised.",
+            msg="If a non caught exception type occurs, then it should be raised.",
         ):
             list(stream.catch(TestError))
 
@@ -1441,11 +1449,11 @@ class TestStream(unittest.TestCase):
         ]
 
         erroring_stream: Stream[int] = Stream(lambda: map(lambda f: f(), functions))
-        for catched_erroring_stream in [
-            erroring_stream.catch(Exception, finally_raise=True),
-            erroring_stream.catch(Exception, finally_raise=True),
+        for caught_erroring_stream in [
+            erroring_stream.catch(finally_raise=True),
+            erroring_stream.catch(finally_raise=True),
         ]:
-            erroring_stream_iterator = iter(catched_erroring_stream)
+            erroring_stream_iterator = iter(caught_erroring_stream)
             self.assertEqual(
                 next(erroring_stream_iterator),
                 first_value,
@@ -1466,14 +1474,14 @@ class TestStream(unittest.TestCase):
             self.assertEqual(
                 n_yields,
                 3,
-                msg="3 elements should have passed been yielded between catched exceptions.",
+                msg="3 elements should have passed been yielded between caught exceptions.",
             )
 
-        only_catched_errors_stream = Stream(
+        only_caught_errors_stream = Stream(
             map(lambda _: throw(TestError), range(2000))
         ).catch(TestError)
         self.assertListEqual(
-            list(only_catched_errors_stream),
+            list(only_caught_errors_stream),
             [],
             msg="When upstream raise exceptions without yielding any element, listing the stream must return empty list, without recursion issue.",
         )
@@ -1481,7 +1489,7 @@ class TestStream(unittest.TestCase):
             StopIteration,
             msg="When upstream raise exceptions without yielding any element, then the first call to `next` on a stream catching all errors should raise StopIteration.",
         ):
-            next(iter(only_catched_errors_stream))
+            next(iter(only_caught_errors_stream))
 
         iterator = iter(
             Stream(map(throw, [TestError, ValueError]))
@@ -1490,12 +1498,12 @@ class TestStream(unittest.TestCase):
         )
         with self.assertRaises(
             ValueError,
-            msg="With 2 chained `catch`s with `finally_raise=True`, the error catched by the first `catch` is finally raised first (even though it was raised second)...",
+            msg="With 2 chained `catch`s with `finally_raise=True`, the error caught by the first `catch` is finally raised first (even though it was raised second)...",
         ):
             next(iterator)
         with self.assertRaises(
             TestError,
-            msg="... and then the error catched by the second `catch` is raised...",
+            msg="... and then the error caught by the second `catch` is raised...",
         ):
             next(iterator)
         with self.assertRaises(
@@ -1510,7 +1518,7 @@ class TestStream(unittest.TestCase):
         ):
             list(
                 Stream(map(throw, [ValueError, TypeError])).catch(
-                    Exception, when=lambda exception: "ValueError" in repr(exception)
+                    when=lambda exception: "ValueError" in repr(exception)
                 )
             )
 
@@ -1549,9 +1557,7 @@ class TestStream(unittest.TestCase):
                         ),
                     )
                 ).catch(
-                    ValueError,
-                    TestError,
-                    ZeroDivisionError,
+                    (ValueError, TestError, ZeroDivisionError),
                     when=lambda err: errors_counter.update([type(err)]) is None,
                 )
             ),
@@ -1578,7 +1584,7 @@ class TestStream(unittest.TestCase):
         self.assertEqual(
             list(
                 Stream(map(int, "foo")).catch(
-                    None, None, ValueError, None, replacement=0
+                    (None, None, ValueError, None), replacement=0
                 )
             ),
             [0] * len("foo"),
@@ -1593,7 +1599,7 @@ class TestStream(unittest.TestCase):
             ValueError,
             msg="`catch` must be noop if error types are None",
         ):
-            list(Stream(map(int, "foo")).catch(None, None, None))
+            list(Stream(map(int, "foo")).catch((None, None, None)))
 
     def test_observe(self) -> None:
         value_error_rainsing_stream: Stream[List[int]] = (
@@ -1734,7 +1740,7 @@ class TestStream(unittest.TestCase):
     def test_eq(self) -> None:
         stream = (
             Stream(src)
-            .catch(TypeError, ValueError, replacement=2, when=identity)
+            .catch((TypeError, ValueError), replacement=2, when=identity)
             .distinct(key=identity)
             .filter(identity)
             .foreach(identity, concurrency=3)
@@ -1753,7 +1759,7 @@ class TestStream(unittest.TestCase):
         self.assertEqual(
             stream,
             Stream(src)
-            .catch(TypeError, ValueError, replacement=2, when=identity)
+            .catch((TypeError, ValueError), replacement=2, when=identity)
             .distinct(key=identity)
             .filter(identity)
             .foreach(identity, concurrency=3)
@@ -1771,7 +1777,7 @@ class TestStream(unittest.TestCase):
         self.assertNotEqual(
             stream,
             Stream(list(src))  # not same source
-            .catch(TypeError, ValueError, replacement=2, when=identity)
+            .catch((TypeError, ValueError), replacement=2, when=identity)
             .distinct(key=identity)
             .filter(identity)
             .foreach(identity, concurrency=3)
@@ -1789,7 +1795,7 @@ class TestStream(unittest.TestCase):
         self.assertNotEqual(
             stream,
             Stream(src)
-            .catch(TypeError, ValueError, replacement=2, when=identity)
+            .catch((TypeError, ValueError), replacement=2, when=identity)
             .distinct(key=identity)
             .filter(identity)
             .foreach(identity, concurrency=3)
