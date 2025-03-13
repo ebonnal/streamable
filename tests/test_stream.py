@@ -1510,12 +1510,17 @@ class TestStream(unittest.TestCase):
             msg="`catch` should accept multiple types",
         )
 
-        with self.assertRaises(
-            TypeError,
-            msg="`catch` without any error type must raise",
-        ):
-            Stream(src).catch()  # type: ignore
+        # with self.assertRaises(
+        #     TypeError,
+        #     msg="`catch` without any error type must raise",
+        # ):
+        #     Stream(src).catch()  # type: ignore
 
+        self.assertEqual(
+            list(Stream(map(int, "foo")).catch(replacement=0)),
+            [0] * len("foo"),
+            msg="`catch` must catch all errors when no error type provided",
+        )
         self.assertEqual(
             list(
                 Stream(map(int, "foo")).catch(
