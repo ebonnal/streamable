@@ -524,10 +524,24 @@ class Stream(Iterable[T]):
         return SkipStream(self, count, until)
 
     def throttle(
-        self, count: Optional[int] = None, *, per: Optional[datetime.timedelta] = None
+        self,
+        count: Optional[int] = None,
+        *,
+        per: Optional[datetime.timedelta] = None,
+        **kwargs,
     ) -> "Stream[T]":
         """
-        Slows iteration down to `count` elements (or exceptions) `per` time interval.
+        Limits the speed of iteration to `count` elements (or exceptions) `per` time interval.
+
+        ```python
+        # limits the number of requests made to 50 per minute:
+        from datetime import timedelta
+        (
+            Stream(["https://foo.bar", ...])
+            .map(requests.get, concurrency=4)
+            .throttle(50, per=timedelta(minutes=1))
+        )
+        ```
 
         Args:
             count (int, optional): Maximum number of elements (or exceptions) that must be yielded within the given time interval. (default: no throttling)
@@ -538,7 +552,32 @@ class Stream(Iterable[T]):
         """
         validate_optional_positive_count(count)
         validate_optional_positive_interval(per, name="per")
-        return ThrottleStream(self, count, per)
+        if not kwargs:
+            return ThrottleStream(self, count, per)
+        # backward compatibility with deprecated kwargs per_second/per_minute/per_hour/interval
+        downstream = self
+        if count and per:
+            downstream = ThrottleStream(self, count, per)
+        for kwarg, value in kwargs.items():
+            if kwarg == "per_second":
+                downstream = ThrottleStream(
+                    downstream, value, datetime.timedelta(seconds=1)
+                )
+            elif kwarg == "per_minute":
+                downstream = ThrottleStream(
+                    downstream, value, datetime.timedelta(minutes=1)
+                )
+            elif kwarg == "per_hour":
+                downstream = ThrottleStream(
+                    downstream, value, datetime.timedelta(hours=1)
+                )
+            elif kwarg == "interval":
+                downstream = ThrottleStream(downstream, 1, value)
+            else:
+                raise TypeError(
+                    f"Stream.throttle() got an unexpected keyword argument '{kwarg}'"
+                )
+        return downstream
 
     def truncate(
         self, count: Optional[int] = None, *, when: Optional[Callable[[T], Any]] = None
