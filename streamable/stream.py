@@ -528,7 +528,7 @@ class Stream(Iterable[T]):
         count: Optional[int] = None,
         *,
         per: Optional[datetime.timedelta] = None,
-        **kwargs,
+        **deprecated_kwargs,
     ) -> "Stream[T]":
         """
         Limits the speed of iteration to `count` elements (or exceptions) `per` time interval.
@@ -552,13 +552,13 @@ class Stream(Iterable[T]):
         """
         validate_optional_positive_count(count)
         validate_optional_positive_interval(per, name="per")
-        if not kwargs:
+        if not deprecated_kwargs:
             return ThrottleStream(self, count, per)
         # backward compatibility with deprecated kwargs per_second/per_minute/per_hour/interval
         downstream = self
         if count and per:
             downstream = ThrottleStream(self, count, per)
-        for kwarg, value in kwargs.items():
+        for kwarg, value in deprecated_kwargs.items():
             if kwarg == "per_second":
                 downstream = ThrottleStream(
                     downstream, value, datetime.timedelta(seconds=1)
