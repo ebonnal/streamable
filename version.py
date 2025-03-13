@@ -1,2 +1,2 @@
-# to show the CHANGELOG: git log -- version.py
+# print CHANGELOG: git log --oneline -- version.py | grep -v '\-rc'
 __version__ = "1.5.0-rc3"
