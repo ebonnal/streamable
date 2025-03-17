@@ -172,7 +172,7 @@ class TestStream(unittest.TestCase):
             .flatten()
             .map(identity)
             .amap(async_identity)
-            .filter(bool)
+            .filter()
             .foreach(identity)
             .aforeach(async_identity)
             .catch()
@@ -205,7 +205,7 @@ class TestStream(unittest.TestCase):
             .skip(10)
             .skip(until=lambda _: True)
             .distinct(lambda _: _)
-            .filter(bool)
+            .filter()
             .map(lambda i: (i,))
             .map(lambda i: (i,), concurrency=2)
             .filter(star(bool))
@@ -811,7 +811,7 @@ class TestStream(unittest.TestCase):
             msg="`filter` must act like builtin filter",
         )
         self.assertListEqual(
-            list(Stream(src).filter(bool)),
+            list(Stream(src).filter()),
             list(filter(None, src)),
             msg="`filter` with `bool` as predicate must act like builtin filter with None predicate.",
         )
