@@ -2,8 +2,11 @@ import asyncio
 from abc import ABC, abstractmethod
 from collections import deque
 from concurrent.futures import Future
-from queue import Queue
+from contextlib import suppress
 from typing import Awaitable, Deque, Iterator, Sized, Type, TypeVar, cast
+
+with suppress(ImportError):
+    from streamable.util.protocols import Queue
 
 T = TypeVar("T")
 
@@ -57,7 +60,7 @@ class FDFOOSFutureResultCollection(CallbackFutureResultCollection[T]):
     First Done First Out
     """
 
-    def __init__(self, queue_type: Type[Queue]) -> None:
+    def __init__(self, queue_type: Type["Queue"]) -> None:
         super().__init__()
         self._results: "Queue[T]" = queue_type()
 
