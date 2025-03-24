@@ -707,7 +707,9 @@ class TestStream(unittest.TestCase):
                 Stream(
                     map(
                         lambda i: (
-                            IterableRaisingInIter() if i % 2 else range(i, i + 1)
+                            IterableRaisingInIter()
+                            if i % 2
+                            else cast(Iterable[int], range(i, i + 1))
                         ),
                         range(n_iterables),
                     )
@@ -737,7 +739,9 @@ class TestStream(unittest.TestCase):
                 Stream(
                     map(
                         lambda i: (
-                            IteratorRaisingInNext() if i % 2 else range(i, i + 1)
+                            IteratorRaisingInNext()
+                            if i % 2
+                            else cast(Iterable[int], range(i, i + 1))
                         ),
                         range(n_iterables),
                     )
