@@ -32,7 +32,6 @@ from streamable import Stream
 
 Create a `Stream[T]` *decorating* an `Iterable[T]`:
 
-
 ```python
 integers: Stream[int] = Stream(range(10))
 ```
@@ -40,7 +39,6 @@ integers: Stream[int] = Stream(range(10))
 ## 4. operate
 
 Chain ***lazy*** operations (only evaluated during iteration), each returning a new ***immutable*** `Stream`:
-
 
 ```python
 inverses: Stream[float] = (
@@ -55,7 +53,6 @@ inverses: Stream[float] = (
 Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`, elements are processed *on-the-fly*:
 
 - **collect**
-
 ```python
 >>> list(inverses)
 [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
@@ -64,8 +61,6 @@ Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`, eleme
 ```
 
 - **reduce**
-
-
 ```python
 >>> sum(inverses)
 2.82
@@ -73,30 +68,23 @@ Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`, eleme
 >>> reduce(..., inverses)
 ```
 
-
 - **loop**
-
-
 ```python
 >>> for inverse in inverses:
 >>>    ...
 ```
 
-
 - **next**
-
-
 ```python
 >>> next(iter(inverses))
 1.0
 ```
 
-
 # 📒 ***Operations***
 
 *A dozen expressive lazy operations and that’s it!*
 
-## `.map`
+# `.map`
 
 > Applies a transformation on elements:
 
@@ -202,7 +190,7 @@ assert list(zeros) == [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
 
 
-## `.foreach`
+# `.foreach`
 
 
 
@@ -232,7 +220,7 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 > Like `.map` it has a sibling `.aforeach` operation for async.
 
-## `.group`
+# `.group`
 
 > Groups elements into `List`s:
 
@@ -281,7 +269,7 @@ assert list(integers_by_parity_by_2) == [[0, 2], [1, 3], [4, 6], [5, 7], [8], [9
 </details>
 
 
-### `.groupby`
+## `.groupby`
 
 > Like `.group`, but groups into `(key, elements)` tuples:
 <details ><summary style="text-indent: 40px;">👀 show example</summary></br>
@@ -313,7 +301,7 @@ assert list(counts_by_parity) == [("even", 5), ("odd", 5)]
 ```
 </details>
 
-## `.flatten`
+# `.flatten`
 
 > Ungroups elements assuming that they are `Iterable`s:
 
@@ -341,7 +329,7 @@ assert list(mixed_ones_and_zeros) == [0, 1, 0, 1, 0, 1, 0, 1]
 ```
 </details>
 
-## `.filter`
+# `.filter`
 
 > Keeps only the elements that satisfy a condition:
 
@@ -354,7 +342,7 @@ assert list(even_integers) == [0, 2, 4, 6, 8]
 ```
 </details>
 
-## `.distinct`
+# `.distinct`
 
 > Removes duplicates:
 
@@ -396,7 +384,7 @@ assert list(consecutively_distinct_chars) == ["f", "o", "b", "a", "r", "f", "o"]
 ```
 </details>
 
-## `.truncate`
+# `.truncate`
 
 > Ends iteration once a given number of elements have been yielded:
 
@@ -422,7 +410,7 @@ assert list(five_first_integers) == [0, 1, 2, 3, 4]
 
 > If both `count` and `when` are set, truncation occurs as soon as either condition is met.
 
-## `.skip`
+# `.skip`
 
 > Skips the first specified number of elements:
 
@@ -448,7 +436,7 @@ assert list(integers_after_five) == [5, 6, 7, 8, 9]
 
 > If both `count` and `until` are set, skipping stops as soon as either condition is met.
 
-## `.catch`
+# `.catch`
 
 > Catches a given type of exception, and optionally yields a `replacement` value:
 
@@ -509,7 +497,7 @@ assert len(errors) == len("foo")
 </details>
 
 
-## `.throttle`
+# `.throttle`
 
 > Limits the number of yields `per` time interval:
 
@@ -526,7 +514,7 @@ assert list(three_integers_per_second) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 </details>
 
 
-## `.observe`
+# `.observe`
 
 > Logs the progress of iterations:
 <details ><summary style="text-indent: 40px;">👀 show example</summary></br>
@@ -588,7 +576,7 @@ assert list(cubes) == [0, 1, 8, 27, 64, 125, 216, 343, 512, 729]
 > [!NOTE]
 > Although consuming the stream is beyond the scope of this library, it provides two basic shorthands to trigger an iteration:
 
-### `.count`
+## `.count`
 
 
 
@@ -618,7 +606,7 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 </details>
 
 
-## `.pipe`
+# `.pipe`
 
 > Calls a function, passing the stream as first argument, followed by `*args/**kwargs` if any:
 
