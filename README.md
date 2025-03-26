@@ -534,9 +534,8 @@ assert list(three_integers_per_second) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```python
 >>> assert list(integers.throttle(2, per=timedelta(seconds=1)).observe("integers")) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
-</details>
+
 ```
-</details>
 INFO: [duration=0:00:00.001793 errors=0] 1 integers yielded
 INFO: [duration=0:00:00.004388 errors=0] 2 integers yielded
 INFO: [duration=0:00:01.003655 errors=0] 4 integers yielded
