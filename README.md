@@ -111,7 +111,7 @@ negative_integer_strings: Stream[str] = (
 
 assert list(negative_integer_strings) == ['0', '-1', '-2', '-3', '-4', '-5', '-6', '-7', '-8', '-9']
 ```
-</details></br>
+</details>
 
 ### thread-based concurrency
 
@@ -131,7 +131,7 @@ pokemon_names: Stream[str] = (
 )
 assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
 ```
-</details></br>
+</details>
 
 > Preserves the upstream order by default (FIFO), but you can set `ordered=False` for ***First Done First Out***.
 
@@ -155,7 +155,7 @@ if __name__ == "__main__":
     # but the `state` of the main process is not mutated
     assert state == []
 ```
-</details></br>
+</details>
 
 ### async-based concurrency
 
@@ -180,7 +180,7 @@ pokemon_names: Stream[str] = (
 assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
 asyncio.get_event_loop().run_until_complete(http_async_client.aclose())
 ```
-</details></br>
+</details>
 
 ### starmap
 
@@ -198,7 +198,7 @@ zeros: Stream[int] = (
 
 assert list(zeros) == [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 ```
-</details></br>
+</details>
 
 
 
@@ -217,7 +217,7 @@ appending_integers: Stream[int] = integers.foreach(state.append)
 assert list(appending_integers) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
-</details></br>
+</details>
 
 ### thread-based concurrency
 
@@ -243,7 +243,7 @@ integers_by_5: Stream[List[int]] = integers.group(size=5)
 
 assert list(integers_by_5) == [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]]
 ```
-</details></br>
+</details>
 <details ><summary style="text-indent: 40px;">show <code>code snippet</code></summary></br>
 
 ```python
@@ -251,7 +251,7 @@ integers_by_parity: Stream[List[int]] = integers.group(by=lambda n: n % 2)
 
 assert list(integers_by_parity) == [[0, 2, 4, 6, 8], [1, 3, 5, 7, 9]]
 ```
-</details></br>
+</details>
 <details ><summary style="text-indent: 40px;">show <code>code snippet</code></summary></br>
 
 ```python
@@ -265,7 +265,7 @@ integers_within_1_sec: Stream[List[int]] = (
 
 assert list(integers_within_1_sec) == [[0, 1, 2], [3, 4], [5, 6], [7, 8], [9]]
 ```
-</details></br>
+</details>
 
 > Mix the `size`/`by`/`interval` parameters:
 <details ><summary style="text-indent: 40px;">show <code>code snippet</code></summary></br>
@@ -278,7 +278,7 @@ integers_by_parity_by_2: Stream[List[int]] = (
 
 assert list(integers_by_parity_by_2) == [[0, 2], [1, 3], [4, 6], [5, 7], [8], [9]]
 ```
-</details></br>
+</details>
 
 
 ### `.groupby`
@@ -294,7 +294,7 @@ integers_by_parity: Stream[Tuple[str, List[int]]] = (
 
 assert list(integers_by_parity) == [("even", [0, 2, 4, 6, 8]), ("odd", [1, 3, 5, 7, 9])]
 ```
-</details></br>
+</details>
 
 > [!TIP]
 > Then *"starmap"* over the tuples:
@@ -311,7 +311,7 @@ counts_by_parity: Stream[Tuple[str, int]] = (
 
 assert list(counts_by_parity) == [("even", 5), ("odd", 5)]
 ```
-</details></br>
+</details>
 
 ## `.flatten`
 
@@ -324,7 +324,7 @@ even_then_odd_integers: Stream[int] = integers_by_parity.flatten()
 
 assert list(even_then_odd_integers) == [0, 2, 4, 6, 8, 1, 3, 5, 7, 9]
 ```
-</details></br>
+</details>
 
 ### thread-based concurrency
 
@@ -339,7 +339,7 @@ mixed_ones_and_zeros: Stream[int] = (
 )
 assert list(mixed_ones_and_zeros) == [0, 1, 0, 1, 0, 1, 0, 1]
 ```
-</details></br>
+</details>
 
 ## `.filter`
 
@@ -352,7 +352,7 @@ even_integers: Stream[int] = integers.filter(lambda n: n % 2 == 0)
 
 assert list(even_integers) == [0, 2, 4, 6, 8]
 ```
-</details></br>
+</details>
 
 ## `.distinct`
 
@@ -365,7 +365,7 @@ distinct_chars: Stream[str] = Stream("foobarfooo").distinct()
 
 assert list(distinct_chars) == ["f", "o", "b", "a", "r"]
 ```
-</details></br>
+</details>
 
 > specifying a deduplication `key`:
 
@@ -379,7 +379,7 @@ strings_of_distinct_lengths: Stream[str] = (
 
 assert list(strings_of_distinct_lengths) == ["a", "foo"]
 ```
-</details></br>
+</details>
 
 > [!WARNING]
 > During iteration, all distinct elements that are yielded are retained in memory to perform deduplication. However, you can remove only consecutive duplicates without a memory footprint by setting `consecutive_only=True`:
@@ -394,7 +394,7 @@ consecutively_distinct_chars: Stream[str] = (
 
 assert list(consecutively_distinct_chars) == ["f", "o", "b", "a", "r", "f", "o"]
 ```
-</details></br>
+</details>
 
 ## `.truncate`
 
@@ -407,7 +407,7 @@ five_first_integers: Stream[int] = integers.truncate(5)
 
 assert list(five_first_integers) == [0, 1, 2, 3, 4]
 ```
-</details></br>
+</details>
 
 > or `when` a condition is satisfied:
 
@@ -418,7 +418,7 @@ five_first_integers: Stream[int] = integers.truncate(when=lambda n: n == 5)
 
 assert list(five_first_integers) == [0, 1, 2, 3, 4]
 ```
-</details></br>
+</details>
 
 > If both `count` and `when` are set, truncation occurs as soon as either condition is met.
 
@@ -433,7 +433,7 @@ integers_after_five: Stream[int] = integers.skip(5)
 
 assert list(integers_after_five) == [5, 6, 7, 8, 9]
 ```
-</details></br>
+</details>
 
 > or skips elements `until` a predicate is satisfied:
 
@@ -444,7 +444,7 @@ integers_after_five: Stream[int] = integers.skip(until=lambda n: n >= 5)
 
 assert list(integers_after_five) == [5, 6, 7, 8, 9]
 ```
-</details></br>
+</details>
 
 > If both `count` and `until` are set, skipping stops as soon as either condition is met.
 
@@ -463,7 +463,7 @@ inverses: Stream[float] = (
 
 assert list(inverses) == [float("inf"), 1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
 ```
-</details></br>
+</details>
 
 > You can specify an additional `when` condition for the catch:
 <details ><summary style="text-indent: 40px;">show <code>code snippet</code></summary></br>
@@ -481,7 +481,7 @@ status_codes_ignoring_resolution_errors: Stream[int] = (
 
 assert list(status_codes_ignoring_resolution_errors) == [200, 404]
 ```
-</details></br>
+</details>
 
 > It has an optional `finally_raise: bool` parameter to raise the first exception caught (if any) when the iteration terminates.
 
@@ -506,7 +506,7 @@ integers_in_string: Stream[int] = (
 assert list(integers_in_string) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 assert len(errors) == len("foo")
 ```
-</details></br>
+</details>
 
 
 ## `.throttle`
@@ -523,7 +523,7 @@ three_integers_per_second: Stream[int] = integers.throttle(3, per=timedelta(seco
 # takes 3s: ceil(10 integers / 3 per_second) - 1
 assert list(three_integers_per_second) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
-</details></br>
+</details>
 
 
 ## `.observe`
@@ -534,16 +534,16 @@ assert list(three_integers_per_second) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```python
 >>> assert list(integers.throttle(2, per=timedelta(seconds=1)).observe("integers")) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
-</details></br>
+</details>
 ```
-</details></br>
+</details>
 INFO: [duration=0:00:00.001793 errors=0] 1 integers yielded
 INFO: [duration=0:00:00.004388 errors=0] 2 integers yielded
 INFO: [duration=0:00:01.003655 errors=0] 4 integers yielded
 INFO: [duration=0:00:03.003196 errors=0] 8 integers yielded
 INFO: [duration=0:00:04.003852 errors=0] 10 integers yielded
 ```
-</details></br>
+</details>
 
 > [!NOTE]
 > The amount of logs will never be overwhelming because they are produced logarithmically (base 2): the 11th log will be produced after 1,024 elements have been yielded, the 21th log after 1,048,576 elements, ...
@@ -560,7 +560,7 @@ INFO: [duration=0:00:04.003852 errors=0] 10 integers yielded
 ```python
 assert list(integers + integers) == [0, 1, 2, 3 ,4, 5, 6, 7, 8, 9, 0, 1, 2, 3 ,4, 5, 6, 7, 8, 9]
 ```
-</details></br>
+</details>
 
 
 ## `zip`
@@ -582,7 +582,7 @@ cubes: Stream[int] = (
 
 assert list(cubes) == [0, 1, 8, 27, 64, 125, 216, 343, 512, 729]
 ```
-</details></br>
+</details>
 
 
 ## Shorthands for consuming the stream
@@ -600,7 +600,7 @@ assert list(cubes) == [0, 1, 8, 27, 64, 125, 216, 343, 512, 729]
 ```python
 assert integers.count() == 10
 ```
-</details></br>
+</details>
 
 
 ### `()`
@@ -616,7 +616,7 @@ appending_integers: Stream[int] = integers.foreach(state.append)
 assert appending_integers() is appending_integers
 assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
-</details></br>
+</details>
 
 
 ## `.pipe`
@@ -635,7 +635,7 @@ import pandas as pd
     .to_csv("integers.csv", index=False)
 )
 ```
-</details></br>
+</details>
 
 > Inspired by the `.pipe` from [pandas](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.pipe.html) or [polars](https://docs.pola.rs/api/python/stable/reference/dataframe/api/polars.DataFrame.pipe.html).
 
@@ -691,7 +691,7 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
 
     pipeline()
 ```
-</details></br>
+</details>
 
 ## Visitor Pattern
 > [!TIP]
@@ -713,7 +713,7 @@ def depth(stream: Stream) -> int:
 
 assert depth(Stream(range(10)).map(str).foreach(print)) == 3
 ```
-</details></br>
+</details>
 
 ## Functions
 > [!TIP]
@@ -726,7 +726,7 @@ from streamable.functions import catch
 inverse_integers: Iterator[int] = map(lambda n: 1 / n, range(10))
 safe_inverse_integers: Iterator[int] = catch(inverse_integers, ZeroDivisionError)
 ```
-</details></br>
+</details>
 
 ## Logging Level
 > [!TIP]
@@ -738,7 +738,7 @@ safe_inverse_integers: Iterator[int] = catch(inverse_integers, ZeroDivisionError
 import logging
 logging.getLogger("streamable").setLevel(logging.WARNING)
 ```
-</details></br>
+</details>
 
 # Contributing
 **Many thanks to our [contributors](https://github.com/ebonnal/streamable/graphs/contributors)!**
