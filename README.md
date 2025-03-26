@@ -536,9 +536,7 @@ INFO: [duration=0:00:04.003852 errors=0] 10 integers yielded
 > The amount of logs will never be overwhelming because they are produced logarithmically (base 2): the 11th log will be produced after 1,024 elements have been yielded, the 21th log after 1,048,576 elements, ...
 
 
-## `+`
-
-
+# `+`
 
 > Concatenates streams:
 
@@ -550,9 +548,7 @@ assert list(integers + integers) == [0, 1, 2, 3 ,4, 5, 6, 7, 8, 9, 0, 1, 2, 3 ,4
 </details>
 
 
-## `zip`
-
-
+# `zip`
 
 > [!TIP]
 > Use the standard `zip` function:
@@ -590,7 +586,7 @@ assert integers.count() == 10
 </details>
 
 
-### `()`
+## `()`
 
 
 
