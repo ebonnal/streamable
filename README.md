@@ -23,6 +23,7 @@ pip install streamable
 ```
 
 ## 2. import
+
 ```python
 from streamable import Stream
 ```
@@ -31,6 +32,7 @@ from streamable import Stream
 
 Create a `Stream[T]` *decorating* an `Iterable[T]`:
 
+
 ```python
 integers: Stream[int] = Stream(range(10))
 ```
@@ -38,6 +40,7 @@ integers: Stream[int] = Stream(range(10))
 ## 4. operate
 
 Chain ***lazy*** operations (only evaluated during iteration), each returning a new ***immutable*** `Stream`:
+
 
 ```python
 inverses: Stream[float] = (
@@ -52,6 +55,7 @@ inverses: Stream[float] = (
 Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`, elements are processed *on-the-fly*:
 
 - **collect**
+
 ```python
 >>> list(inverses)
 [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
@@ -60,6 +64,8 @@ Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`, eleme
 ```
 
 - **reduce**
+
+
 ```python
 >>> sum(inverses)
 2.82
@@ -67,17 +73,24 @@ Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`, eleme
 >>> reduce(..., inverses)
 ```
 
+
 - **loop**
+
+
 ```python
 >>> for inverse in inverses:
 >>>    ...
 ```
 
+
 - **next**
+
+
 ```python
 >>> next(iter(inverses))
 1.0
 ```
+
 
 # 📒 ***Operations***
 
@@ -86,6 +99,8 @@ Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`, eleme
 ## `.map`
 
 > Applies a transformation on elements:
+
+<details ><summary style="text-indent: 40px;">show <code>code snippet</code></summary></br>
 
 ```python
 negative_integer_strings: Stream[str] = (
@@ -96,10 +111,13 @@ negative_integer_strings: Stream[str] = (
 
 assert list(negative_integer_strings) == ['0', '-1', '-2', '-3', '-4', '-5', '-6', '-7', '-8', '-9']
 ```
+</details></br>
 
 ### thread-based concurrency
 
 > Applies the transformation via `concurrency` threads:
+
+<details ><summary style="text-indent: 40px;">show <code>code snippet</code></summary></br>
 
 ```python
 import requests
@@ -113,6 +131,7 @@ pokemon_names: Stream[str] = (
 )
 assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
 ```
+</details></br>
 
 > Preserves the upstream order by default (FIFO), but you can set `ordered=False` for ***First Done First Out***.
 
@@ -126,6 +145,8 @@ assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
 
 > Set `via="process"`:
 
+<details ><summary style="text-indent: 40px;">show <code>code snippet</code></summary></br>
+
 ```python
 if __name__ == "__main__":
     state: List[int] = []
@@ -134,10 +155,13 @@ if __name__ == "__main__":
     # but the `state` of the main process is not mutated
     assert state == []
 ```
+</details></br>
 
 ### async-based concurrency
 
 > The sibling operation `.amap` applies an async function:
+
+<details ><summary style="text-indent: 40px;">show <code>code snippet</code></summary></br>
 
 ```python
 import httpx
@@ -156,10 +180,13 @@ pokemon_names: Stream[str] = (
 assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
 asyncio.get_event_loop().run_until_complete(http_async_client.aclose())
 ```
+</details></br>
 
 ### starmap
 
 > The `star` function decorator transforms a function that takes several positional arguments into a function that takes a tuple:
+
+<details ><summary style="text-indent: 40px;">show <code>code snippet</code></summary></br>
 
 ```python
 from streamable import star
@@ -171,6 +198,7 @@ zeros: Stream[int] = (
 
 assert list(zeros) == [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 ```
+</details></br>
 
 
 
@@ -180,6 +208,8 @@ assert list(zeros) == [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
 > Applies a side effect on elements:
 
+<details ><summary style="text-indent: 40px;">show <code>code snippet</code></summary></br>
+
 ```python
 state: List[int] = []
 appending_integers: Stream[int] = integers.foreach(state.append)
@@ -187,6 +217,7 @@ appending_integers: Stream[int] = integers.foreach(state.append)
 assert list(appending_integers) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
+</details></br>
 
 ### thread-based concurrency
 
@@ -205,16 +236,24 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 > Groups elements into `List`s:
 
+<details ><summary style="text-indent: 40px;">show <code>code snippet</code></summary></br>
+
 ```python
 integers_by_5: Stream[List[int]] = integers.group(size=5)
 
 assert list(integers_by_5) == [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]]
 ```
+</details></br>
+<details ><summary style="text-indent: 40px;">show <code>code snippet</code></summary></br>
+
 ```python
 integers_by_parity: Stream[List[int]] = integers.group(by=lambda n: n % 2)
 
 assert list(integers_by_parity) == [[0, 2, 4, 6, 8], [1, 3, 5, 7, 9]]
 ```
+</details></br>
+<details ><summary style="text-indent: 40px;">show <code>code snippet</code></summary></br>
+
 ```python
 from datetime import timedelta
 
@@ -226,8 +265,11 @@ integers_within_1_sec: Stream[List[int]] = (
 
 assert list(integers_within_1_sec) == [[0, 1, 2], [3, 4], [5, 6], [7, 8], [9]]
 ```
+</details></br>
 
 > Mix the `size`/`by`/`interval` parameters:
+<details ><summary style="text-indent: 40px;">show <code>code snippet</code></summary></br>
+
 ```python
 integers_by_parity_by_2: Stream[List[int]] = (
     integers
@@ -236,11 +278,14 @@ integers_by_parity_by_2: Stream[List[int]] = (
 
 assert list(integers_by_parity_by_2) == [[0, 2], [1, 3], [4, 6], [5, 7], [8], [9]]
 ```
+</details></br>
 
 
 ### `.groupby`
 
 > Like `.group`, but groups into `(key, elements)` tuples:
+<details ><summary style="text-indent: 40px;">show <code>code snippet</code></summary></br>
+
 ```python
 integers_by_parity: Stream[Tuple[str, List[int]]] = (
     integers
@@ -249,9 +294,12 @@ integers_by_parity: Stream[Tuple[str, List[int]]] = (
 
 assert list(integers_by_parity) == [("even", [0, 2, 4, 6, 8]), ("odd", [1, 3, 5, 7, 9])]
 ```
+</details></br>
 
 > [!TIP]
 > Then *"starmap"* over the tuples:
+
+<details ><summary style="text-indent: 40px;">show <code>code snippet</code></summary></br>
 
 ```python
 from streamable import star
@@ -263,20 +311,26 @@ counts_by_parity: Stream[Tuple[str, int]] = (
 
 assert list(counts_by_parity) == [("even", 5), ("odd", 5)]
 ```
+</details></br>
 
 ## `.flatten`
 
 > Ungroups elements assuming that they are `Iterable`s:
+
+<details ><summary style="text-indent: 40px;">show <code>code snippet</code></summary></br>
 
 ```python
 even_then_odd_integers: Stream[int] = integers_by_parity.flatten()
 
 assert list(even_then_odd_integers) == [0, 2, 4, 6, 8, 1, 3, 5, 7, 9]
 ```
+</details></br>
 
 ### thread-based concurrency
 
 > Flattens `concurrency` iterables concurrently:
+
+<details ><summary style="text-indent: 40px;">show <code>code snippet</code></summary></br>
 
 ```python
 mixed_ones_and_zeros: Stream[int] = (
@@ -285,28 +339,37 @@ mixed_ones_and_zeros: Stream[int] = (
 )
 assert list(mixed_ones_and_zeros) == [0, 1, 0, 1, 0, 1, 0, 1]
 ```
+</details></br>
 
 ## `.filter`
 
 > Keeps only the elements that satisfy a condition:
+
+<details ><summary style="text-indent: 40px;">show <code>code snippet</code></summary></br>
 
 ```python
 even_integers: Stream[int] = integers.filter(lambda n: n % 2 == 0)
 
 assert list(even_integers) == [0, 2, 4, 6, 8]
 ```
+</details></br>
 
 ## `.distinct`
 
 > Removes duplicates:
+
+<details ><summary style="text-indent: 40px;">show <code>code snippet</code></summary></br>
 
 ```python
 distinct_chars: Stream[str] = Stream("foobarfooo").distinct()
 
 assert list(distinct_chars) == ["f", "o", "b", "a", "r"]
 ```
+</details></br>
 
 > specifying a deduplication `key`:
+
+<details ><summary style="text-indent: 40px;">show <code>code snippet</code></summary></br>
 
 ```python
 strings_of_distinct_lengths: Stream[str] = (
@@ -316,9 +379,12 @@ strings_of_distinct_lengths: Stream[str] = (
 
 assert list(strings_of_distinct_lengths) == ["a", "foo"]
 ```
+</details></br>
 
 > [!WARNING]
 > During iteration, all distinct elements that are yielded are retained in memory to perform deduplication. However, you can remove only consecutive duplicates without a memory footprint by setting `consecutive_only=True`:
+
+<details ><summary style="text-indent: 40px;">show <code>code snippet</code></summary></br>
 
 ```python
 consecutively_distinct_chars: Stream[str] = (
@@ -328,24 +394,31 @@ consecutively_distinct_chars: Stream[str] = (
 
 assert list(consecutively_distinct_chars) == ["f", "o", "b", "a", "r", "f", "o"]
 ```
+</details></br>
 
 ## `.truncate`
 
 > Ends iteration once a given number of elements have been yielded:
+
+<details ><summary style="text-indent: 40px;">show <code>code snippet</code></summary></br>
 
 ```python
 five_first_integers: Stream[int] = integers.truncate(5)
 
 assert list(five_first_integers) == [0, 1, 2, 3, 4]
 ```
+</details></br>
 
 > or `when` a condition is satisfied:
+
+<details ><summary style="text-indent: 40px;">show <code>code snippet</code></summary></br>
 
 ```python
 five_first_integers: Stream[int] = integers.truncate(when=lambda n: n == 5)
 
 assert list(five_first_integers) == [0, 1, 2, 3, 4]
 ```
+</details></br>
 
 > If both `count` and `when` are set, truncation occurs as soon as either condition is met.
 
@@ -353,25 +426,33 @@ assert list(five_first_integers) == [0, 1, 2, 3, 4]
 
 > Skips the first specified number of elements:
 
+<details ><summary style="text-indent: 40px;">show <code>code snippet</code></summary></br>
+
 ```python
 integers_after_five: Stream[int] = integers.skip(5)
 
 assert list(integers_after_five) == [5, 6, 7, 8, 9]
 ```
+</details></br>
 
 > or skips elements `until` a predicate is satisfied:
+
+<details ><summary style="text-indent: 40px;">show <code>code snippet</code></summary></br>
 
 ```python
 integers_after_five: Stream[int] = integers.skip(until=lambda n: n >= 5)
 
 assert list(integers_after_five) == [5, 6, 7, 8, 9]
 ```
+</details></br>
 
 > If both `count` and `until` are set, skipping stops as soon as either condition is met.
 
 ## `.catch`
 
 > Catches a given type of exception, and optionally yields a `replacement` value:
+
+<details ><summary style="text-indent: 40px;">show <code>code snippet</code></summary></br>
 
 ```python
 inverses: Stream[float] = (
@@ -382,8 +463,11 @@ inverses: Stream[float] = (
 
 assert list(inverses) == [float("inf"), 1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
 ```
+</details></br>
 
 > You can specify an additional `when` condition for the catch:
+<details ><summary style="text-indent: 40px;">show <code>code snippet</code></summary></br>
+
 ```python
 import requests
 from requests.exceptions import ConnectionError
@@ -397,11 +481,14 @@ status_codes_ignoring_resolution_errors: Stream[int] = (
 
 assert list(status_codes_ignoring_resolution_errors) == [200, 404]
 ```
+</details></br>
 
 > It has an optional `finally_raise: bool` parameter to raise the first exception caught (if any) when the iteration terminates.
 
 > [!TIP]
 > Apply side effects when catching an exception by integrating them into `when`:
+
+<details ><summary style="text-indent: 40px;">show <code>code snippet</code></summary></br>
 
 ```python
 errors: List[Exception] = []
@@ -419,11 +506,14 @@ integers_in_string: Stream[int] = (
 assert list(integers_in_string) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 assert len(errors) == len("foo")
 ```
+</details></br>
 
 
 ## `.throttle`
 
 > Limits the number of yields `per` time interval:
+
+<details ><summary style="text-indent: 40px;">show <code>code snippet</code></summary></br>
 
 ```python
 from datetime import timedelta
@@ -433,21 +523,27 @@ three_integers_per_second: Stream[int] = integers.throttle(3, per=timedelta(seco
 # takes 3s: ceil(10 integers / 3 per_second) - 1
 assert list(three_integers_per_second) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
+</details></br>
 
 
 ## `.observe`
 
 > Logs the progress of iterations:
+<details ><summary style="text-indent: 40px;">show <code>code snippet</code></summary></br>
+
 ```python
 >>> assert list(integers.throttle(2, per=timedelta(seconds=1)).observe("integers")) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
+</details></br>
 ```
+</details></br>
 INFO: [duration=0:00:00.001793 errors=0] 1 integers yielded
 INFO: [duration=0:00:00.004388 errors=0] 2 integers yielded
 INFO: [duration=0:00:01.003655 errors=0] 4 integers yielded
 INFO: [duration=0:00:03.003196 errors=0] 8 integers yielded
 INFO: [duration=0:00:04.003852 errors=0] 10 integers yielded
 ```
+</details></br>
 
 > [!NOTE]
 > The amount of logs will never be overwhelming because they are produced logarithmically (base 2): the 11th log will be produced after 1,024 elements have been yielded, the 21th log after 1,048,576 elements, ...
@@ -459,9 +555,12 @@ INFO: [duration=0:00:04.003852 errors=0] 10 integers yielded
 
 > Concatenates streams:
 
+<details ><summary style="text-indent: 40px;">show <code>code snippet</code></summary></br>
+
 ```python
 assert list(integers + integers) == [0, 1, 2, 3 ,4, 5, 6, 7, 8, 9, 0, 1, 2, 3 ,4, 5, 6, 7, 8, 9]
 ```
+</details></br>
 
 
 ## `zip`
@@ -470,6 +569,8 @@ assert list(integers + integers) == [0, 1, 2, 3 ,4, 5, 6, 7, 8, 9, 0, 1, 2, 3 ,4
 
 > [!TIP]
 > Use the standard `zip` function:
+
+<details ><summary style="text-indent: 40px;">show <code>code snippet</code></summary></br>
 
 ```python
 from streamable import star
@@ -481,6 +582,7 @@ cubes: Stream[int] = (
 
 assert list(cubes) == [0, 1, 8, 27, 64, 125, 216, 343, 512, 729]
 ```
+</details></br>
 
 
 ## Shorthands for consuming the stream
@@ -493,9 +595,12 @@ assert list(cubes) == [0, 1, 8, 27, 64, 125, 216, 343, 512, 729]
 
 > Iterates over the stream until exhaustion and returns the number of elements yielded:
 
+<details ><summary style="text-indent: 40px;">show <code>code snippet</code></summary></br>
+
 ```python
 assert integers.count() == 10
 ```
+</details></br>
 
 
 ### `()`
@@ -503,17 +608,22 @@ assert integers.count() == 10
 
 
 > *Calling* the stream iterates over it until exhaustion and returns it:
+<details ><summary style="text-indent: 40px;">show <code>code snippet</code></summary></br>
+
 ```python
 state: List[int] = []
 appending_integers: Stream[int] = integers.foreach(state.append)
 assert appending_integers() is appending_integers
 assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
+</details></br>
 
 
 ## `.pipe`
 
 > Calls a function, passing the stream as first argument, followed by `*args/**kwargs` if any:
+
+<details ><summary style="text-indent: 40px;">show <code>code snippet</code></summary></br>
 
 ```python
 import pandas as pd
@@ -525,6 +635,7 @@ import pandas as pd
     .to_csv("integers.csv", index=False)
 )
 ```
+</details></br>
 
 > Inspired by the `.pipe` from [pandas](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.pipe.html) or [polars](https://docs.pola.rs/api/python/stable/reference/dataframe/api/polars.DataFrame.pipe.html).
 
@@ -533,6 +644,8 @@ import pandas as pd
 ## Extract-Transform-Load
 > [!TIP]
 > **Custom ETL scripts** can benefit from the expressiveness of this library. Below is a pipeline that extracts the 67 quadruped Pokémon from the first three generations using [PokéAPI](https://pokeapi.co/) and loads them into a CSV:
+
+<details ><summary style="text-indent: 40px;">show <code>code snippet</code></summary></br>
 
 ```python
 import csv
@@ -578,10 +691,13 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
 
     pipeline()
 ```
+</details></br>
 
 ## Visitor Pattern
 > [!TIP]
 > A `Stream` can be visited via its `.accept` method: implement a custom [***visitor***](https://en.wikipedia.org/wiki/Visitor_pattern) by extending the abstract class `streamable.visitors.Visitor`:
+
+<details ><summary style="text-indent: 40px;">show <code>code snippet</code></summary></br>
 
 ```python
 from streamable.visitors import Visitor
@@ -597,25 +713,32 @@ def depth(stream: Stream) -> int:
 
 assert depth(Stream(range(10)).map(str).foreach(print)) == 3
 ```
+</details></br>
 
 ## Functions
 > [!TIP]
 > The `Stream`'s methods are also exposed as functions:
+<details ><summary style="text-indent: 40px;">show <code>code snippet</code></summary></br>
+
 ```python
 from streamable.functions import catch
 
 inverse_integers: Iterator[int] = map(lambda n: 1 / n, range(10))
 safe_inverse_integers: Iterator[int] = catch(inverse_integers, ZeroDivisionError)
 ```
+</details></br>
 
 ## Logging Level
 > [!TIP]
 > This mutes the `.observe` operations which log at `INFO` level:
 
+<details ><summary style="text-indent: 40px;">show <code>code snippet</code></summary></br>
+
 ```python
 import logging
 logging.getLogger("streamable").setLevel(logging.WARNING)
 ```
+</details></br>
 
 # Contributing
 **Many thanks to our [contributors](https://github.com/ebonnal/streamable/graphs/contributors)!**
