@@ -8,6 +8,7 @@ from collections import defaultdict, deque
 from concurrent.futures import Executor, Future, ProcessPoolExecutor, ThreadPoolExecutor
 from contextlib import contextmanager, suppress
 from math import ceil
+import traceback
 from typing import (
     Any,
     Callable,
@@ -89,6 +90,7 @@ class CatchIterator(Iterator[T]):
             except self.errors as exception:
                 if not self.when or self.when(exception):
                     if self._to_be_finally_raised is None:
+                        traceback.clear_frames(exception.__traceback__)
                         self._to_be_finally_raised = exception
                     if self.replacement is not NO_REPLACEMENT:
                         return self.replacement
@@ -204,6 +206,7 @@ class GroupIterator(_GroupIteratorMixin[T], Iterator[List[T]]):
         except Exception as e:
             if not self._current_group:
                 raise
+            traceback.clear_frames(e.__traceback__)
             self._to_be_raised = e
 
         group, self._current_group = self._current_group, []
@@ -277,6 +280,7 @@ class GroupbyIterator(_GroupIteratorMixin[T], Iterator[Tuple[U, List[T]]]):
             return next(self)
 
         except Exception as e:
+            traceback.clear_frames(e.__traceback__)
             self._to_be_raised = e
             return next(self)
 
@@ -441,6 +445,7 @@ class YieldsPerPeriodThrottleIterator(Iterator[T]):
         except StopIteration:
             raise
         except Exception as e:
+            traceback.clear_frames(e.__traceback__)
             return None, e
 
     def __next__(self) -> T:
@@ -573,6 +578,7 @@ class _OSConcurrentMapIterable(_ConcurrentMapIterable[T, U]):
         try:
             return transformation(elem)
         except Exception as e:
+            traceback.clear_frames(e.__traceback__)
             return _RaisingIterator.ExceptionContainer(e)
 
     def _launch_task(
@@ -644,6 +650,7 @@ class _AsyncConcurrentMapIterable(_ConcurrentMapIterable[T, U]):
                 )
             return await coroutine
         except Exception as e:
+            traceback.clear_frames(e.__traceback__)
             return _RaisingIterator.ExceptionContainer(e)
 
     def _launch_task(
@@ -715,6 +722,7 @@ class _ConcurrentFlattenIterable(
                     except StopIteration:
                         pass
                     except Exception as e:
+                        traceback.clear_frames(e.__traceback__)
                         element_to_yield.append(_RaisingIterator.ExceptionContainer(e))
                         iterator_to_queue = iterator
 
@@ -728,6 +736,7 @@ class _ConcurrentFlattenIterable(
                         try:
                             iterator_to_queue = iter_wo_stopiteration(iterable)
                         except Exception as e:
+                            traceback.clear_frames(e.__traceback__)
                             yield _RaisingIterator.ExceptionContainer(e)
                             continue
                     future = executor.submit(

@@ -1,3 +1,4 @@
+import traceback
 from typing import Any, Callable, Coroutine, Generic, Tuple, Type, TypeVar, overload
 
 T = TypeVar("T")
@@ -19,6 +20,7 @@ class _ErrorWrappingDecorator(Generic[T, R]):
         try:
             return self.func(arg)
         except self.error_type as e:
+            traceback.clear_frames(e.__traceback__)
             raise WrappedError(e) from e
 
 
