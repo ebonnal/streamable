@@ -127,7 +127,7 @@ assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
 > `concurrency` is also the size of the buffer containing not-yet-yielded results. **If the buffer is full, the iteration over the upstream is paused** until a result is yielded from the buffer.
 
 > [!TIP]
-> The performance of thread-based concurrency in a CPU-bound script can be drastically improved by using a [Python 3.13+ free-threaded build](https://docs.python.org/3/using/configure.html#cmdoption-disable-gil).
+> The performance of thread-based concurrency in a CPU-bound script can be drastically improved by using a [Python 3.13+ free-threading build](https://docs.python.org/3/using/configure.html#cmdoption-disable-gil).
 
 ### process-based concurrency
 
