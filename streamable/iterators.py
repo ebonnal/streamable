@@ -531,13 +531,13 @@ class _ConcurrentMapIterable(
             # queue tasks up to buffersize
             with suppress(StopIteration):
                 while len(future_results) < self.buffersize:
-                    future_results.add_future(self._launch_task(next(self.iterator)))
+                    future_results.add(self._launch_task(next(self.iterator)))
 
             # wait, queue, yield
             while future_results:
                 result = next(future_results)
                 with suppress(StopIteration):
-                    future_results.add_future(self._launch_task(next(self.iterator)))
+                    future_results.add(self._launch_task(next(self.iterator)))
                 yield result
 
 

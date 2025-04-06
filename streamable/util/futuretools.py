@@ -17,7 +17,7 @@ class FutureResultCollection(Iterator[T], Sized, ABC):
     """
 
     @abstractmethod
-    def add_future(self, future: "Future[T]") -> None: ...
+    def add(self, future: "Future[T]") -> None: ...
 
 
 class DequeFutureResultCollection(FutureResultCollection[T]):
@@ -27,7 +27,7 @@ class DequeFutureResultCollection(FutureResultCollection[T]):
     def __len__(self) -> int:
         return len(self._futures)
 
-    def add_future(self, future: "Future[T]") -> None:
+    def add(self, future: "Future[T]") -> None:
         return self._futures.append(future)
 
 
@@ -41,7 +41,7 @@ class CallbackFutureResultCollection(FutureResultCollection[T]):
     @abstractmethod
     def _done_callback(self, future: "Future[T]") -> None: ...
 
-    def add_future(self, future: "Future[T]") -> None:
+    def add(self, future: "Future[T]") -> None:
         future.add_done_callback(self._done_callback)
         self._n_futures += 1
 
