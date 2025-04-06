@@ -3,6 +3,7 @@
 [![typing](https://github.com/ebonnal/streamable/actions/workflows/typing.yml/badge.svg?branch=main)](https://github.com/ebonnal/streamable/actions)
 [![formatting](https://github.com/ebonnal/streamable/actions/workflows/formatting.yml/badge.svg?branch=main)](https://github.com/ebonnal/streamable/actions)
 [![PyPI](https://github.com/ebonnal/streamable/actions/workflows/pypi.yml/badge.svg?branch=main)](https://pypi.org/project/streamable)
+[![Anaconda-Server Badge](https://anaconda.org/conda-forge/streamable/badges/version.svg)](https://anaconda.org/conda-forge/streamable)
 
 # ༄ `streamable`
 
@@ -20,6 +21,10 @@
 
 ```bash
 pip install streamable
+```
+*or*
+```bash
+conda install conda-forge::streamable 
 ```
 
 ## 2. import
