@@ -2,9 +2,12 @@ import asyncio
 import datetime
 import logging
 import math
+from operator import itemgetter
 import random
 import time
 import timeit
+import traceback
+from types import FrameType, TracebackType
 import unittest
 from collections import Counter
 from typing import (
@@ -1813,4 +1816,33 @@ class TestStream(unittest.TestCase):
             .skip(3)
             .truncate(4)
             .throttle(1, per=datetime.timedelta(seconds=2)),  # not the same interval
+        )
+
+    def test_ref_cycles(self) -> None:
+        stream = (
+            Stream(map(int, "123_5")).group(1).groupby(len).catch(finally_raise=True)
+        )
+        exception: Exception
+        try:
+            list(stream)
+        except ValueError as e:
+            exception = e
+        self.assertIsInstance(
+            exception,
+            ValueError,
+            msg="`finally_raise` must be respected",
+        )
+        frames: Iterator[FrameType] = map(
+            itemgetter(0), traceback.walk_tb(exception.__traceback__)
+        )
+        next(frames)
+        self.assertFalse(
+            [
+                (var, val)
+                for frame in frames
+                for var, val in frame.f_locals.items()
+                if isinstance(val, Exception)
+                and frame in map(itemgetter(0), traceback.walk_tb(val.__traceback__))
+            ],
+            msg=f"the exception's traceback should not contain an exception that captures itself in its own traceback",
         )
