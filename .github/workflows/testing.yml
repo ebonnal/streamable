@@ -1,14 +1,14 @@
-name: unittest
+name: testing
 
 on:
   push:
     paths:
       - 'streamable/**'
       - 'tests/**'
-      - '.github/workflows/unittest.yml'
+      - '.github/workflows/testing.yml'
 
 jobs:
-  unittest:
+  testing:
     runs-on: ubuntu-22.04
 
     strategy:
