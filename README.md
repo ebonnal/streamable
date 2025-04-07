@@ -150,7 +150,7 @@ if __name__ == "__main__":
 ```
 </details>
 
-### async-based concurrency
+### `asyncio`-based concurrency
 
 > The sibling operation `.amap` applies an async function:
 
@@ -221,7 +221,7 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 > Like for `.map`, set the parameter `via="process"`.
 
-### async-based concurrency
+### `asyncio`-based concurrency
 
 > Like `.map` it has a sibling `.aforeach` operation for async.
 
