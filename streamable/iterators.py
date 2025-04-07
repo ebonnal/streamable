@@ -81,15 +81,16 @@ class CatchIterator(Iterator[T]):
             try:
                 return next(self.iterator)
             except StopIteration:
-                if self.finally_raise and self._to_be_finally_raised:
-                    exception = self._to_be_finally_raised
-                    self._to_be_finally_raised = None
-                    raise exception
+                if self._to_be_finally_raised:
+                    try:
+                        raise self._to_be_finally_raised
+                    finally:
+                        self._to_be_finally_raised = None
                 raise
-            except self.errors as exception:
-                if not self.when or self.when(exception):
-                    if self._to_be_finally_raised is None:
-                        self._to_be_finally_raised = exception
+            except self.errors as e:
+                if not self.when or self.when(e):
+                    if self.finally_raise and not self._to_be_finally_raised:
+                        self._to_be_finally_raised = e
                     if self.replacement is not NO_REPLACEMENT:
                         return self.replacement
                     continue
@@ -194,8 +195,10 @@ class GroupIterator(_GroupIteratorMixin[T], Iterator[List[T]]):
     def __next__(self) -> List[T]:
         self._init_last_group_time()
         if self._to_be_raised:
-            e, self._to_be_raised = self._to_be_raised, None
-            raise e
+            try:
+                raise self._to_be_raised
+            finally:
+                self._to_be_raised = None
         try:
             while len(self._current_group) < self.size and (
                 not self._interval_seconds_have_elapsed() or not self._current_group
@@ -258,8 +261,10 @@ class GroupbyIterator(_GroupIteratorMixin[T], Iterator[Tuple[U, List[T]]]):
             if self._groups_by:
                 self._remember_group_time()
                 return self._pop_first_group()
-            e, self._to_be_raised = self._to_be_raised, None
-            raise e
+            try:
+                raise self._to_be_raised
+            finally:
+                self._to_be_raised = None
 
         try:
             self._group_next_elem()
