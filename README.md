@@ -96,13 +96,9 @@ Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`, eleme
 <details ><summary style="text-indent: 40px;">👀 show example</summary></br>
 
 ```python
-negative_integer_strings: Stream[str] = (
-    integers
-    .map(lambda n: -n)
-    .map(str)
-)
+integer_strings: Stream[str] = integers.map(str)
 
-assert list(negative_integer_strings) == ['0', '-1', '-2', '-3', '-4', '-5', '-6', '-7', '-8', '-9']
+assert list(integer_strings) == ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
 ```
 </details>
 

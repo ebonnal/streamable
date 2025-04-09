@@ -36,13 +36,9 @@ class TestReadme(unittest.TestCase):
 
 
     def test_map_example(self) -> None:
-        negative_integer_strings: Stream[str] = (
-            integers
-            .map(lambda n: -n)
-            .map(str)
-        )
+        integer_strings: Stream[str] = integers.map(str)
 
-        assert list(negative_integer_strings) == ['0', '-1', '-2', '-3', '-4', '-5', '-6', '-7', '-8', '-9']
+        assert list(integer_strings) == ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
 
     def test_thread_concurrent_map_example(self) -> None:
         import requests
