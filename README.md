@@ -102,6 +102,11 @@ assert list(integer_strings) == ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9
 ```
 </details>
 
+## concurrency
+
+> [!NOTE]
+> By default, all the concurrency modes presented below yield results in the upstream order (FIFO). Set the parameter `ordered=False` to yield results as they become available (***First Done, First Out***).
+
 ### thread-based concurrency
 
 > Applies the transformation via `concurrency` threads:
@@ -121,8 +126,6 @@ pokemon_names: Stream[str] = (
 assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
 ```
 </details>
-
-> Preserves the upstream order by default (FIFO), but you can set `ordered=False` for ***First Done First Out***.
 
 > [!NOTE]
 > `concurrency` is also the size of the buffer containing not-yet-yielded results. **If the buffer is full, the iteration over the upstream is paused** until a result is yielded from the buffer.
@@ -171,7 +174,7 @@ asyncio.get_event_loop().run_until_complete(http_async_client.aclose())
 ```
 </details>
 
-### starmap
+## "starmap"
 
 > The `star` function decorator transforms a function that takes several positional arguments into a function that takes a tuple:
 
@@ -208,18 +211,13 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 </details>
 
-### thread-based concurrency
+## concurrency
 
-> Like `.map` it has an optional `concurrency` parameter.
-> Preserves the upstream order by default (FIFO), but you can set `ordered=False` for ***First Done First Out***.
-
-### process-based concurrency
-
-> Like for `.map`, set the parameter `via="process"`.
-
-### `asyncio`-based concurrency
-
-> Like `.map` it has a sibling `.aforeach` operation for async.
+> Similar to `.map`:
+> - set the `concurrency` parameter for **thread-based concurrency**
+> - set `via="process"` for **process-based concurrency**
+> - use the sibling `.aforeach` operation for **`asyncio`-based concurrency**
+> - set `ordered=False` for ***First Done First Out***
 
 # `.group`
 
