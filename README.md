@@ -540,6 +540,16 @@ INFO: [duration=0:00:04.003852 errors=0] 10 integers yielded
 > [!NOTE]
 > The amount of logs will never be overwhelming because they are produced logarithmically (base 2): the 11th log will be produced after 1,024 elements have been yielded, the 21th log after 1,048,576 elements, ...
 
+> [!TIP]
+> To mute these logs, set the logging level above `INFO`:
+
+<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+
+```python
+import logging
+logging.getLogger("streamable").setLevel(logging.WARNING)
+```
+</details>
 
 # `+`
 
@@ -742,18 +752,6 @@ from streamable.functions import catch
 
 inverse_integers: Iterator[int] = map(lambda n: 1 / n, range(10))
 safe_inverse_integers: Iterator[int] = catch(inverse_integers, ZeroDivisionError)
-```
-</details>
-
-## Logging Level
-> [!TIP]
-> This mutes the `.observe` operations which log at `INFO` level:
-
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
-
-```python
-import logging
-logging.getLogger("streamable").setLevel(logging.WARNING)
 ```
 </details>
 
