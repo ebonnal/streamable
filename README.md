@@ -628,7 +628,36 @@ import pandas as pd
 > Inspired by the `.pipe` from [pandas](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.pipe.html) or [polars](https://docs.pola.rs/api/python/stable/reference/dataframe/api/polars.DataFrame.pipe.html).
 
 
-# 💡 Tips
+# 💡 TIPS
+
+## Exceptions are not terminating the iteration
+
+> [!TIP]
+> If any of the operations raises an exception, you can resume the iteration after handling it:
+
+<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+
+```python
+from contextlib import suppress
+
+casted_ints: Iterator[int] = iter(
+    Stream("0123_56789")
+    .map(int)
+    .group(3)
+    .flatten()
+)
+collected: List[int] = []
+
+with suppress(ValueError):
+    collected.extend(casted_ints)
+assert collected == [0, 1, 2, 3]
+
+collected.extend(casted_ints)
+assert collected == [0, 1, 2, 3, 5, 6, 7, 8, 9]
+```
+
+</details >
+
 ## Extract-Transform-Load
 > [!TIP]
 > **Custom ETL scripts** can benefit from the expressiveness of this library. Below is a pipeline that extracts the 67 quadruped Pokémon from the first three generations using [PokéAPI](https://pokeapi.co/) and loads them into a CSV:

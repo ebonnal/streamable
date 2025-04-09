@@ -1,7 +1,7 @@
 import time
 import unittest
 from datetime import timedelta
-from typing import List, Tuple
+from typing import Iterator, List, Tuple
 
 from streamable.stream import Stream
 
@@ -276,6 +276,19 @@ class TestReadme(unittest.TestCase):
         appending_integers: Stream[int] = integers.foreach(state.append)
         assert appending_integers() is appending_integers
         assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+    def test_non_stopping_exceptions_example(self) -> None:
+        from contextlib import suppress
+
+        casted_ints: Iterator[int] = iter(Stream("0123_56789").map(int).group(3).flatten())
+        collected_casted_ints: List[int] = []
+
+        with suppress(ValueError):
+            collected_casted_ints.extend(casted_ints)
+        assert collected_casted_ints == [0, 1, 2, 3]
+
+        collected_casted_ints.extend(casted_ints)
+        assert collected_casted_ints == [0, 1, 2, 3, 5, 6, 7, 8, 9]
 
     def test_etl_example(self) -> None: # pragma: no cover
         # for mypy typing check only
