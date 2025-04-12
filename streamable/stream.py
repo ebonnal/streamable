@@ -607,8 +607,11 @@ class DownStream(Stream[U], Generic[T, U]):
     """
 
     def __init__(self, upstream: Stream[T]) -> None:
-        Stream.__init__(self, upstream.source)
         self._upstream: Stream[T] = upstream
+
+    @property
+    def source(self) -> Union[Iterable, Callable[[], Iterable]]:
+        return self._upstream.source
 
     @property
     def upstream(self) -> Stream[T]:
