@@ -3,11 +3,13 @@ import datetime
 import logging
 import math
 from operator import itemgetter
+import queue
 import random
+import threading
 import time
 import timeit
 import traceback
-from types import FrameType, TracebackType
+from types import FrameType
 import unittest
 from collections import Counter
 from typing import (
@@ -18,6 +20,7 @@ from typing import (
     Iterable,
     Iterator,
     List,
+    Optional,
     Set,
     Tuple,
     Type,
@@ -1845,4 +1848,21 @@ class TestStream(unittest.TestCase):
                 and frame in map(itemgetter(0), traceback.walk_tb(val.__traceback__))
             ],
             msg=f"the exception's traceback should not contain an exception that captures itself in its own traceback",
+        )
+
+    def test_on_queue_in_thread(self) -> None:
+        zeros: List[str] = []
+        src: "queue.Queue[Optional[str]]" = queue.Queue()
+        thread = threading.Thread(
+            target=Stream(iter(src.get, None)).foreach(zeros.append)
+        )
+        thread.start()
+        src.put("foo")
+        src.put("bar")
+        src.put(None)
+        thread.join()
+        self.assertListEqual(
+            zeros,
+            ["foo", "bar"],
+            msg="stream must work on Queue",
         )
