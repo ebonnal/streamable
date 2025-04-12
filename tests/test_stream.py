@@ -1,4 +1,5 @@
 import asyncio
+import copy
 import datetime
 import logging
 import math
@@ -1865,4 +1866,11 @@ class TestStream(unittest.TestCase):
             zeros,
             ["foo", "bar"],
             msg="stream must work on Queue",
+        )
+
+    def test_deepcopy(self) -> None:
+        stream = Stream([]).map(str)
+        self.assertIsNot(
+            stream.source,
+            copy.deepcopy(stream).source,
         )
