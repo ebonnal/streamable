@@ -606,6 +606,7 @@ class Stream(Iterable[T]):
 
 
 class DownStream(Stream[U], Generic[T, U]):
+    __slots__ = ("_upstream", "_errors", "_when", "_replacement", "_finally_raise")
     """
     Stream that has an upstream.
     """
@@ -632,6 +633,8 @@ class DownStream(Stream[U], Generic[T, U]):
 
 
 class CatchStream(DownStream[T, T]):
+    __slots__ = ("_upstream", "_errors", "_when", "_replacement", "_finally_raise")
+
     def __init__(
         self,
         upstream: Stream[T],
@@ -651,6 +654,8 @@ class CatchStream(DownStream[T, T]):
 
 
 class DistinctStream(DownStream[T, T]):
+    __slots__ = ("_upstream", "_key", "_consecutive_only")
+
     def __init__(
         self,
         upstream: Stream[T],
@@ -666,6 +671,8 @@ class DistinctStream(DownStream[T, T]):
 
 
 class FilterStream(DownStream[T, T]):
+    __slots__ = ("_upstream", "_when")
+
     def __init__(self, upstream: Stream[T], when: Callable[[T], Any]) -> None:
         super().__init__(upstream)
         self._when = when
@@ -675,6 +682,8 @@ class FilterStream(DownStream[T, T]):
 
 
 class FlattenStream(DownStream[Iterable[T], T]):
+    __slots__ = ("_upstream", "_concurrency")
+
     def __init__(self, upstream: Stream[Iterable[T]], concurrency: int) -> None:
         super().__init__(upstream)
         self._concurrency = concurrency
@@ -684,6 +693,8 @@ class FlattenStream(DownStream[Iterable[T], T]):
 
 
 class ForeachStream(DownStream[T, T]):
+    __slots__ = ("_upstream", "_effect", "_concurrency", "_ordered", "_via")
+
     def __init__(
         self,
         upstream: Stream[T],
@@ -703,6 +714,8 @@ class ForeachStream(DownStream[T, T]):
 
 
 class AForeachStream(DownStream[T, T]):
+    __slots__ = ("_upstream", "_effect", "_concurrency", "_ordered")
+
     def __init__(
         self,
         upstream: Stream[T],
@@ -720,6 +733,8 @@ class AForeachStream(DownStream[T, T]):
 
 
 class GroupStream(DownStream[T, List[T]]):
+    __slots__ = ("_upstream", "_size", "_interval", "_by")
+
     def __init__(
         self,
         upstream: Stream[T],
@@ -737,6 +752,8 @@ class GroupStream(DownStream[T, List[T]]):
 
 
 class GroupbyStream(DownStream[T, Tuple[U, List[T]]]):
+    __slots__ = ("_upstream", "_key", "_size", "_interval")
+
     def __init__(
         self,
         upstream: Stream[T],
@@ -754,6 +771,8 @@ class GroupbyStream(DownStream[T, Tuple[U, List[T]]]):
 
 
 class MapStream(DownStream[T, U]):
+    __slots__ = ("_upstream", "_transformation", "_concurrency", "_ordered", "_via")
+
     def __init__(
         self,
         upstream: Stream[T],
@@ -773,6 +792,8 @@ class MapStream(DownStream[T, U]):
 
 
 class AMapStream(DownStream[T, U]):
+    __slots__ = ("_upstream", "_transformation", "_concurrency", "_ordered")
+
     def __init__(
         self,
         upstream: Stream[T],
@@ -790,6 +811,8 @@ class AMapStream(DownStream[T, U]):
 
 
 class ObserveStream(DownStream[T, T]):
+    __slots__ = ("_upstream", "_what")
+
     def __init__(self, upstream: Stream[T], what: str) -> None:
         super().__init__(upstream)
         self._what = what
@@ -799,6 +822,8 @@ class ObserveStream(DownStream[T, T]):
 
 
 class SkipStream(DownStream[T, T]):
+    __slots__ = ("_upstream", "_count", "_until")
+
     def __init__(
         self,
         upstream: Stream[T],
@@ -814,6 +839,8 @@ class SkipStream(DownStream[T, T]):
 
 
 class ThrottleStream(DownStream[T, T]):
+    __slots__ = ("_upstream", "_count", "_per")
+
     def __init__(
         self,
         upstream: Stream[T],
@@ -829,6 +856,8 @@ class ThrottleStream(DownStream[T, T]):
 
 
 class TruncateStream(DownStream[T, T]):
+    __slots__ = ("_upstream", "_count", "_when")
+
     def __init__(
         self,
         upstream: Stream[T],
