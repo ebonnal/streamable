@@ -1870,7 +1870,14 @@ class TestStream(unittest.TestCase):
 
     def test_deepcopy(self) -> None:
         stream = Stream([]).map(str)
+        stream_copy = copy.deepcopy(stream)
+        self.assertIsNot(
+            stream,
+            stream_copy,
+            msg="the copy must be a different object",
+        )
         self.assertIsNot(
             stream.source,
-            copy.deepcopy(stream).source,
+            stream_copy.source,
+            msg="the copy's source must be a different object",
         )
