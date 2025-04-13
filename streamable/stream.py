@@ -55,6 +55,8 @@ V = TypeVar("V")
 
 
 class Stream(Iterable[T]):
+    __slots__ = ("_source", "_upstream")
+
     # fmt: off
     @overload
     def __init__(self, source: Iterable[T]) -> None: ...
