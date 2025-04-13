@@ -1871,6 +1871,11 @@ class TestStream(unittest.TestCase):
     def test_deepcopy(self) -> None:
         stream = Stream([]).map(str)
         stream_copy = copy.deepcopy(stream)
+        self.assertEqual(
+            stream,
+            stream_copy,
+            msg="the copy must be equal",
+        )
         self.assertIsNot(
             stream,
             stream_copy,
