@@ -1,3 +1,4 @@
+import copy
 import datetime
 import logging
 from contextlib import suppress
@@ -7,6 +8,7 @@ from typing import (
     Callable,
     Collection,
     Coroutine,
+    Dict,
     Generic,
     Iterable,
     Iterator,
@@ -608,6 +610,11 @@ class DownStream(Stream[U], Generic[T, U]):
 
     def __init__(self, upstream: Stream[T]) -> None:
         self._upstream: Stream[T] = upstream
+
+    def __deepcopy__(self, memo: Dict[int, Any]) -> "DownStream[T, U]":
+        new = copy.copy(self)
+        new._upstream = copy.deepcopy(self._upstream, memo)
+        return new
 
     @property
     def source(self) -> Union[Iterable, Callable[[], Iterable]]:
