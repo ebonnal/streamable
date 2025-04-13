@@ -1886,3 +1886,17 @@ class TestStream(unittest.TestCase):
             stream_copy.source,
             msg="the copy's source must be a different object",
         )
+
+    def test_slots(self) -> None:
+        stream = Stream(src).filter()
+        with self.assertRaises(
+            AttributeError,
+            msg="a stream should not have a __dict__",
+        ):
+            Stream(src).__dict__
+
+        self.assertTupleEqual(
+            stream.__slots__,
+            ("_upstream", "_when"),
+            msg="a stream should have __slots__",
+        )
