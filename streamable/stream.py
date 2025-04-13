@@ -606,10 +606,11 @@ class Stream(Iterable[T]):
 
 
 class DownStream(Stream[U], Generic[T, U]):
+    """
+    Stream having an upstream.
+    """
+
     __slots__ = ("_upstream", "_errors", "_when", "_replacement", "_finally_raise")
-    """
-    Stream that has an upstream.
-    """
 
     def __init__(self, upstream: Stream[T]) -> None:
         self._upstream: Stream[T] = upstream
