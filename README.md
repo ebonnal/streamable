@@ -632,7 +632,7 @@ import pandas as pd
 > Inspired by the `.pipe` from [pandas](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.pipe.html) or [polars](https://docs.pola.rs/api/python/stable/reference/dataframe/api/polars.DataFrame.pipe.html).
 
 
-# 💡 TIPS 💡
+# 💡 Notes
 
 ## Exceptions are not terminating the iteration
 
