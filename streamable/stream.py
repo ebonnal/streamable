@@ -5,6 +5,7 @@ from contextlib import suppress
 from typing import (
     TYPE_CHECKING,
     Any,
+    AsyncIterator,
     Callable,
     Collection,
     Coroutine,
@@ -102,6 +103,11 @@ class Stream(Iterable[T]):
         from streamable.visitors.iterator import IteratorVisitor
 
         return self.accept(IteratorVisitor[T]())
+
+    def __aiter__(self) -> AsyncIterator[T]:
+        from streamable.visitors.aiterator import AsyncIteratorVisitor
+
+        return self.accept(AsyncIteratorVisitor[T]())
 
     def __repr__(self) -> str:
         from streamable.visitors.representation import ReprVisitor
