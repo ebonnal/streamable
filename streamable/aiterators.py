@@ -601,7 +601,7 @@ class _ConcurrentMapAsyncIterable(
 
             # wait, queue, yield
             while future_results:
-                result = next(future_results)
+                result = await future_results.__anext__()
                 with suppress(StopAsyncIteration):
                     future_results.add_future(
                         self._launch_task(await self.iterator.__anext__())
