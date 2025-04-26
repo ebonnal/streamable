@@ -27,6 +27,7 @@ def wrap_error(func: Callable[[T], R], error_type: Type[Exception]) -> Callable[
 
 
 iter_wo_stopiteration = wrap_error(iter, StopIteration)
+aiter_wo_stopasynciteration = wrap_error(aiter, StopAsyncIteration)
 
 
 class _Sidify(Generic[T]):
