@@ -143,13 +143,13 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
         if isinstance(stream.source, Iterable):
             return SyncToAsyncIterator(iter(stream.source))
         elif isinstance(stream.source, AsyncIterable):
-            return aiter(stream.source)
+            return stream.source.__aiter__()
         elif callable(stream.source):
             iterable = stream.source()
             if isinstance(iterable, Iterable):
                 return SyncToAsyncIterator(iter(iterable))
             elif isinstance(iterable, AsyncIterable):
-                return aiter(iterable)
+                return iterable.__aiter__()
             if not isinstance(iterable, Iterable):
                 raise TypeError(
                     f"`source`'s must be an Iterable/AsyncIterable or a Callable[[], Iterable/AsyncIterable] but got a Callable[[], {type(iterable)}]"

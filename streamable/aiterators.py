@@ -519,7 +519,9 @@ class YieldsPerPeriodThrottleAsyncIterator(AsyncIterator[T]):
             self._yields_in_period = max(0, self._yields_in_period - self.max_yields)
 
         if self._yields_in_period >= self.max_yields:
-            await asyncio.sleep((ceil(num_periods) - num_periods) * self._period_seconds)
+            await asyncio.sleep(
+                (ceil(num_periods) - num_periods) * self._period_seconds
+            )
         self._yields_in_period += 1
 
         if caught_error:
@@ -842,6 +844,6 @@ class AsyncToSyncIterator(Iterator[T]):
 
     def __next__(self):
         try:
-            return asyncio.run(anext(self.iterator))
+            return asyncio.run(self.iterator.__anext__())
         except StopAsyncIteration as e:
             raise StopIteration() from e

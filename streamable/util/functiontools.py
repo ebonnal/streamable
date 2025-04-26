@@ -1,5 +1,6 @@
 from typing import (
     Any,
+    AsyncIterable,
     Awaitable,
     Callable,
     Coroutine,
@@ -49,7 +50,7 @@ def awrap_error(
 
 
 iter_wo_stopiteration = wrap_error(iter, StopIteration)
-aiter_wo_stopasynciteration = wrap_error(aiter, StopAsyncIteration)
+aiter_wo_stopasynciteration = wrap_error(AsyncIterable.__aiter__, StopAsyncIteration)
 
 
 class _Sidify(Generic[T]):
