@@ -50,7 +50,13 @@ def awrap_error(
 
 
 iter_wo_stopiteration = wrap_error(iter, StopIteration)
-aiter_wo_stopasynciteration = wrap_error(AsyncIterable.__aiter__, StopAsyncIteration)
+
+
+def _aiter(aiterable: AsyncIterable):
+    return aiterable.__aiter__()
+
+
+aiter_wo_stopasynciteration = wrap_error(_aiter, StopAsyncIteration)
 
 
 class _Sidify(Generic[T]):
