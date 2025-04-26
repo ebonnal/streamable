@@ -1,3 +1,4 @@
+import builtins
 import datetime
 from contextlib import suppress
 from operator import itemgetter
@@ -7,6 +8,7 @@ from typing import (
     Coroutine,
     Iterable,
     AsyncIterator,
+    Iterator,
     List,
     Optional,
     Tuple,
@@ -24,6 +26,7 @@ from streamable.aiterators import (
     CountSkipAsyncIterator,
     CountTruncateAsyncIterator,
     DistinctAsyncIterator,
+    FilterAsyncIterator,
     FlattenAsyncIterator,
     GroupbyAsyncIterator,
     GroupAsyncIterator,
@@ -73,7 +76,7 @@ def catch(
         return iterator
     return CatchAsyncIterator(
         iterator,
-        tuple(filter(None, errors)) if isinstance(errors, Iterable) else errors,
+        tuple(builtins.filter(None, errors)) if isinstance(errors, Iterable) else errors,
         when=when,
         replacement=replacement,
         finally_raise=finally_raise,
@@ -91,6 +94,14 @@ def distinct(
     if consecutive_only:
         return ConsecutiveDistinctAsyncIterator(iterator, key)
     return DistinctAsyncIterator(iterator, key)
+
+
+def filter(
+    iterator: AsyncIterator[T],
+    when: Callable[[T], Any],
+) -> AsyncIterator[T]:
+    validate_aiterator(iterator)
+    return FilterAsyncIterator(iterator, when)
 
 
 def flatten(iterator: AsyncIterator[Iterable[T]], *, concurrency: int = 1) -> AsyncIterator[T]:

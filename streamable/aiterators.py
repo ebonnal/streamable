@@ -41,6 +41,7 @@ from streamable.util.validationtools import (
     validate_errors,
     validate_group_size,
     validate_aiterator,
+    validate_iterator,
     validate_optional_positive_interval,
 )
 
@@ -387,6 +388,25 @@ class MapAsyncIterator(AsyncIterator[U]):
     
     async def __anext__(self):
         return self.transformation(await anext(self.iterator))
+        
+
+class FilterAsyncIterator(AsyncIterator[T]):
+    def __init__(self, iterator: AsyncIterator[T], when: Callable[[T], Any]) -> None:
+        validate_aiterator(iterator)
+
+        self.iterator = iterator
+        self.when = wrap_error(when, StopAsyncIteration)
+    
+    async def __anext__(self):
+        while True:
+            elem = await anext(self.iterator)
+            if self.when:
+                if self.when(elem):
+                    return elem
+            else:
+                if elem:
+                    return elem
+
         
 
 class ObserveAsyncIterator(AsyncIterator[T]):
@@ -774,3 +794,16 @@ class ConcurrentFlattenAsyncIterator(_RaisingAsyncIterator[T]):
                 )
             )
         )
+
+
+class SyncToAsyncIterator(AsyncIterator[T]):
+    def __init__(self, iterator: Iterator[T]):
+        validate_iterator(iterator)
+
+        self.iterator = iterator
+    
+    async def __anext__(self):
+        try:
+            return next(self.iterator)
+        except StopIteration as e:
+            raise StopAsyncIteration() from e
