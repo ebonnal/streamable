@@ -378,6 +378,16 @@ class PredicateTruncateAsyncIterator(AsyncIterator[T]):
             raise StopIteration()
         return elem
 
+class MapAsyncIterator(AsyncIterator[U]):
+    def __init__(self, iterator: AsyncIterator[T], transformation: Callable[[T], U]) -> None:
+        validate_aiterator(iterator)
+
+        self.iterator = iterator
+        self.transformation = wrap_error(transformation, StopAsyncIteration)
+    
+    async def __anext__(self):
+        return self.transformation(await anext(self.iterator))
+        
 
 class ObserveAsyncIterator(AsyncIterator[T]):
     def __init__(self, iterator: AsyncIterator[T], what: str, base: int = 2) -> None:
