@@ -5,11 +5,14 @@ from contextlib import suppress
 from typing import (
     TYPE_CHECKING,
     Any,
+    AsyncIterable,
     AsyncIterator,
+    Awaitable,
     Callable,
     Collection,
     Coroutine,
     Dict,
+    Generator,
     Generic,
     Iterable,
     Iterator,
@@ -55,7 +58,7 @@ T = TypeVar("T")
 V = TypeVar("V")
 
 
-class Stream(Iterable[T]):
+class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
     __slots__ = ("_source", "_upstream")
 
     # fmt: off
@@ -140,6 +143,16 @@ class Stream(Iterable[T]):
         self.count()
         return self
 
+    def __await__(self) -> Generator[int, None, "Stream[T]"]:
+        """
+        Iterates over this stream until exhaustion and returns the count of elements.
+
+        Returns:
+            int: Number of elements yielded during an entire iteration over this stream.
+        """
+        yield from (self.acount().__await__())
+        return self
+
     def accept(self, visitor: "Visitor[V]") -> V:
         """
         Entry point to visit this stream (en.wikipedia.org/wiki/Visitor_pattern).
@@ -190,6 +203,18 @@ class Stream(Iterable[T]):
         """
 
         return sum(1 for _ in self)
+
+    async def acount(self) -> int:
+        """
+        Iterates over this stream until exhaustion and returns the count of elements.
+
+        Returns:
+            int: Number of elements yielded during an entire iteration over this stream.
+        """
+        count = 0
+        async for _ in self:
+            count += 1
+        return count
 
     def display(self, level: int = logging.INFO) -> "Stream[T]":
         """
