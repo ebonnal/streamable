@@ -1,6 +1,7 @@
-from typing import Iterable, Iterator, TypeVar, cast
+from typing import AsyncIterable, Iterable, Iterator, TypeVar, cast
 
 from streamable import functions
+from streamable.aiterators import AsyncToSyncIterator
 from streamable.stream import (
     AForeachStream,
     AMapStream,
@@ -143,15 +144,20 @@ class IteratorVisitor(Visitor[Iterator[T]]):
 
     def visit_stream(self, stream: Stream[T]) -> Iterator[T]:
         if isinstance(stream.source, Iterable):
-            iterable = stream.source
+            return iter(stream.source)
+        elif isinstance(stream.source, AsyncIterable):
+            return AsyncToSyncIterator(aiter(stream.source))
         elif callable(stream.source):
             iterable = stream.source()
+            if isinstance(iterable, Iterable):
+                return iter(iterable)
+            elif isinstance(iterable, AsyncIterable):
+                return AsyncToSyncIterator(aiter(iterable))
             if not isinstance(iterable, Iterable):
                 raise TypeError(
-                    f"`source` must be an Iterable or a Callable[[], Iterable] but got a Callable[[], {type(iterable)}]"
+                    f"`source`'s must be an Iterable/AsyncIterable or a Callable[[], Iterable/AsyncIterable] but got a Callable[[], {type(iterable)}]"
                 )
         else:
             raise TypeError(
-                f"`source` must be an Iterable or a Callable[[], Iterable] but got a {type(stream.source)}"
+                f"`source` must be an Iterable/AsyncIterable or a Callable[[], Iterable/AsyncIterable] but got a {type(stream.source)}"
             )
-        return iter(iterable)

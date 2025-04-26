@@ -826,7 +826,6 @@ class ConcurrentFlattenAsyncIterator(_RaisingAsyncIterator[T]):
 class SyncToAsyncIterator(AsyncIterator[T]):
     def __init__(self, iterator: Iterator[T]):
         validate_iterator(iterator)
-
         self.iterator = iterator
 
     async def __anext__(self):
@@ -834,3 +833,14 @@ class SyncToAsyncIterator(AsyncIterator[T]):
             return next(self.iterator)
         except StopIteration as e:
             raise StopAsyncIteration() from e
+
+class AsyncToSyncIterator(Iterator[T]):
+    def __init__(self, iterator: AsyncIterator[T]):
+        validate_aiterator(iterator)
+        self.iterator = iterator
+
+    def __next__(self):
+        try:
+            return asyncio.run(anext(self.iterator))
+        except StopAsyncIteration as e:
+            raise StopIteration() from e

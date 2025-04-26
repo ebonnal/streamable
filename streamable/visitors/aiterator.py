@@ -1,4 +1,4 @@
-from typing import Iterable, AsyncIterator, TypeVar, cast
+from typing import AsyncIterable, Iterable, AsyncIterator, TypeVar, cast
 
 from streamable import afunctions
 from streamable.aiterators import SyncToAsyncIterator
@@ -141,15 +141,21 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
 
     def visit_stream(self, stream: Stream[T]) -> AsyncIterator[T]:
         if isinstance(stream.source, Iterable):
-            iterable = stream.source
+            return SyncToAsyncIterator(iter(stream.source))
+        elif isinstance(stream.source, AsyncIterable):
+            return aiter(stream.source)
         elif callable(stream.source):
             iterable = stream.source()
+            if isinstance(iterable, Iterable):
+                return SyncToAsyncIterator(iter(iterable))
+            elif isinstance(iterable, AsyncIterable):
+                return aiter(iterable)
             if not isinstance(iterable, Iterable):
                 raise TypeError(
-                    f"`source` must be an Iterable or a Callable[[], Iterable] but got a Callable[[], {type(iterable)}]"
+                    f"`source`'s must be an Iterable/AsyncIterable or a Callable[[], Iterable/AsyncIterable] but got a Callable[[], {type(iterable)}]"
                 )
         else:
             raise TypeError(
-                f"`source` must be an Iterable or a Callable[[], Iterable] but got a {type(stream.source)}"
+                f"`source` must be an Iterable/AsyncIterable or a Callable[[], Iterable/AsyncIterable] but got a {type(stream.source)}"
             )
-        return SyncToAsyncIterator(iter(iterable))
+        
