@@ -161,10 +161,10 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
 
     def __await__(self) -> Generator[int, None, "Stream[T]"]:
         """
-        Iterates over this stream until exhaustion and returns the count of elements.
+        Iterates over this stream until exhaustion.
 
         Returns:
-            int: Number of elements yielded during an entire iteration over this stream.
+            Stream[T]: self.
         """
         yield from (self.acount().__await__())
         return self
