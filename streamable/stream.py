@@ -72,7 +72,15 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
     def __init__(self, source: Callable[[], AsyncIterable[T]]) -> None: ...
     # fmt: on
 
-    def __init__(self, source: Union[Iterable[T], Callable[[], Iterable[T]], AsyncIterable[T], Callable[[], AsyncIterable[T]]]) -> None:
+    def __init__(
+        self,
+        source: Union[
+            Iterable[T],
+            Callable[[], Iterable[T]],
+            AsyncIterable[T],
+            Callable[[], AsyncIterable[T]],
+        ],
+    ) -> None:
         """
         A `Stream[T]` decorates an `Iterable[T]` with a **fluent interface** enabling the chaining of lazy operations.
 
@@ -92,7 +100,11 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         return self._upstream
 
     @property
-    def source(self) -> Union[Iterable, Callable[[], Iterable], AsyncIterable, Callable[[], AsyncIterable]]:
+    def source(
+        self,
+    ) -> Union[
+        Iterable, Callable[[], Iterable], AsyncIterable, Callable[[], AsyncIterable]
+    ]:
         """
         Returns:
             Callable[[], Iterable]: Function called at iteration time (i.e. by `__iter__`) to get a fresh source iterable.
@@ -656,7 +668,11 @@ class DownStream(Stream[U], Generic[T, U]):
         return new
 
     @property
-    def source(self) -> Union[Iterable, Callable[[], Iterable], AsyncIterable, Callable[[], AsyncIterable]]:
+    def source(
+        self,
+    ) -> Union[
+        Iterable, Callable[[], Iterable], AsyncIterable, Callable[[], AsyncIterable]
+    ]:
         return self._upstream.source
 
     @property

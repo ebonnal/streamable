@@ -834,6 +834,7 @@ class SyncToAsyncIterator(AsyncIterator[T]):
         except StopIteration as e:
             raise StopAsyncIteration() from e
 
+
 class AsyncToSyncIterator(Iterator[T]):
     def __init__(self, iterator: AsyncIterator[T]):
         validate_aiterator(iterator)

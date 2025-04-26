@@ -158,4 +158,3 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
             raise TypeError(
                 f"`source` must be an Iterable/AsyncIterable or a Callable[[], Iterable/AsyncIterable] but got a {type(stream.source)}"
             )
-        
