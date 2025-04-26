@@ -735,9 +735,7 @@ class _ConcurrentFlattenIterable(
                         except Exception as e:
                             yield _RaisingIterator.ExceptionContainer(e)
                             continue
-                    future = executor.submit(
-                        cast(Callable[[Iterable[T]], T], next), iterator_to_queue
-                    )
+                    future = executor.submit(next, iterator_to_queue)
                     iterator_and_future_pairs.append((iterator_to_queue, future))
                     iterator_to_queue = None
                 if element_to_yield:
