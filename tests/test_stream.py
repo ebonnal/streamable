@@ -1702,7 +1702,27 @@ class TestStream(unittest.TestCase):
             msg="`amap` should raise a TypeError if a non async function is passed to it.",
         ):
             next(iter(stream))
+        
+        async def throw_stop_iteration(_):
+            raise StopIteration()
 
+        async def throw_stop_async_iteration(_):
+            raise StopAsyncIteration()
+
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "coroutine raised StopIteration",
+            msg="`amap` should raise RuntimeError if coroutine raises StopIteration",
+        ):
+            list(Stream(range(10)).amap(throw_stop_iteration, concurrency=concurrency))
+
+        with self.assertRaisesRegex(
+            WrappedError,
+            "StopAsyncIteration()",
+            msg="`amap` should wrap StopAsyncIteration",
+        ):
+            asyncio.run(Stream(range(10)).amap(throw_stop_async_iteration, concurrency=concurrency).acount())
+        
     @parameterized.expand(
         [
             [1],

@@ -688,7 +688,7 @@ class _AsyncConcurrentMapAsyncIterable(_ConcurrentMapAsyncIterable[T, U]):
         ordered: bool,
     ) -> None:
         super().__init__(iterator, buffersize, ordered)
-        self.transformation = wrap_error(transformation, StopAsyncIteration)
+        self.transformation = awrap_error(transformation, StopAsyncIteration)
         self.event_loop: asyncio.AbstractEventLoop
         try:
             self.event_loop = asyncio.get_event_loop()
