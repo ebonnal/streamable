@@ -76,7 +76,9 @@ def catch(
         return iterator
     return CatchAsyncIterator(
         iterator,
-        tuple(builtins.filter(None, errors)) if isinstance(errors, Iterable) else errors,
+        tuple(builtins.filter(None, errors))
+        if isinstance(errors, Iterable)
+        else errors,
         when=when,
         replacement=replacement,
         finally_raise=finally_raise,
@@ -104,7 +106,9 @@ def filter(
     return FilterAsyncIterator(iterator, when)
 
 
-def flatten(iterator: AsyncIterator[Iterable[T]], *, concurrency: int = 1) -> AsyncIterator[T]:
+def flatten(
+    iterator: AsyncIterator[Iterable[T]], *, concurrency: int = 1
+) -> AsyncIterator[T]:
     validate_aiterator(iterator)
     validate_concurrency(concurrency)
     if concurrency == 1:

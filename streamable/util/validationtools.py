@@ -1,6 +1,15 @@
 import datetime
 from contextlib import suppress
-from typing import Any, AsyncIterator, Iterable, Iterator, Optional, Type, TypeVar, Union
+from typing import (
+    Any,
+    AsyncIterator,
+    Iterable,
+    Iterator,
+    Optional,
+    Type,
+    TypeVar,
+    Union,
+)
 
 with suppress(ImportError):
     from typing import Literal
@@ -15,7 +24,9 @@ def validate_iterator(iterator: Iterator):
 
 def validate_aiterator(iterator: AsyncIterator):
     if not isinstance(iterator, AsyncIterator):
-        raise TypeError(f"`iterator` must be an AsyncIterator but got a {type(iterator)}")
+        raise TypeError(
+            f"`iterator` must be an AsyncIterator but got a {type(iterator)}"
+        )
 
 
 def validate_base(base: int):
