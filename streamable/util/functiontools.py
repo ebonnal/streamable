@@ -1,4 +1,4 @@
-from typing import Any, Callable, Coroutine, Generic, Tuple, Type, TypeVar, overload
+from typing import Any, Awaitable, Callable, Coroutine, Generic, Tuple, Type, TypeVar, overload
 
 T = TypeVar("T")
 R = TypeVar("R")
@@ -21,9 +21,16 @@ class _ErrorWrappingDecorator(Generic[T, R]):
         except self.error_type as e:
             raise WrappedError(e) from e
 
-
 def wrap_error(func: Callable[[T], R], error_type: Type[Exception]) -> Callable[[T], R]:
     return _ErrorWrappingDecorator(func, error_type)
+
+def awrap_error(async_func: Callable[[T], Coroutine[Any, Any, R]], error_type: Type[Exception]) -> Callable[[T], Coroutine[Any, Any, R]]:
+    async def wrap(elem: T) -> R:
+        try:
+            return await async_func(elem)
+        except error_type as e:
+            raise WrappedError(e) from e
+    return wrap
 
 
 iter_wo_stopiteration = wrap_error(iter, StopIteration)

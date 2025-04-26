@@ -31,7 +31,7 @@ from typing import (
     cast,
 )
 
-from streamable.util.functiontools import iter_wo_stopiteration, wrap_error
+from streamable.util.functiontools import awrap_error, iter_wo_stopiteration, wrap_error
 from streamable.util.loggertools import get_logger
 from streamable.util.validationtools import (
     validate_base,
@@ -393,18 +393,32 @@ class MapAsyncIterator(AsyncIterator[U]):
         self.iterator = iterator
         self.transformation = wrap_error(transformation, StopAsyncIteration)
 
-    async def __anext__(self):
+    async def __anext__(self) -> U:
         return self.transformation(await self.iterator.__anext__())
 
-
-class FilterAsyncIterator(AsyncIterator[T]):
-    def __init__(self, iterator: AsyncIterator[T], when: Callable[[T], Any]) -> None:
+class AsyncMapAsyncIterator(AsyncIterator[U]):
+    def __init__(
+        self,
+        iterator: AsyncIterator[T],
+        transformation: Callable[[T], Coroutine[Any, Any, U]],
+    ) -> None:
         validate_aiterator(iterator)
 
         self.iterator = iterator
-        self.when = wrap_error(when, StopAsyncIteration)
+        self.transformation = awrap_error(transformation, StopAsyncIteration)
 
-    async def __anext__(self):
+    async def __anext__(self) -> U:
+        return await self.transformation(await self.iterator.__anext__())
+
+
+class FilterAsyncIterator(AsyncIterator[T]):
+    def __init__(self, iterator: AsyncIterator[T], when: Optional[Callable[[T], Any]]) -> None:
+        validate_aiterator(iterator)
+
+        self.iterator = iterator
+        self.when = wrap_error(when, StopAsyncIteration) if when else None
+
+    async def __anext__(self) -> T:
         while True:
             elem = await self.iterator.__anext__()
             if self.when:
@@ -710,6 +724,7 @@ class _AsyncConcurrentMapAsyncIterable(_ConcurrentMapAsyncIterable[T, U]):
             return FIFOAsyncFutureResultCollection(self.event_loop)
         else:
             return FDFOAsyncFutureResultCollection(self.event_loop)
+
 
 
 class AsyncConcurrentMapAsyncIterator(_RaisingAsyncIterator[U]):

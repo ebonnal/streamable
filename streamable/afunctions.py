@@ -19,6 +19,7 @@ from typing import (
 
 from streamable.aiterators import (
     AsyncConcurrentMapAsyncIterator,
+    AsyncMapAsyncIterator,
     CatchAsyncIterator,
     ConcurrentFlattenAsyncIterator,
     ConsecutiveDistinctAsyncIterator,
@@ -186,6 +187,8 @@ def amap(
     # validate_not_none(transformation, "transformation")
     # validate_not_none(ordered, "ordered")
     validate_concurrency(concurrency)
+    if concurrency == 1:
+        return AsyncMapAsyncIterator(iterator, transformation)
     return AsyncConcurrentMapAsyncIterator(
         iterator,
         transformation,
