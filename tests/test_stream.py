@@ -309,14 +309,14 @@ class TestStream(unittest.TestCase):
 
         with self.assertRaisesRegex(
             TypeError,
-            r"`source` must be an Iterable or a Callable\[\[\], Iterable\] but got a <class 'int'>",
+            r"`source` must be an Iterable/AsyncIterable or a Callable\[\[\], Iterable/AsyncIterable\] but got a <class 'int'>",
             msg="Getting an Iterator from a Stream with a source not being a Union[Callable[[], Iterator], ITerable] must raise TypeError.",
         ):
             iter(Stream(1))  # type: ignore
 
         with self.assertRaisesRegex(
             TypeError,
-            r"`source` must be an Iterable or a Callable\[\[\], Iterable\] but got a Callable\[\[\], <class 'int'>\]",
+            r"`source` must be an Iterable/AsyncIterable or a Callable\[\[\], Iterable/AsyncIterable\] but got a Callable\[\[\], <class 'int'>\]",
             msg="Getting an Iterator from a Stream with a source not being a Union[Callable[[], Iterator], ITerable] must raise TypeError.",
         ):
             iter(Stream(lambda: 1))  # type: ignore

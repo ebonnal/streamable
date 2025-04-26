@@ -152,7 +152,7 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
                 return iterable.__aiter__()
             if not isinstance(iterable, Iterable):
                 raise TypeError(
-                    f"`source`'s must be an Iterable/AsyncIterable or a Callable[[], Iterable/AsyncIterable] but got a Callable[[], {type(iterable)}]"
+                    f"`source` must be an Iterable/AsyncIterable or a Callable[[], Iterable/AsyncIterable] but got a Callable[[], {type(iterable)}]"
                 )
         else:
             raise TypeError(
