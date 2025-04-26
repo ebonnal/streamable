@@ -396,6 +396,7 @@ class MapAsyncIterator(AsyncIterator[U]):
     async def __anext__(self) -> U:
         return self.transformation(await self.iterator.__anext__())
 
+
 class AsyncMapAsyncIterator(AsyncIterator[U]):
     def __init__(
         self,
@@ -412,7 +413,9 @@ class AsyncMapAsyncIterator(AsyncIterator[U]):
 
 
 class FilterAsyncIterator(AsyncIterator[T]):
-    def __init__(self, iterator: AsyncIterator[T], when: Optional[Callable[[T], Any]]) -> None:
+    def __init__(
+        self, iterator: AsyncIterator[T], when: Optional[Callable[[T], Any]]
+    ) -> None:
         validate_aiterator(iterator)
 
         self.iterator = iterator
@@ -724,7 +727,6 @@ class _AsyncConcurrentMapAsyncIterable(_ConcurrentMapAsyncIterable[T, U]):
             return FIFOAsyncFutureResultCollection(self.event_loop)
         else:
             return FDFOAsyncFutureResultCollection(self.event_loop)
-
 
 
 class AsyncConcurrentMapAsyncIterator(_RaisingAsyncIterator[U]):
