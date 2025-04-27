@@ -357,23 +357,24 @@ class TestStream(unittest.TestCase):
             msg="`repr` should work as expected on a stream with many operation",
         )
 
-    def test_iter(self) -> None:
+    @parameterized.expand(ITERABLE_TYPES)
+    def test_iter(self, itype: IterableType) -> None:
         self.assertIsInstance(
-            iter(Stream(src)),
-            Iterator,
+            to_iter(Stream(src), itype=itype),
+            itype,
             msg="iter(stream) must return an Iterator.",
         )
 
         with self.assertRaisesRegex(
             TypeError,
-            r"`source` must be an Iterable or a Callable\[\[\], Iterable\] but got a <class 'int'>",
+            r"`source` must be an Iterable/AsyncIterable or a Callable\[\[\], Iterable/AsyncIterable\] but got a <class 'int'>",
             msg="Getting an Iterator from a Stream with a source not being a Union[Callable[[], Iterator], ITerable] must raise TypeError.",
         ):
             iter(Stream(1))  # type: ignore
 
         with self.assertRaisesRegex(
             TypeError,
-            r"`source` must be an Iterable or a Callable\[\[\], Iterable\] but got a Callable\[\[\], <class 'int'>\]",
+            r"`source` must be an Iterable/AsyncIterable or a Callable\[\[\], Iterable/AsyncIterable\] but got a Callable\[\[\], <class 'int'>\]",
             msg="Getting an Iterator from a Stream with a source not being a Union[Callable[[], Iterator], ITerable] must raise TypeError.",
         ):
             iter(Stream(lambda: 1))  # type: ignore
