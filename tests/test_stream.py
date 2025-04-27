@@ -6,6 +6,7 @@ import math
 from operator import itemgetter
 import queue
 import random
+import sys
 import threading
 import time
 import timeit
@@ -403,11 +404,6 @@ class TestStream(unittest.TestCase):
     def test_process_concurrency(
         self, ordered, order_mutation
     ) -> None:  # pragma: no cover
-        import sys
-
-        if sys.version < "3.9.0":
-            return
-
         lambda_identity = lambda x: x * 10
 
         def local_identity(x):
@@ -416,7 +412,7 @@ class TestStream(unittest.TestCase):
         for f in [lambda_identity, local_identity]:
             with self.assertRaisesRegex(
                 AttributeError,
-                "Can't pickle",
+                "<locals>",
                 msg="process-based concurrency should not be able to serialize a lambda or a local func",
             ):
                 list(Stream(src).map(f, concurrency=2, via="process"))
@@ -441,6 +437,9 @@ class TestStream(unittest.TestCase):
             [""] * len(sleeps),
             msg="... and must not mutate main thread-bound structures.",
         )
+
+        if sys.version_info.minor < 9:
+            return
         # test partial iteration:
         self.assertEqual(
             next(iter(stream)),
