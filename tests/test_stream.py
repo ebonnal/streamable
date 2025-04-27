@@ -555,22 +555,24 @@ class TestStream(unittest.TestCase):
 
     @parameterized.expand(
         [
-            [1],
-            [2],
+            (concurrency, itype)
+            for concurrency in (1, 2)
+            for itype in ITERABLE_TYPES
         ]
     )
-    def test_foreach(self, concurrency) -> None:
+    def test_foreach(self, concurrency, itype) -> None:
         side_collection: Set[int] = set()
 
         def side_effect(x: int, func: Callable[[int], int]):
             nonlocal side_collection
             side_collection.add(func(x))
 
-        res = list(
+        res = to_list(
             Stream(src).foreach(
                 lambda i: randomly_slowed(side_effect(i, square)),
                 concurrency=concurrency,
-            )
+            ),
+            itype=itype
         )
 
         self.assertListEqual(
@@ -593,6 +595,7 @@ class TestStream(unittest.TestCase):
                 method,
                 throw_func_,
                 throw_for_odd_func_,
+                itype,
             ]
             for raised_exc, caught_exc in [
                 (TestError, (TestError,)),
@@ -604,6 +607,7 @@ class TestStream(unittest.TestCase):
                 (Stream.map, throw_func, throw_for_odd_func),
                 (Stream.amap, async_throw_func, async_throw_for_odd_func),
             ]
+            for itype in ITERABLE_TYPES
         ]
     )
     def test_map_or_foreach_with_exception(
@@ -614,20 +618,22 @@ class TestStream(unittest.TestCase):
         method: Callable[[Stream, Callable[[Any], int], int], Stream],
         throw_func: Callable[[Exception], Callable[[Any], int]],
         throw_for_odd_func: Callable[[Type[Exception]], Callable[[Any], int]],
+        itype: IterableType,
     ) -> None:
         with self.assertRaises(
             caught_exc,
             msg="At any concurrency, `map` and `foreach` and `amap` must raise",
         ):
-            list(method(Stream(src), throw_func(raised_exc), concurrency=concurrency))  # type: ignore
+            to_list(method(Stream(src), throw_func(raised_exc), concurrency=concurrency), itype=itype)  # type: ignore
 
         self.assertListEqual(
-            list(
+            to_list(
                 method(
                     Stream(src),
                     throw_for_odd_func(raised_exc),
                     concurrency=concurrency,  # type: ignore
-                ).catch(caught_exc)
+                ).catch(caught_exc),
+                itype=itype
             ),
             list(even_src),
             msg="At any concurrency, `map` and `foreach` and `amap` must not stop after one exception occured.",
