@@ -38,9 +38,9 @@ from typing import (
 from parameterized import parameterized  # type: ignore
 
 from streamable import Stream
-from streamable.util.asynctools import awaitable_to_coroutine, await_result
+from streamable.util.asynctools import await_result
 from streamable.util.functiontools import WrappedError, star
-from streamable.util.iterabletools import aiterable_to_list
+from streamable.util.iterabletools import aiterable_to_list, aiterable_to_set
 
 T = TypeVar("T")
 R = TypeVar("R")
@@ -54,6 +54,13 @@ def to_list(stream: Stream[T], itype: IterableType) -> List[T]:
         return aiterable_to_list(stream)
     else:
         return list(stream)
+
+def to_set(stream: Stream[T], itype: IterableType) -> Set[T]:
+    assert isinstance(stream, Stream)
+    if itype is AsyncIterable:
+        return aiterable_to_set(stream)
+    else:
+        return set(stream)
 
 def to_iter(stream: Stream[T], itype: IterableType) -> Union[Iterator[T], AsyncIterator[T]]:
     assert isinstance(stream, Stream)
@@ -705,7 +712,10 @@ class TestStream(unittest.TestCase):
         # test typing with ranges
         _: Stream[int] = Stream((src, src)).flatten()
 
-    def test_flatten_concurrency(self) -> None:
+    @parameterized.expand(
+        ITERABLE_TYPES
+    )
+    def test_flatten_concurrency(self, itype) -> None:
         iterable_size = 5
         runtime, res = timestream(
             Stream(
@@ -716,6 +726,7 @@ class TestStream(unittest.TestCase):
                 ]
             ).flatten(concurrency=2),
             times=3,
+            itype=itype,
         )
         self.assertListEqual(
             res,
@@ -744,12 +755,13 @@ class TestStream(unittest.TestCase):
 
     @parameterized.expand(
         [
-            [exception_type, mapped_exception_type, concurrency]
+            [exception_type, mapped_exception_type, concurrency, itype]
             for exception_type, mapped_exception_type in [
                 (TestError, TestError),
                 (StopIteration, WrappedError),
             ]
             for concurrency in [1, 2]
+            for itype in ITERABLE_TYPES
         ]
     )
     def test_flatten_with_exception(
@@ -757,6 +769,7 @@ class TestStream(unittest.TestCase):
         exception_type: Type[Exception],
         mapped_exception_type: Type[Exception],
         concurrency: int,
+        itype: IterableType,
     ) -> None:
         n_iterables = 5
 
@@ -764,21 +777,23 @@ class TestStream(unittest.TestCase):
             def __iter__(self) -> Iterator[int]:
                 raise exception_type
 
-        self.assertSetEqual(
-            set(
-                Stream(
-                    map(
-                        lambda i: (
-                            IterableRaisingInIter()
-                            if i % 2
-                            else cast(Iterable[int], range(i, i + 1))
-                        ),
-                        range(n_iterables),
-                    )
+        res: Set[int] = to_set(
+            Stream(
+                map(
+                    lambda i: (
+                        IterableRaisingInIter()
+                        if i % 2
+                        else cast(Iterable[int], range(i, i + 1))
+                    ),
+                    range(n_iterables),
                 )
-                .flatten(concurrency=concurrency)
-                .catch(mapped_exception_type)
-            ),
+            )
+            .flatten(concurrency=concurrency)
+            .catch(mapped_exception_type),
+            itype=itype,
+        )
+        self.assertSetEqual(
+            res,
             set(range(0, n_iterables, 2)),
             msg="At any concurrency the `flatten` method should be resilient to exceptions thrown by iterators, especially it should remap StopIteration one to PacifiedStopIteration.",
         )
@@ -796,28 +811,36 @@ class TestStream(unittest.TestCase):
                 self.first_next = False
                 raise exception_type
 
-        self.assertSetEqual(
-            set(
-                Stream(
-                    map(
-                        lambda i: (
-                            IteratorRaisingInNext()
-                            if i % 2
-                            else cast(Iterable[int], range(i, i + 1))
-                        ),
-                        range(n_iterables),
-                    )
+        res = to_set(
+            Stream(
+                map(
+                    lambda i: (
+                        IteratorRaisingInNext()
+                        if i % 2
+                        else cast(Iterable[int], range(i, i + 1))
+                    ),
+                    range(n_iterables),
                 )
-                .flatten(concurrency=concurrency)
-                .catch(mapped_exception_type)
-            ),
+            )
+            .flatten(concurrency=concurrency)
+            .catch(mapped_exception_type),
+            itype=itype,
+        )
+        self.assertSetEqual(
+            res,
             set(range(0, n_iterables, 2)),
             msg="At any concurrency the `flatten` method should be resilient to exceptions thrown by iterators, especially it should remap StopIteration one to PacifiedStopIteration.",
         )
 
-    @parameterized.expand([[concurrency] for concurrency in [2, 4]])
+    @parameterized.expand(
+        [
+            (concurrency, itype)
+            for concurrency in [2, 4]
+            for itype in ITERABLE_TYPES
+        ]
+    )
     def test_partial_iteration_on_streams_using_concurrency(
-        self, concurrency: int
+        self, concurrency: int, itype: IterableType
     ) -> None:
         yielded_elems = []
 
@@ -852,14 +875,14 @@ class TestStream(unittest.TestCase):
             ),
         ]:
             yielded_elems = []
-            iterator = iter(stream)
+            iterator = to_iter(stream, itype=itype)
             time.sleep(0.5)
             self.assertEqual(
                 len(yielded_elems),
                 0,
                 msg=f"before the first call to `next` a concurrent {type(stream)} should have pulled 0 upstream elements.",
             )
-            next(iterator)
+            overloaded_next(iterator)
             time.sleep(0.5)
             self.assertEqual(
                 len(yielded_elems),
