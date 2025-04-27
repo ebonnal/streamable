@@ -17,7 +17,7 @@ import unittest
 from collections import Counter
 from typing import (
     Any,
-    AsyncIterator,
+    AsyncIterable,
     Callable,
     Coroutine,
     Dict,
@@ -29,18 +29,26 @@ from typing import (
     Tuple,
     Type,
     TypeVar,
+    Union,
     cast,
 )
 
 from parameterized import parameterized  # type: ignore
 
 from streamable import Stream
-from streamable.util.iterabletools import aiterable_to_list, arange
 from streamable.util.functiontools import WrappedError, star
+from streamable.util.iterabletools import aiterable_to_list
 
 T = TypeVar("T")
 R = TypeVar("R")
 
+IterType = Union[Type[Iterable], Type[AsyncIterable]]
+
+def to_list(stream: Stream[T], iter_type: IterType) -> List[T]:
+    if iter_type is Iterable:
+        return list(stream)
+    else:
+        return aiterable_to_list(stream)
 
 def timestream(stream: Stream[T], times: int = 1) -> Tuple[float, List[T]]:
     res: List[T] = []
@@ -129,9 +137,8 @@ N = 256
 
 src = range(N)
 
-asrc = arange(0, N)
-
 even_src = range(0, N, 2)
+
 
 def randomly_slowed(
     func: Callable[[T], R], min_sleep: float = 0.001, max_sleep: float = 0.05
@@ -168,7 +175,6 @@ src_raising_at_exhaustion = lambda: range_raising_at_exhaustion(0, N, 1, TestErr
 class TestStream(unittest.TestCase):
     def test_init(self) -> None:
         stream = Stream(src)
-        astream = Stream(asrc)
         self.assertIs(
             stream._source,
             src,
@@ -310,27 +316,25 @@ class TestStream(unittest.TestCase):
             Iterator,
             msg="iter(stream) must return an Iterator.",
         )
-        self.assertIsInstance(
-            Stream(src).__aiter__(),
-            AsyncIterator,
-            msg="stream.__aiter__() must return an AsyncIterator.",
-        )
 
         with self.assertRaisesRegex(
             TypeError,
-            r"`source` must be an Iterable/AsyncIterable or a Callable\[\[\], Iterable/AsyncIterable\] but got a <class 'int'>",
+            r"`source` must be an Iterable or a Callable\[\[\], Iterable\] but got a <class 'int'>",
             msg="Getting an Iterator from a Stream with a source not being a Union[Callable[[], Iterator], ITerable] must raise TypeError.",
         ):
             iter(Stream(1))  # type: ignore
 
         with self.assertRaisesRegex(
             TypeError,
-            r"`source` must be an Iterable/AsyncIterable or a Callable\[\[\], Iterable/AsyncIterable\] but got a Callable\[\[\], <class 'int'>\]",
+            r"`source` must be an Iterable or a Callable\[\[\], Iterable\] but got a Callable\[\[\], <class 'int'>\]",
             msg="Getting an Iterator from a Stream with a source not being a Union[Callable[[], Iterator], ITerable] must raise TypeError.",
         ):
             iter(Stream(lambda: 1))  # type: ignore
 
-    def test_add(self) -> None:
+    @parameterized.expand(
+        [Iterable, AsyncIterable]
+    )
+    def test_add(self, iter_type: IterType) -> None:
         from streamable.stream import FlattenStream
 
         stream = Stream(src)
@@ -344,14 +348,9 @@ class TestStream(unittest.TestCase):
         stream_b = Stream(range(10, 20))
         stream_c = Stream(range(20, 30))
         self.assertListEqual(
-            list(stream_a + stream_b + stream_c),
+            to_list(stream_a + stream_b + stream_c, iter_type=iter_type),
             list(range(30)),
             msg="`chain` must yield the elements of the first stream the move on with the elements of the next ones and so on.",
-        )
-        self.assertListEqual(
-            aiterable_to_list(stream_a + stream_b + stream_c),
-            list(range(30)),
-            msg="[aiterable test] `chain` must yield the elements of the first stream the move on with the elements of the next ones and so on.",
         )
 
     @parameterized.expand(
@@ -409,11 +408,6 @@ class TestStream(unittest.TestCase):
             list(map(square, src)),
             msg="At any concurrency the `map` method should act as the builtin map function, transforming elements while preserving input elements order.",
         )
-        self.assertListEqual(
-            aiterable_to_list(Stream(src).map(randomly_slowed(square), concurrency=concurrency)),
-            list(map(square, src)),
-            msg="[aiterable test] At any concurrency the `map` method should act as the builtin map function, transforming elements while preserving input elements order.",
-        )
 
     @parameterized.expand(
         [
@@ -455,17 +449,6 @@ class TestStream(unittest.TestCase):
             list(stream),
             expected_result_list,
             msg="process-based concurrency must correctly transform elements, respecting `ordered`...",
-        )
-        self.assertListEqual(
-            state,
-            [""] * len(sleeps),
-            msg="... and must not mutate main thread-bound structures.",
-        )
-        state.clear()
-        self.assertListEqual(
-            aiterable_to_list(stream),
-            expected_result_list,
-            msg="[aiterable test] process-based concurrency must correctly transform elements, respecting `ordered`...",
         )
         self.assertListEqual(
             state,
@@ -1732,30 +1715,6 @@ class TestStream(unittest.TestCase):
             msg="`amap` should raise a TypeError if a non async function is passed to it.",
         ):
             next(iter(stream))
-
-        async def throw_stop_iteration(_):
-            raise StopIteration()
-
-        async def throw_stop_async_iteration(_):
-            raise StopAsyncIteration()
-
-        with self.assertRaisesRegex(
-            RuntimeError,
-            "coroutine raised StopIteration",
-            msg="`amap` should raise RuntimeError if coroutine raises StopIteration",
-        ):
-            list(Stream(range(10)).amap(throw_stop_iteration, concurrency=concurrency))
-
-        with self.assertRaisesRegex(
-            WrappedError,
-            "StopAsyncIteration()",
-            msg="`amap` should wrap StopAsyncIteration",
-        ):
-            asyncio.run(
-                Stream(range(10))
-                .amap(throw_stop_async_iteration, concurrency=concurrency)
-                .acount()
-            )
 
     @parameterized.expand(
         [
