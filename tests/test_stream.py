@@ -4,6 +4,7 @@ import datetime
 import logging
 import math
 from operator import itemgetter
+from pickle import PickleError
 import queue
 import random
 import sys
@@ -411,7 +412,7 @@ class TestStream(unittest.TestCase):
 
         for f in [lambda_identity, local_identity]:
             with self.assertRaisesRegex(
-                AttributeError,
+                (AttributeError, PickleError),
                 "<locals>",
                 msg="process-based concurrency should not be able to serialize a lambda or a local func",
             ):
