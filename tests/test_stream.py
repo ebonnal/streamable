@@ -17,6 +17,7 @@ import unittest
 from collections import Counter
 from typing import (
     Any,
+    AsyncIterator,
     Callable,
     Coroutine,
     Dict,
@@ -34,6 +35,7 @@ from typing import (
 from parameterized import parameterized  # type: ignore
 
 from streamable import Stream
+from streamable.util.iterabletools import aiterable_to_list, arange
 from streamable.util.functiontools import WrappedError, star
 
 T = TypeVar("T")
@@ -127,8 +129,9 @@ N = 256
 
 src = range(N)
 
-even_src = range(0, N, 2)
+asrc = arange(0, N)
 
+even_src = range(0, N, 2)
 
 def randomly_slowed(
     func: Callable[[T], R], min_sleep: float = 0.001, max_sleep: float = 0.05
@@ -165,6 +168,7 @@ src_raising_at_exhaustion = lambda: range_raising_at_exhaustion(0, N, 1, TestErr
 class TestStream(unittest.TestCase):
     def test_init(self) -> None:
         stream = Stream(src)
+        astream = Stream(asrc)
         self.assertIs(
             stream._source,
             src,
@@ -306,6 +310,11 @@ class TestStream(unittest.TestCase):
             Iterator,
             msg="iter(stream) must return an Iterator.",
         )
+        self.assertIsInstance(
+            Stream(src).__aiter__(),
+            AsyncIterator,
+            msg="stream.__aiter__() must return an AsyncIterator.",
+        )
 
         with self.assertRaisesRegex(
             TypeError,
@@ -338,6 +347,11 @@ class TestStream(unittest.TestCase):
             list(stream_a + stream_b + stream_c),
             list(range(30)),
             msg="`chain` must yield the elements of the first stream the move on with the elements of the next ones and so on.",
+        )
+        self.assertListEqual(
+            aiterable_to_list(stream_a + stream_b + stream_c),
+            list(range(30)),
+            msg="[aiterable test] `chain` must yield the elements of the first stream the move on with the elements of the next ones and so on.",
         )
 
     @parameterized.expand(
@@ -395,6 +409,11 @@ class TestStream(unittest.TestCase):
             list(map(square, src)),
             msg="At any concurrency the `map` method should act as the builtin map function, transforming elements while preserving input elements order.",
         )
+        self.assertListEqual(
+            aiterable_to_list(Stream(src).map(randomly_slowed(square), concurrency=concurrency)),
+            list(map(square, src)),
+            msg="[aiterable test] At any concurrency the `map` method should act as the builtin map function, transforming elements while preserving input elements order.",
+        )
 
     @parameterized.expand(
         [
@@ -436,6 +455,11 @@ class TestStream(unittest.TestCase):
             list(stream),
             expected_result_list,
             msg="process-based concurrency must correctly transform elements, respecting `ordered`...",
+        )
+        self.assertListEqual(
+            aiterable_to_list(stream),
+            expected_result_list,
+            msg="[aiterable test] process-based concurrency must correctly transform elements, respecting `ordered`...",
         )
         self.assertListEqual(
             state,
