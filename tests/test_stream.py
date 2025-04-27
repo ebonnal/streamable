@@ -18,6 +18,7 @@ from collections import Counter
 from typing import (
     Any,
     AsyncIterable,
+    AsyncIterator,
     Callable,
     Coroutine,
     Dict,
@@ -36,26 +37,43 @@ from typing import (
 from parameterized import parameterized  # type: ignore
 
 from streamable import Stream
+from streamable.util.asynctools import awaitable_to_coroutine, await_result
 from streamable.util.functiontools import WrappedError, star
 from streamable.util.iterabletools import aiterable_to_list
 
 T = TypeVar("T")
 R = TypeVar("R")
 
-IterType = Union[Type[Iterable], Type[AsyncIterable]]
+IterableType = Union[Type[Iterable], Type[AsyncIterable]]
+ITERABLE_TYPES: Tuple[IterableType, ...] = (Iterable, AsyncIterable)
 
-def to_list(stream: Stream[T], iter_type: IterType) -> List[T]:
-    if iter_type is Iterable:
-        return list(stream)
-    else:
+def to_list(stream: Stream[T], iterable_type: IterableType) -> List[T]:
+    assert isinstance(stream, Stream)
+    if iterable_type is AsyncIterable:
         return aiterable_to_list(stream)
+    else:
+        return list(stream)
 
-def timestream(stream: Stream[T], times: int = 1) -> Tuple[float, List[T]]:
+def to_iter(stream: Stream[T], iterable_type: IterableType) -> Union[Iterator[T], AsyncIterator[T]]:
+    assert isinstance(stream, Stream)
+    if iterable_type is AsyncIterable:
+        return stream.__aiter__()
+    else:
+        return iter(stream)
+
+def iter_type_agnostic_next(it: Union[Iterator[T], AsyncIterator[T]]) -> T:
+    if isinstance(it, AsyncIterator):
+        return await_result(it.__anext__())
+    else:
+        return next(it)
+
+
+def timestream(stream: Stream[T], times: int = 1, iterable_type: IterableType = Iterable) -> Tuple[float, List[T]]:
     res: List[T] = []
 
     def iterate():
         nonlocal res
-        res = list(stream)
+        res = to_list(stream, iterable_type=iterable_type)
 
     return timeit.timeit(iterate, number=times) / times, res
 
@@ -332,9 +350,9 @@ class TestStream(unittest.TestCase):
             iter(Stream(lambda: 1))  # type: ignore
 
     @parameterized.expand(
-        [Iterable, AsyncIterable]
+        ITERABLE_TYPES
     )
-    def test_add(self, iter_type: IterType) -> None:
+    def test_add(self, iterable_type: IterableType) -> None:
         from streamable.stream import FlattenStream
 
         stream = Stream(src)
@@ -348,7 +366,7 @@ class TestStream(unittest.TestCase):
         stream_b = Stream(range(10, 20))
         stream_c = Stream(range(20, 30))
         self.assertListEqual(
-            to_list(stream_a + stream_b + stream_c, iter_type=iter_type),
+            to_list(stream_a + stream_b + stream_c, iterable_type=iterable_type),
             list(range(30)),
             msg="`chain` must yield the elements of the first stream the move on with the elements of the next ones and so on.",
         )
@@ -398,25 +416,25 @@ class TestStream(unittest.TestCase):
 
     @parameterized.expand(
         [
-            [1],
-            [2],
+            (concurrency, iterable_type)
+            for concurrency in (1, 2)
+            for iterable_type in ITERABLE_TYPES
         ]
     )
-    def test_map(self, concurrency) -> None:
+    def test_map(self, concurrency, iterable_type) -> None:
         self.assertListEqual(
-            list(Stream(src).map(randomly_slowed(square), concurrency=concurrency)),
+            to_list(Stream(src).map(randomly_slowed(square), concurrency=concurrency), iterable_type=iterable_type),
             list(map(square, src)),
             msg="At any concurrency the `map` method should act as the builtin map function, transforming elements while preserving input elements order.",
         )
 
     @parameterized.expand(
-        [
-            [True, identity],
-            [False, sorted],
-        ]
+        [(True, identity, iterable_type) for iterable_type in ITERABLE_TYPES]
+        +
+        [(False, sorted, iterable_type) for iterable_type in ITERABLE_TYPES]
     )
     def test_process_concurrency(
-        self, ordered, order_mutation
+        self, ordered, order_mutation, iterable_type
     ) -> None:  # pragma: no cover
         # 3.7 and 3.8 are passing the test but hang forever after
         if sys.version_info.minor < 9:
@@ -433,7 +451,7 @@ class TestStream(unittest.TestCase):
                 "<locals>",
                 msg="process-based concurrency should not be able to serialize a lambda or a local func",
             ):
-                list(Stream(src).map(f, concurrency=2, via="process"))
+                to_list(Stream(src).map(f, concurrency=2, via="process"), iterable_type=iterable_type)
 
         sleeps = [0.01, 1, 0.01]
         state: List[str] = []
@@ -446,7 +464,7 @@ class TestStream(unittest.TestCase):
             .foreach(lambda _: state.append(""), concurrency=1, ordered=True)
         )
         self.assertListEqual(
-            list(stream),
+            to_list(stream, iterable_type=iterable_type),
             expected_result_list,
             msg="process-based concurrency must correctly transform elements, respecting `ordered`...",
         )
@@ -457,7 +475,7 @@ class TestStream(unittest.TestCase):
         )
         # test partial iteration:
         self.assertEqual(
-            next(iter(stream)),
+            iter_type_agnostic_next(to_iter(stream, iterable_type=iterable_type)),
             expected_result_list[0],
             msg="process-based concurrency must behave ok with partial iteration",
         )
