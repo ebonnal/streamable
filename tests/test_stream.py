@@ -457,6 +457,12 @@ class TestStream(unittest.TestCase):
             msg="process-based concurrency must correctly transform elements, respecting `ordered`...",
         )
         self.assertListEqual(
+            state,
+            [""] * len(sleeps),
+            msg="... and must not mutate main thread-bound structures.",
+        )
+        state.clear()
+        self.assertListEqual(
             aiterable_to_list(stream),
             expected_result_list,
             msg="[aiterable test] process-based concurrency must correctly transform elements, respecting `ordered`...",
