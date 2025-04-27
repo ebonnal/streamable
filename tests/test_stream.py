@@ -48,6 +48,7 @@ R = TypeVar("R")
 IterableType = Union[Type[Iterable], Type[AsyncIterable]]
 ITERABLE_TYPES: Tuple[IterableType, ...] = (Iterable, AsyncIterable)
 
+
 def overloaded_stopiteration(itype: IterableType) -> Type[Exception]:
     if issubclass(itype, AsyncIterable):
         return StopAsyncIteration
@@ -1302,13 +1303,18 @@ class TestStream(unittest.TestCase):
             r"`per` must be None or a positive timedelta but got datetime\.timedelta\(0\)",
             msg="`throttle` should raise error when called with negative `per`.",
         ):
-            to_list(Stream([1]).throttle(1, per=datetime.timedelta(microseconds=0)), itype=itype)
+            to_list(
+                Stream([1]).throttle(1, per=datetime.timedelta(microseconds=0)),
+                itype=itype,
+            )
         with self.assertRaisesRegex(
             ValueError,
             "`count` must be >= 1 but got 0",
             msg="`throttle` should raise error when called with `count` < 1.",
         ):
-            to_list(Stream([1]).throttle(0, per=datetime.timedelta(seconds=1)), itype=itype)
+            to_list(
+                Stream([1]).throttle(0, per=datetime.timedelta(seconds=1)), itype=itype
+            )
 
         # test interval
         interval_seconds = 0.3
@@ -1479,7 +1485,6 @@ class TestStream(unittest.TestCase):
             msg="`throttle` must support legacy kwargs",
         )
 
-
     @parameterized.expand(ITERABLE_TYPES)
     def test_distinct(self, itype: IterableType) -> None:
         self.assertListEqual(
@@ -1488,7 +1493,9 @@ class TestStream(unittest.TestCase):
             msg="`distinct` should yield distinct elements",
         )
         self.assertListEqual(
-            to_list(Stream("aabbcccaabbcccc").distinct(consecutive_only=True), itype=itype),
+            to_list(
+                Stream("aabbcccaabbcccc").distinct(consecutive_only=True), itype=itype
+            ),
             list("abcabc"),
             msg="`distinct` should only remove the duplicates that are consecutive if `consecutive_only=True`",
         )
@@ -1504,7 +1511,9 @@ class TestStream(unittest.TestCase):
                 msg="`distinct` should yield the first encountered elem among duplicates",
             )
             self.assertListEqual(
-                to_list(Stream([]).distinct(consecutive_only=consecutive_only), itype=itype),
+                to_list(
+                    Stream([]).distinct(consecutive_only=consecutive_only), itype=itype
+                ),
                 [],
                 msg="`distinct` should yield zero elements on empty stream",
             )
@@ -1797,7 +1806,6 @@ class TestStream(unittest.TestCase):
             l, list(src), msg="`count` should iterate over the entire stream."
         )
 
-
     def test_call(self) -> None:
         l: List[int] = []
         stream = Stream(src).map(l.append)
@@ -1837,11 +1845,7 @@ class TestStream(unittest.TestCase):
             )
 
     @parameterized.expand(
-        [
-            (concurrency, itype)
-            for concurrency in (1, 100)
-            for itype in ITERABLE_TYPES
-        ]
+        [(concurrency, itype) for concurrency in (1, 100) for itype in ITERABLE_TYPES]
     )
     def test_amap(self, concurrency, itype) -> None:
         self.assertListEqual(
@@ -1863,11 +1867,7 @@ class TestStream(unittest.TestCase):
             overloaded_next(to_iter(stream, itype=itype))
 
     @parameterized.expand(
-        [
-            (concurrency, itype)
-            for concurrency in (1, 100)
-            for itype in ITERABLE_TYPES
-        ]
+        [(concurrency, itype) for concurrency in (1, 100) for itype in ITERABLE_TYPES]
     )
     def test_aforeach(self, concurrency, itype) -> None:
         self.assertListEqual(
@@ -1988,10 +1988,17 @@ class TestStream(unittest.TestCase):
     @parameterized.expand(ITERABLE_TYPES)
     def test_ref_cycles(self, itype: IterableType) -> None:
         gc.disable()
+
         async def async_int(o: Any) -> int:
             return int(o)
+
         stream = (
-            Stream("123_5").amap(async_int).map(str).group(1).groupby(len).catch(finally_raise=True)
+            Stream("123_5")
+            .amap(async_int)
+            .map(str)
+            .group(1)
+            .groupby(len)
+            .catch(finally_raise=True)
         )
         exception: Exception
         try:

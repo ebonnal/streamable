@@ -44,7 +44,9 @@ def awrap_error(
         try:
             coroutine = async_func(elem)
             if not isinstance(coroutine, Coroutine):
-                raise TypeError(f"must be an async function i.e. a function returning a Coroutine but it returned a {type(coroutine)}")
+                raise TypeError(
+                    f"must be an async function i.e. a function returning a Coroutine but it returned a {type(coroutine)}"
+                )
             return await coroutine
         except error_type as e:
             raise WrappedError(e) from e
