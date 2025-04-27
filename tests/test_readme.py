@@ -18,6 +18,7 @@ three_integers_per_second: Stream[int] = integers.throttle(5, per=timedelta(seco
 
 T = TypeVar("T")
 
+
 # fmt: off
 class TestReadme(unittest.TestCase):
     def test_iterate(self) -> None:

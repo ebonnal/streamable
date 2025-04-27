@@ -1852,7 +1852,7 @@ class TestStream(unittest.TestCase):
             list(map(square, src)),
             msg="At any concurrency the `amap` method should act as the builtin map function, transforming elements while preserving input elements order.",
         )
-        stream = Stream(src).amap(identity)  # type: ignore
+        stream = Stream(src).amap(identity, concurrency=concurrency)  # type: ignore
         with self.assertRaisesRegex(
             TypeError,
             r"must be an async function i\.e\. a function returning a Coroutine but it returned a <class 'int'>",
