@@ -1296,20 +1296,21 @@ class TestStream(unittest.TestCase):
             msg="`group` should continue yielding after `by`'s exception has been raised.",
         )
 
-    def test_throttle(self) -> None:
+    @parameterized.expand(ITERABLE_TYPES)
+    def test_throttle(self, itype: IterableType) -> None:
         # behavior with invalid arguments
         with self.assertRaisesRegex(
             ValueError,
             r"`per` must be None or a positive timedelta but got datetime\.timedelta\(0\)",
             msg="`throttle` should raise error when called with negative `per`.",
         ):
-            list(Stream([1]).throttle(1, per=datetime.timedelta(microseconds=0)))
+            to_list(Stream([1]).throttle(1, per=datetime.timedelta(microseconds=0)), itype=itype)
         with self.assertRaisesRegex(
             ValueError,
             "`count` must be >= 1 but got 0",
             msg="`throttle` should raise error when called with `count` < 1.",
         ):
-            list(Stream([1]).throttle(0, per=datetime.timedelta(seconds=1)))
+            to_list(Stream([1]).throttle(0, per=datetime.timedelta(seconds=1)), itype=itype)
 
         # test interval
         interval_seconds = 0.3
@@ -1340,8 +1341,7 @@ class TestStream(unittest.TestCase):
             ],
         ):
             with self.subTest(stream=stream):
-                duration, res = timestream(stream)
-
+                duration, res = timestream(stream, itype=itype)
                 self.assertListEqual(
                     res,
                     expected_elems,
@@ -1358,11 +1358,12 @@ class TestStream(unittest.TestCase):
                 )
 
         self.assertEqual(
-            next(
-                iter(
+            overloaded_next(
+                to_iter(
                     Stream(src)
                     .throttle(1, per=datetime.timedelta(seconds=0.2))
-                    .throttle(1, per=datetime.timedelta(seconds=0.1))
+                    .throttle(1, per=datetime.timedelta(seconds=0.1)),
+                    itype=itype,
                 )
             ),
             0,
@@ -1392,7 +1393,7 @@ class TestStream(unittest.TestCase):
                 ],
             ):
                 with self.subTest(N=N, stream=stream):
-                    duration, res = timestream(stream)
+                    duration, res = timestream(stream, itype=itype)
                     self.assertListEqual(
                         res,
                         expected_elems,
@@ -1418,7 +1419,7 @@ class TestStream(unittest.TestCase):
             .throttle(1, per=datetime.timedelta(seconds=0.2)),
         ]:
             with self.subTest(stream=stream):
-                duration, _ = timestream(stream)
+                duration, _ = timestream(stream, itype=itype)
                 self.assertAlmostEqual(
                     duration,
                     expected_duration,
