@@ -1266,7 +1266,7 @@ class TestStream(unittest.TestCase):
 
         stream_iter = to_iter(
             Stream(src).group(
-                size=3, by=lambda n: throw(StopIteration) if n == 2 else n
+                size=3, by=lambda n: throw(overloaded_stopiteration(itype)) if n == 2 else n
             ),
             itype=itype,
         )
