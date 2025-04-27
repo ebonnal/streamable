@@ -1266,7 +1266,8 @@ class TestStream(unittest.TestCase):
 
         stream_iter = to_iter(
             Stream(src).group(
-                size=3, by=lambda n: throw(overloaded_stopiteration(itype)) if n == 2 else n
+                size=3,
+                by=lambda n: throw(overloaded_stopiteration(itype)) if n == 2 else n,
             ),
             itype=itype,
         )
@@ -1275,20 +1276,12 @@ class TestStream(unittest.TestCase):
             [[0], [1]],
             msg="`group` should yield incomplete groups when `by` raises",
         )
-        if isinstance(itype, Iterable):
-            with self.assertRaisesRegex(
-                WrappedError,
-                "StopIteration()",
-                msg="`group` should raise and skip `elem` if `by(elem)` raises",
-            ):
-                overloaded_next(stream_iter)
-        else:
-            with self.assertRaisesRegex(
-                RuntimeError,
-                "coroutine raised StopIteration",
-                msg="`group` should raise and skip `elem` if `by(elem)` raises",
-            ):
-                overloaded_next(stream_iter)
+        with self.assertRaisesRegex(
+            WrappedError,
+            overloaded_stopiteration(itype).__name__,
+            msg="`group` should raise and skip `elem` if `by(elem)` raises",
+        ):
+            overloaded_next(stream_iter)
         self.assertListEqual(
             overloaded_next(stream_iter),
             [3],
