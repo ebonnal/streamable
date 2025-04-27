@@ -1863,16 +1863,18 @@ class TestStream(unittest.TestCase):
 
     @parameterized.expand(
         [
-            [1],
-            [100],
+            (concurrency, itype)
+            for concurrency in (1, 100)
+            for itype in ITERABLE_TYPES
         ]
     )
-    def test_aforeach(self, concurrency) -> None:
+    def test_aforeach(self, concurrency, itype) -> None:
         self.assertListEqual(
-            list(
+            to_list(
                 Stream(src).aforeach(
                     async_randomly_slowed(async_square), concurrency=concurrency
-                )
+                ),
+                itype=itype,
             ),
             list(src),
             msg="At any concurrency the `foreach` method must preserve input elements order.",
@@ -1883,7 +1885,7 @@ class TestStream(unittest.TestCase):
             r"`transformation` must be an async function i\.e\. a function returning a Coroutine but it returned a <class 'int'>",
             msg="`aforeach` should raise a TypeError if a non async function is passed to it.",
         ):
-            next(iter(stream))
+            overloaded_next(to_iter(stream, itype=itype))
 
     def test_pipe(self) -> None:
         def func(
