@@ -126,6 +126,7 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
 
     def __aiter__(self) -> AsyncIterator[T]:
         from streamable.visitors.aiterator import AsyncIteratorVisitor
+
         print("<AITER>")  # TODO remove
         return self.accept(AsyncIteratorVisitor[T]())
 

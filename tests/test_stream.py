@@ -48,12 +48,14 @@ R = TypeVar("R")
 IterableType = Union[Type[Iterable], Type[AsyncIterable]]
 ITERABLE_TYPES: Tuple[IterableType, ...] = (Iterable, AsyncIterable)
 
+
 def to_list(stream: Stream[T], itype: IterableType) -> List[T]:
     assert isinstance(stream, Stream)
     if itype is AsyncIterable:
         return aiterable_to_list(stream)
     else:
         return list(stream)
+
 
 def to_set(stream: Stream[T], itype: IterableType) -> Set[T]:
     assert isinstance(stream, Stream)
@@ -62,17 +64,22 @@ def to_set(stream: Stream[T], itype: IterableType) -> Set[T]:
     else:
         return set(stream)
 
-def to_iter(stream: Stream[T], itype: IterableType) -> Union[Iterator[T], AsyncIterator[T]]:
+
+def to_iter(
+    stream: Stream[T], itype: IterableType
+) -> Union[Iterator[T], AsyncIterator[T]]:
     assert isinstance(stream, Stream)
     if itype is AsyncIterable:
         return stream.__aiter__()
     else:
         return iter(stream)
 
+
 @overload
 def overloaded_next(it: AsyncIterator[T]) -> T: ...
 @overload
 def overloaded_next(it: Iterator[T]) -> T: ...
+
 
 def overloaded_next(it: Union[Iterator[T], AsyncIterator[T]]) -> T:
     if isinstance(it, AsyncIterator):
@@ -81,7 +88,9 @@ def overloaded_next(it: Union[Iterator[T], AsyncIterator[T]]) -> T:
         return next(it)
 
 
-def timestream(stream: Stream[T], times: int = 1, itype: IterableType = Iterable) -> Tuple[float, List[T]]:
+def timestream(
+    stream: Stream[T], times: int = 1, itype: IterableType = Iterable
+) -> Tuple[float, List[T]]:
     res: List[T] = []
 
     def iterate():
@@ -362,9 +371,7 @@ class TestStream(unittest.TestCase):
         ):
             iter(Stream(lambda: 1))  # type: ignore
 
-    @parameterized.expand(
-        ITERABLE_TYPES
-    )
+    @parameterized.expand(ITERABLE_TYPES)
     def test_add(self, itype: IterableType) -> None:
         from streamable.stream import FlattenStream
 
@@ -428,23 +435,21 @@ class TestStream(unittest.TestCase):
             method(Stream(src), identity, via="foo")
 
     @parameterized.expand(
-        [
-            (concurrency, itype)
-            for concurrency in (1, 2)
-            for itype in ITERABLE_TYPES
-        ]
+        [(concurrency, itype) for concurrency in (1, 2) for itype in ITERABLE_TYPES]
     )
     def test_map(self, concurrency, itype) -> None:
         self.assertListEqual(
-            to_list(Stream(src).map(randomly_slowed(square), concurrency=concurrency), itype=itype),
+            to_list(
+                Stream(src).map(randomly_slowed(square), concurrency=concurrency),
+                itype=itype,
+            ),
             list(map(square, src)),
             msg="At any concurrency the `map` method should act as the builtin map function, transforming elements while preserving input elements order.",
         )
 
     @parameterized.expand(
         [(True, identity, itype) for itype in ITERABLE_TYPES]
-        +
-        [(False, sorted, itype) for itype in ITERABLE_TYPES]
+        + [(False, sorted, itype) for itype in ITERABLE_TYPES]
     )
     def test_process_concurrency(
         self, ordered, order_mutation, itype
@@ -510,21 +515,16 @@ class TestStream(unittest.TestCase):
         self, concurrency, n_elems, itype
     ) -> None:
         self.assertListEqual(
-            to_list(Stream(range(n_elems)).map(str, concurrency=concurrency), itype=itype),
+            to_list(
+                Stream(range(n_elems)).map(str, concurrency=concurrency), itype=itype
+            ),
             list(map(str, range(n_elems))),
             msg="`map` method should act correctly when concurrency > number of elements.",
         )
 
     @parameterized.expand(
         [
-            [
-                ordered,
-                order_mutation,
-                expected_duration,
-                operation,
-                func,
-                itype
-            ]
+            [ordered, order_mutation, expected_duration, operation, func, itype]
             for ordered, order_mutation, expected_duration in [
                 (True, identity, 0.3),
                 (False, sorted, 0.21),
@@ -567,11 +567,7 @@ class TestStream(unittest.TestCase):
         )
 
     @parameterized.expand(
-        [
-            (concurrency, itype)
-            for concurrency in (1, 2)
-            for itype in ITERABLE_TYPES
-        ]
+        [(concurrency, itype) for concurrency in (1, 2) for itype in ITERABLE_TYPES]
     )
     def test_foreach(self, concurrency, itype) -> None:
         side_collection: Set[int] = set()
@@ -585,7 +581,7 @@ class TestStream(unittest.TestCase):
                 lambda i: randomly_slowed(side_effect(i, square)),
                 concurrency=concurrency,
             ),
-            itype=itype
+            itype=itype,
         )
 
         self.assertListEqual(
@@ -637,7 +633,10 @@ class TestStream(unittest.TestCase):
             caught_exc,
             msg="At any concurrency, `map` and `foreach` and `amap` must raise",
         ):
-            to_list(method(Stream(src), throw_func(raised_exc), concurrency=concurrency), itype=itype)  # type: ignore
+            to_list(
+                method(Stream(src), throw_func(raised_exc), concurrency=concurrency),
+                itype=itype,
+            )  # type: ignore
 
         self.assertListEqual(
             to_list(
@@ -646,7 +645,7 @@ class TestStream(unittest.TestCase):
                     throw_for_odd_func(raised_exc),
                     concurrency=concurrency,  # type: ignore
                 ).catch(caught_exc),
-                itype=itype
+                itype=itype,
             ),
             list(even_src),
             msg="At any concurrency, `map` and `foreach` and `amap` must not stop after one exception occured.",
@@ -664,9 +663,13 @@ class TestStream(unittest.TestCase):
             for itype in ITERABLE_TYPES
         ]
     )
-    def test_map_and_foreach_concurrency(self, method, func, concurrency, itype) -> None:
+    def test_map_and_foreach_concurrency(
+        self, method, func, concurrency, itype
+    ) -> None:
         expected_iteration_duration = N * slow_identity_duration / concurrency
-        duration, res = timestream(method(Stream(src), func, concurrency=concurrency), itype=itype)
+        duration, res = timestream(
+            method(Stream(src), func, concurrency=concurrency), itype=itype
+        )
         self.assertListEqual(res, list(src))
         self.assertAlmostEqual(
             duration,
@@ -676,11 +679,7 @@ class TestStream(unittest.TestCase):
         )
 
     @parameterized.expand(
-        [
-            (concurrency, itype)
-            for concurrency in (1, 2)
-            for itype in ITERABLE_TYPES
-        ]
+        [(concurrency, itype) for concurrency in (1, 2) for itype in ITERABLE_TYPES]
     )
     def test_flatten(self, concurrency, itype) -> None:
         n_iterables = 32
@@ -696,8 +695,10 @@ class TestStream(unittest.TestCase):
         )
         self.assertListEqual(
             to_list(
-                Stream([iter([]) for _ in range(2000)]).flatten(concurrency=concurrency),
-                itype=itype
+                Stream([iter([]) for _ in range(2000)]).flatten(
+                    concurrency=concurrency
+                ),
+                itype=itype,
             ),
             [],
             msg="`flatten` should not yield any element if upstream elements are empty iterables, and be resilient to recursion issue in case of successive empty upstream iterables.",
@@ -712,9 +713,7 @@ class TestStream(unittest.TestCase):
         # test typing with ranges
         _: Stream[int] = Stream((src, src)).flatten()
 
-    @parameterized.expand(
-        ITERABLE_TYPES
-    )
+    @parameterized.expand(ITERABLE_TYPES)
     def test_flatten_concurrency(self, itype) -> None:
         iterable_size = 5
         runtime, res = timestream(
@@ -833,11 +832,7 @@ class TestStream(unittest.TestCase):
         )
 
     @parameterized.expand(
-        [
-            (concurrency, itype)
-            for concurrency in [2, 4]
-            for itype in ITERABLE_TYPES
-        ]
+        [(concurrency, itype) for concurrency in [2, 4] for itype in ITERABLE_TYPES]
     )
     def test_partial_iteration_on_streams_using_concurrency(
         self, concurrency: int, itype: IterableType
@@ -890,40 +885,43 @@ class TestStream(unittest.TestCase):
                 msg=f"`after the first call to `next` a concurrent {type(stream)} with concurrency={concurrency} should have pulled only {n_pulls_after_first_next} upstream elements.",
             )
 
-    def test_filter(self) -> None:
+    @parameterized.expand(ITERABLE_TYPES)
+    def test_filter(self, itype: IterableType) -> None:
         def keep(x) -> Any:
             return x % 2
 
         self.assertListEqual(
-            list(Stream(src).filter(keep)),
+            to_list(Stream(src).filter(keep), itype=itype),
             list(filter(keep, src)),
             msg="`filter` must act like builtin filter",
         )
         self.assertListEqual(
-            list(Stream(src).filter()),
+            to_list(Stream(src).filter(), itype=itype),
             list(filter(None, src)),
             msg="`filter` with `bool` as predicate must act like builtin filter with None predicate.",
         )
         self.assertListEqual(
-            list(Stream(src).filter()),
+            to_list(Stream(src).filter(), itype=itype),
             list(filter(None, src)),
             msg="`filter` without predicate must act like builtin filter with None predicate.",
         )
         self.assertListEqual(
-            list(Stream(src).filter(None)),  # type: ignore
+            to_list(Stream(src).filter(None), itype=itype),  # type: ignore
             list(filter(None, src)),
             msg="`filter` with None predicate must act unofficially like builtin filter with None predicate.",
         )
 
         # Unofficially accept `stream.filter(None)`, behaving as builtin `filter(None, iter)`
+        to_list(Stream(src).filter(None), itype=itype)  # type: ignore
         # with self.assertRaisesRegex(
         #     TypeError,
         #     "`when` cannot be None",
         #     msg="`filter` does not accept a None predicate",
         # ):
-        #     list(Stream(src).filter(None))  # type: ignore
+        #     to_list(Stream(src).filter(None), itype=itype)  # type: ignore
 
-    def test_skip(self) -> None:
+    @parameterized.expand(ITERABLE_TYPES)
+    def test_skip(self, itype: IterableType) -> None:
         with self.assertRaisesRegex(
             ValueError,
             "`count` must be >= 0 but got -1",
@@ -932,54 +930,57 @@ class TestStream(unittest.TestCase):
             Stream(src).skip(-1)
 
         self.assertListEqual(
-            list(Stream(src).skip()),
+            to_list(Stream(src).skip(), itype=itype),
             list(src),
             msg="`skip` must be no-op if both `count` and `until` are None",
         )
 
         self.assertListEqual(
-            list(Stream(src).skip(None)),
+            to_list(Stream(src).skip(None), itype=itype),
             list(src),
             msg="`skip` must be no-op if both `count` and `until` are None",
         )
 
         for count in [0, 1, 3]:
             self.assertListEqual(
-                list(Stream(src).skip(count)),
+                to_list(Stream(src).skip(count), itype=itype),
                 list(src)[count:],
                 msg="`skip` must skip `count` elements",
             )
 
             self.assertListEqual(
-                list(
+                to_list(
                     Stream(map(throw_for_odd_func(TestError), src))
                     .skip(count)
-                    .catch(TestError)
+                    .catch(TestError),
+                    itype=itype,
                 ),
                 list(filter(lambda i: i % 2 == 0, src))[count:],
                 msg="`skip` must not count exceptions as skipped elements",
             )
 
             self.assertListEqual(
-                list(Stream(src).skip(until=lambda n: n >= count)),
+                to_list(Stream(src).skip(until=lambda n: n >= count), itype=itype),
                 list(src)[count:],
                 msg="`skip` must yield starting from the first element satisfying `until`",
             )
 
             self.assertListEqual(
-                list(Stream(src).skip(count, until=lambda n: False)),
+                to_list(Stream(src).skip(count, until=lambda n: False), itype=itype),
                 list(src)[count:],
                 msg="`skip` must ignore `count` elements if `until` is never satisfied",
             )
 
             self.assertListEqual(
-                list(Stream(src).skip(count * 2, until=lambda n: n >= count)),
+                to_list(
+                    Stream(src).skip(count * 2, until=lambda n: n >= count), itype=itype
+                ),
                 list(src)[count:],
                 msg="`skip` must ignore less than `count` elements if `until` is satisfied first",
             )
 
         self.assertListEqual(
-            list(Stream(src).skip(until=lambda n: False)),
+            to_list(Stream(src).skip(until=lambda n: False), itype=itype),
             [],
             msg="`skip` must not yield any element if `until` is never satisfied",
         )
