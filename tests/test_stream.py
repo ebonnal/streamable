@@ -32,7 +32,6 @@ from typing import (
     TypeVar,
     Union,
     cast,
-    overload,
 )
 
 from parameterized import parameterized  # type: ignore
@@ -48,6 +47,10 @@ R = TypeVar("R")
 IterableType = Union[Type[Iterable], Type[AsyncIterable]]
 ITERABLE_TYPES: Tuple[IterableType, ...] = (Iterable, AsyncIterable)
 
+def overloaded_stopiteration(iterator: Union[Iterator, AsyncIterator]) -> Type[Exception]:
+    if isinstance(iterator, AsyncIterator):
+        return StopAsyncIteration
+    return StopIteration
 
 def to_list(stream: Stream[T], itype: IterableType) -> List[T]:
     assert isinstance(stream, Stream)
@@ -75,17 +78,17 @@ def to_iter(
         return iter(stream)
 
 
-@overload
-def overloaded_next(it: AsyncIterator[T]) -> T: ...
-@overload
-def overloaded_next(it: Iterator[T]) -> T: ...
-
-
 def overloaded_next(it: Union[Iterator[T], AsyncIterator[T]]) -> T:
     if isinstance(it, AsyncIterator):
         return await_result(it.__anext__())
     else:
         return next(it)
+
+def overloaded_to_list(iterable: Union[Iterable[T], AsyncIterable[T]]) -> List[T]:
+    if isinstance(iterable, AsyncIterable):
+        return aiterable_to_list(iterable)
+    else:
+        return list(iterable)
 
 
 def timestream(
@@ -634,9 +637,9 @@ class TestStream(unittest.TestCase):
             msg="At any concurrency, `map` and `foreach` and `amap` must raise",
         ):
             to_list(
-                method(Stream(src), throw_func(raised_exc), concurrency=concurrency),
+                method(Stream(src), throw_func(raised_exc), concurrency=concurrency), # type: ignore
                 itype=itype,
-            )  # type: ignore
+            )
 
         self.assertListEqual(
             to_list(
@@ -985,37 +988,38 @@ class TestStream(unittest.TestCase):
             msg="`skip` must not yield any element if `until` is never satisfied",
         )
 
-    def test_truncate(self) -> None:
+    @parameterized.expand(ITERABLE_TYPES)
+    def test_truncate(self, itype: IterableType) -> None:
         self.assertListEqual(
-            list(Stream(src).truncate(N * 2)),
+            to_list(Stream(src).truncate(N * 2), itype=itype),
             list(src),
             msg="`truncate` must be ok with count >= stream length",
         )
 
         self.assertListEqual(
-            list(Stream(src).truncate()),
+            to_list(Stream(src).truncate(), itype=itype),
             list(src),
             msg="`truncate must be no-op if both `count` and `when` are None",
         )
 
         self.assertListEqual(
-            list(Stream(src).truncate(None)),
+            to_list(Stream(src).truncate(None), itype=itype),
             list(src),
             msg="`truncate must be no-op if both `count` and `when` are None",
         )
 
         self.assertListEqual(
-            list(Stream(src).truncate(2)),
+            to_list(Stream(src).truncate(2), itype=itype),
             [0, 1],
             msg="`truncate` must be ok with count >= 1",
         )
         self.assertListEqual(
-            list(Stream(src).truncate(1)),
+            to_list(Stream(src).truncate(1), itype=itype),
             [0],
             msg="`truncate` must be ok with count == 1",
         )
         self.assertListEqual(
-            list(Stream(src).truncate(0)),
+            to_list(Stream(src).truncate(0), itype=itype),
             [],
             msg="`truncate` must be ok with count == 0",
         )
@@ -1028,56 +1032,60 @@ class TestStream(unittest.TestCase):
             Stream(src).truncate(-1)
 
         self.assertListEqual(
-            list(Stream(src).truncate(cast(int, float("inf")))),
+            to_list(Stream(src).truncate(cast(int, float("inf"))), itype=itype),
             list(src),
             msg="`truncate` must be no-op if `count` is inf",
         )
 
         count = N // 2
-        raising_stream_iterator = iter(
-            Stream(lambda: map(lambda x: round((1 / x) * x**2), src)).truncate(count)
+        raising_stream_iterator = to_iter(
+            Stream(lambda: map(lambda x: round((1 / x) * x**2), src)).truncate(count),
+            itype=itype
         )
 
         with self.assertRaises(
             ZeroDivisionError,
             msg="`truncate` must not stop iteration when encountering exceptions and raise them without counting them...",
         ):
-            next(raising_stream_iterator)
+            overloaded_next(raising_stream_iterator)
 
-        self.assertListEqual(list(raising_stream_iterator), list(range(1, count + 1)))
+        self.assertListEqual(
+            overloaded_to_list(raising_stream_iterator),
+            list(range(1, count + 1))
+        )
 
         with self.assertRaises(
-            StopIteration,
+            overloaded_stopiteration(raising_stream_iterator),
             msg="... and after reaching the limit it still continues to raise StopIteration on calls to next",
         ):
-            next(raising_stream_iterator)
+            overloaded_next(raising_stream_iterator)
 
-        iter_truncated_on_predicate = iter(Stream(src).truncate(when=lambda n: n == 5))
+        iter_truncated_on_predicate = to_iter(Stream(src).truncate(when=lambda n: n == 5), itype=itype)
         self.assertListEqual(
-            list(iter_truncated_on_predicate),
-            list(Stream(src).truncate(5)),
+            overloaded_to_list(iter_truncated_on_predicate),
+            to_list(Stream(src).truncate(5), itype=itype),
             msg="`when` n == 5 must be equivalent to `count` = 5",
         )
         with self.assertRaises(
-            StopIteration,
+            overloaded_stopiteration(iter_truncated_on_predicate),
             msg="After exhaustion a call to __next__ on a truncated iterator must raise StopIteration",
         ):
-            next(iter_truncated_on_predicate)
+            overloaded_next(iter_truncated_on_predicate)
 
         with self.assertRaises(
             ZeroDivisionError,
             msg="an exception raised by `when` must be raised",
         ):
-            list(Stream(src).truncate(when=lambda _: 1 / 0))
+            to_list(Stream(src).truncate(when=lambda _: 1 / 0), itype=itype)
 
         self.assertListEqual(
-            list(Stream(src).truncate(6, when=lambda n: n == 5)),
+            to_list(Stream(src).truncate(6, when=lambda n: n == 5), itype=itype),
             list(range(5)),
             msg="`when` and `count` argument can be set at the same time, and the truncation should happen as soon as one or the other is satisfied.",
         )
 
         self.assertListEqual(
-            list(Stream(src).truncate(5, when=lambda n: n == 6)),
+            to_list(Stream(src).truncate(5, when=lambda n: n == 6), itype=itype),
             list(range(5)),
             msg="`when` and `count` argument can be set at the same time, and the truncation should happen as soon as one or the other is satisfied.",
         )
