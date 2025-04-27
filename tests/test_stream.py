@@ -4,8 +4,10 @@ import datetime
 import logging
 import math
 from operator import itemgetter
+from pickle import PickleError
 import queue
 import random
+import sys
 import threading
 import time
 import timeit
@@ -403,9 +405,8 @@ class TestStream(unittest.TestCase):
     def test_process_concurrency(
         self, ordered, order_mutation
     ) -> None:  # pragma: no cover
-        import sys
-
-        if sys.version < "3.9.0":
+        # 3.7 and 3.8 are passing the test but hang forever after
+        if sys.version_info.minor < 9:
             return
 
         lambda_identity = lambda x: x * 10
@@ -415,8 +416,8 @@ class TestStream(unittest.TestCase):
 
         for f in [lambda_identity, local_identity]:
             with self.assertRaisesRegex(
-                AttributeError,
-                "Can't pickle",
+                (AttributeError, PickleError),
+                "<locals>",
                 msg="process-based concurrency should not be able to serialize a lambda or a local func",
             ):
                 list(Stream(src).map(f, concurrency=2, via="process"))
