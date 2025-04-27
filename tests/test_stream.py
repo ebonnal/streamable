@@ -32,6 +32,7 @@ from typing import (
     TypeVar,
     Union,
     cast,
+    overload,
 )
 
 from parameterized import parameterized  # type: ignore
@@ -61,7 +62,12 @@ def to_iter(stream: Stream[T], itype: IterableType) -> Union[Iterator[T], AsyncI
     else:
         return iter(stream)
 
-def iter_type_agnostic_next(it: Union[Iterator[T], AsyncIterator[T]]) -> T:
+@overload
+def overloaded_next(it: AsyncIterator[T]) -> T: ...
+@overload
+def overloaded_next(it: Iterator[T]) -> T: ...
+
+def overloaded_next(it: Union[Iterator[T], AsyncIterator[T]]) -> T:
     if isinstance(it, AsyncIterator):
         return await_result(it.__anext__())
     else:
@@ -475,7 +481,7 @@ class TestStream(unittest.TestCase):
         )
         # test partial iteration:
         self.assertEqual(
-            iter_type_agnostic_next(to_iter(stream, itype=itype)),
+            overloaded_next(to_iter(stream, itype=itype)),
             expected_result_list[0],
             msg="process-based concurrency must behave ok with partial iteration",
         )
@@ -641,18 +647,19 @@ class TestStream(unittest.TestCase):
 
     @parameterized.expand(
         [
-            [method, func, concurrency]
+            [method, func, concurrency, itype]
             for method, func in [
                 (Stream.foreach, slow_identity),
                 (Stream.map, slow_identity),
                 (Stream.amap, async_slow_identity),
             ]
             for concurrency in [1, 2, 4]
+            for itype in ITERABLE_TYPES
         ]
     )
-    def test_map_and_foreach_concurrency(self, method, func, concurrency) -> None:
+    def test_map_and_foreach_concurrency(self, method, func, concurrency, itype) -> None:
         expected_iteration_duration = N * slow_identity_duration / concurrency
-        duration, res = timestream(method(Stream(src), func, concurrency=concurrency))
+        duration, res = timestream(method(Stream(src), func, concurrency=concurrency), itype=itype)
         self.assertListEqual(res, list(src))
         self.assertAlmostEqual(
             duration,
@@ -663,11 +670,12 @@ class TestStream(unittest.TestCase):
 
     @parameterized.expand(
         [
-            [1],
-            [2],
+            (concurrency, itype)
+            for concurrency in (1, 2)
+            for itype in ITERABLE_TYPES
         ]
     )
-    def test_flatten(self, concurrency) -> None:
+    def test_flatten(self, concurrency, itype) -> None:
         n_iterables = 32
         it = list(range(N // n_iterables))
         double_it = it + it
@@ -675,13 +683,14 @@ class TestStream(unittest.TestCase):
             lambda: map(slow_identity, [double_it] + [it for _ in range(n_iterables)])
         )
         self.assertCountEqual(
-            list(iterables_stream.flatten(concurrency=concurrency)),
+            to_list(iterables_stream.flatten(concurrency=concurrency), itype=itype),
             list(it) * n_iterables + double_it,
             msg="At any concurrency the `flatten` method should yield all the upstream iterables' elements.",
         )
         self.assertListEqual(
-            list(
-                Stream([iter([]) for _ in range(2000)]).flatten(concurrency=concurrency)
+            to_list(
+                Stream([iter([]) for _ in range(2000)]).flatten(concurrency=concurrency),
+                itype=itype
             ),
             [],
             msg="`flatten` should not yield any element if upstream elements are empty iterables, and be resilient to recursion issue in case of successive empty upstream iterables.",
@@ -691,7 +700,7 @@ class TestStream(unittest.TestCase):
             TypeError,
             msg="`flatten` should raise if an upstream element is not iterable.",
         ):
-            next(iter(Stream(cast(Iterable, src)).flatten()))
+            overloaded_next(to_iter(Stream(cast(Iterable, src)).flatten(), itype=itype))
 
         # test typing with ranges
         _: Stream[int] = Stream((src, src)).flatten()
