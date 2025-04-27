@@ -1987,8 +1987,6 @@ class TestStream(unittest.TestCase):
 
     @parameterized.expand(ITERABLE_TYPES)
     def test_ref_cycles(self, itype: IterableType) -> None:
-        gc.disable()
-
         async def async_int(o: Any) -> int:
             return int(o)
 
@@ -2026,7 +2024,6 @@ class TestStream(unittest.TestCase):
             ],
             msg=f"the exception's traceback should not contain an exception captured in its own traceback",
         )
-        gc.enable()
 
     def test_on_queue_in_thread(self) -> None:
         zeros: List[str] = []
