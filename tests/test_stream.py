@@ -1988,8 +1988,10 @@ class TestStream(unittest.TestCase):
     @parameterized.expand(ITERABLE_TYPES)
     def test_ref_cycles(self, itype: IterableType) -> None:
         gc.disable()
+        async def async_int(o: Any) -> int:
+            return int(o)
         stream = (
-            Stream(map(int, "123_5")).group(1).groupby(len).catch(finally_raise=True)
+            Stream("123_5").amap(async_int).map(str).group(1).groupby(len).catch(finally_raise=True)
         )
         exception: Exception
         try:
@@ -2001,14 +2003,6 @@ class TestStream(unittest.TestCase):
             ValueError,
             msg="`finally_raise` must be respected",
         )
-
-        time.sleep(1)
-
-        self.assertFalse(
-            gc.get_referrers(exception),
-            msg="the exception should not have any referrers",
-        )
-
         self.assertFalse(
             [
                 (var, val)

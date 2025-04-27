@@ -647,11 +647,7 @@ class _AsyncConcurrentMapIterable(_ConcurrentMapIterable[T, U]):
                 raise TypeError(
                     f"`transformation` must be an async function i.e. a function returning a Coroutine but it returned a {type(coroutine)}",
                 )
-            try:
-                return await coroutine
-            except Exception:
-                del coroutine
-                raise
+            return await coroutine
         except Exception as e:
             return _RaisingIterator.ExceptionContainer(e)
 

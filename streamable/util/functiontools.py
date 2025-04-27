@@ -45,11 +45,7 @@ def awrap_error(
             coroutine = async_func(elem)
             if not isinstance(coroutine, Coroutine):
                 raise TypeError(f"must be an async function i.e. a function returning a Coroutine but it returned a {type(coroutine)}")
-            try:
-                return await coroutine
-            except Exception:
-                del coroutine
-                raise
+            return await coroutine
         except error_type as e:
             raise WrappedError(e) from e
 
@@ -88,12 +84,9 @@ def async_sidify(
             raise TypeError(
                 f"`transformation` must be an async function i.e. a function returning a Coroutine but it returned a {type(coroutine)}"
             )
-        try:
-            await coroutine
-            return arg
-        except Exception:
-            del coroutine
-            raise
+        await coroutine
+        return arg
+
     return wrap
 
 
