@@ -1,6 +1,7 @@
 import asyncio
 import copy
 import datetime
+import gc
 import logging
 import math
 from operator import itemgetter
@@ -12,7 +13,7 @@ import threading
 import time
 import timeit
 import traceback
-from types import FrameType
+from types import FrameType, TracebackType
 import unittest
 from collections import Counter
 from typing import (
@@ -1887,7 +1888,8 @@ class TestStream(unittest.TestCase):
         ):
             overloaded_next(to_iter(stream, itype=itype))
 
-    def test_pipe(self) -> None:
+    @parameterized.expand(ITERABLE_TYPES)
+    def test_pipe(self, itype: IterableType) -> None:
         def func(
             stream: Stream, *ints: int, **strings: str
         ) -> Tuple[Stream, Tuple[int, ...], Dict[str, str]]:
@@ -1904,8 +1906,8 @@ class TestStream(unittest.TestCase):
         )
 
         self.assertListEqual(
-            stream.pipe(list),
-            list(stream),
+            stream.pipe(to_list, itype=itype),
+            to_list(stream, itype=itype),
             msg="`pipe` should be ok without args and kwargs.",
         )
 
@@ -1983,13 +1985,15 @@ class TestStream(unittest.TestCase):
             .throttle(1, per=datetime.timedelta(seconds=2)),  # not the same interval
         )
 
-    def test_ref_cycles(self) -> None:
+    @parameterized.expand(ITERABLE_TYPES)
+    def test_ref_cycles(self, itype: IterableType) -> None:
+        gc.disable()
         stream = (
             Stream(map(int, "123_5")).group(1).groupby(len).catch(finally_raise=True)
         )
         exception: Exception
         try:
-            list(stream)
+            to_list(stream, itype=itype)
         except ValueError as e:
             exception = e
         self.assertIsInstance(
@@ -1997,20 +2001,31 @@ class TestStream(unittest.TestCase):
             ValueError,
             msg="`finally_raise` must be respected",
         )
-        frames: Iterator[FrameType] = map(
-            itemgetter(0), traceback.walk_tb(exception.__traceback__)
+
+        time.sleep(1)
+
+        self.assertFalse(
+            gc.get_referrers(exception),
+            msg="the exception should not have any referrers",
         )
-        next(frames)
+
         self.assertFalse(
             [
                 (var, val)
-                for frame in frames
+                # go through the frames of the exception's traceback
+                for frame, _ in traceback.walk_tb(exception.__traceback__)
+                # skipping the current frame
+                if frame is not cast(TracebackType, exception.__traceback__).tb_frame
+                # go through the locals captured in that frame
                 for var, val in frame.f_locals.items()
+                # check if one of them is an exception
                 if isinstance(val, Exception)
-                and frame in map(itemgetter(0), traceback.walk_tb(val.__traceback__))
+                # check if it is captured in its own traceback
+                and frame is cast(TracebackType, val.__traceback__).tb_frame
             ],
-            msg=f"the exception's traceback should not contain an exception that captures itself in its own traceback",
+            msg=f"the exception's traceback should not contain an exception captured in its own traceback",
         )
+        gc.enable()
 
     def test_on_queue_in_thread(self) -> None:
         zeros: List[str] = []
