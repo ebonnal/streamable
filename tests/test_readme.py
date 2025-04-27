@@ -1,7 +1,8 @@
+import asyncio
 import time
 import unittest
 from datetime import timedelta
-from typing import Iterator, List, Tuple
+from typing import AsyncIterable, Iterator, List, Tuple, TypeVar
 
 from streamable.stream import Stream
 
@@ -15,10 +16,11 @@ integers_by_parity: Stream[List[int]] = integers.group(by=lambda n: n % 2)
 
 three_integers_per_second: Stream[int] = integers.throttle(5, per=timedelta(seconds=1))
 
+T = TypeVar("T")
 
 # fmt: off
 class TestReadme(unittest.TestCase):
-    def test_collect_it(self) -> None:
+    def test_iterate(self) -> None:
         self.assertListEqual(
             list(inverses),
             [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11],
@@ -33,6 +35,11 @@ class TestReadme(unittest.TestCase):
         inverses_iter = iter(inverses)
         self.assertEqual(next(inverses_iter), 1.0)
         self.assertEqual(next(inverses_iter), 0.5)
+
+        async def collect(aiterable: AsyncIterable[T]) -> List[T]:
+            return [i async for i in aiterable]
+
+        asyncio.run(collect(inverses)) == [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
 
 
     def test_map_example(self) -> None:
@@ -267,10 +274,21 @@ class TestReadme(unittest.TestCase):
     def test_count_example(self) -> None:
         assert integers.count() == 10
 
+    def test_acount_example(self) -> None:
+        assert asyncio.run(integers.acount()) == 10
+
     def test_call_example(self) -> None:
         state: List[int] = []
         appending_integers: Stream[int] = integers.foreach(state.append)
         assert appending_integers() is appending_integers
+        assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+    def test_await_example(self) -> None:
+        state: List[int] = []
+        appending_integers: Stream[int] = integers.foreach(state.append)
+        async def await_integers() -> Stream[int]:
+            return await appending_integers
+        assert asyncio.run(await_integers()) is appending_integers
         assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
     def test_non_stopping_exceptions_example(self) -> None:

@@ -7,11 +7,11 @@
 
 # ༄ `streamable`
 
-### *Pythonic Stream-like manipulation of iterables*
+### *Pythonic Stream-like manipulation of (async) iterables*
 
 - 🔗 ***Fluent*** chainable lazy operations
 - 🔀 ***Concurrent*** via *threads*/*processes*/`asyncio`
-- 🇹 ***Typed***, fully annotated, `Stream[T]` is an `Iterable[T]`
+- 🇹 ***Typed***, fully annotated, `Stream[T]` is an `Iterable[T]`/`AsyncIterable[T]`
 - 🛡️ ***Tested*** extensively with **Python 3.7 to 3.14**
 - 🪶 ***Light***, no dependencies
 
@@ -35,7 +35,7 @@ from streamable import Stream
 
 ## 3. init
 
-Create a `Stream[T]` *decorating* an `Iterable[T]`:
+Create a `Stream[T]` *decorating* an `Iterable[T]`/`AsyncIterable[T]`:
 
 ```python
 integers: Stream[int] = Stream(range(10))
@@ -83,6 +83,18 @@ Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`, eleme
 ```python
 >>> next(iter(inverses))
 1.0
+```
+
+> [!TIP]
+> A `Stream[T]` is also an `AsyncIterable[T]`:
+
+- **async for**
+```python
+>>> async def collect(aiterable: AsyncIterable[T]) -> List[T]:
+>>>     return [_ async for _ in aiterable]
+
+>>> asyncio.run(collect(inverses))
+[1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
 ```
 
 # 📒 ***Operations***
@@ -583,8 +595,6 @@ assert list(cubes) == [0, 1, 8, 27, 64, 125, 216, 343, 512, 729]
 
 ## `.count`
 
-
-
 > Iterates over the stream until exhaustion and returns the number of elements yielded:
 
 <details ><summary style="text-indent: 40px;">👀 show example</summary></br>
@@ -594,10 +604,18 @@ assert integers.count() == 10
 ```
 </details>
 
+## `.acount`
+
+> `.count`'s async sibling
+
+<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+
+```python
+assert asyncio.run(integers.acount()) == 10
+```
+</details>
 
 ## `()`
-
-
 
 > *Calling* the stream iterates over it until exhaustion and returns it:
 <details ><summary style="text-indent: 40px;">👀 show example</summary></br>
@@ -610,6 +628,22 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 </details>
 
+
+## `await`
+
+> *Awaiting* the stream iterates over it until exhaustion and returns it:
+
+<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+
+```python
+state: List[int] = []
+appending_integers: Stream[int] = integers.foreach(state.append)
+async def await_integers() -> Stream[int]:
+    return await appending_integers
+assert asyncio.run(await_integers()) is appending_integers
+assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+```
+</details>
 
 # `.pipe`
 
