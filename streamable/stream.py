@@ -210,6 +210,40 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
             finally_raise=finally_raise,
         )
 
+    def acatch(
+        self,
+        errors: Union[
+            Optional[Type[Exception]], Iterable[Optional[Type[Exception]]]
+        ] = Exception,
+        *,
+        when: Optional[Callable[[Exception], Coroutine[Any, Any, Any]]] = None,
+        replacement: T = NO_REPLACEMENT,  # type: ignore
+        finally_raise: bool = False,
+    ) -> "Stream[T]":
+        """
+        Catches the upstream exceptions if they are instances of `errors` type and they satisfy the `when` predicate.
+        Optionally yields a `replacement` value.
+        If any exception was caught during the iteration and `finally_raise=True`, the first caught exception will be raised when the iteration finishes.
+
+        Args:
+            errors (Optional[Type[Exception]], Iterable[Optional[Type[Exception]]], optional): The exception type to catch, or an iterable of exception types to catch (default: catches all `Exception`s)
+            when (Optional[Callable[[Exception], Coroutine[Any, Any, Any]]], optional): An additional condition that must be satisfied to catch the exception, i.e. `when(exception)` must be truthy. (default: no additional condition)
+            replacement (T, optional): The value to yield when an exception is caught. (default: do not yield any replacement value)
+            finally_raise (bool, optional): If True the first exception caught is raised when upstream's iteration ends. (default: iteration ends without raising)
+
+        Returns:
+            Stream[T]: A stream of upstream elements catching the eligible exceptions.
+        """
+        validate_errors(errors)
+        # validate_not_none(finally_raise, "finally_raise")
+        return ACatchStream(
+            self,
+            errors,
+            when=when,
+            replacement=replacement,
+            finally_raise=finally_raise,
+        )
+
     def count(self) -> int:
         """
         Iterates over this stream until exhaustion and returns the count of elements.
@@ -273,6 +307,33 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         # validate_not_none(consecutive_only, "consecutive_only")
         return DistinctStream(self, key, consecutive_only)
 
+    def adistinct(
+        self,
+        key: Optional[Callable[[T], Coroutine[Any, Any, Any]]] = None,
+        *,
+        consecutive_only: bool = False,
+    ) -> "Stream[T]":
+        """
+        Filters the stream to yield only distinct elements.
+        If a deduplication `key` is specified, `foo` and `bar` are treated as duplicates when `key(foo) == key(bar)`.
+
+
+        Among duplicates, the first encountered occurence in upstream order is yielded.
+
+        Warning:
+            During iteration, the distinct elements yielded are retained in memory to perform deduplication.
+            Alternatively, remove only consecutive duplicates without memory footprint by setting `consecutive_only=True`.
+
+        Args:
+            key (Callable[[T], Coroutine[Any, Any, Any]], optional): Elements are deduplicated based on `key(elem)`. (default: the deduplication is performed on the elements themselves)
+            consecutive_only (bool, optional): Whether to deduplicate only consecutive duplicates, or globally. (default: the deduplication is global)
+
+        Returns:
+            Stream: A stream containing only unique upstream elements.
+        """
+        # validate_not_none(consecutive_only, "consecutive_only")
+        return ADistinctStream(self, key, consecutive_only)
+
     def filter(self, when: Callable[[T], Any] = bool) -> "Stream[T]":
         """
         Filters the stream to yield only elements satisfying the `when` predicate.
@@ -286,6 +347,19 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         # Unofficially accept `stream.filter(None)`, behaving as builtin `filter(None, iter)`
         # validate_not_none(when, "when")
         return FilterStream(self, cast(Optional[Callable[[T], Any]], when) or bool)
+
+    def afilter(self, when: Callable[[T], Coroutine[Any, Any, Any]]) -> "Stream[T]":
+        """
+        Filters the stream to yield only elements satisfying the `when` predicate.
+
+        Args:
+            when (Callable[[T], Coroutine[Any, Any, Any]], optional): An element is kept if `when(elem)` is truthy. (default: keeps truthy elements)
+
+        Returns:
+            Stream[T]: A stream of upstream elements satisfying the `when` predicate.
+        """
+        # validate_not_none(when, "when")
+        return AFilterStream(self, when)
 
     # fmt: off
     @overload
@@ -371,6 +445,20 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         validate_concurrency(concurrency)
         return FlattenStream(self, concurrency)
 
+    def aflatten(
+        self: "Stream[AsyncIterable[U]]", *, concurrency: int = 1
+    ) -> "Stream[U]":
+        """
+        Iterates over upstream elements assumed to be iterables, and individually yields their items.
+
+        Args:
+            concurrency (int, optional): Represents both the number of threads used to concurrently flatten the upstream iterables and the number of iterables buffered. (default: no concurrency)
+        Returns:
+            Stream[R]: A stream of flattened elements from upstream iterables.
+        """
+        validate_concurrency(concurrency)
+        return AFlattenStream(self, concurrency)
+
     def foreach(
         self,
         effect: Callable[[T], Any],
@@ -399,7 +487,7 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
 
     def aforeach(
         self,
-        effect: Callable[[T], Coroutine],
+        effect: Callable[[T], Coroutine[Any, Any, Any]],
         *,
         concurrency: int = 1,
         ordered: bool = True,
@@ -409,7 +497,7 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         If the `effect(elem)` coroutine throws an exception then it will be thrown and `elem` will not be yielded.
 
         Args:
-            effect (Callable[[T], Any]): The asynchronous function to be applied to each element as a side effect.
+            effect (Callable[[T], Coroutine[Any, Any, Any]]): The asynchronous function to be applied to each element as a side effect.
             concurrency (int, optional): Represents both the number of async tasks concurrently applying the `effect` and the size of the buffer containing not-yet-yielded elements. If the buffer is full, the iteration over the upstream is paused until an element is yielded from the buffer. (default: no concurrency)
             ordered (bool, optional): If `concurrency` > 1, whether to preserve the order of upstream elements or to yield them as soon as they are processed. (default: preserves upstream order)
         Returns:
@@ -448,6 +536,34 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         validate_optional_positive_interval(interval)
         return GroupStream(self, size, interval, by)
 
+    def agroup(
+        self,
+        size: Optional[int] = None,
+        *,
+        interval: Optional[datetime.timedelta] = None,
+        by: Optional[Callable[[T], Coroutine[Any, Any, Any]]] = None,
+    ) -> "Stream[List[T]]":
+        """
+        Groups upstream elements into lists.
+
+        A group is yielded when any of the following conditions is met:
+        - The group reaches `size` elements.
+        - `interval` seconds have passed since the last group was yielded.
+        - The upstream source is exhausted.
+
+        If `by` is specified, groups will only contain elements sharing the same `by(elem)` value (see `.groupby` for `(key, elements)` pairs).
+
+        Args:
+            size (Optional[int], optional): The maximum number of elements per group. (default: no size limit)
+            interval (float, optional): Yields a group if `interval` seconds have passed since the last group was yielded. (default: no interval limit)
+            by (Optional[Callable[[T], Coroutine[Any, Any, Any]]], optional): If specified, groups will only contain elements sharing the same `by(elem)` value. (default: does not co-group elements)
+        Returns:
+            Stream[List[T]]: A stream of upstream elements grouped into lists.
+        """
+        validate_group_size(size)
+        validate_optional_positive_interval(interval)
+        return AGroupStream(self, size, interval, by)
+
     def groupby(
         self,
         key: Callable[[T], U],
@@ -473,6 +589,32 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         """
         # validate_not_none(key, "key")
         return GroupbyStream(self, key, size, interval)
+
+    def agroupby(
+        self,
+        key: Callable[[T], Coroutine[Any, Any, U]],
+        *,
+        size: Optional[int] = None,
+        interval: Optional[datetime.timedelta] = None,
+    ) -> "Stream[Tuple[U, List[T]]]":
+        """
+        Groups upstream elements into `(key, elements)` tuples.
+
+        A group is yielded when any of the following conditions is met:
+        - A group reaches `size` elements.
+        - `interval` seconds have passed since the last group was yielded.
+        - The upstream source is exhausted.
+
+        Args:
+            key (Callable[[T], Coroutine[Any, Any, U]]): A function that returns the group key for an element.
+            size (Optional[int], optional): The maximum number of elements per group. (default: no size limit)
+            interval (Optional[datetime.timedelta], optional): If specified, yields a group if `interval` seconds have passed since the last group was yielded. (default: no interval limit)
+
+        Returns:
+            Stream[Tuple[U, List[T]]]: A stream of upstream elements grouped by key, as `(key, elements)` tuples.
+        """
+        # validate_not_none(key, "key")
+        return AGroupbyStream(self, key, size, interval)
 
     def map(
         self,
@@ -578,6 +720,26 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         validate_optional_count(count)
         return SkipStream(self, count, until)
 
+    def askip(
+        self,
+        count: Optional[int] = None,
+        *,
+        until: Optional[Callable[[T], Coroutine[Any, Any, Any]]] = None,
+    ) -> "Stream[T]":
+        """
+        Skips elements until `until(elem)` is truthy, or `count` elements have been skipped.
+        If both `count` and `until` are set, skipping stops as soon as either condition is met.
+
+        Args:
+            count (Optional[int], optional): The maximum number of elements to skip. (default: no count-based skipping)
+            until (Optional[Callable[[T], Coroutine[Any, Any, Any]]], optional): Elements are skipped until the first one for which `until(elem)` is truthy. This element and all the subsequent ones will be yielded. (default: no predicate-based skipping)
+
+        Returns:
+            Stream: A stream of the upstream elements remaining after skipping.
+        """
+        validate_optional_count(count)
+        return ASkipStream(self, count, until)
+
     def throttle(
         self,
         count: Optional[int] = None,
@@ -651,6 +813,26 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         validate_optional_count(count)
         return TruncateStream(self, count, when)
 
+    def atruncate(
+        self,
+        count: Optional[int] = None,
+        *,
+        when: Optional[Callable[[T], Coroutine[Any, Any, Any]]] = None,
+    ) -> "Stream[T]":
+        """
+        Stops an iteration as soon as `when(elem)` is truthy, or `count` elements have been yielded.
+        If both `count` and `when` are set, truncation occurs as soon as either condition is met.
+
+        Args:
+            count (int, optional): The maximum number of elements to yield. (default: no count-based truncation)
+            when (Optional[Callable[[T], Coroutine[Any, Any, Any]]], optional): A predicate function that determines when to stop the iteration. Iteration stops immediately after encountering the first element for which `when(elem)` is truthy, and that element will not be yielded. (default: no predicate-based truncation)
+
+        Returns:
+            Stream[T]: A stream of at most `count` upstream elements not satisfying the `when` predicate.
+        """
+        validate_optional_count(count)
+        return ATruncateStream(self, count, when)
+
 
 class DownStream(Stream[U], Generic[T, U]):
     """
@@ -705,6 +887,27 @@ class CatchStream(DownStream[T, T]):
         return visitor.visit_catch_stream(self)
 
 
+class ACatchStream(DownStream[T, T]):
+    __slots__ = ("_upstream", "_errors", "_when", "_replacement", "_finally_raise")
+
+    def __init__(
+        self,
+        upstream: Stream[T],
+        errors: Union[Optional[Type[Exception]], Iterable[Optional[Type[Exception]]]],
+        when: Optional[Callable[[Exception], Coroutine[Any, Any, Any]]],
+        replacement: T,
+        finally_raise: bool,
+    ) -> None:
+        super().__init__(upstream)
+        self._errors = errors
+        self._when = when
+        self._replacement = replacement
+        self._finally_raise = finally_raise
+
+    def accept(self, visitor: "Visitor[V]") -> V:
+        return visitor.visit_acatch_stream(self)
+
+
 class DistinctStream(DownStream[T, T]):
     __slots__ = ("_upstream", "_key", "_consecutive_only")
 
@@ -722,6 +925,23 @@ class DistinctStream(DownStream[T, T]):
         return visitor.visit_distinct_stream(self)
 
 
+class ADistinctStream(DownStream[T, T]):
+    __slots__ = ("_upstream", "_key", "_consecutive_only")
+
+    def __init__(
+        self,
+        upstream: Stream[T],
+        key: Optional[Callable[[T], Coroutine[Any, Any, Any]]],
+        consecutive_only: bool,
+    ) -> None:
+        super().__init__(upstream)
+        self._key = key
+        self._consecutive_only = consecutive_only
+
+    def accept(self, visitor: "Visitor[V]") -> V:
+        return visitor.visit_adistinct_stream(self)
+
+
 class FilterStream(DownStream[T, T]):
     __slots__ = ("_upstream", "_when")
 
@@ -733,6 +953,19 @@ class FilterStream(DownStream[T, T]):
         return visitor.visit_filter_stream(self)
 
 
+class AFilterStream(DownStream[T, T]):
+    __slots__ = ("_upstream", "_when")
+
+    def __init__(
+        self, upstream: Stream[T], when: Callable[[T], Coroutine[Any, Any, Any]]
+    ) -> None:
+        super().__init__(upstream)
+        self._when = when
+
+    def accept(self, visitor: "Visitor[V]") -> V:
+        return visitor.visit_afilter_stream(self)
+
+
 class FlattenStream(DownStream[Iterable[T], T]):
     __slots__ = ("_upstream", "_concurrency")
 
@@ -742,6 +975,17 @@ class FlattenStream(DownStream[Iterable[T], T]):
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_flatten_stream(self)
+
+
+class AFlattenStream(DownStream[AsyncIterable[T], T]):
+    __slots__ = ("_upstream", "_concurrency")
+
+    def __init__(self, upstream: Stream[AsyncIterable[T]], concurrency: int) -> None:
+        super().__init__(upstream)
+        self._concurrency = concurrency
+
+    def accept(self, visitor: "Visitor[V]") -> V:
+        return visitor.visit_aflatten_stream(self)
 
 
 class ForeachStream(DownStream[T, T]):
@@ -803,6 +1047,25 @@ class GroupStream(DownStream[T, List[T]]):
         return visitor.visit_group_stream(self)
 
 
+class AGroupStream(DownStream[T, List[T]]):
+    __slots__ = ("_upstream", "_size", "_interval", "_by")
+
+    def __init__(
+        self,
+        upstream: Stream[T],
+        size: Optional[int],
+        interval: Optional[datetime.timedelta],
+        by: Optional[Callable[[T], Coroutine[Any, Any, Any]]],
+    ) -> None:
+        super().__init__(upstream)
+        self._size = size
+        self._interval = interval
+        self._by = by
+
+    def accept(self, visitor: "Visitor[V]") -> V:
+        return visitor.visit_agroup_stream(self)
+
+
 class GroupbyStream(DownStream[T, Tuple[U, List[T]]]):
     __slots__ = ("_upstream", "_key", "_size", "_interval")
 
@@ -820,6 +1083,25 @@ class GroupbyStream(DownStream[T, Tuple[U, List[T]]]):
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_groupby_stream(self)
+
+
+class AGroupbyStream(DownStream[T, Tuple[U, List[T]]]):
+    __slots__ = ("_upstream", "_key", "_size", "_interval")
+
+    def __init__(
+        self,
+        upstream: Stream[T],
+        key: Callable[[T], Coroutine[Any, Any, U]],
+        size: Optional[int],
+        interval: Optional[datetime.timedelta],
+    ) -> None:
+        super().__init__(upstream)
+        self._key = key
+        self._size = size
+        self._interval = interval
+
+    def accept(self, visitor: "Visitor[V]") -> V:
+        return visitor.visit_agroupby_stream(self)
 
 
 class MapStream(DownStream[T, U]):
@@ -890,6 +1172,23 @@ class SkipStream(DownStream[T, T]):
         return visitor.visit_skip_stream(self)
 
 
+class ASkipStream(DownStream[T, T]):
+    __slots__ = ("_upstream", "_count", "_until")
+
+    def __init__(
+        self,
+        upstream: Stream[T],
+        count: Optional[int],
+        until: Optional[Callable[[T], Coroutine[Any, Any, Any]]],
+    ) -> None:
+        super().__init__(upstream)
+        self._count = count
+        self._until = until
+
+    def accept(self, visitor: "Visitor[V]") -> V:
+        return visitor.visit_askip_stream(self)
+
+
 class ThrottleStream(DownStream[T, T]):
     __slots__ = ("_upstream", "_count", "_per")
 
@@ -922,3 +1221,20 @@ class TruncateStream(DownStream[T, T]):
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_truncate_stream(self)
+
+
+class ATruncateStream(DownStream[T, T]):
+    __slots__ = ("_upstream", "_count", "_when")
+
+    def __init__(
+        self,
+        upstream: Stream[T],
+        count: Optional[int] = None,
+        when: Optional[Callable[[T], Coroutine[Any, Any, Any]]] = None,
+    ) -> None:
+        super().__init__(upstream)
+        self._count = count
+        self._when = when
+
+    def accept(self, visitor: "Visitor[V]") -> V:
+        return visitor.visit_atruncate_stream(self)
