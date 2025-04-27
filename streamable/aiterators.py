@@ -409,7 +409,12 @@ class AsyncMapAsyncIterator(AsyncIterator[U]):
         self.transformation = awrap_error(transformation, StopAsyncIteration)
 
     async def __anext__(self) -> U:
-        return await self.transformation(await self.iterator.__anext__())
+        coroutine = self.transformation(await self.iterator.__anext__())
+        if not isinstance(coroutine, Coroutine):
+            raise TypeError(
+                f"`transformation` must be an async function i.e. a function returning a Coroutine but it returned a {type(coroutine)}",
+            )
+        return await coroutine
 
 
 class FilterAsyncIterator(AsyncIterator[T]):

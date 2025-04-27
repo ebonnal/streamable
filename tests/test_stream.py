@@ -1734,7 +1734,8 @@ class TestStream(unittest.TestCase):
         ):
             to_list(Stream(map(int, "foo")).catch((None, None, None)), itype=itype)
 
-    def test_observe(self) -> None:
+    @parameterized.expand(ITERABLE_TYPES)
+    def test_observe(self, itype: IterableType) -> None:
         value_error_rainsing_stream: Stream[List[int]] = (
             Stream("123--678")
             .throttle(10, per=datetime.timedelta(seconds=1))
@@ -1746,7 +1747,7 @@ class TestStream(unittest.TestCase):
         )
 
         self.assertListEqual(
-            list(value_error_rainsing_stream.catch(ValueError)),
+            to_list(value_error_rainsing_stream.catch(ValueError), itype=itype),
             [[1, 2], [3], [6, 7], [8]],
             msg="This can break due to `group`/`map`/`catch`, check other breaking tests to determine quickly if it's an issue with `observe`.",
         )
@@ -1755,10 +1756,11 @@ class TestStream(unittest.TestCase):
             ValueError,
             msg="`observe` should forward-raise exceptions",
         ):
-            list(value_error_rainsing_stream)
+            to_list(value_error_rainsing_stream, itype=itype)
 
     def test_is_iterable(self) -> None:
         self.assertIsInstance(Stream(src), Iterable)
+        self.assertIsInstance(Stream(src), AsyncIterable)
 
     def test_count(self) -> None:
         l: List[int] = []
@@ -1777,6 +1779,24 @@ class TestStream(unittest.TestCase):
             l, list(src), msg="`count` should iterate over the entire stream."
         )
 
+    def test_acount(self) -> None:
+        l: List[int] = []
+
+        def effect(x: int) -> None:
+            nonlocal l
+            l.append(x)
+
+        stream = Stream(lambda: map(effect, src))
+        self.assertEqual(
+            await_result(stream.acount()),
+            N,
+            msg="`count` should return the count of elements.",
+        )
+        self.assertListEqual(
+            l, list(src), msg="`count` should iterate over the entire stream."
+        )
+
+
     def test_call(self) -> None:
         l: List[int] = []
         stream = Stream(src).map(l.append)
@@ -1791,27 +1811,44 @@ class TestStream(unittest.TestCase):
             msg="`__call__` should exhaust the stream.",
         )
 
-    def test_multiple_iterations(self) -> None:
+    def test_await(self) -> None:
+        l: List[int] = []
+        stream = Stream(src).map(l.append)
+        self.assertIs(
+            await_result(stream),
+            stream,
+            msg="`__call__` should return the stream.",
+        )
+        self.assertListEqual(
+            l,
+            list(src),
+            msg="`__call__` should exhaust the stream.",
+        )
+
+    @parameterized.expand(ITERABLE_TYPES)
+    def test_multiple_iterations(self, itype: IterableType) -> None:
         stream = Stream(src)
         for _ in range(3):
             self.assertListEqual(
-                list(stream),
+                to_list(stream, itype=itype),
                 list(src),
                 msg="The first iteration over a stream should yield the same elements as any subsequent iteration on the same stream, even if it is based on a `source` returning an iterator that only support 1 iteration.",
             )
 
     @parameterized.expand(
         [
-            [1],
-            [100],
+            (concurrency, itype)
+            for concurrency in (1, 100)
+            for itype in ITERABLE_TYPES
         ]
     )
-    def test_amap(self, concurrency) -> None:
+    def test_amap(self, concurrency, itype) -> None:
         self.assertListEqual(
-            list(
+            to_list(
                 Stream(src).amap(
                     async_randomly_slowed(async_square), concurrency=concurrency
-                )
+                ),
+                itype=itype,
             ),
             list(map(square, src)),
             msg="At any concurrency the `amap` method should act as the builtin map function, transforming elements while preserving input elements order.",
@@ -1819,10 +1856,10 @@ class TestStream(unittest.TestCase):
         stream = Stream(src).amap(identity)  # type: ignore
         with self.assertRaisesRegex(
             TypeError,
-            r"`transformation` must be an async function i\.e\. a function returning a Coroutine but it returned a <class 'int'>",
+            r"must be an async function i\.e\. a function returning a Coroutine but it returned a <class 'int'>",
             msg="`amap` should raise a TypeError if a non async function is passed to it.",
         ):
-            next(iter(stream))
+            overloaded_next(to_iter(stream, itype=itype))
 
     @parameterized.expand(
         [
