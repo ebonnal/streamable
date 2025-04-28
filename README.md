@@ -7,10 +7,10 @@
 
 # ༄ `streamable`
 
-### *Pythonic Stream-like manipulation of (async) iterables*
+### *Pythonic Stream-like manipulation of iterables*
 
 - 🔗 ***Fluent*** chainable lazy operations
-- 🔀 ***Concurrent*** via *threads*/*processes*/`asyncio`
+- 🔀 ***Concurrent*** via *threads*/*processes*/`async`
 - 🇹 ***Typed***, fully annotated, `Stream[T]` is an `Iterable[T]`/`AsyncIterable[T]`
 - 🛡️ ***Tested*** extensively with **Python 3.7 to 3.14**
 - 🪶 ***Light***, no dependencies
@@ -35,7 +35,7 @@ from streamable import Stream
 
 ## 3. init
 
-Create a `Stream[T]` *decorating* an `Iterable[T]`/`AsyncIterable[T]`:
+Create a `Stream[T]` *decorating* an `Iterable[T]`:
 
 ```python
 integers: Stream[int] = Stream(range(10))
@@ -73,7 +73,7 @@ Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`, eleme
 >>> reduce(..., inverses)
 ```
 
-- **loop**
+- **for**
 ```python
 >>> for inverse in inverses:
 >>>    ...
@@ -84,6 +84,8 @@ Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`, eleme
 >>> next(iter(inverses))
 1.0
 ```
+
+# about `async`
 
 > [!TIP]
 > A `Stream[T]` is also an `AsyncIterable[T]`:
@@ -96,6 +98,17 @@ Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`, eleme
 >>> asyncio.run(collect(inverses))
 [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
 ```
+
+- **anext**
+```python
+>>> asyncio.run(anext(aiter(inverses)))
+[1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
+```
+
+## `async` twin operations
+
+> [!TIP]
+> All the operations having a function in their arguments have an async twin, which has the same signature, but takes an async function as argument. It has the same name but with a `a` prefix, e.g. `.amap`, `.afilter`...
 
 # 📒 ***Operations***
 
@@ -161,9 +174,9 @@ if __name__ == "__main__":
 ```
 </details>
 
-### `asyncio`-based concurrency
+## `.amap`
 
-> The sibling operation `.amap` applies an async function:
+> The twin operation applying an `async` function:
 
 <details ><summary style="text-indent: 40px;">👀 show example</summary></br>
 
@@ -182,7 +195,7 @@ pokemon_names: Stream[str] = (
 )
 
 assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
-asyncio.get_event_loop().run_until_complete(http_async_client.aclose())
+asyncio.run(http_async_client.aclose())
 ```
 </details>
 
@@ -228,8 +241,11 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 > Similar to `.map`:
 > - set the `concurrency` parameter for **thread-based concurrency**
 > - set `via="process"` for **process-based concurrency**
-> - use the sibling `.aforeach` operation for **`asyncio`-based concurrency**
 > - set `ordered=False` for ***First Done First Out***
+
+## `.aforeach`
+
+> The twin operation applying an `async` function as side effect on elements
 
 # `.group`
 
@@ -279,8 +295,11 @@ assert list(integers_by_parity_by_2) == [[0, 2], [1, 3], [4, 6], [5, 7], [8], [9
 ```
 </details>
 
+# `.agroup`
 
-## `.groupby`
+> The twin operation grouping elements into `List`s according to an `async` grouping function `by`.
+
+# `.groupby`
 
 > Like `.group`, but groups into `(key, elements)` tuples:
 <details ><summary style="text-indent: 40px;">👀 show example</summary></br>
@@ -312,6 +331,11 @@ assert list(counts_by_parity) == [("even", 5), ("odd", 5)]
 ```
 </details>
 
+## `.agroupby`
+
+> The twin operation like `.agroup`, but grouping into `(key, elements)` tuples.
+
+
 # `.flatten`
 
 > Ungroups elements assuming that they are `Iterable`s:
@@ -340,6 +364,10 @@ assert list(mixed_ones_and_zeros) == [0, 1, 0, 1, 0, 1, 0, 1]
 ```
 </details>
 
+## `.aflatten`
+
+> The twin operation ungrouping elements assuming that they are `AsyncIterable`s.
+
 # `.filter`
 
 > Keeps only the elements that satisfy a condition:
@@ -352,6 +380,10 @@ even_integers: Stream[int] = integers.filter(lambda n: n % 2 == 0)
 assert list(even_integers) == [0, 2, 4, 6, 8]
 ```
 </details>
+
+## `.afilter`
+
+> The twin operation keeping only the elements that satisfy an `async` condition.
 
 # `.distinct`
 
@@ -395,6 +427,10 @@ assert list(consecutively_distinct_chars) == ["f", "o", "b", "a", "r", "f", "o"]
 ```
 </details>
 
+## `.adistinct`
+
+> The twin operation removing duplicates according to an `async` deduplication `key`.
+
 # `.truncate`
 
 > Ends iteration once a given number of elements have been yielded:
@@ -420,6 +456,8 @@ assert list(five_first_integers) == [0, 1, 2, 3, 4]
 </details>
 
 > If both `count` and `when` are set, truncation occurs as soon as either condition is met.
+
+# `.atruncate`
 
 # `.skip`
 

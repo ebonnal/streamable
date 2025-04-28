@@ -83,7 +83,7 @@ class TestReadme(unittest.TestCase):
         )
 
         assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
-        asyncio.get_event_loop().run_until_complete(http_async_client.aclose())
+        asyncio.run(http_async_client.aclose())
 
     def test_starmap_example(self) -> None:
         from streamable import star
