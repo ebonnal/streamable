@@ -786,31 +786,6 @@ assert list(status_codes_ignoring_resolution_errors) == [200, 404]
 ```
 </details>
 
-> It has an optional `finally_raise: bool` parameter to raise the first exception caught (if any) when the iteration terminates.
-
-> [!TIP]
-> Apply side effects when catching an exception by integrating them into `when`:
-
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
-
-```python
-errors: List[Exception] = []
-
-def store_error(error: Exception) -> bool:
-    errors.append(error)  # applies effect
-    return True  # signals to catch the error
-
-integers_in_string: Stream[int] = (
-    Stream("012345foo6789")
-    .map(int)
-    .catch(ValueError, when=store_error)
-)
-
-assert list(integers_in_string) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-assert len(errors) == len("foo")
-```
-</details>
-
 ## Shorthands for consuming the stream as an `AsyncIterable[T]`
 
 ## `.acount`
