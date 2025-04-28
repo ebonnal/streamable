@@ -149,7 +149,7 @@ if __name__ == "__main__":
 ```
 </details>
 
-## `async`-based concurrency: [see `.amap`](#`.amap`)
+### `async`-based concurrency: [see `.amap`](#amap)
 
 > [The twin operation `.amap` can applies an `async` function concurrently.](#`.amap`)
 
@@ -196,7 +196,7 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 > - set the `concurrency` parameter for **thread-based concurrency**
 > - set `via="process"` for **process-based concurrency**
 > - set `ordered=False` for ***First Done First Out***
-> - [The twin operation `.aforeach` can applies an `async` effect concurrently.](#`.aforeach`)
+> - [The twin operation `.aforeach` can applies an `async` effect concurrently.](#aforeach)
 
 # `.group`
 
