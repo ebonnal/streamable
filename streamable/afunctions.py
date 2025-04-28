@@ -18,8 +18,8 @@ from typing import (
 )
 
 from streamable.aiterators import (
-    AsyncConcurrentMapAsyncIterator,
-    AsyncMapAsyncIterator,
+    ConcurrentAMapAsyncIterator,
+    AMapAsyncIterator,
     CatchAsyncIterator,
     ConcurrentFlattenAsyncIterator,
     ConsecutiveDistinctAsyncIterator,
@@ -33,7 +33,7 @@ from streamable.aiterators import (
     GroupAsyncIterator,
     MapAsyncIterator,
     ObserveAsyncIterator,
-    OSConcurrentMapAsyncIterator,
+    ConcurrentMapAsyncIterator,
     PredicateSkipAsyncIterator,
     PredicateTruncateAsyncIterator,
     YieldsPerPeriodThrottleAsyncIterator,
@@ -45,7 +45,6 @@ from streamable.util.validationtools import (
     validate_concurrency,
     validate_errors,
     validate_group_size,
-    validate_iterator,
     # validate_not_none,
     validate_optional_count,
     validate_optional_positive_count,
@@ -166,7 +165,7 @@ def map(
     if concurrency == 1:
         return MapAsyncIterator(iterator, transformation)
     else:
-        return OSConcurrentMapAsyncIterator(
+        return ConcurrentMapAsyncIterator(
             iterator,
             transformation,
             concurrency=concurrency,
@@ -188,8 +187,8 @@ def amap(
     # validate_not_none(ordered, "ordered")
     validate_concurrency(concurrency)
     if concurrency == 1:
-        return AsyncMapAsyncIterator(iterator, transformation)
-    return AsyncConcurrentMapAsyncIterator(
+        return AMapAsyncIterator(iterator, transformation)
+    return ConcurrentAMapAsyncIterator(
         iterator,
         transformation,
         buffersize=concurrency,

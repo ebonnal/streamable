@@ -4,6 +4,7 @@ from contextlib import suppress
 from operator import itemgetter
 from typing import (
     Any,
+    AsyncIterable,
     Callable,
     Coroutine,
     Iterable,
@@ -17,7 +18,9 @@ from typing import (
 )
 
 from streamable.iterators import (
-    AsyncConcurrentMapIterator,
+    AFlattenIterator,
+    ConcurrentAFlattenIterator,
+    ConcurrentAMapIterator,
     CatchIterator,
     ConcurrentFlattenIterator,
     ConsecutiveDistinctIterator,
@@ -29,13 +32,13 @@ from streamable.iterators import (
     GroupbyIterator,
     GroupIterator,
     ObserveIterator,
-    OSConcurrentMapIterator,
+    ConcurrentMapIterator,
     PredicateSkipIterator,
     PredicateTruncateIterator,
     YieldsPerPeriodThrottleIterator,
 )
 from streamable.util.constants import NO_REPLACEMENT
-from streamable.util.functiontools import wrap_error
+from streamable.util.functiontools import syncify, wrap_error
 from streamable.util.validationtools import (
     validate_concurrency,
     validate_errors,
@@ -78,6 +81,24 @@ def catch(
         finally_raise=finally_raise,
     )
 
+def acatch(
+    iterator: Iterator[T],
+    errors: Union[
+        Optional[Type[Exception]], Iterable[Optional[Type[Exception]]]
+    ] = Exception,
+    *,
+    when: Optional[Callable[[Exception], Coroutine[Any, Any, Any]]] = None,
+    replacement: T = NO_REPLACEMENT,  # type: ignore
+    finally_raise: bool = False,
+) -> Iterator[T]:
+    return catch(
+        iterator,
+        errors,
+        when=syncify(when) if when else None,
+        replacement=replacement,
+        finally_raise=finally_raise,
+    )
+
 
 def distinct(
     iterator: Iterator[T],
@@ -92,6 +113,19 @@ def distinct(
     return DistinctIterator(iterator, key)
 
 
+def adistinct(
+    iterator: Iterator[T],
+    key: Optional[Callable[[T], Any]] = None,
+    *,
+    consecutive_only: bool = False,
+) -> Iterator[T]:
+    return distinct(
+        iterator,
+        syncify(key) if key else None,
+        consecutive_only=consecutive_only,
+    )
+
+
 def flatten(iterator: Iterator[Iterable[T]], *, concurrency: int = 1) -> Iterator[T]:
     validate_iterator(iterator)
     validate_concurrency(concurrency)
@@ -99,6 +133,18 @@ def flatten(iterator: Iterator[Iterable[T]], *, concurrency: int = 1) -> Iterato
         return FlattenIterator(iterator)
     else:
         return ConcurrentFlattenIterator(
+            iterator,
+            concurrency=concurrency,
+            buffersize=concurrency,
+        )
+
+def aflatten(iterator: Iterator[AsyncIterable[T]], *, concurrency: int = 1) -> Iterator[T]:
+    validate_iterator(iterator)
+    validate_concurrency(concurrency)
+    if concurrency == 1:
+        return AFlattenIterator(iterator)
+    else:
+        return ConcurrentAFlattenIterator(
             iterator,
             concurrency=concurrency,
             buffersize=concurrency,
@@ -133,6 +179,21 @@ def groupby(
     return GroupbyIterator(iterator, key, size, interval)
 
 
+def agroupby(
+    iterator: Iterator[T],
+    key: Callable[[T], Coroutine[Any, Any, U]],
+    *,
+    size: Optional[int] = None,
+    interval: Optional[datetime.timedelta] = None,
+) -> Iterator[Tuple[U, List[T]]]:
+    return groupby(
+        iterator,
+        syncify(key),
+        size=size,
+        interval=interval,
+    )
+
+
 def map(
     transformation: Callable[[T], U],
     iterator: Iterator[T],
@@ -149,7 +210,7 @@ def map(
     if concurrency == 1:
         return builtins.map(wrap_error(transformation, StopIteration), iterator)
     else:
-        return OSConcurrentMapIterator(
+        return ConcurrentMapIterator(
             iterator,
             transformation,
             concurrency=concurrency,
@@ -170,7 +231,9 @@ def amap(
     # validate_not_none(transformation, "transformation")
     # validate_not_none(ordered, "ordered")
     validate_concurrency(concurrency)
-    return AsyncConcurrentMapIterator(
+    if concurrency == 1:
+        return map(syncify(transformation), iterator)
+    return ConcurrentAMapIterator(
         iterator,
         transformation,
         buffersize=concurrency,
@@ -200,6 +263,17 @@ def skip(
         return CountSkipIterator(iterator, count)
     return iterator
 
+def askip(
+    iterator: Iterator[T],
+    count: Optional[int] = None,
+    *,
+    until: Optional[Callable[[T], Coroutine[Any, Any, Any]]] = None,
+) -> Iterator[T]:
+    return skip(
+        iterator,
+        count,
+        until=syncify(until) if until else None,
+    )
 
 def throttle(
     iterator: Iterator[T],
@@ -227,3 +301,16 @@ def truncate(
     if when is not None:
         iterator = PredicateTruncateIterator(iterator, when)
     return iterator
+
+
+def atruncate(
+    iterator: Iterator[T],
+    count: Optional[int] = None,
+    *,
+    when: Optional[Callable[[T], Coroutine[Any, Any, Any]]] = None,
+) -> Iterator[T]:
+    return truncate(
+        iterator,
+        count,
+        when=syncify(when) if when else None,
+    )
