@@ -3,8 +3,15 @@ from typing import AsyncIterable, Iterable, Iterator, TypeVar, cast
 from streamable import functions
 from streamable.aiterators import AsyncToSyncIterator
 from streamable.stream import (
+    ACatchStream,
+    ADistinctStream,
+    AFilterStream,
+    AFlattenStream,
     AForeachStream,
+    AGroupbyStream,
     AMapStream,
+    ASkipStream,
+    ATruncateStream,
     CatchStream,
     DistinctStream,
     FilterStream,
@@ -19,7 +26,7 @@ from streamable.stream import (
     ThrottleStream,
     TruncateStream,
 )
-from streamable.util.functiontools import async_sidify, sidify, wrap_error
+from streamable.util.functiontools import async_sidify, sidify, syncify, wrap_error
 from streamable.visitors import Visitor
 
 T = TypeVar("T")
@@ -36,8 +43,24 @@ class IteratorVisitor(Visitor[Iterator[T]]):
             finally_raise=stream._finally_raise,
         )
 
+    def visit_acatch_stream(self, stream: ACatchStream[T]) -> Iterator[T]:
+        return functions.acatch(
+            stream.upstream.accept(self),
+            stream._errors,
+            when=stream._when,
+            replacement=stream._replacement,
+            finally_raise=stream._finally_raise,
+        )
+
     def visit_distinct_stream(self, stream: DistinctStream[T]) -> Iterator[T]:
         return functions.distinct(
+            stream.upstream.accept(self),
+            stream._key,
+            consecutive_only=stream._consecutive_only,
+        )
+
+    def visit_adistinct_stream(self, stream: ADistinctStream[T]) -> Iterator[T]:
+        return functions.adistinct(
             stream.upstream.accept(self),
             stream._key,
             consecutive_only=stream._consecutive_only,
@@ -49,9 +72,21 @@ class IteratorVisitor(Visitor[Iterator[T]]):
             cast(Iterable[T], stream.upstream.accept(self)),
         )
 
+    def visit_afilter_stream(self, stream: AFilterStream[T]) -> Iterator[T]:
+        return filter(
+            wrap_error(syncify(stream._when), StopIteration),
+            cast(Iterable[T], stream.upstream.accept(self)),
+        )
+
     def visit_flatten_stream(self, stream: FlattenStream[T]) -> Iterator[T]:
         return functions.flatten(
             stream.upstream.accept(IteratorVisitor[Iterable]()),
+            concurrency=stream._concurrency,
+        )
+
+    def visit_aflatten_stream(self, stream: AFlattenStream[T]) -> Iterator[T]:
+        return functions.aflatten(
+            stream.upstream.accept(IteratorVisitor[AsyncIterable]()),
             concurrency=stream._concurrency,
         )
 
@@ -98,6 +133,17 @@ class IteratorVisitor(Visitor[Iterator[T]]):
             ),
         )
 
+    def visit_agroupby_stream(self, stream: AGroupbyStream[U, T]) -> Iterator[T]:
+        return cast(
+            Iterator[T],
+            functions.agroupby(
+                stream.upstream.accept(IteratorVisitor[U]()),
+                stream._key,
+                size=stream._size,
+                interval=stream._interval,
+            ),
+        )
+
     def visit_map_stream(self, stream: MapStream[U, T]) -> Iterator[T]:
         return functions.map(
             stream._transformation,
@@ -128,6 +174,13 @@ class IteratorVisitor(Visitor[Iterator[T]]):
             until=stream._until,
         )
 
+    def visit_askip_stream(self, stream: ASkipStream[T]) -> Iterator[T]:
+        return functions.askip(
+            stream.upstream.accept(self),
+            stream._count,
+            until=stream._until,
+        )
+
     def visit_throttle_stream(self, stream: ThrottleStream[T]) -> Iterator[T]:
         return functions.throttle(
             stream.upstream.accept(self),
@@ -137,6 +190,13 @@ class IteratorVisitor(Visitor[Iterator[T]]):
 
     def visit_truncate_stream(self, stream: TruncateStream[T]) -> Iterator[T]:
         return functions.truncate(
+            stream.upstream.accept(self),
+            stream._count,
+            when=stream._when,
+        )
+
+    def visit_atruncate_stream(self, stream: ATruncateStream[T]) -> Iterator[T]:
+        return functions.atruncate(
             stream.upstream.accept(self),
             stream._count,
             when=stream._when,
