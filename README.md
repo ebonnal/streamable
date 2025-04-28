@@ -603,7 +603,7 @@ import pandas as pd
 ---
 ---
 
-# B/ `async` support
+# B/ 🔀 `async` support
 
 A `Stream[T]` is also an `AsyncIterable[T]`, it can be consumed as such:
 
