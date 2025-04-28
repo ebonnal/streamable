@@ -799,22 +799,7 @@ asyncio.run(http_async_client.aclose())
 
 # `.aforeach`
 
-> Applies a `async` side effect on elements:
-
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
-
-```python
-async def async_effect(n: int) -> None:
-    state.append(n)
-
-state: List[int] = []
-appending_integers: Stream[int] = integers.aforeach(async_effect)
-
-assert list(appending_integers) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-```
-</details>
-
+> Applies an `async` side effect on elements. Supports `concurrency` like `.amap`.
 
 # `.agroupby`
 
@@ -822,9 +807,12 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 <details ><summary style="text-indent: 40px;">👀 show example</summary></br>
 
 ```python
+async def async_key(n: int) -> str:
+    return "odd" if n % 2 else "even"
+
 integers_by_parity: Stream[Tuple[str, List[int]]] = (
     integers
-    .groupby(lambda n: "odd" if n % 2 else "even")
+    .agroupby(async_key)
 )
 
 assert list(integers_by_parity) == [("even", [0, 2, 4, 6, 8]), ("odd", [1, 3, 5, 7, 9])]
@@ -835,9 +823,7 @@ assert list(integers_by_parity) == [("even", [0, 2, 4, 6, 8]), ("odd", [1, 3, 5,
 
 > Ungroups elements assuming that they are `AsyncIterable`s.
 
-### `async`-based concurrency
-
-> Flattens `concurrency` iterables concurrently.
+> Like for `.flatten` you can set the `concurrency` parameter.
 
 # `.afilter`
 
@@ -855,7 +841,7 @@ assert list(even_integers) == [0, 2, 4, 6, 8]
 ```
 </details>
 
-# `.distinct`
+# `.adistinct`
 
 > Removes duplicates according to an `async` deduplication `key`:
 
