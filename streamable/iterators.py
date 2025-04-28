@@ -34,7 +34,11 @@ from typing import (
 
 from streamable.util import asynctools
 from streamable.util.asynctools import get_event_loop
-from streamable.util.functiontools import iter_wo_stopiteration, aiter_wo_stopasynciteration, wrap_error
+from streamable.util.functiontools import (
+    iter_wo_stopiteration,
+    aiter_wo_stopasynciteration,
+    wrap_error,
+)
 from streamable.util.loggertools import get_logger
 from streamable.util.validationtools import (
     validate_base,
@@ -153,22 +157,29 @@ class FlattenIterator(Iterator[U]):
             except StopIteration:
                 self._current_iterator_elem = iter_wo_stopiteration(next(self.iterator))
 
+
 class AFlattenIterator(Iterator[U]):
     def __init__(self, iterator: Iterator[AsyncIterable[U]]) -> None:
         validate_iterator(iterator)
         self.iterator = iterator
+
         async def empty_aiter() -> AsyncIterator[T]:
             raise StopAsyncIteration()
             yield
+
         self._current_iterator_elem: AsyncIterator[U] = empty_aiter()
         self.event_loop = get_event_loop()
 
     def __next__(self) -> U:
         while True:
             try:
-                return self.event_loop.run_until_complete(self._current_iterator_elem.__anext__())
+                return self.event_loop.run_until_complete(
+                    self._current_iterator_elem.__anext__()
+                )
             except StopAsyncIteration:
-                self._current_iterator_elem = aiter_wo_stopasynciteration(next(self.iterator))
+                self._current_iterator_elem = aiter_wo_stopasynciteration(
+                    next(self.iterator)
+                )
 
 
 class _GroupIteratorMixin(Generic[T]):
@@ -778,6 +789,7 @@ class ConcurrentFlattenIterator(_RaisingIterator[T]):
             )
         )
 
+
 class _ConcurrentAFlattenIterable(
     Iterable[Union[T, _RaisingIterator.ExceptionContainer]]
 ):
@@ -793,7 +805,7 @@ class _ConcurrentAFlattenIterable(
         self.concurrency = concurrency
         self.buffersize = buffersize
         self.event_loop = get_event_loop()
-    
+
     def _get_next(self, iterator_to_queue: AsyncIterator[T]) -> T:
         return self.event_loop.run_until_complete(iterator_to_queue.__anext__())
 
@@ -829,14 +841,17 @@ class _ConcurrentAFlattenIterable(
                         except Exception as e:
                             yield _RaisingIterator.ExceptionContainer(e)
                             continue
-                    future = executor.submit(self._get_next, cast(AsyncIterator, iterator_to_queue))
-                    iterator_and_future_pairs.append((cast(AsyncIterator, iterator_to_queue), future))
+                    future = executor.submit(
+                        self._get_next, cast(AsyncIterator, iterator_to_queue)
+                    )
+                    iterator_and_future_pairs.append(
+                        (cast(AsyncIterator, iterator_to_queue), future)
+                    )
                     iterator_to_queue = None
                 if element_to_yield:
                     yield element_to_yield.pop()
                 if not iterator_and_future_pairs:
                     break
-
 
 
 class ConcurrentAFlattenIterator(_RaisingIterator[T]):

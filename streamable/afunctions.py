@@ -78,6 +78,7 @@ def catch(
         finally_raise=finally_raise,
     )
 
+
 def acatch(
     iterator: AsyncIterator[T],
     errors: Union[
@@ -117,7 +118,6 @@ def distinct(
     )
 
 
-
 def adistinct(
     iterator: AsyncIterator[T],
     key: Optional[Callable[[T], Coroutine[Any, Any, Any]]] = None,
@@ -136,6 +136,7 @@ def filter(
     when: Callable[[T], Any],
 ) -> AsyncIterator[T]:
     return afilter(iterator, asyncify(when))
+
 
 def afilter(
     iterator: AsyncIterator[T],
@@ -189,6 +190,7 @@ def group(
         by=asyncify(by) if by else None,
     )
 
+
 def agroup(
     iterator: AsyncIterator[T],
     size: Optional[int] = None,
@@ -211,12 +213,8 @@ def groupby(
     size: Optional[int] = None,
     interval: Optional[datetime.timedelta] = None,
 ) -> AsyncIterator[Tuple[U, List[T]]]:
-    return agroupby(
-        iterator,
-        asyncify(key),
-        size=size,
-        interval=interval
-    )
+    return agroupby(iterator, asyncify(key), size=size, interval=interval)
+
 
 def agroupby(
     iterator: AsyncIterator[T],
@@ -338,6 +336,7 @@ def truncate(
         count,
         when=asyncify(when) if when else None,
     )
+
 
 def atruncate(
     iterator: AsyncIterator[T],

@@ -33,7 +33,12 @@ from typing import (
 )
 
 from streamable.util.asynctools import awaitable_to_coroutine, get_event_loop
-from streamable.util.functiontools import awrap_error, iter_wo_stopiteration, aiter_wo_stopasynciteration, wrap_error
+from streamable.util.functiontools import (
+    awrap_error,
+    iter_wo_stopiteration,
+    aiter_wo_stopasynciteration,
+    wrap_error,
+)
 from streamable.util.loggertools import get_logger
 from streamable.util.validationtools import (
     validate_base,
@@ -104,7 +109,9 @@ class ACatchAsyncIterator(AsyncIterator[T]):
 
 class ADistinctAsyncIterator(AsyncIterator[T]):
     def __init__(
-        self, iterator: AsyncIterator[T], key: Optional[Callable[[T], Coroutine[Any, Any, Any]]]
+        self,
+        iterator: AsyncIterator[T],
+        key: Optional[Callable[[T], Coroutine[Any, Any, Any]]],
     ) -> None:
         validate_aiterator(iterator)
         self.iterator = iterator
@@ -123,7 +130,9 @@ class ADistinctAsyncIterator(AsyncIterator[T]):
 
 class ConsecutiveADistinctAsyncIterator(AsyncIterator[T]):
     def __init__(
-        self, iterator: AsyncIterator[T], key: Optional[Callable[[T], Coroutine[Any, Any, Any]]]
+        self,
+        iterator: AsyncIterator[T],
+        key: Optional[Callable[[T], Coroutine[Any, Any, Any]]],
     ) -> None:
         validate_aiterator(iterator)
         self.iterator = iterator
@@ -160,9 +169,11 @@ class AFlattenAsyncIterator(AsyncIterator[U]):
     def __init__(self, iterator: AsyncIterator[AsyncIterable[U]]) -> None:
         validate_aiterator(iterator)
         self.iterator = iterator
+
         async def empty_aiter() -> AsyncIterator[T]:
             raise StopAsyncIteration()
             yield
+
         self._current_iterator_elem: AsyncIterator[U] = empty_aiter()
         self.event_loop = get_event_loop()
 
@@ -335,7 +346,9 @@ class CountSkipAsyncIterator(AsyncIterator[T]):
 
 
 class PredicateASkipAsyncIterator(AsyncIterator[T]):
-    def __init__(self, iterator: AsyncIterator[T], until: Callable[[T], Coroutine[Any, Any, Any]]) -> None:
+    def __init__(
+        self, iterator: AsyncIterator[T], until: Callable[[T], Coroutine[Any, Any, Any]]
+    ) -> None:
         validate_aiterator(iterator)
         self.iterator = iterator
         self.until = awrap_error(until, StopAsyncIteration)
@@ -352,7 +365,10 @@ class PredicateASkipAsyncIterator(AsyncIterator[T]):
 
 class CountAndPredicateASkipAsyncIterator(AsyncIterator[T]):
     def __init__(
-        self, iterator: AsyncIterator[T], count: int, until: Callable[[T], Coroutine[Any, Any, Any]]
+        self,
+        iterator: AsyncIterator[T],
+        count: int,
+        until: Callable[[T], Coroutine[Any, Any, Any]],
     ) -> None:
         validate_aiterator(iterator)
         validate_count(count)
@@ -390,7 +406,9 @@ class CountTruncateAsyncIterator(AsyncIterator[T]):
 
 
 class PredicateATruncateAsyncIterator(AsyncIterator[T]):
-    def __init__(self, iterator: AsyncIterator[T], when: Callable[[T], Coroutine[Any, Any, Any]]) -> None:
+    def __init__(
+        self, iterator: AsyncIterator[T], when: Callable[[T], Coroutine[Any, Any, Any]]
+    ) -> None:
         validate_aiterator(iterator)
         self.iterator = iterator
         self.when = awrap_error(when, StopAsyncIteration)
@@ -404,6 +422,7 @@ class PredicateATruncateAsyncIterator(AsyncIterator[T]):
             self._satisfied = True
             raise StopAsyncIteration()
         return elem
+
 
 class AMapAsyncIterator(AsyncIterator[U]):
     def __init__(
@@ -422,7 +441,9 @@ class AMapAsyncIterator(AsyncIterator[U]):
 
 class AFilterAsyncIterator(AsyncIterator[T]):
     def __init__(
-        self, iterator: AsyncIterator[T], when: Optional[Callable[[T], Coroutine[Any, Any, Any]]]
+        self,
+        iterator: AsyncIterator[T],
+        when: Optional[Callable[[T], Coroutine[Any, Any, Any]]],
     ) -> None:
         validate_aiterator(iterator)
 
@@ -827,6 +848,7 @@ class ConcurrentFlattenAsyncIterator(_RaisingAsyncIterator[T]):
             ).__aiter__()
         )
 
+
 class _ConcurrentAFlattenAsyncIterable(
     AsyncIterable[Union[T, _RaisingAsyncIterator.ExceptionContainer]]
 ):
@@ -846,11 +868,12 @@ class _ConcurrentAFlattenAsyncIterable(
     async def __aiter__(
         self,
     ) -> AsyncIterator[Union[T, _RaisingAsyncIterator.ExceptionContainer]]:
-
-        iterator_and_future_pairs: Deque[Tuple[AsyncIterator[T], Awaitable[T]]] = deque()
-        element_to_yield: Deque[
-            Union[T, _RaisingAsyncIterator.ExceptionContainer]
-        ] = deque(maxlen=1)
+        iterator_and_future_pairs: Deque[Tuple[AsyncIterator[T], Awaitable[T]]] = (
+            deque()
+        )
+        element_to_yield: Deque[Union[T, _RaisingAsyncIterator.ExceptionContainer]] = (
+            deque(maxlen=1)
+        )
         iterator_to_queue: Optional[AsyncIterator[T]] = None
         # wait, queue, yield (FIFO)
         while True:
@@ -862,9 +885,7 @@ class _ConcurrentAFlattenAsyncIterable(
                 except StopIteration:
                     pass
                 except Exception as e:
-                    element_to_yield.append(
-                        _RaisingAsyncIterator.ExceptionContainer(e)
-                    )
+                    element_to_yield.append(_RaisingAsyncIterator.ExceptionContainer(e))
                     iterator_to_queue = iterator
 
             # queue tasks up to buffersize
@@ -879,8 +900,14 @@ class _ConcurrentAFlattenAsyncIterable(
                     except Exception as e:
                         yield _RaisingAsyncIterator.ExceptionContainer(e)
                         continue
-                future = self.event_loop.create_task(awaitable_to_coroutine(cast(AsyncIterator, iterator_to_queue).__anext__()))
-                iterator_and_future_pairs.append((cast(AsyncIterator, iterator_to_queue), future))
+                future = self.event_loop.create_task(
+                    awaitable_to_coroutine(
+                        cast(AsyncIterator, iterator_to_queue).__anext__()
+                    )
+                )
+                iterator_and_future_pairs.append(
+                    (cast(AsyncIterator, iterator_to_queue), future)
+                )
                 iterator_to_queue = None
             if element_to_yield:
                 yield element_to_yield.pop()

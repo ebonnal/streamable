@@ -154,11 +154,12 @@ def star(func: Callable[..., R]) -> Callable[[Tuple], R]:
     """
     return _Star(func)
 
+
 class _Syncify(Generic[R]):
     def __init__(self, async_func: Callable[[T], Coroutine[Any, Any, R]]) -> None:
         self.async_func = async_func
         self.event_loop = get_event_loop()
-    
+
     def __call__(self, T) -> R:
         coroutine = self.async_func(T)
         if not isinstance(coroutine, Coroutine):
@@ -167,11 +168,14 @@ class _Syncify(Generic[R]):
             )
         return self.event_loop.run_until_complete(coroutine)
 
+
 def syncify(async_func: Callable[[T], Coroutine[Any, Any, R]]) -> Callable[[T], R]:
     return _Syncify(async_func)
 
+
 async def _async_call(func: Callable[[T], R], o: T) -> R:
     return func(o)
+
 
 def asyncify(func: Callable[[T], R]) -> Callable[[T], Coroutine[Any, Any, R]]:
     return partial(_async_call, func)
