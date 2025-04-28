@@ -85,31 +85,6 @@ Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`, eleme
 1.0
 ```
 
-# about `async`
-
-> [!TIP]
-> A `Stream[T]` is also an `AsyncIterable[T]`:
-
-- **async for**
-```python
->>> async def collect(aiterable: AsyncIterable[T]) -> List[T]:
->>>     return [_ async for _ in aiterable]
-
->>> asyncio.run(collect(inverses))
-[1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
-```
-
-- **anext**
-```python
->>> asyncio.run(anext(aiter(inverses)))
-[1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
-```
-
-## `async` twin operations
-
-> [!TIP]
-> All the operations having a function in their arguments have an async twin, which has the same signature, but takes an async function as argument. It has the same name but with a `a` prefix, e.g. `.amap`, `.afilter`...
-
 # 📒 ***Operations***
 
 *A dozen expressive lazy operations and that’s it!*
@@ -174,32 +149,11 @@ if __name__ == "__main__":
 ```
 </details>
 
-## `.amap`
+## `async`-based concurrency: [see `.amap`](#`.amap`)
 
-> The twin operation applying an `async` function:
+> [The twin operation `.amap` can applies an `async` function concurrently.](#`.amap`)
 
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
-
-```python
-import httpx
-import asyncio
-
-http_async_client = httpx.AsyncClient()
-
-pokemon_names: Stream[str] = (
-    Stream(range(1, 4))
-    .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
-    .amap(http_async_client.get, concurrency=3)
-    .map(httpx.Response.json)
-    .map(lambda poke: poke["name"])
-)
-
-assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
-asyncio.run(http_async_client.aclose())
-```
-</details>
-
-## "starmap"
+### "starmap"
 
 > The `star` function decorator transforms a function that takes several positional arguments into a function that takes a tuple:
 
@@ -242,10 +196,7 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 > - set the `concurrency` parameter for **thread-based concurrency**
 > - set `via="process"` for **process-based concurrency**
 > - set `ordered=False` for ***First Done First Out***
-
-## `.aforeach`
-
-> The twin operation applying an `async` function as side effect on elements
+> - [The twin operation `.aforeach` can applies an `async` effect concurrently.](#`.aforeach`)
 
 # `.group`
 
@@ -295,10 +246,6 @@ assert list(integers_by_parity_by_2) == [[0, 2], [1, 3], [4, 6], [5, 7], [8], [9
 ```
 </details>
 
-# `.agroup`
-
-> The twin operation grouping elements into `List`s according to an `async` grouping function `by`.
-
 # `.groupby`
 
 > Like `.group`, but groups into `(key, elements)` tuples:
@@ -331,11 +278,6 @@ assert list(counts_by_parity) == [("even", 5), ("odd", 5)]
 ```
 </details>
 
-## `.agroupby`
-
-> The twin operation like `.agroup`, but grouping into `(key, elements)` tuples.
-
-
 # `.flatten`
 
 > Ungroups elements assuming that they are `Iterable`s:
@@ -364,10 +306,6 @@ assert list(mixed_ones_and_zeros) == [0, 1, 0, 1, 0, 1, 0, 1]
 ```
 </details>
 
-## `.aflatten`
-
-> The twin operation ungrouping elements assuming that they are `AsyncIterable`s.
-
 # `.filter`
 
 > Keeps only the elements that satisfy a condition:
@@ -380,10 +318,6 @@ even_integers: Stream[int] = integers.filter(lambda n: n % 2 == 0)
 assert list(even_integers) == [0, 2, 4, 6, 8]
 ```
 </details>
-
-## `.afilter`
-
-> The twin operation keeping only the elements that satisfy an `async` condition.
 
 # `.distinct`
 
@@ -427,10 +361,6 @@ assert list(consecutively_distinct_chars) == ["f", "o", "b", "a", "r", "f", "o"]
 ```
 </details>
 
-## `.adistinct`
-
-> The twin operation removing duplicates according to an `async` deduplication `key`.
-
 # `.truncate`
 
 > Ends iteration once a given number of elements have been yielded:
@@ -457,10 +387,6 @@ assert list(five_first_integers) == [0, 1, 2, 3, 4]
 
 > If both `count` and `when` are set, truncation occurs as soon as either condition is met.
 
-# `.atruncate`
-
-> The twin operation ending iteration once a `when` a `async` condition is satisfied.
-
 # `.skip`
 
 > Skips the first specified number of elements:
@@ -486,10 +412,6 @@ assert list(integers_after_five) == [5, 6, 7, 8, 9]
 </details>
 
 > If both `count` and `until` are set, skipping stops as soon as either condition is met.
-
-# `.askip`
-
-> The twin operation skipping elements `until` an `async` predicate is satisfied.
 
 # `.catch`
 
@@ -550,10 +472,6 @@ assert list(integers_in_string) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 assert len(errors) == len("foo")
 ```
 </details>
-
-## `.acatch`
-
-> The twin operation catching exceptions satisfying an `async` `when` condition.
 
 # `.throttle`
 
@@ -651,17 +569,6 @@ assert integers.count() == 10
 ```
 </details>
 
-## `.acount`
-
-> `.count`'s async sibling
-
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
-
-```python
-assert asyncio.run(integers.acount()) == 10
-```
-</details>
-
 ## `()`
 
 > *Calling* the stream iterates over it until exhaustion and returns it:
@@ -671,23 +578,6 @@ assert asyncio.run(integers.acount()) == 10
 state: List[int] = []
 appending_integers: Stream[int] = integers.foreach(state.append)
 assert appending_integers() is appending_integers
-assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-```
-</details>
-
-
-## `await`
-
-> *Awaiting* the stream iterates over it until exhaustion and returns it:
-
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
-
-```python
-state: List[int] = []
-appending_integers: Stream[int] = integers.foreach(state.append)
-async def await_integers() -> Stream[int]:
-    return await appending_integers
-assert asyncio.run(await_integers()) is appending_integers
 assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 </details>
@@ -841,3 +731,258 @@ Feel very welcome to help us improve `streamable` via issues and PRs, check [CON
 - [PyCoder’s Weekly](https://pycoders.com/issues/651) x [Real Python](https://realpython.com/)
 - [@PythonHub's tweet](https://x.com/PythonHub/status/1842886311369142713)
 - [Upvoters on our showcase Reddit post](https://www.reddit.com/r/Python/comments/1fp38jd/streamable_streamlike_manipulation_of_iterables/)
+
+----
+
+# `async`
+
+## A `Stream[T]` is also an `AsyncIterable[T]`
+It can be consumed as such:
+
+- **`async for`**
+```python
+>>> async def collect(it: AsyncIterable[T]) -> List[T]:
+>>>     return [_ async for _ in it]
+
+>>> asyncio.run(collect(inverses))
+[1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
+```
+
+- **`aiter`/`anext`**
+```python
+>>> asyncio.run(anext(aiter(inverses)))
+[1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
+```
+
+An `AsyncIterable[T]` can also be decorated as a `Stream[T]`:
+
+```python
+async def async_wrapped_range(start, end, step) -> AsyncIterator[float]:
+    for inverse in range(start, end, step):
+        yield inverse
+
+integers: Stream[int] = Stream(async_wrapped_range(0, 10))
+```
+
+# 📒 ***`async` Operations***
+
+All the operations having a function in their arguments have an async twin, which has the same signature, but takes an async function as argument. It has the same name but with a `a` prefix.
+
+> [!TIP]
+> One can mix regular and `async` operations on the same stream, and then consume it as a regular `Iterable` or as an `AsyncIterable`.
+
+# `.amap`
+
+> Applies an `async` transformation on elements:
+
+<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+
+```python
+import httpx
+import asyncio
+
+http_async_client = httpx.AsyncClient()
+
+pokemon_names: Stream[str] = (
+    Stream(range(1, 4))
+    .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
+    .amap(http_async_client.get, concurrency=3)
+    .map(httpx.Response.json)
+    .map(lambda poke: poke["name"])
+)
+
+assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
+asyncio.run(http_async_client.aclose())
+```
+</details>
+
+
+# `.aforeach`
+
+> Applies a `async` side effect on elements:
+
+<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+
+```python
+async def async_effect(n: int) -> None:
+    state.append(n)
+
+state: List[int] = []
+appending_integers: Stream[int] = integers.aforeach(async_effect)
+
+assert list(appending_integers) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+```
+</details>
+
+
+# `.agroupby`
+
+> Groups into `(key, elements)` tuples, according to an `async` grouping function:
+<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+
+```python
+integers_by_parity: Stream[Tuple[str, List[int]]] = (
+    integers
+    .groupby(lambda n: "odd" if n % 2 else "even")
+)
+
+assert list(integers_by_parity) == [("even", [0, 2, 4, 6, 8]), ("odd", [1, 3, 5, 7, 9])]
+```
+</details>
+
+# `.aflatten`
+
+> Ungroups elements assuming that they are `AsyncIterable`s.
+
+### `async`-based concurrency
+
+> Flattens `concurrency` iterables concurrently.
+
+# `.afilter`
+
+> Keeps only the elements that satisfy an `async` condition:
+
+<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+
+```python
+async def async_condition(n: int) -> bool:
+    return n % 2 == 0
+
+even_integers: Stream[int] = integers.afilter(async_condition)
+
+assert list(even_integers) == [0, 2, 4, 6, 8]
+```
+</details>
+
+# `.distinct`
+
+> Removes duplicates according to an `async` deduplication `key`:
+
+<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+
+```python
+async def async_len(l: list) -> int:
+    return len(l)
+
+strings_of_distinct_lengths: Stream[str] = (
+    Stream(["a", "foo", "bar", "z"])
+    .adistinct(async_len)
+)
+
+assert list(strings_of_distinct_lengths) == ["a", "foo"]
+```
+</details>
+
+# `.atruncate`
+
+> Ends iteration once a given number of elements have been yielded or `when` an `async` condition is satisfied:
+
+<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+
+```python
+async def async_eq_5(n: int) -> bool:
+    return n == 5
+
+five_first_integers: Stream[int] = integers.atruncate(when=async_eq_5)
+
+assert list(five_first_integers) == [0, 1, 2, 3, 4]
+```
+</details>
+
+# `.askip`
+
+> Skips the specified number of elements or `until` an `async` predicate is satisfied:
+
+<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+
+```python
+async def async_gte_5(n: int) -> bool:
+    return n >= 5
+
+integers_after_five: Stream[int] = integers.askip(until=async_gte_5)
+
+assert list(integers_after_five) == [5, 6, 7, 8, 9]
+```
+</details>
+
+> If both `count` and `until` are set, skipping stops as soon as either condition is met.
+
+# `.acatch`
+
+> Catches a given type of exception `when` and `async` condition is satisfied.
+
+<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+
+```python
+import requests
+from requests.exceptions import ConnectionError
+
+async def async_catch_condition(error: Exception) -> bool:
+    return "Max retries exceeded with url" in str(error)
+
+status_codes_ignoring_resolution_errors: Stream[int] = (
+    Stream(["https://github.com", "https://foo.bar", "https://github.com/foo/bar"])
+    .map(requests.get, concurrency=2)
+    .acatch(ConnectionError, when=async_catch_condition)
+    .map(lambda response: response.status_code)
+)
+
+assert list(status_codes_ignoring_resolution_errors) == [200, 404]
+```
+</details>
+
+> It has an optional `finally_raise: bool` parameter to raise the first exception caught (if any) when the iteration terminates.
+
+> [!TIP]
+> Apply side effects when catching an exception by integrating them into `when`:
+
+<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+
+```python
+errors: List[Exception] = []
+
+def store_error(error: Exception) -> bool:
+    errors.append(error)  # applies effect
+    return True  # signals to catch the error
+
+integers_in_string: Stream[int] = (
+    Stream("012345foo6789")
+    .map(int)
+    .catch(ValueError, when=store_error)
+)
+
+assert list(integers_in_string) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+assert len(errors) == len("foo")
+```
+</details>
+
+## Shorthands for consuming the stream as an `AsyncIterable[T]`
+
+## `.acount`
+
+> Iterates over the stream until exhaustion and returns the number of elements yielded:
+
+<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+
+```python
+assert asyncio.run(integers.acount()) == 10
+```
+</details>
+
+
+## `await`
+
+> *Awaiting* the stream iterates over it until exhaustion and returns it:
+
+<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+
+```python
+state: List[int] = []
+appending_integers: Stream[int] = integers.foreach(state.append)
+async def await_integers() -> Stream[int]:
+    return await appending_integers
+assert asyncio.run(await_integers()) is appending_integers
+assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+```
+</details>
