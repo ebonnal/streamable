@@ -81,6 +81,7 @@ def catch(
         finally_raise=finally_raise,
     )
 
+
 def acatch(
     iterator: Iterator[T],
     errors: Union[

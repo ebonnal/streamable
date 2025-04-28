@@ -1,3 +1,4 @@
+from functools import partial
 from typing import (
     Any,
     AsyncIterable,
@@ -168,3 +169,9 @@ class _Syncify(Generic[R]):
 
 def syncify(async_func: Callable[[T], Coroutine[Any, Any, R]]) -> Callable[[T], R]:
     return _Syncify(async_func)
+
+async def _async_call(func: Callable[[T], R], o: T) -> R:
+    return func(o)
+
+def asyncify(func: Callable[[T], R]) -> Callable[[T], Coroutine[Any, Any, R]]:
+    return partial(_async_call, func)

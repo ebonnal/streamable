@@ -63,12 +63,12 @@ with suppress(ImportError):
     from typing import Literal
 
 
-class CatchAsyncIterator(AsyncIterator[T]):
+class ACatchAsyncIterator(AsyncIterator[T]):
     def __init__(
         self,
         iterator: AsyncIterator[T],
         errors: Union[Type[Exception], Tuple[Type[Exception], ...]],
-        when: Optional[Callable[[Exception], Any]],
+        when: Optional[Callable[[Exception], Coroutine[Any, Any, Any]]],
         replacement: T,
         finally_raise: bool,
     ) -> None:
@@ -76,7 +76,7 @@ class CatchAsyncIterator(AsyncIterator[T]):
         validate_errors(errors)
         self.iterator = iterator
         self.errors = errors
-        self.when = wrap_error(when, StopAsyncIteration) if when else None
+        self.when = awrap_error(when, StopAsyncIteration) if when else None
         self.replacement = replacement
         self.finally_raise = finally_raise
         self._to_be_finally_raised: Optional[Exception] = None
@@ -93,7 +93,7 @@ class CatchAsyncIterator(AsyncIterator[T]):
                         self._to_be_finally_raised = None
                 raise
             except self.errors as e:
-                if not self.when or self.when(e):
+                if not self.when or await self.when(e):
                     if self.finally_raise and not self._to_be_finally_raised:
                         self._to_be_finally_raised = e
                     if self.replacement is not NO_REPLACEMENT:
@@ -102,38 +102,38 @@ class CatchAsyncIterator(AsyncIterator[T]):
                 raise
 
 
-class DistinctAsyncIterator(AsyncIterator[T]):
+class ADistinctAsyncIterator(AsyncIterator[T]):
     def __init__(
-        self, iterator: AsyncIterator[T], key: Optional[Callable[[T], Any]]
+        self, iterator: AsyncIterator[T], key: Optional[Callable[[T], Coroutine[Any, Any, Any]]]
     ) -> None:
         validate_aiterator(iterator)
         self.iterator = iterator
-        self.key = wrap_error(key, StopAsyncIteration) if key else None
+        self.key = awrap_error(key, StopAsyncIteration) if key else None
         self._already_seen: Set[Any] = set()
 
     async def __anext__(self) -> T:
         while True:
             elem = await self.iterator.__anext__()
-            key = self.key(elem) if self.key else elem
+            key = await self.key(elem) if self.key else elem
             if key not in self._already_seen:
                 break
         self._already_seen.add(key)
         return elem
 
 
-class ConsecutiveDistinctAsyncIterator(AsyncIterator[T]):
+class ConsecutiveADistinctAsyncIterator(AsyncIterator[T]):
     def __init__(
-        self, iterator: AsyncIterator[T], key: Optional[Callable[[T], Any]]
+        self, iterator: AsyncIterator[T], key: Optional[Callable[[T], Coroutine[Any, Any, Any]]]
     ) -> None:
         validate_aiterator(iterator)
         self.iterator = iterator
-        self.key = wrap_error(key, StopAsyncIteration) if key else None
+        self.key = awrap_error(key, StopAsyncIteration) if key else None
         self._last_key: Any = object()
 
     async def __anext__(self) -> T:
         while True:
             elem = await self.iterator.__anext__()
-            key = self.key(elem) if self.key else elem
+            key = await self.key(elem) if self.key else elem
             if key != self._last_key:
                 break
         self._last_key = key
@@ -156,7 +156,7 @@ class FlattenAsyncIterator(AsyncIterator[U]):
                 )
 
 
-class AFlattenIterator(AsyncIterator[U]):
+class AFlattenAsyncIterator(AsyncIterator[U]):
     def __init__(self, iterator: AsyncIterator[AsyncIterable[U]]) -> None:
         validate_aiterator(iterator)
         self.iterator = iterator
@@ -241,24 +241,24 @@ class GroupAsyncIterator(_GroupAsyncIteratorMixin[T], AsyncIterator[List[T]]):
         return group
 
 
-class GroupbyAsyncIterator(
+class AGroupbyAsyncIterator(
     _GroupAsyncIteratorMixin[T], AsyncIterator[Tuple[U, List[T]]]
 ):
     def __init__(
         self,
         iterator: AsyncIterator[T],
-        key: Callable[[T], U],
+        key: Callable[[T], Coroutine[Any, Any, U]],
         size: Optional[int],
         interval: Optional[datetime.timedelta],
     ) -> None:
         super().__init__(iterator, size, interval)
-        self.key = wrap_error(key, StopAsyncIteration)
+        self.key = awrap_error(key, StopAsyncIteration)
         self._is_exhausted = False
         self._groups_by: DefaultDict[U, List[T]] = defaultdict(list)
 
     async def _group_next_elem(self) -> None:
         elem = await self.iterator.__anext__()
-        self._groups_by[self.key(elem)].append(elem)
+        self._groups_by[await self.key(elem)].append(elem)
 
     def _pop_full_group(self) -> Optional[Tuple[U, List[T]]]:
         for key, group in self._groups_by.items():
@@ -334,38 +334,38 @@ class CountSkipAsyncIterator(AsyncIterator[T]):
         return await self.iterator.__anext__()
 
 
-class PredicateSkipAsyncIterator(AsyncIterator[T]):
-    def __init__(self, iterator: AsyncIterator[T], until: Callable[[T], Any]) -> None:
+class PredicateASkipAsyncIterator(AsyncIterator[T]):
+    def __init__(self, iterator: AsyncIterator[T], until: Callable[[T], Coroutine[Any, Any, Any]]) -> None:
         validate_aiterator(iterator)
         self.iterator = iterator
-        self.until = wrap_error(until, StopAsyncIteration)
+        self.until = awrap_error(until, StopAsyncIteration)
         self._done_skipping = False
 
     async def __anext__(self) -> T:
         elem = await self.iterator.__anext__()
         if not self._done_skipping:
-            while not self.until(elem):
+            while not await self.until(elem):
                 elem = await self.iterator.__anext__()
             self._done_skipping = True
         return elem
 
 
-class CountAndPredicateSkipAsyncIterator(AsyncIterator[T]):
+class CountAndPredicateASkipAsyncIterator(AsyncIterator[T]):
     def __init__(
-        self, iterator: AsyncIterator[T], count: int, until: Callable[[T], Any]
+        self, iterator: AsyncIterator[T], count: int, until: Callable[[T], Coroutine[Any, Any, Any]]
     ) -> None:
         validate_aiterator(iterator)
         validate_count(count)
         self.iterator = iterator
         self.count = count
-        self.until = wrap_error(until, StopAsyncIteration)
+        self.until = awrap_error(until, StopAsyncIteration)
         self._n_skipped = 0
         self._done_skipping = False
 
     async def __anext__(self) -> T:
         elem = await self.iterator.__anext__()
         if not self._done_skipping:
-            while self._n_skipped < self.count and not self.until(elem):
+            while self._n_skipped < self.count and not await self.until(elem):
                 elem = await self.iterator.__anext__()
                 # do not count exceptions as skipped elements
                 self._n_skipped += 1
@@ -389,35 +389,21 @@ class CountTruncateAsyncIterator(AsyncIterator[T]):
         return elem
 
 
-class PredicateTruncateAsyncIterator(AsyncIterator[T]):
-    def __init__(self, iterator: AsyncIterator[T], when: Callable[[T], Any]) -> None:
+class PredicateATruncateAsyncIterator(AsyncIterator[T]):
+    def __init__(self, iterator: AsyncIterator[T], when: Callable[[T], Coroutine[Any, Any, Any]]) -> None:
         validate_aiterator(iterator)
         self.iterator = iterator
-        self.when = wrap_error(when, StopAsyncIteration)
+        self.when = awrap_error(when, StopAsyncIteration)
         self._satisfied = False
 
     async def __anext__(self) -> T:
         if self._satisfied:
             raise StopAsyncIteration()
         elem = await self.iterator.__anext__()
-        if self.when(elem):
+        if await self.when(elem):
             self._satisfied = True
             raise StopAsyncIteration()
         return elem
-
-
-class MapAsyncIterator(AsyncIterator[U]):
-    def __init__(
-        self, iterator: AsyncIterator[T], transformation: Callable[[T], U]
-    ) -> None:
-        validate_aiterator(iterator)
-
-        self.iterator = iterator
-        self.transformation = wrap_error(transformation, StopAsyncIteration)
-
-    async def __anext__(self) -> U:
-        return self.transformation(await self.iterator.__anext__())
-
 
 class AMapAsyncIterator(AsyncIterator[U]):
     def __init__(
@@ -434,20 +420,20 @@ class AMapAsyncIterator(AsyncIterator[U]):
         return await self.transformation(await self.iterator.__anext__())
 
 
-class FilterAsyncIterator(AsyncIterator[T]):
+class AFilterAsyncIterator(AsyncIterator[T]):
     def __init__(
-        self, iterator: AsyncIterator[T], when: Optional[Callable[[T], Any]]
+        self, iterator: AsyncIterator[T], when: Optional[Callable[[T], Coroutine[Any, Any, Any]]]
     ) -> None:
         validate_aiterator(iterator)
 
         self.iterator = iterator
-        self.when = wrap_error(when, StopAsyncIteration) if when else None
+        self.when = awrap_error(when, StopAsyncIteration) if when else None
 
     async def __anext__(self) -> T:
         while True:
             elem = await self.iterator.__anext__()
             if self.when:
-                if self.when(elem):
+                if await self.when(elem):
                     return elem
             else:
                 if elem:
@@ -841,30 +827,6 @@ class ConcurrentFlattenAsyncIterator(_RaisingAsyncIterator[T]):
             ).__aiter__()
         )
 
-
-class SyncToAsyncIterator(AsyncIterator[T]):
-    def __init__(self, iterator: Iterator[T]):
-        validate_iterator(iterator)
-        self.iterator = iterator
-
-    async def __anext__(self):
-        try:
-            return next(self.iterator)
-        except StopIteration as e:
-            raise StopAsyncIteration() from e
-
-
-class AsyncToSyncIterator(Iterator[T]):
-    def __init__(self, iterator: AsyncIterator[T]):
-        validate_aiterator(iterator)
-        self.iterator = iterator
-
-    def __next__(self):
-        try:
-            return asyncio.run(self.iterator.__anext__())
-        except StopAsyncIteration as e:
-            raise StopIteration() from e
-
 class _ConcurrentAFlattenAsyncIterable(
     AsyncIterable[Union[T, _RaisingAsyncIterator.ExceptionContainer]]
 ):
@@ -941,3 +903,26 @@ class ConcurrentAFlattenAsyncIterator(_RaisingAsyncIterator[T]):
             ).__aiter__()
         )
 
+
+class SyncToAsyncIterator(AsyncIterator[T]):
+    def __init__(self, iterator: Iterator[T]):
+        validate_iterator(iterator)
+        self.iterator = iterator
+
+    async def __anext__(self):
+        try:
+            return next(self.iterator)
+        except StopIteration as e:
+            raise StopAsyncIteration() from e
+
+
+class AsyncToSyncIterator(Iterator[T]):
+    def __init__(self, iterator: AsyncIterator[T]):
+        validate_aiterator(iterator)
+        self.iterator = iterator
+
+    def __next__(self):
+        try:
+            return asyncio.run(self.iterator.__anext__())
+        except StopAsyncIteration as e:
+            raise StopIteration() from e
