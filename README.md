@@ -602,138 +602,6 @@ import pandas as pd
 
 > Inspired by the `.pipe` from [pandas](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.pipe.html) or [polars](https://docs.pola.rs/api/python/stable/reference/dataframe/api/polars.DataFrame.pipe.html).
 
-
-# 💡 Notes
-
-## Exceptions are not terminating the iteration
-
-> [!TIP]
-> If any of the operations raises an exception, you can resume the iteration after handling it:
-
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
-
-```python
-from contextlib import suppress
-
-casted_ints: Iterator[int] = iter(
-    Stream("0123_56789")
-    .map(int)
-    .group(3)
-    .flatten()
-)
-collected: List[int] = []
-
-with suppress(ValueError):
-    collected.extend(casted_ints)
-assert collected == [0, 1, 2, 3]
-
-collected.extend(casted_ints)
-assert collected == [0, 1, 2, 3, 5, 6, 7, 8, 9]
-```
-
-</details >
-
-## Extract-Transform-Load
-> [!TIP]
-> **Custom ETL scripts** can benefit from the expressiveness of this library. Below is a pipeline that extracts the 67 quadruped Pokémon from the first three generations using [PokéAPI](https://pokeapi.co/) and loads them into a CSV:
-
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
-
-```python
-import csv
-from datetime import timedelta
-import itertools
-import requests
-from streamable import Stream
-
-with open("./quadruped_pokemons.csv", mode="w") as file:
-    fields = ["id", "name", "is_legendary", "base_happiness", "capture_rate"]
-    writer = csv.DictWriter(file, fields, extrasaction='ignore')
-    writer.writeheader()
-
-    pipeline: Stream = (
-        # Infinite Stream[int] of Pokemon ids starting from Pokémon #1: Bulbasaur
-        Stream(itertools.count(1))
-        # Limits to 16 requests per second to be friendly to our fellow PokéAPI devs
-        .throttle(16, per=timedelta(seconds=1))
-        # GETs pokemons concurrently using a pool of 8 threads
-        .map(lambda poke_id: f"https://pokeapi.co/api/v2/pokemon-species/{poke_id}")
-        .map(requests.get, concurrency=8)
-        .foreach(requests.Response.raise_for_status)
-        .map(requests.Response.json)
-        # Stops the iteration when reaching the 1st pokemon of the 4th generation
-        .truncate(when=lambda poke: poke["generation"]["name"] == "generation-iv")
-        .observe("pokemons")
-        # Keeps only quadruped Pokemons
-        .filter(lambda poke: poke["shape"]["name"] == "quadruped")
-        .observe("quadruped pokemons")
-        # Catches errors due to None "generation" or "shape"
-        .catch(
-            TypeError,
-            when=lambda error: str(error) == "'NoneType' object is not subscriptable"
-        )
-        # Writes a batch of pokemons every 5 seconds to the CSV file
-        .group(interval=timedelta(seconds=5))
-        .foreach(writer.writerows)
-        .flatten()
-        .observe("written pokemons")
-        # Catches exceptions and raises the 1st one at the end of the iteration
-        .catch(Exception, finally_raise=True)
-    )
-
-    pipeline()
-```
-</details>
-
-## Visitor Pattern
-> [!TIP]
-> A `Stream` can be visited via its `.accept` method: implement a custom [***visitor***](https://en.wikipedia.org/wiki/Visitor_pattern) by extending the abstract class `streamable.visitors.Visitor`:
-
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
-
-```python
-from streamable.visitors import Visitor
-
-class DepthVisitor(Visitor[int]):
-    def visit_stream(self, stream: Stream) -> int:
-        if not stream.upstream:
-            return 1
-        return 1 + stream.upstream.accept(self)
-
-def depth(stream: Stream) -> int:
-    return stream.accept(DepthVisitor())
-
-assert depth(Stream(range(10)).map(str).foreach(print)) == 3
-```
-</details>
-
-## Functions
-> [!TIP]
-> The `Stream`'s methods are also exposed as functions:
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
-
-```python
-from streamable.functions import catch
-
-inverse_integers: Iterator[int] = map(lambda n: 1 / n, range(10))
-safe_inverse_integers: Iterator[int] = catch(inverse_integers, ZeroDivisionError)
-```
-</details>
-
-# Contributing
-**Many thanks to our [contributors](https://github.com/ebonnal/streamable/graphs/contributors)!**
-
-Feel very welcome to help us improve `streamable` via issues and PRs, check [CONTRIBUTING.md](CONTRIBUTING.md).
-
-
-# 🙏 Community Highlights – Thank You!
-- [Tryolabs' Top Python libraries of 2024](https://tryolabs.com/blog/top-python-libraries-2024#top-10---general-use) ([LinkedIn](https://www.linkedin.com/posts/tryolabs_top-python-libraries-2024-activity-7273052840984539137-bcGs?utm_source=share&utm_medium=member_desktop), [Reddit](https://www.reddit.com/r/Python/comments/1hbs4t8/the_handpicked_selection_of_the_best_python/))
-- [PyCoder’s Weekly](https://pycoders.com/issues/651) x [Real Python](https://realpython.com/)
-- [@PythonHub's tweet](https://x.com/PythonHub/status/1842886311369142713)
-- [Upvoters on our showcase Reddit post](https://www.reddit.com/r/Python/comments/1fp38jd/streamable_streamlike_manipulation_of_iterables/)
-
-----
-
 # `async`
 
 ## A `Stream[T]` is also an `AsyncIterable[T]`
@@ -764,7 +632,7 @@ async def async_wrapped_range(start, end, step) -> AsyncIterator[float]:
 integers: Stream[int] = Stream(async_wrapped_range(0, 10))
 ```
 
-# 📒 ***`async` Operations***
+## 📒 ***`async` Operations***
 
 All the operations having a function in their arguments have an async twin, which has the same signature, but takes an async function as argument. It has the same name but with a `a` prefix.
 
@@ -972,3 +840,133 @@ assert asyncio.run(await_integers()) is appending_integers
 assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 </details>
+
+
+# 💡 Notes
+
+## Exceptions are not terminating the iteration
+
+> [!TIP]
+> If any of the operations raises an exception, you can resume the iteration after handling it:
+
+<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+
+```python
+from contextlib import suppress
+
+casted_ints: Iterator[int] = iter(
+    Stream("0123_56789")
+    .map(int)
+    .group(3)
+    .flatten()
+)
+collected: List[int] = []
+
+with suppress(ValueError):
+    collected.extend(casted_ints)
+assert collected == [0, 1, 2, 3]
+
+collected.extend(casted_ints)
+assert collected == [0, 1, 2, 3, 5, 6, 7, 8, 9]
+```
+
+</details >
+
+## Extract-Transform-Load
+> [!TIP]
+> **Custom ETL scripts** can benefit from the expressiveness of this library. Below is a pipeline that extracts the 67 quadruped Pokémon from the first three generations using [PokéAPI](https://pokeapi.co/) and loads them into a CSV:
+
+<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+
+```python
+import csv
+from datetime import timedelta
+import itertools
+import requests
+from streamable import Stream
+
+with open("./quadruped_pokemons.csv", mode="w") as file:
+    fields = ["id", "name", "is_legendary", "base_happiness", "capture_rate"]
+    writer = csv.DictWriter(file, fields, extrasaction='ignore')
+    writer.writeheader()
+
+    pipeline: Stream = (
+        # Infinite Stream[int] of Pokemon ids starting from Pokémon #1: Bulbasaur
+        Stream(itertools.count(1))
+        # Limits to 16 requests per second to be friendly to our fellow PokéAPI devs
+        .throttle(16, per=timedelta(seconds=1))
+        # GETs pokemons concurrently using a pool of 8 threads
+        .map(lambda poke_id: f"https://pokeapi.co/api/v2/pokemon-species/{poke_id}")
+        .map(requests.get, concurrency=8)
+        .foreach(requests.Response.raise_for_status)
+        .map(requests.Response.json)
+        # Stops the iteration when reaching the 1st pokemon of the 4th generation
+        .truncate(when=lambda poke: poke["generation"]["name"] == "generation-iv")
+        .observe("pokemons")
+        # Keeps only quadruped Pokemons
+        .filter(lambda poke: poke["shape"]["name"] == "quadruped")
+        .observe("quadruped pokemons")
+        # Catches errors due to None "generation" or "shape"
+        .catch(
+            TypeError,
+            when=lambda error: str(error) == "'NoneType' object is not subscriptable"
+        )
+        # Writes a batch of pokemons every 5 seconds to the CSV file
+        .group(interval=timedelta(seconds=5))
+        .foreach(writer.writerows)
+        .flatten()
+        .observe("written pokemons")
+        # Catches exceptions and raises the 1st one at the end of the iteration
+        .catch(Exception, finally_raise=True)
+    )
+
+    pipeline()
+```
+</details>
+
+## Visitor Pattern
+> [!TIP]
+> A `Stream` can be visited via its `.accept` method: implement a custom [***visitor***](https://en.wikipedia.org/wiki/Visitor_pattern) by extending the abstract class `streamable.visitors.Visitor`:
+
+<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+
+```python
+from streamable.visitors import Visitor
+
+class DepthVisitor(Visitor[int]):
+    def visit_stream(self, stream: Stream) -> int:
+        if not stream.upstream:
+            return 1
+        return 1 + stream.upstream.accept(self)
+
+def depth(stream: Stream) -> int:
+    return stream.accept(DepthVisitor())
+
+assert depth(Stream(range(10)).map(str).foreach(print)) == 3
+```
+</details>
+
+## Functions
+> [!TIP]
+> The `Stream`'s methods are also exposed as functions:
+<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+
+```python
+from streamable.functions import catch
+
+inverse_integers: Iterator[int] = map(lambda n: 1 / n, range(10))
+safe_inverse_integers: Iterator[int] = catch(inverse_integers, ZeroDivisionError)
+```
+</details>
+
+# Contributing
+**Many thanks to our [contributors](https://github.com/ebonnal/streamable/graphs/contributors)!**
+
+Feel very welcome to help us improve `streamable` via issues and PRs, check [CONTRIBUTING.md](CONTRIBUTING.md).
+
+
+# 🙏 Community Highlights – Thank You!
+- [Tryolabs' Top Python libraries of 2024](https://tryolabs.com/blog/top-python-libraries-2024#top-10---general-use) ([LinkedIn](https://www.linkedin.com/posts/tryolabs_top-python-libraries-2024-activity-7273052840984539137-bcGs?utm_source=share&utm_medium=member_desktop), [Reddit](https://www.reddit.com/r/Python/comments/1hbs4t8/the_handpicked_selection_of_the_best_python/))
+- [PyCoder’s Weekly](https://pycoders.com/issues/651) x [Real Python](https://realpython.com/)
+- [@PythonHub's tweet](https://x.com/PythonHub/status/1842886311369142713)
+- [Upvoters on our showcase Reddit post](https://www.reddit.com/r/Python/comments/1fp38jd/streamable_streamlike_manipulation_of_iterables/)
