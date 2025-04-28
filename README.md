@@ -459,6 +459,8 @@ assert list(five_first_integers) == [0, 1, 2, 3, 4]
 
 # `.atruncate`
 
+> The twin operation ending iteration once a `when` a `async` condition is satisfied.
+
 # `.skip`
 
 > Skips the first specified number of elements:
@@ -484,6 +486,10 @@ assert list(integers_after_five) == [5, 6, 7, 8, 9]
 </details>
 
 > If both `count` and `until` are set, skipping stops as soon as either condition is met.
+
+# `.askip`
+
+> The twin operation skipping elements `until` an `async` predicate is satisfied.
 
 # `.catch`
 
@@ -545,6 +551,9 @@ assert len(errors) == len("foo")
 ```
 </details>
 
+## `.acatch`
+
+> The twin operation catching exceptions satisfying an `async` `when` condition.
 
 # `.throttle`
 
