@@ -764,7 +764,7 @@ assert list(integers_after_five) == [5, 6, 7, 8, 9]
 
 ## `.acatch`
 
-> Catches a given type of exception `when` and `async` condition is satisfied.
+> Catches a given type of exception `when` an `async` condition is satisfied.
 
 <details ><summary style="text-indent: 40px;">👀 show example</summary></br>
 
