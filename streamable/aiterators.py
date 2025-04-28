@@ -947,9 +947,10 @@ class AsyncToSyncIterator(Iterator[T]):
     def __init__(self, iterator: AsyncIterator[T]):
         validate_aiterator(iterator)
         self.iterator = iterator
+        self.event_loop = get_event_loop()
 
     def __next__(self):
         try:
-            return asyncio.run(self.iterator.__anext__())
+            return self.event_loop.run_until_complete(self.iterator.__anext__())
         except StopAsyncIteration as e:
             raise StopIteration() from e
