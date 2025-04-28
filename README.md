@@ -151,7 +151,7 @@ if __name__ == "__main__":
 
 ### `async`-based concurrency: [see `.amap`](#amap)
 
-> [The twin operation `.amap` can applies an `async` function concurrently.](#`.amap`)
+> [The twin operation `.amap` can apply an `async` function concurrently.](#amap)
 
 ### "starmap"
 
