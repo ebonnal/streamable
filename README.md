@@ -85,11 +85,11 @@ Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`, eleme
 1.0
 ```
 
-# 📒 ***Operations***
+# A/ 📒 ***Operations***
 
 *A dozen expressive lazy operations and that’s it!*
 
-# `.map`
+## `.map`
 
 > Applies a transformation on elements:
 
@@ -102,7 +102,7 @@ assert list(integer_strings) == ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9
 ```
 </details>
 
-## concurrency
+### concurrency
 
 > [!NOTE]
 > By default, all the concurrency modes presented below yield results in the upstream order (FIFO). Set the parameter `ordered=False` to yield results as they become available (***First Done, First Out***).
@@ -173,9 +173,7 @@ assert list(zeros) == [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
 
 
-# `.foreach`
-
-
+## `.foreach`
 
 > Applies a side effect on elements:
 
@@ -190,7 +188,7 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 </details>
 
-## concurrency
+### concurrency
 
 > Similar to `.map`:
 > - set the `concurrency` parameter for **thread-based concurrency**
@@ -198,7 +196,7 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 > - set `ordered=False` for ***First Done First Out***
 > - [The twin operation `.aforeach` can applies an `async` effect concurrently.](#aforeach)
 
-# `.group`
+## `.group`
 
 > Groups elements into `List`s:
 
@@ -246,7 +244,7 @@ assert list(integers_by_parity_by_2) == [[0, 2], [1, 3], [4, 6], [5, 7], [8], [9
 ```
 </details>
 
-# `.groupby`
+## `.groupby`
 
 > Like `.group`, but groups into `(key, elements)` tuples:
 <details ><summary style="text-indent: 40px;">👀 show example</summary></br>
@@ -278,7 +276,7 @@ assert list(counts_by_parity) == [("even", 5), ("odd", 5)]
 ```
 </details>
 
-# `.flatten`
+## `.flatten`
 
 > Ungroups elements assuming that they are `Iterable`s:
 
@@ -306,7 +304,7 @@ assert list(mixed_ones_and_zeros) == [0, 1, 0, 1, 0, 1, 0, 1]
 ```
 </details>
 
-# `.filter`
+## `.filter`
 
 > Keeps only the elements that satisfy a condition:
 
@@ -319,7 +317,7 @@ assert list(even_integers) == [0, 2, 4, 6, 8]
 ```
 </details>
 
-# `.distinct`
+## `.distinct`
 
 > Removes duplicates:
 
@@ -361,7 +359,7 @@ assert list(consecutively_distinct_chars) == ["f", "o", "b", "a", "r", "f", "o"]
 ```
 </details>
 
-# `.truncate`
+## `.truncate`
 
 > Ends iteration once a given number of elements have been yielded:
 
@@ -387,7 +385,7 @@ assert list(five_first_integers) == [0, 1, 2, 3, 4]
 
 > If both `count` and `when` are set, truncation occurs as soon as either condition is met.
 
-# `.skip`
+## `.skip`
 
 > Skips the first specified number of elements:
 
@@ -413,7 +411,7 @@ assert list(integers_after_five) == [5, 6, 7, 8, 9]
 
 > If both `count` and `until` are set, skipping stops as soon as either condition is met.
 
-# `.catch`
+## `.catch`
 
 > Catches a given type of exception, and optionally yields a `replacement` value:
 
@@ -473,7 +471,7 @@ assert len(errors) == len("foo")
 ```
 </details>
 
-# `.throttle`
+## `.throttle`
 
 > Limits the number of yields `per` time interval:
 
@@ -490,7 +488,7 @@ assert list(three_integers_per_second) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 </details>
 
 
-# `.observe`
+## `.observe`
 
 > Logs the progress of iterations:
 <details ><summary style="text-indent: 40px;">👀 show example</summary></br>
@@ -522,7 +520,7 @@ logging.getLogger("streamable").setLevel(logging.WARNING)
 ```
 </details>
 
-# `+`
+## `+`
 
 > Concatenates streams:
 
@@ -534,7 +532,7 @@ assert list(integers + integers) == [0, 1, 2, 3 ,4, 5, 6, 7, 8, 9, 0, 1, 2, 3 ,4
 </details>
 
 
-# `zip`
+## `zip`
 
 > [!TIP]
 > Use the standard `zip` function:
@@ -582,7 +580,7 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 </details>
 
-# `.pipe`
+## `.pipe`
 
 > Calls a function, passing the stream as first argument, followed by `*args/**kwargs` if any:
 
@@ -602,7 +600,10 @@ import pandas as pd
 
 > Inspired by the `.pipe` from [pandas](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.pipe.html) or [polars](https://docs.pola.rs/api/python/stable/reference/dataframe/api/polars.DataFrame.pipe.html).
 
-# `async`
+---
+---
+
+# B/ `async` support
 
 ## A `Stream[T]` is also an `AsyncIterable[T]`
 It can be consumed as such:
@@ -639,7 +640,7 @@ All the operations having a function in their arguments have an async twin, whic
 > [!TIP]
 > One can mix regular and `async` operations on the same stream, and then consume it as a regular `Iterable` or as an `AsyncIterable`.
 
-# `.amap`
+### `.amap`
 
 > Applies an `async` transformation on elements:
 
@@ -665,11 +666,11 @@ asyncio.run(http_async_client.aclose())
 </details>
 
 
-# `.aforeach`
+## `.aforeach`
 
 > Applies an `async` side effect on elements. Supports `concurrency` like `.amap`.
 
-# `.agroupby`
+## `.agroupby`
 
 > Groups into `(key, elements)` tuples, according to an `async` grouping function:
 <details ><summary style="text-indent: 40px;">👀 show example</summary></br>
@@ -687,13 +688,13 @@ assert list(integers_by_parity) == [("even", [0, 2, 4, 6, 8]), ("odd", [1, 3, 5,
 ```
 </details>
 
-# `.aflatten`
+## `.aflatten`
 
 > Ungroups elements assuming that they are `AsyncIterable`s.
 
 > Like for `.flatten` you can set the `concurrency` parameter.
 
-# `.afilter`
+## `.afilter`
 
 > Keeps only the elements that satisfy an `async` condition:
 
@@ -709,7 +710,7 @@ assert list(even_integers) == [0, 2, 4, 6, 8]
 ```
 </details>
 
-# `.adistinct`
+## `.adistinct`
 
 > Removes duplicates according to an `async` deduplication `key`:
 
@@ -728,7 +729,7 @@ assert list(strings_of_distinct_lengths) == ["a", "foo"]
 ```
 </details>
 
-# `.atruncate`
+## `.atruncate`
 
 > Ends iteration once a given number of elements have been yielded or `when` an `async` condition is satisfied:
 
@@ -744,7 +745,7 @@ assert list(five_first_integers) == [0, 1, 2, 3, 4]
 ```
 </details>
 
-# `.askip`
+## `.askip`
 
 > Skips the specified number of elements or `until` an `async` predicate is satisfied:
 
@@ -762,7 +763,7 @@ assert list(integers_after_five) == [5, 6, 7, 8, 9]
 
 > If both `count` and `until` are set, skipping stops as soon as either condition is met.
 
-# `.acatch`
+## `.acatch`
 
 > Catches a given type of exception `when` and `async` condition is satisfied.
 
@@ -841,8 +842,10 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 </details>
 
+---
+---
 
-# 💡 Notes
+# C/ 💡 Notes
 
 ## Exceptions are not terminating the iteration
 
