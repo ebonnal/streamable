@@ -639,7 +639,7 @@ All the operations having a function in their arguments have an async twin, whic
 > [!TIP]
 > One can mix regular and `async` operations on the same stream, and then consume it as a regular `Iterable` or as an `AsyncIterable`.
 
-### `.amap`
+## `.amap`
 
 > Applies an `async` transformation on elements:
 
