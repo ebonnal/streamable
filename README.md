@@ -85,6 +85,113 @@ Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`, eleme
 1.0
 ```
 
+# A/ ↕️ ***about ETL scripts***
+
+> [!TIP]
+> **Extract-Transform-Load scripts** can benefit from the expressiveness of this library. Below is a pipeline that extracts the 67 quadruped Pokémon from the first three generations using [PokéAPI](https://pokeapi.co/) and loads them into a CSV:
+
+<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+
+```python
+import csv
+from datetime import timedelta
+import itertools
+import requests
+from streamable import Stream
+
+with open("./quadruped_pokemons.csv", mode="w") as file:
+    fields = ["id", "name", "is_legendary", "base_happiness", "capture_rate"]
+    writer = csv.DictWriter(file, fields, extrasaction='ignore')
+    writer.writeheader()
+
+    pipeline: Stream = (
+        # Infinite Stream[int] of Pokemon ids starting from Pokémon #1: Bulbasaur
+        Stream(itertools.count(1))
+        # Limits to 16 requests per second to be friendly to our fellow PokéAPI devs
+        .throttle(16, per=timedelta(seconds=1))
+        # GETs pokemons concurrently using a pool of 8 threads
+        .map(lambda poke_id: f"https://pokeapi.co/api/v2/pokemon-species/{poke_id}")
+        .map(requests.get, concurrency=8)
+        .foreach(requests.Response.raise_for_status)
+        .map(requests.Response.json)
+        # Stops the iteration when reaching the 1st pokemon of the 4th generation
+        .truncate(when=lambda poke: poke["generation"]["name"] == "generation-iv")
+        .observe("pokemons")
+        # Keeps only quadruped Pokemons
+        .filter(lambda poke: poke["shape"]["name"] == "quadruped")
+        .observe("quadruped pokemons")
+        # Catches errors due to None "generation" or "shape"
+        .catch(
+            TypeError,
+            when=lambda error: str(error) == "'NoneType' object is not subscriptable"
+        )
+        # Writes a batch of pokemons every 5 seconds to the CSV file
+        .group(interval=timedelta(seconds=5))
+        .foreach(writer.writerows)
+        .flatten()
+        .observe("written pokemons")
+        # Catches exceptions and raises the 1st one at the end of the iteration
+        .catch(Exception, finally_raise=True)
+    )
+
+    pipeline()
+```
+
+Or the `async` way (check the [*`async` support* section](#c--async-support)):
+
+```python
+import asyncio
+import csv
+from datetime import timedelta
+import itertools
+import httpx
+from streamable import Stream
+
+async def main() -> None:
+    with open("./quadruped_pokemons.csv", mode="w") as file:
+        fields = ["id", "name", "is_legendary", "base_happiness", "capture_rate"]
+        writer = csv.DictWriter(file, fields, extrasaction='ignore')
+        writer.writeheader()
+
+        async with httpx.AsyncClient() as http_async_client:
+            pipeline: Stream = (
+                # Infinite Stream[int] of Pokemon ids starting from Pokémon #1: Bulbasaur
+                Stream(itertools.count(1))
+                # Limits to 16 requests per second to be friendly to our fellow PokéAPI devs
+                .throttle(16, per=timedelta(seconds=1))
+                # GETs pokemons concurrently using a pool of 8 threads
+                .map(lambda poke_id: f"https://pokeapi.co/api/v2/pokemon-species/{poke_id}")
+                .amap(http_async_client.get, concurrency=8)
+                .foreach(httpx.Response.raise_for_status)
+                .map(httpx.Response.json)
+                # Stops the iteration when reaching the 1st pokemon of the 4th generation
+                .truncate(when=lambda poke: poke["generation"]["name"] == "generation-iv")
+                .observe("pokemons")
+                # Keeps only quadruped Pokemons
+                .filter(lambda poke: poke["shape"]["name"] == "quadruped")
+                .observe("quadruped pokemons")
+                # Catches errors due to None "generation" or "shape"
+                .catch(
+                    TypeError,
+                    when=lambda error: str(error) == "'NoneType' object is not subscriptable"
+                )
+                # Writes a batch of pokemons every 5 seconds to the CSV file
+                .group(interval=timedelta(seconds=5))
+                .foreach(writer.writerows)
+                .flatten()
+                .observe("written pokemons")
+                # Catches exceptions and raises the 1st one at the end of the iteration
+                .catch(Exception, finally_raise=True)
+            )
+
+            await pipeline
+
+asyncio.run(main())
+```
+
+
+</details>
+
 # A/ 📒 ***Operations***
 
 *A dozen expressive lazy operations and that’s it!*
@@ -603,7 +710,7 @@ import pandas as pd
 ---
 ---
 
-# B/ 🔀 `async` support
+# C/ 🔀 `async` support
 
 A `Stream[T]` is also an `AsyncIterable[T]`, it can be consumed as such:
 
@@ -819,7 +926,7 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ---
 ---
 
-# C/ 💡 Notes
+# D/ 💡 Notes
 
 ## Exceptions are not terminating the iteration
 
@@ -848,112 +955,6 @@ assert collected == [0, 1, 2, 3, 5, 6, 7, 8, 9]
 ```
 
 </details >
-
-## Extract-Transform-Load
-> [!TIP]
-> **Custom ETL scripts** can benefit from the expressiveness of this library. Below is a pipeline that extracts the 67 quadruped Pokémon from the first three generations using [PokéAPI](https://pokeapi.co/) and loads them into a CSV:
-
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
-
-```python
-import csv
-from datetime import timedelta
-import itertools
-import requests
-from streamable import Stream
-
-with open("./quadruped_pokemons.csv", mode="w") as file:
-    fields = ["id", "name", "is_legendary", "base_happiness", "capture_rate"]
-    writer = csv.DictWriter(file, fields, extrasaction='ignore')
-    writer.writeheader()
-
-    pipeline: Stream = (
-        # Infinite Stream[int] of Pokemon ids starting from Pokémon #1: Bulbasaur
-        Stream(itertools.count(1))
-        # Limits to 16 requests per second to be friendly to our fellow PokéAPI devs
-        .throttle(16, per=timedelta(seconds=1))
-        # GETs pokemons concurrently using a pool of 8 threads
-        .map(lambda poke_id: f"https://pokeapi.co/api/v2/pokemon-species/{poke_id}")
-        .map(requests.get, concurrency=8)
-        .foreach(requests.Response.raise_for_status)
-        .map(requests.Response.json)
-        # Stops the iteration when reaching the 1st pokemon of the 4th generation
-        .truncate(when=lambda poke: poke["generation"]["name"] == "generation-iv")
-        .observe("pokemons")
-        # Keeps only quadruped Pokemons
-        .filter(lambda poke: poke["shape"]["name"] == "quadruped")
-        .observe("quadruped pokemons")
-        # Catches errors due to None "generation" or "shape"
-        .catch(
-            TypeError,
-            when=lambda error: str(error) == "'NoneType' object is not subscriptable"
-        )
-        # Writes a batch of pokemons every 5 seconds to the CSV file
-        .group(interval=timedelta(seconds=5))
-        .foreach(writer.writerows)
-        .flatten()
-        .observe("written pokemons")
-        # Catches exceptions and raises the 1st one at the end of the iteration
-        .catch(Exception, finally_raise=True)
-    )
-
-    pipeline()
-```
-
-Or the `async` version:
-
-```python
-import asyncio
-import csv
-from datetime import timedelta
-import itertools
-import httpx
-from streamable import Stream
-
-async def main() -> None:
-    with open("./quadruped_pokemons.csv", mode="w") as file:
-        fields = ["id", "name", "is_legendary", "base_happiness", "capture_rate"]
-        writer = csv.DictWriter(file, fields, extrasaction='ignore')
-        writer.writeheader()
-
-        async with httpx.AsyncClient() as http_async_client:
-            pipeline: Stream = (
-                # Infinite Stream[int] of Pokemon ids starting from Pokémon #1: Bulbasaur
-                Stream(itertools.count(1))
-                # Limits to 16 requests per second to be friendly to our fellow PokéAPI devs
-                .throttle(16, per=timedelta(seconds=1))
-                # GETs pokemons concurrently using a pool of 8 threads
-                .map(lambda poke_id: f"https://pokeapi.co/api/v2/pokemon-species/{poke_id}")
-                .amap(http_async_client.get, concurrency=8)
-                .foreach(httpx.Response.raise_for_status)
-                .map(httpx.Response.json)
-                # Stops the iteration when reaching the 1st pokemon of the 4th generation
-                .truncate(when=lambda poke: poke["generation"]["name"] == "generation-iv")
-                .observe("pokemons")
-                # Keeps only quadruped Pokemons
-                .filter(lambda poke: poke["shape"]["name"] == "quadruped")
-                .observe("quadruped pokemons")
-                # Catches errors due to None "generation" or "shape"
-                .catch(
-                    TypeError,
-                    when=lambda error: str(error) == "'NoneType' object is not subscriptable"
-                )
-                # Writes a batch of pokemons every 5 seconds to the CSV file
-                .group(interval=timedelta(seconds=5))
-                .foreach(writer.writerows)
-                .flatten()
-                .observe("written pokemons")
-                # Catches exceptions and raises the 1st one at the end of the iteration
-                .catch(Exception, finally_raise=True)
-            )
-
-            await pipeline
-
-asyncio.run(main())
-```
-
-
-</details>
 
 ## Visitor Pattern
 > [!TIP]
