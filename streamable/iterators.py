@@ -33,7 +33,11 @@ from typing import (
 )
 
 from streamable.util import asynctools
-from streamable.util.asynctools import get_event_loop
+from streamable.util.asynctools import (
+    awaitable_to_coroutine,
+    empty_aiter,
+    get_event_loop,
+)
 from streamable.util.functiontools import (
     iter_wo_stopiteration,
     aiter_wo_stopasynciteration,
@@ -162,10 +166,6 @@ class AFlattenIterator(Iterator[U]):
     def __init__(self, iterator: Iterator[AsyncIterable[U]]) -> None:
         validate_iterator(iterator)
         self.iterator = iterator
-
-        async def empty_aiter() -> AsyncIterator[T]:
-            raise StopAsyncIteration()
-            yield
 
         self._current_iterator_elem: AsyncIterator[U] = empty_aiter()
         self.event_loop = get_event_loop()
@@ -804,10 +804,9 @@ class _ConcurrentAFlattenIterable(
         self.iterables_iterator = iterables_iterator
         self.concurrency = concurrency
         self.buffersize = buffersize
-        self.event_loop = get_event_loop()
 
     def _get_next(self, iterator_to_queue: AsyncIterator[T]) -> T:
-        return self.event_loop.run_until_complete(iterator_to_queue.__anext__())
+        return asyncio.run(awaitable_to_coroutine(iterator_to_queue.__anext__()))
 
     def __iter__(self) -> Iterator[Union[T, _RaisingIterator.ExceptionContainer]]:
         with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
@@ -823,7 +822,7 @@ class _ConcurrentAFlattenIterable(
                     try:
                         element_to_yield.append(future.result())
                         iterator_to_queue = iterator
-                    except StopIteration:
+                    except StopAsyncIteration:
                         pass
                     except Exception as e:
                         element_to_yield.append(_RaisingIterator.ExceptionContainer(e))

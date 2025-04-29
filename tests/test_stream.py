@@ -38,6 +38,7 @@ from typing import (
 from parameterized import parameterized  # type: ignore
 
 from streamable import Stream
+from streamable.aiterators import SyncToAsyncIterator
 from streamable.util.asynctools import await_result
 from streamable.util.functiontools import WrappedError, star
 from streamable.util.iterabletools import aiterable_to_list, aiterable_to_set
@@ -687,24 +688,34 @@ class TestStream(unittest.TestCase):
         )
 
     @parameterized.expand(
-        [(concurrency, itype) for concurrency in (1, 2) for itype in ITERABLE_TYPES]
+        [
+            (concurrency, itype, flatten, iterator_cast)
+            for concurrency in (1, 2)
+            for itype in ITERABLE_TYPES
+            for flatten, iterator_cast in [
+                (Stream.flatten, identity),
+                (Stream.aflatten, SyncToAsyncIterator),
+            ]
+        ]
     )
-    def test_flatten(self, concurrency, itype) -> None:
+    def test_flatten(self, concurrency, itype, flatten, iterator_cast) -> None:
         n_iterables = 32
         it = list(range(N // n_iterables))
         double_it = it + it
         iterables_stream = Stream(
-            lambda: map(slow_identity, [double_it] + [it for _ in range(n_iterables)])
-        )
+            [iterator_cast(iter(double_it))]
+            + [iterator_cast(iter(it)) for _ in range(n_iterables)]
+        ).map(slow_identity)
         self.assertCountEqual(
-            to_list(iterables_stream.flatten(concurrency=concurrency), itype=itype),
+            to_list(flatten(iterables_stream, concurrency=concurrency), itype=itype),
             list(it) * n_iterables + double_it,
             msg="At any concurrency the `flatten` method should yield all the upstream iterables' elements.",
         )
         self.assertListEqual(
             to_list(
-                Stream([iter([]) for _ in range(2000)]).flatten(
-                    concurrency=concurrency
+                flatten(
+                    Stream([iterator_cast(iter([])) for _ in range(2000)]),
+                    concurrency=concurrency,
                 ),
                 itype=itype,
             ),
@@ -713,10 +724,15 @@ class TestStream(unittest.TestCase):
         )
 
         with self.assertRaises(
-            TypeError,
+            (TypeError, AttributeError),
             msg="`flatten` should raise if an upstream element is not iterable.",
         ):
-            overloaded_next(to_iter(Stream(cast(Iterable, src)).flatten(), itype=itype))
+            overloaded_next(
+                to_iter(
+                    flatten(Stream(cast(Union[Iterable, AsyncIterable], src))),
+                    itype=itype,
+                )
+            )
 
         # test typing with ranges
         _: Stream[int] = Stream((src, src)).flatten()

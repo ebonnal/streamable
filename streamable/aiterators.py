@@ -32,7 +32,11 @@ from typing import (
     cast,
 )
 
-from streamable.util.asynctools import awaitable_to_coroutine, get_event_loop
+from streamable.util.asynctools import (
+    awaitable_to_coroutine,
+    empty_aiter,
+    get_event_loop,
+)
 from streamable.util.functiontools import (
     awrap_error,
     iter_wo_stopiteration,
@@ -169,10 +173,6 @@ class AFlattenAsyncIterator(AsyncIterator[U]):
     def __init__(self, iterator: AsyncIterator[AsyncIterable[U]]) -> None:
         validate_aiterator(iterator)
         self.iterator = iterator
-
-        async def empty_aiter() -> AsyncIterator[T]:
-            raise StopAsyncIteration()
-            yield
 
         self._current_iterator_elem: AsyncIterator[U] = empty_aiter()
         self.event_loop = get_event_loop()
@@ -882,7 +882,7 @@ class _ConcurrentAFlattenAsyncIterable(
                 try:
                     element_to_yield.append(await future)
                     iterator_to_queue = iterator
-                except StopIteration:
+                except StopAsyncIteration:
                     pass
                 except Exception as e:
                     element_to_yield.append(_RaisingAsyncIterator.ExceptionContainer(e))

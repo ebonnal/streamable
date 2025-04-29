@@ -1,5 +1,5 @@
 import asyncio
-from typing import Any, Awaitable, Coroutine, Optional, TypeVar
+from typing import Any, AsyncIterator, Awaitable, Coroutine, Optional, TypeVar
 
 T = TypeVar("T")
 
@@ -23,3 +23,8 @@ async def awaitable_to_coroutine(aw: Awaitable[T]) -> T:
 
 def await_result(aw: Awaitable[T]) -> T:
     return get_event_loop().run_until_complete(awaitable_to_coroutine(aw))
+
+
+async def empty_aiter() -> AsyncIterator:
+    return
+    yield
