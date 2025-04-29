@@ -90,8 +90,6 @@ Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`, eleme
 > [!TIP]
 > **Extract-Transform-Load scripts** can benefit from the expressiveness of this library. Below is a pipeline that extracts the 67 quadruped Pokémon from the first three generations using [PokéAPI](https://pokeapi.co/) and loads them into a CSV:
 
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
-
 ```python
 import csv
 from datetime import timedelta
@@ -137,7 +135,8 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
     pipeline()
 ```
 
-Or the `async` way (check the [*`async` support* section](#c--async-support)):
+### Or the `async` way
+(check the [*`async` support* section](#c--async-support)):
 
 ```python
 import asyncio
@@ -188,9 +187,6 @@ async def main() -> None:
 
 asyncio.run(main())
 ```
-
-
-</details>
 
 # A/ 📒 ***Operations***
 
