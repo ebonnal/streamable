@@ -37,10 +37,10 @@ class TestReadme(unittest.TestCase):
         self.assertEqual(next(inverses_iter), 1.0)
         self.assertEqual(next(inverses_iter), 0.5)
 
-        async def collect(aiterable: AsyncIterable[T]) -> List[T]:
-            return [i async for i in aiterable]
+        async def to_list(it: AsyncIterable[T]) -> List[T]:
+            return [_ async for _ in it]
 
-        asyncio.run(collect(inverses)) == [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
+        asyncio.run(to_list(inverses)) == [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
 
 
     def test_map_example(self) -> None:

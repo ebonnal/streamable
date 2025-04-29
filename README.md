@@ -65,7 +65,7 @@ Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`, eleme
 {0.5, 1.0, 0.2, 0.33, 0.25, 0.17, 0.14, 0.12, 0.11}
 ```
 
-- **reduce**
+- **`reduce`**
 ```python
 >>> sum(inverses)
 2.82
@@ -73,13 +73,13 @@ Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`, eleme
 >>> reduce(..., inverses)
 ```
 
-- **for**
+- **`for`**
 ```python
 >>> for inverse in inverses:
 >>>    ...
 ```
 
-- **next**
+- **`iter`/`next`**
 ```python
 >>> next(iter(inverses))
 1.0
@@ -89,10 +89,10 @@ A `Stream[T]` is also an `AsyncIterable[T]` and can be consumed as such:
 
 - **`async for`**
 ```python
->>> async def collect(it: AsyncIterable[T]) -> List[T]:
+>>> async def to_list(it: AsyncIterable[T]) -> List[T]:
 >>>     return [_ async for _ in it]
 
->>> asyncio.run(collect(inverses))
+>>> asyncio.run(to_list(inverses))
 [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
 ```
 
