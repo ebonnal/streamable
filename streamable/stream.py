@@ -445,6 +445,23 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         validate_concurrency(concurrency)
         return FlattenStream(self, concurrency)
 
+    # fmt: off
+    @overload
+    def aflatten(
+        self: "Stream[AsyncIterator[T]]",
+        *,
+        concurrency: int = 1,
+    ) -> "Stream[T]": ...
+    # fmt: on
+    # fmt: off
+    @overload
+    def aflatten(
+        self: "Stream[AsyncIterable[T]]",
+        *,
+        concurrency: int = 1,
+    ) -> "Stream[T]": ...
+    # fmt: on
+
     def aflatten(
         self: "Stream[AsyncIterable[U]]", *, concurrency: int = 1
     ) -> "Stream[U]":

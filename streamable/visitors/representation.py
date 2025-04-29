@@ -38,10 +38,6 @@ class ToStringVisitor(Visitor[str], ABC):
     @abstractmethod
     def to_string(o: object) -> str: ...
 
-    def visit_atwin_stream(self, res: str) -> str:
-        self.methods_reprs[0] = f"a{self.methods_reprs[0]}"
-        return res
-
     def visit_catch_stream(self, stream: CatchStream) -> str:
         replacement = ""
         if stream._replacement is not NO_REPLACEMENT:
@@ -56,9 +52,17 @@ class ToStringVisitor(Visitor[str], ABC):
         return stream.upstream.accept(self)
 
     def visit_acatch_stream(self, stream: ACatchStream) -> str:
-        return self.visit_atwin_stream(
-            self.visit_catch_stream(cast(CatchStream, stream))
+        replacement = ""
+        if stream._replacement is not NO_REPLACEMENT:
+            replacement = f", replacement={self.to_string(stream._replacement)}"
+        if isinstance(stream._errors, Iterable):
+            errors = f"({', '.join(map(self.to_string, stream._errors))})"
+        else:
+            errors = self.to_string(stream._errors)
+        self.methods_reprs.append(
+            f"acatch({errors}, when={self.to_string(stream._when)}{replacement}, finally_raise={self.to_string(stream._finally_raise)})"
         )
+        return stream.upstream.accept(self)
 
     def visit_distinct_stream(self, stream: DistinctStream) -> str:
         self.methods_reprs.append(
@@ -67,18 +71,18 @@ class ToStringVisitor(Visitor[str], ABC):
         return stream.upstream.accept(self)
 
     def visit_adistinct_stream(self, stream: ADistinctStream) -> str:
-        return self.visit_atwin_stream(
-            self.visit_distinct_stream(cast(DistinctStream, stream))
+        self.methods_reprs.append(
+            f"adistinct({self.to_string(stream._key)}, consecutive_only={self.to_string(stream._consecutive_only)})"
         )
+        return stream.upstream.accept(self)
 
     def visit_filter_stream(self, stream: FilterStream) -> str:
         self.methods_reprs.append(f"filter({self.to_string(stream._when)})")
         return stream.upstream.accept(self)
 
     def visit_afilter_stream(self, stream: AFilterStream) -> str:
-        return self.visit_atwin_stream(
-            self.visit_filter_stream(cast(FilterStream, stream))
-        )
+        self.methods_reprs.append(f"afilter({self.to_string(stream._when)})")
+        return stream.upstream.accept(self)
 
     def visit_flatten_stream(self, stream: FlattenStream) -> str:
         self.methods_reprs.append(
@@ -87,9 +91,10 @@ class ToStringVisitor(Visitor[str], ABC):
         return stream.upstream.accept(self)
 
     def visit_aflatten_stream(self, stream: AFlattenStream) -> str:
-        return self.visit_atwin_stream(
-            self.visit_flatten_stream(cast(FlattenStream, stream))
+        self.methods_reprs.append(
+            f"aflatten(concurrency={self.to_string(stream._concurrency)})"
         )
+        return stream.upstream.accept(self)
 
     def visit_foreach_stream(self, stream: ForeachStream) -> str:
         via = f", via={self.to_string(stream._via)}" if stream._concurrency > 1 else ""
@@ -117,9 +122,10 @@ class ToStringVisitor(Visitor[str], ABC):
         return stream.upstream.accept(self)
 
     def visit_agroupby_stream(self, stream: AGroupbyStream) -> str:
-        return self.visit_atwin_stream(
-            self.visit_groupby_stream(cast(GroupbyStream, stream))
+        self.methods_reprs.append(
+            f"agroupby({self.to_string(stream._key)}, size={self.to_string(stream._size)}, interval={self.to_string(stream._interval)})"
         )
+        return stream.upstream.accept(self)
 
     def visit_map_stream(self, stream: MapStream) -> str:
         via = f", via={self.to_string(stream._via)}" if stream._concurrency > 1 else ""
@@ -145,7 +151,10 @@ class ToStringVisitor(Visitor[str], ABC):
         return stream.upstream.accept(self)
 
     def visit_askip_stream(self, stream: ASkipStream) -> str:
-        return self.visit_atwin_stream(self.visit_skip_stream(cast(SkipStream, stream)))
+        self.methods_reprs.append(
+            f"askip({self.to_string(stream._count)}, until={self.to_string(stream._until)})"
+        )
+        return stream.upstream.accept(self)
 
     def visit_throttle_stream(self, stream: ThrottleStream) -> str:
         self.methods_reprs.append(
@@ -160,9 +169,10 @@ class ToStringVisitor(Visitor[str], ABC):
         return stream.upstream.accept(self)
 
     def visit_atruncate_stream(self, stream: ATruncateStream) -> str:
-        return self.visit_atwin_stream(
-            self.visit_truncate_stream(cast(TruncateStream, stream))
+        self.methods_reprs.append(
+            f"atruncate(count={self.to_string(stream._count)}, when={self.to_string(stream._when)})"
         )
+        return stream.upstream.accept(self)
 
     def visit_stream(self, stream: Stream) -> str:
         methods_block = "".join(
