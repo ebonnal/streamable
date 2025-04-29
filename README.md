@@ -35,7 +35,7 @@ from streamable import Stream
 
 ## 3. init
 
-Create a `Stream[T]` *decorating* an `Iterable[T]`:
+Create a `Stream[T]` *decorating* an `Iterable[T]` (or an `AsyncIterable[T]`):
 
 ```python
 integers: Stream[int] = Stream(range(10))
@@ -85,10 +85,27 @@ Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`, eleme
 1.0
 ```
 
-# A/ ↕️ ***about ETL scripts***
+A `Stream[T]` is also an `AsyncIterable[T]` and can be consumed as such:
+
+- **`async for`**
+```python
+>>> async def collect(it: AsyncIterable[T]) -> List[T]:
+>>>     return [_ async for _ in it]
+
+>>> asyncio.run(collect(inverses))
+[1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
+```
+
+- **`aiter`/`anext`**
+```python
+>>> asyncio.run(anext(aiter(inverses)))
+[1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
+```
+
+# ↔️ **Extract-Transform-Load**
 
 > [!TIP]
-> **Extract-Transform-Load scripts** can benefit from the expressiveness of this library. Below is a pipeline that extracts the 67 quadruped Pokémon from the first three generations using [PokéAPI](https://pokeapi.co/) and loads them into a CSV:
+> **ETL scripts** can benefit from the expressiveness of this library. Below is a pipeline that extracts the 67 quadruped Pokémon from the first three generations using [PokéAPI](https://pokeapi.co/) and loads them into a CSV:
 
 ```python
 import csv
@@ -135,8 +152,7 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
     pipeline()
 ```
 
-### Or the `async` way
-(check the [*`async` support* section](#c--async-support)):
+## Or the `async` way
 
 ```python
 import asyncio
@@ -158,7 +174,7 @@ async def main() -> None:
                 Stream(itertools.count(1))
                 # Limits to 16 requests per second to be friendly to our fellow PokéAPI devs
                 .throttle(16, per=timedelta(seconds=1))
-                # GETs pokemons concurrently using a pool of 8 threads
+                # GETs pokemons via 8 concurrent asyncio coroutines
                 .map(lambda poke_id: f"https://pokeapi.co/api/v2/pokemon-species/{poke_id}")
                 .amap(http_async_client.get, concurrency=8)
                 .foreach(httpx.Response.raise_for_status)
@@ -188,7 +204,7 @@ async def main() -> None:
 asyncio.run(main())
 ```
 
-# A/ 📒 ***Operations***
+# 📒 ***Operations***
 
 *A dozen expressive lazy operations and that’s it!*
 
@@ -706,36 +722,7 @@ import pandas as pd
 ---
 ---
 
-# C/ 🔀 `async` support
-
-A `Stream[T]` is also an `AsyncIterable[T]`, it can be consumed as such:
-
-- **`async for`**
-```python
->>> async def collect(it: AsyncIterable[T]) -> List[T]:
->>>     return [_ async for _ in it]
-
->>> asyncio.run(collect(inverses))
-[1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
-```
-
-- **`aiter`/`anext`**
-```python
->>> asyncio.run(anext(aiter(inverses)))
-[1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
-```
-
-An `AsyncIterable[T]` can also be decorated as a `Stream[T]`:
-
-```python
-async def async_wrapped_range(start, end, step) -> AsyncIterator[float]:
-    for inverse in range(start, end, step):
-        yield inverse
-
-integers: Stream[int] = Stream(async_wrapped_range(0, 10))
-```
-
-## 📒 ***`async` Operations***
+# 📒 ***`async` twin Operations***
 
 All the operations having a function in their arguments have an async twin, which has the same signature, but takes an async function as argument. It has the same name but with a `a` prefix.
 
@@ -922,7 +909,7 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ---
 ---
 
-# D/ 💡 Notes
+# 💡 Notes
 
 ## Exceptions are not terminating the iteration
 
