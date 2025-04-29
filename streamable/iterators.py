@@ -13,6 +13,7 @@ from typing import (
     Any,
     AsyncIterable,
     AsyncIterator,
+    Awaitable,
     Callable,
     ContextManager,
     Coroutine,
@@ -804,53 +805,50 @@ class _ConcurrentAFlattenIterable(
         self.iterables_iterator = iterables_iterator
         self.concurrency = concurrency
         self.buffersize = buffersize
-
-    def _get_next(self, iterator_to_queue: AsyncIterator[T]) -> T:
-        return asyncio.run(awaitable_to_coroutine(iterator_to_queue.__anext__()))
+        self.event_loop = get_event_loop()
 
     def __iter__(self) -> Iterator[Union[T, _RaisingIterator.ExceptionContainer]]:
-        with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
-            iterator_and_future_pairs: Deque[Tuple[AsyncIterator[T], Future]] = deque()
-            element_to_yield: Deque[Union[T, _RaisingIterator.ExceptionContainer]] = (
-                deque(maxlen=1)
-            )
-            iterator_to_queue: Optional[AsyncIterator[T]] = None
-            # wait, queue, yield (FIFO)
-            while True:
-                if iterator_and_future_pairs:
-                    iterator, future = iterator_and_future_pairs.popleft()
-                    try:
-                        element_to_yield.append(future.result())
-                        iterator_to_queue = iterator
-                    except StopAsyncIteration:
-                        pass
-                    except Exception as e:
-                        element_to_yield.append(_RaisingIterator.ExceptionContainer(e))
-                        iterator_to_queue = iterator
+        iterator_and_future_pairs: Deque[Tuple[AsyncIterator[T], Awaitable[T]]] = (
+            deque()
+        )
+        element_to_yield: Deque[Union[T, _RaisingIterator.ExceptionContainer]] = deque(
+            maxlen=1
+        )
+        iterator_to_queue: Optional[AsyncIterator[T]] = None
+        # wait, queue, yield (FIFO)
+        while True:
+            if iterator_and_future_pairs:
+                iterator, future = iterator_and_future_pairs.popleft()
+                try:
+                    element_to_yield.append(self.event_loop.run_until_complete(future))
+                    iterator_to_queue = iterator
+                except StopAsyncIteration:
+                    pass
+                except Exception as e:
+                    element_to_yield.append(_RaisingIterator.ExceptionContainer(e))
+                    iterator_to_queue = iterator
 
-                # queue tasks up to buffersize
-                while len(iterator_and_future_pairs) < self.buffersize:
-                    if not iterator_to_queue:
-                        try:
-                            iterable = next(self.iterables_iterator)
-                        except StopIteration:
-                            break
-                        try:
-                            iterator_to_queue = aiter_wo_stopasynciteration(iterable)
-                        except Exception as e:
-                            yield _RaisingIterator.ExceptionContainer(e)
-                            continue
-                    future = executor.submit(
-                        self._get_next, cast(AsyncIterator, iterator_to_queue)
-                    )
-                    iterator_and_future_pairs.append(
-                        (cast(AsyncIterator, iterator_to_queue), future)
-                    )
-                    iterator_to_queue = None
-                if element_to_yield:
-                    yield element_to_yield.pop()
-                if not iterator_and_future_pairs:
-                    break
+            # queue tasks up to buffersize
+            while len(iterator_and_future_pairs) < self.buffersize:
+                if not iterator_to_queue:
+                    try:
+                        iterable = next(self.iterables_iterator)
+                    except StopIteration:
+                        break
+                    try:
+                        iterator_to_queue = aiter_wo_stopasynciteration(iterable)
+                    except Exception as e:
+                        yield _RaisingIterator.ExceptionContainer(e)
+                        continue
+                future = self.event_loop.create_task(
+                    awaitable_to_coroutine(cast(AsyncIterator, iterator_to_queue).__anext__())
+                )
+                iterator_and_future_pairs.append((cast(AsyncIterator, iterator_to_queue), future))
+                iterator_to_queue = None
+            if element_to_yield:
+                yield element_to_yield.pop()
+            if not iterator_and_future_pairs:
+                break
 
 
 class ConcurrentAFlattenIterator(_RaisingIterator[T]):
