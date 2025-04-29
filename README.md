@@ -154,7 +154,7 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
 
 ## Or the `async` way
 
-Leveraging the `.amap` operation (the async twin of `.map`), and consuming the pipeline as an `AsyncIterable[T]` via the `await pipeline` shorthand.
+Using `.amap` (the `.map`'s async twin operation) and `await`ing the stream (exhausts it as an `AsyncIterable[T]`):
 
 ```python
 import asyncio
