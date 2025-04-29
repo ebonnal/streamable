@@ -67,7 +67,7 @@ class TestReadme(unittest.TestCase):
         # but the `state` of the main process is not mutated
         assert state == []
 
-    def test_async_concurrent_map_example(self) -> None:
+    def test_amap_example(self) -> None:
         import asyncio
 
         import httpx
@@ -84,6 +84,23 @@ class TestReadme(unittest.TestCase):
 
         assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
         asyncio.run(http_async_client.aclose())
+
+    def test_async_amap_example(self) -> None:
+        import asyncio
+        import httpx
+
+        async def main() -> None:
+            async with httpx.AsyncClient() as http_async_client:
+                pokemon_names: Stream[str] = (
+                    Stream(range(1, 4))
+                    .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
+                    .amap(http_async_client.get, concurrency=3)
+                    .map(httpx.Response.json)
+                    .map(lambda poke: poke["name"])
+                )
+                assert [name async for name in pokemon_names] == ['bulbasaur', 'ivysaur', 'venusaur']
+
+        asyncio.run(main())
 
     def test_starmap_example(self) -> None:
         from streamable import star

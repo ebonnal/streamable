@@ -154,6 +154,8 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
 
 ## Or the `async` way
 
+Leveraging the `.amap` operation (the async twin of `.map`), and consuming the pipeline as an `AsyncIterable[T]` via the `await pipeline` shorthand.
+
 ```python
 import asyncio
 import csv
@@ -733,11 +735,14 @@ All the operations having a function in their arguments have an async twin, whic
 
 > Applies an `async` transformation on elements:
 
+
+### Consume as a `Iterable[T]`
+
 <details ><summary style="text-indent: 40px;">👀 show example</summary></br>
 
 ```python
-import httpx
 import asyncio
+import httpx
 
 http_async_client = httpx.AsyncClient()
 
@@ -751,6 +756,29 @@ pokemon_names: Stream[str] = (
 
 assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
 asyncio.run(http_async_client.aclose())
+```
+</details>
+
+### Consume as a `AsyncIterable[T]`
+
+<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+
+```python
+import asyncio
+import httpx
+
+async def main() -> None:
+    async with httpx.AsyncClient() as http_async_client:
+        pokemon_names: Stream[str] = (
+            Stream(range(1, 4))
+            .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
+            .amap(http_async_client.get, concurrency=3)
+            .map(httpx.Response.json)
+            .map(lambda poke: poke["name"])
+        )
+        assert [name async for name in pokemon_names] == ['bulbasaur', 'ivysaur', 'venusaur']
+
+asyncio.run(main())
 ```
 </details>
 
