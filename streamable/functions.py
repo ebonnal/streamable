@@ -60,7 +60,6 @@ U = TypeVar("U")
 
 def catch(
     iterator: Iterator[T],
-    /,
     errors: Union[
         Optional[Type[Exception]], Iterable[Optional[Type[Exception]]]
     ] = Exception,
@@ -85,7 +84,6 @@ def catch(
 
 def acatch(
     iterator: Iterator[T],
-    /,
     errors: Union[
         Optional[Type[Exception]], Iterable[Optional[Type[Exception]]]
     ] = Exception,
@@ -105,7 +103,6 @@ def acatch(
 
 def distinct(
     iterator: Iterator[T],
-    /,
     key: Optional[Callable[[T], Any]] = None,
     *,
     consecutive_only: bool = False,
@@ -119,7 +116,6 @@ def distinct(
 
 def adistinct(
     iterator: Iterator[T],
-    /,
     key: Optional[Callable[[T], Any]] = None,
     *,
     consecutive_only: bool = False,
@@ -131,7 +127,7 @@ def adistinct(
     )
 
 
-def flatten(iterator: Iterator[Iterable[T]], /, *, concurrency: int = 1) -> Iterator[T]:
+def flatten(iterator: Iterator[Iterable[T]], *, concurrency: int = 1) -> Iterator[T]:
     validate_iterator(iterator)
     validate_concurrency(concurrency)
     if concurrency == 1:
@@ -143,10 +139,7 @@ def flatten(iterator: Iterator[Iterable[T]], /, *, concurrency: int = 1) -> Iter
             buffersize=concurrency,
         )
 
-
-def aflatten(
-    iterator: Iterator[AsyncIterable[T]], /, *, concurrency: int = 1
-) -> Iterator[T]:
+def aflatten(iterator: Iterator[AsyncIterable[T]], *, concurrency: int = 1) -> Iterator[T]:
     validate_iterator(iterator)
     validate_concurrency(concurrency)
     if concurrency == 1:
@@ -161,7 +154,6 @@ def aflatten(
 
 def group(
     iterator: Iterator[T],
-    /,
     size: Optional[int] = None,
     *,
     interval: Optional[datetime.timedelta] = None,
@@ -177,7 +169,6 @@ def group(
 
 def groupby(
     iterator: Iterator[T],
-    /,
     key: Callable[[T], U],
     *,
     size: Optional[int] = None,
@@ -191,7 +182,6 @@ def groupby(
 
 def agroupby(
     iterator: Iterator[T],
-    /,
     key: Callable[[T], Coroutine[Any, Any, U]],
     *,
     size: Optional[int] = None,
@@ -208,7 +198,6 @@ def agroupby(
 def map(
     transformation: Callable[[T], U],
     iterator: Iterator[T],
-    /,
     *,
     concurrency: int = 1,
     ordered: bool = True,
@@ -235,7 +224,6 @@ def map(
 def amap(
     transformation: Callable[[T], Coroutine[Any, Any, U]],
     iterator: Iterator[T],
-    /,
     *,
     concurrency: int = 1,
     ordered: bool = True,
@@ -254,7 +242,7 @@ def amap(
     )
 
 
-def observe(iterator: Iterator[T], /, what: str) -> Iterator[T]:
+def observe(iterator: Iterator[T], what: str) -> Iterator[T]:
     validate_iterator(iterator)
     # validate_not_none(what, "what")
     return ObserveIterator(iterator, what)
@@ -262,7 +250,6 @@ def observe(iterator: Iterator[T], /, what: str) -> Iterator[T]:
 
 def skip(
     iterator: Iterator[T],
-    /,
     count: Optional[int] = None,
     *,
     until: Optional[Callable[[T], Any]] = None,
@@ -277,10 +264,8 @@ def skip(
         return CountSkipIterator(iterator, count)
     return iterator
 
-
 def askip(
     iterator: Iterator[T],
-    /,
     count: Optional[int] = None,
     *,
     until: Optional[Callable[[T], Coroutine[Any, Any, Any]]] = None,
@@ -291,10 +276,8 @@ def askip(
         until=syncify(until) if until else None,
     )
 
-
 def throttle(
     iterator: Iterator[T],
-    /,
     count: Optional[int],
     *,
     per: Optional[datetime.timedelta] = None,
@@ -308,7 +291,6 @@ def throttle(
 
 def truncate(
     iterator: Iterator[T],
-    /,
     count: Optional[int] = None,
     *,
     when: Optional[Callable[[T], Any]] = None,
@@ -324,7 +306,6 @@ def truncate(
 
 def atruncate(
     iterator: Iterator[T],
-    /,
     count: Optional[int] = None,
     *,
     when: Optional[Callable[[T], Coroutine[Any, Any, Any]]] = None,

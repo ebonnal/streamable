@@ -62,7 +62,6 @@ U = TypeVar("U")
 
 def catch(
     aiterator: AsyncIterator[T],
-    /,
     errors: Union[
         Optional[Type[Exception]], Iterable[Optional[Type[Exception]]]
     ] = Exception,
@@ -82,7 +81,6 @@ def catch(
 
 def acatch(
     aiterator: AsyncIterator[T],
-    /,
     errors: Union[
         Optional[Type[Exception]], Iterable[Optional[Type[Exception]]]
     ] = Exception,
@@ -109,7 +107,6 @@ def acatch(
 
 def distinct(
     aiterator: AsyncIterator[T],
-    /,
     key: Optional[Callable[[T], Any]] = None,
     *,
     consecutive_only: bool = False,
@@ -123,7 +120,6 @@ def distinct(
 
 def adistinct(
     aiterator: AsyncIterator[T],
-    /,
     key: Optional[Callable[[T], Coroutine[Any, Any, Any]]] = None,
     *,
     consecutive_only: bool = False,
@@ -137,7 +133,6 @@ def adistinct(
 
 def filter(
     aiterator: AsyncIterator[T],
-    /,
     when: Callable[[T], Any],
 ) -> AsyncIterator[T]:
     return afilter(aiterator, asyncify(when))
@@ -145,7 +140,6 @@ def filter(
 
 def afilter(
     aiterator: AsyncIterator[T],
-    /,
     when: Callable[[T], Any],
 ) -> AsyncIterator[T]:
     validate_aiterator(aiterator)
@@ -153,7 +147,7 @@ def afilter(
 
 
 def flatten(
-    aiterator: AsyncIterator[Iterable[T]], /, *, concurrency: int = 1
+    aiterator: AsyncIterator[Iterable[T]], *, concurrency: int = 1
 ) -> AsyncIterator[T]:
     validate_aiterator(aiterator)
     validate_concurrency(concurrency)
@@ -168,7 +162,7 @@ def flatten(
 
 
 def aflatten(
-    aiterator: AsyncIterator[AsyncIterable[T]], /, *, concurrency: int = 1
+    aiterator: AsyncIterator[AsyncIterable[T]], *, concurrency: int = 1
 ) -> AsyncIterator[T]:
     validate_aiterator(aiterator)
     validate_concurrency(concurrency)
@@ -184,7 +178,6 @@ def aflatten(
 
 def group(
     aiterator: AsyncIterator[T],
-    /,
     size: Optional[int] = None,
     *,
     interval: Optional[datetime.timedelta] = None,
@@ -200,7 +193,6 @@ def group(
 
 def agroup(
     aiterator: AsyncIterator[T],
-    /,
     size: Optional[int] = None,
     *,
     interval: Optional[datetime.timedelta] = None,
@@ -216,7 +208,6 @@ def agroup(
 
 def groupby(
     aiterator: AsyncIterator[T],
-    /,
     key: Callable[[T], U],
     *,
     size: Optional[int] = None,
@@ -227,7 +218,6 @@ def groupby(
 
 def agroupby(
     aiterator: AsyncIterator[T],
-    /,
     key: Callable[[T], Coroutine[Any, Any, U]],
     *,
     size: Optional[int] = None,
@@ -242,7 +232,6 @@ def agroupby(
 def map(
     transformation: Callable[[T], U],
     aiterator: AsyncIterator[T],
-    /,
     *,
     concurrency: int = 1,
     ordered: bool = True,
@@ -269,7 +258,6 @@ def map(
 def amap(
     transformation: Callable[[T], Coroutine[Any, Any, U]],
     aiterator: AsyncIterator[T],
-    /,
     *,
     concurrency: int = 1,
     ordered: bool = True,
@@ -288,7 +276,7 @@ def amap(
     )
 
 
-def observe(aiterator: AsyncIterator[T], /, what: str) -> AsyncIterator[T]:
+def observe(aiterator: AsyncIterator[T], what: str) -> AsyncIterator[T]:
     validate_aiterator(aiterator)
     # validate_not_none(what, "what")
     return ObserveAsyncIterator(aiterator, what)
@@ -296,7 +284,6 @@ def observe(aiterator: AsyncIterator[T], /, what: str) -> AsyncIterator[T]:
 
 def skip(
     aiterator: AsyncIterator[T],
-    /,
     count: Optional[int] = None,
     *,
     until: Optional[Callable[[T], Any]] = None,
@@ -310,7 +297,6 @@ def skip(
 
 def askip(
     aiterator: AsyncIterator[T],
-    /,
     count: Optional[int] = None,
     *,
     until: Optional[Callable[[T], Coroutine[Any, Any, Any]]] = None,
@@ -328,7 +314,6 @@ def askip(
 
 def throttle(
     aiterator: AsyncIterator[T],
-    /,
     count: Optional[int],
     *,
     per: Optional[datetime.timedelta] = None,
@@ -342,7 +327,6 @@ def throttle(
 
 def truncate(
     aiterator: AsyncIterator[T],
-    /,
     count: Optional[int] = None,
     *,
     when: Optional[Callable[[T], Any]] = None,
@@ -356,7 +340,6 @@ def truncate(
 
 def atruncate(
     aiterator: AsyncIterator[T],
-    /,
     count: Optional[int] = None,
     *,
     when: Optional[Callable[[T], Coroutine[Any, Any, Any]]] = None,
