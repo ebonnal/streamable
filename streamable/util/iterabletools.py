@@ -20,8 +20,3 @@ async def _aiter_to_set(aiterable: AsyncIterable[T]) -> Set[T]:
 
 def aiterable_to_set(aiterable: AsyncIterable[T]) -> Set[T]:
     return get_event_loop().run_until_complete(_aiter_to_set(aiterable))
-
-
-async def arange(start: int, end: int, step: int = 1) -> AsyncIterator[int]:
-    for i in range(start, end, step):
-        yield i
