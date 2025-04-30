@@ -22,10 +22,10 @@ def validate_iterator(iterator: Iterator):
         raise TypeError(f"`iterator` must be an Iterator but got a {type(iterator)}")
 
 
-def validate_aiterator(iterator: AsyncIterator):
-    if not isinstance(iterator, AsyncIterator):
+def validate_aiterator(aiterator: AsyncIterator):
+    if not isinstance(aiterator, AsyncIterator):
         raise TypeError(
-            f"`iterator` must be an AsyncIterator but got a {type(iterator)}"
+            f"`aiterator` must be an AsyncIterator but got a {type(aiterator)}"
         )
 
 

@@ -1572,6 +1572,14 @@ class TestStream(unittest.TestCase):
             from streamable.functions import catch
 
             catch(cast(Iterator[int], [3, 4]), Exception)
+        with self.assertRaisesRegex(
+            TypeError,
+            "`iterator` must be an Iterator but got a <class 'list'>",
+            msg="`afunctions.catch` function should raise TypeError when first argument is not an AsyncIterator",
+        ):
+            from streamable import afunctions
+
+            afunctions.catch(cast(AsyncIterator[int], [3, 4]), Exception)
 
         with self.assertRaisesRegex(
             TypeError,
