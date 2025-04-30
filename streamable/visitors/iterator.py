@@ -1,7 +1,7 @@
 from typing import AsyncIterable, Iterable, Iterator, TypeVar, cast
 
 from streamable import functions
-from streamable.aiterators import AsyncToSyncIterator
+from streamable.aiterators import BiIterator
 from streamable.stream import (
     ACatchStream,
     ADistinctStream,
@@ -206,13 +206,13 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         if isinstance(stream.source, Iterable):
             return iter(stream.source)
         elif isinstance(stream.source, AsyncIterable):
-            return AsyncToSyncIterator(stream.source.__aiter__())
+            return BiIterator(stream.source.__aiter__())
         elif callable(stream.source):
             iterable = stream.source()
             if isinstance(iterable, Iterable):
                 return iter(iterable)
             elif isinstance(iterable, AsyncIterable):
-                return AsyncToSyncIterator(iterable.__aiter__())
+                return BiIterator(iterable.__aiter__())
             if not isinstance(iterable, Iterable):
                 raise TypeError(
                     f"`source` must be an Iterable/AsyncIterable or a Callable[[], Iterable/AsyncIterable] but got a Callable[[], {type(iterable)}]"

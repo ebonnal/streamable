@@ -39,7 +39,7 @@ from typing import (
 from parameterized import parameterized  # type: ignore
 
 from streamable import Stream
-from streamable.aiterators import SyncToAsyncIterator
+from streamable.aiterators import BiIterator
 from streamable.util.asynctools import await_result
 from streamable.util.functiontools import WrappedError, asyncify, star
 from streamable.util.iterabletools import aiterable_to_list, aiterable_to_set
@@ -293,7 +293,7 @@ class TestStream(unittest.TestCase):
             .map(star(lambda key, group: group))
             .observe("groups")
             .flatten(concurrency=4)
-            .map(lambda g: cast(AsyncIterator, SyncToAsyncIterator(iter(g))))
+            .map(lambda g: cast(AsyncIterator, BiIterator(iter(g))))
             .aflatten(concurrency=4)
             .map(lambda _: 0)
             .throttle(
@@ -434,7 +434,7 @@ class TestStream(unittest.TestCase):
         ]
     )
     def test_sanitize_concurrency(self, method, args) -> None:
-        stream = Stream(SyncToAsyncIterator(iter(src)))
+        stream = Stream(BiIterator(iter(src)))
         with self.assertRaises(
             TypeError,
             msg=f"`{method}` should be raising TypeError for non-int concurrency.",
@@ -719,7 +719,7 @@ class TestStream(unittest.TestCase):
             for itype in ITERABLE_TYPES
             for flatten, iterator_cast in [
                 (Stream.flatten, identity),
-                (Stream.aflatten, SyncToAsyncIterator),
+                (Stream.aflatten, BiIterator),
             ]
         ]
     )
@@ -816,13 +816,14 @@ class TestStream(unittest.TestCase):
 
     @parameterized.expand(
         [
-            [exception_type, mapped_exception_type, concurrency, itype]
+            [exception_type, mapped_exception_type, concurrency, itype, flatten]
             for exception_type, mapped_exception_type in [
                 (TestError, TestError),
                 (StopIteration, WrappedError),
             ]
             for concurrency in [1, 2]
             for itype in ITERABLE_TYPES
+            for flatten in (Stream.flatten, Stream.aflatten)
         ]
     )
     def test_flatten_with_exception(
@@ -831,6 +832,7 @@ class TestStream(unittest.TestCase):
         mapped_exception_type: Type[Exception],
         concurrency: int,
         itype: IterableType,
+        flatten: Callable,
     ) -> None:
         n_iterables = 5
 
@@ -839,17 +841,21 @@ class TestStream(unittest.TestCase):
                 raise exception_type
 
         res: Set[int] = to_set(
-            Stream(
-                map(
-                    lambda i: (
-                        IterableRaisingInIter()
-                        if i % 2
-                        else cast(Iterable[int], range(i, i + 1))
-                    ),
-                    range(n_iterables),
-                )
+            flatten(
+                Stream(
+                    BiIterator(
+                        map(
+                            lambda i: (
+                                IterableRaisingInIter()
+                                if i % 2
+                                else cast(Iterable[int], range(i, i + 1))
+                            ),
+                            BiIterator(iter(range(n_iterables))),
+                        )
+                    )
+                ),
+                concurrency=concurrency,
             )
-            .flatten(concurrency=concurrency)
             .catch(mapped_exception_type),
             itype=itype,
         )

@@ -1,7 +1,7 @@
 from typing import AsyncIterable, Iterable, AsyncIterator, TypeVar, cast
 
 from streamable import afunctions
-from streamable.aiterators import SyncToAsyncIterator
+from streamable.aiterators import BiIterator
 from streamable.stream import (
     ACatchStream,
     ADistinctStream,
@@ -198,13 +198,13 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
 
     def visit_stream(self, stream: Stream[T]) -> AsyncIterator[T]:
         if isinstance(stream.source, Iterable):
-            return SyncToAsyncIterator(iter(stream.source))
+            return BiIterator(iter(stream.source))
         elif isinstance(stream.source, AsyncIterable):
             return stream.source.__aiter__()
         elif callable(stream.source):
             iterable = stream.source()
             if isinstance(iterable, Iterable):
-                return SyncToAsyncIterator(iter(iterable))
+                return BiIterator(iter(iterable))
             elif isinstance(iterable, AsyncIterable):
                 return iterable.__aiter__()
             if not isinstance(iterable, Iterable):
