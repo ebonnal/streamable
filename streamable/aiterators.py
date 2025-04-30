@@ -931,7 +931,6 @@ class ConcurrentAFlattenAsyncIterator(_RaisingAsyncIterator[T]):
         )
 
 
-
 class BiIterator(Iterator[T], AsyncIterator[T]):
     def __init__(self, iterator: Union[Iterator[T], AsyncIterator[T]]):
         self.iterator: Union[Iterator[T], AsyncIterator[T]] = iterator
@@ -943,7 +942,9 @@ class BiIterator(Iterator[T], AsyncIterator[T]):
         if isinstance(self.iterator, Iterator):
             return self.iterator.__next__()
         try:
-            return cast(asyncio.AbstractEventLoop, self.event_loop).run_until_complete(self.iterator.__anext__())
+            return cast(asyncio.AbstractEventLoop, self.event_loop).run_until_complete(
+                self.iterator.__anext__()
+            )
         except StopAsyncIteration as e:
             raise StopIteration() from e
 

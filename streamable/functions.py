@@ -139,7 +139,10 @@ def flatten(iterator: Iterator[Iterable[T]], *, concurrency: int = 1) -> Iterato
             buffersize=concurrency,
         )
 
-def aflatten(iterator: Iterator[AsyncIterable[T]], *, concurrency: int = 1) -> Iterator[T]:
+
+def aflatten(
+    iterator: Iterator[AsyncIterable[T]], *, concurrency: int = 1
+) -> Iterator[T]:
     validate_iterator(iterator)
     validate_concurrency(concurrency)
     if concurrency == 1:
@@ -264,6 +267,7 @@ def skip(
         return CountSkipIterator(iterator, count)
     return iterator
 
+
 def askip(
     iterator: Iterator[T],
     count: Optional[int] = None,
@@ -275,6 +279,7 @@ def askip(
         count,
         until=syncify(until) if until else None,
     )
+
 
 def throttle(
     iterator: Iterator[T],

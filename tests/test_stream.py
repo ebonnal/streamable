@@ -766,9 +766,12 @@ class TestStream(unittest.TestCase):
         [
             (flatten, itype, slow)
             for flatten, slow in (
-                    (Stream.flatten, partial(Stream.map, transformation=slow_identity)),
-                    (Stream.aflatten, partial(Stream.amap, transformation=async_slow_identity)),
-                )
+                (Stream.flatten, partial(Stream.map, transformation=slow_identity)),
+                (
+                    Stream.aflatten,
+                    partial(Stream.amap, transformation=async_slow_identity),
+                ),
+            )
             for itype in ITERABLE_TYPES
         ]
     )
@@ -855,8 +858,7 @@ class TestStream(unittest.TestCase):
                     )
                 ),
                 concurrency=concurrency,
-            )
-            .catch(mapped_exception_type),
+            ).catch(mapped_exception_type),
             itype=itype,
         )
         self.assertSetEqual(
