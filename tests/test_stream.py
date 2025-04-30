@@ -1,6 +1,7 @@
 import asyncio
 import copy
 import datetime
+from functools import partial
 import gc
 import logging
 import math
@@ -427,11 +428,13 @@ class TestStream(unittest.TestCase):
             [Stream.map, [identity]],
             [Stream.amap, [async_identity]],
             [Stream.foreach, [identity]],
+            [Stream.aforeach, [identity]],
             [Stream.flatten, []],
+            [Stream.aflatten, []],
         ]
     )
     def test_sanitize_concurrency(self, method, args) -> None:
-        stream = Stream(src)
+        stream = Stream(SyncToAsyncIterator(iter(src)))
         with self.assertRaises(
             TypeError,
             msg=f"`{method}` should be raising TypeError for non-int concurrency.",
@@ -759,17 +762,30 @@ class TestStream(unittest.TestCase):
         # test typing with ranges
         _: Stream[int] = Stream((src, src)).flatten()
 
-    @parameterized.expand(ITERABLE_TYPES)
-    def test_flatten_concurrency(self, itype) -> None:
+    @parameterized.expand(
+        [
+            (flatten, itype, slow)
+            for flatten, slow in (
+                    (Stream.flatten, partial(Stream.map, transformation=slow_identity)),
+                    (Stream.aflatten, partial(Stream.amap, transformation=async_slow_identity)),
+                )
+            for itype in ITERABLE_TYPES
+        ]
+    )
+    def test_flatten_concurrency(self, flatten, itype, slow) -> None:
+        concurrency = 2
         iterable_size = 5
         runtime, res = timestream(
-            Stream(
-                lambda: [
-                    Stream(map(slow_identity, ["a"] * iterable_size)),
-                    Stream(map(slow_identity, ["b"] * iterable_size)),
-                    Stream(map(slow_identity, ["c"] * iterable_size)),
-                ]
-            ).flatten(concurrency=2),
+            flatten(
+                Stream(
+                    lambda: [
+                        slow(Stream(["a"] * iterable_size)),
+                        slow(Stream(["b"] * iterable_size)),
+                        slow(Stream(["c"] * iterable_size)),
+                    ]
+                ),
+                concurrency=concurrency,
+            ),
             times=3,
             itype=itype,
         )
@@ -779,7 +795,7 @@ class TestStream(unittest.TestCase):
             msg="`flatten` should process 'a's and 'b's concurrently and then 'c's",
         )
         a_runtime = b_runtime = c_runtime = iterable_size * slow_identity_duration
-        expected_runtime = (a_runtime + b_runtime) / 2 + c_runtime
+        expected_runtime = (a_runtime + b_runtime) / concurrency + c_runtime
         self.assertAlmostEqual(
             runtime,
             expected_runtime,
