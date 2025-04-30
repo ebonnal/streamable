@@ -303,7 +303,9 @@ class TestStream(unittest.TestCase):
             .catch(finally_raise=True, when=identity)
             .acatch(finally_raise=True, when=async_identity)
             .catch((TypeError, ValueError, None, ZeroDivisionError))
+            .acatch((TypeError, ValueError, None, ZeroDivisionError))
             .catch(TypeError, replacement=1, finally_raise=True)
+            .acatch(TypeError, replacement=1, finally_raise=True)
         )
 
         print(repr(complex_stream))
