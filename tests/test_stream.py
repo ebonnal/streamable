@@ -376,7 +376,9 @@ class TestStream(unittest.TestCase):
     .catch(Exception, when=identity, finally_raise=True)
     .acatch(Exception, when=async_identity, finally_raise=True)
     .catch((TypeError, ValueError, None, ZeroDivisionError), when=None, finally_raise=False)
+    .acatch((TypeError, ValueError, None, ZeroDivisionError), when=None, finally_raise=False)
     .catch(TypeError, when=None, replacement=1, finally_raise=True)
+    .acatch(TypeError, when=None, replacement=1, finally_raise=True)
 )""",
             msg="`repr` should work as expected on a stream with many operation",
         )
