@@ -154,7 +154,7 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
 
 ## Or the `async` way
 
-Using `.amap` (the `.map`'s async twin operation) and `await`ing the stream (exhausts it as an `AsyncIterable[T]`):
+Using `.amap` (the `.map`'s `async` counterpart) and `await`ing the stream (exhausts it as an `AsyncIterable[T]`):
 
 ```python
 import asyncio
@@ -272,7 +272,7 @@ if __name__ == "__main__":
 
 ### `async`-based concurrency: [see `.amap`](#amap)
 
-> [The twin operation `.amap` can apply an `async` function concurrently.](#amap)
+> [The `.amap` operation can apply an `async` function concurrently.](#amap)
 
 ### "starmap"
 
@@ -315,7 +315,7 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 > - set the `concurrency` parameter for **thread-based concurrency**
 > - set `via="process"` for **process-based concurrency**
 > - set `ordered=False` for ***First Done First Out***
-> - [The twin operation `.aforeach` can applies an `async` effect concurrently.](#aforeach)
+> - [The `.aforeach` operation can apply an `async` effect concurrently.](#aforeach)
 
 ## `.group`
 
@@ -724,9 +724,9 @@ import pandas as pd
 ---
 ---
 
-# 📒 ***`async` twin Operations***
+# 📒 ***`async` Operations***
 
-All the operations having a function in their arguments have an async twin, which has the same signature, but takes an async function as argument. It has the same name but with a `a` prefix.
+Operations that accept a function as an argument have an `async` counterpart, which has the same signature but accepts `async` functions instead. These `async` operations are named the same as the original ones but with an `a` prefix.
 
 > [!TIP]
 > One can mix regular and `async` operations on the same stream, and then consume it as a regular `Iterable` or as an `AsyncIterable`.
