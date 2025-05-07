@@ -838,12 +838,12 @@ assert asyncio.run(integers.acount()) == 10
 <details ><summary style="text-indent: 40px;">👀 show example</summary></br>
 
 ```python
-state: List[int] = []
-appending_integers: Stream[int] = integers.foreach(state.append)
-async def await_integers() -> Stream[int]:
-    return await appending_integers
-assert asyncio.run(await_integers()) is appending_integers
-assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+async def test_await() -> None:
+    state: List[int] = []
+    appending_integers: Stream[int] = integers.foreach(state.append)
+    appending_integers is await appending_integers
+    assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+asyncio.run(test_await())
 ```
 </details>
 
