@@ -789,21 +789,7 @@ asyncio.run(main())
 
 ## `.agroupby`
 
-> Groups into `(key, elements)` tuples, according to an `async` grouping function:
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
-
-```python
-async def async_key(n: int) -> str:
-    return "odd" if n % 2 else "even"
-
-integers_by_parity: Stream[Tuple[str, List[int]]] = (
-    integers
-    .agroupby(async_key)
-)
-
-assert list(integers_by_parity) == [("even", [0, 2, 4, 6, 8]), ("odd", [1, 3, 5, 7, 9])]
-```
-</details>
+> Groups into `(key, elements)` tuples, according to an `async` grouping function.
 
 ## `.aflatten`
 
@@ -813,96 +799,23 @@ assert list(integers_by_parity) == [("even", [0, 2, 4, 6, 8]), ("odd", [1, 3, 5,
 
 ## `.afilter`
 
-> Keeps only the elements that satisfy an `async` condition:
-
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
-
-```python
-async def async_condition(n: int) -> bool:
-    return n % 2 == 0
-
-even_integers: Stream[int] = integers.afilter(async_condition)
-
-assert list(even_integers) == [0, 2, 4, 6, 8]
-```
-</details>
+> Keeps only the elements that satisfy an `async` condition.
 
 ## `.adistinct`
 
-> Removes duplicates according to an `async` deduplication `key`:
-
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
-
-```python
-async def async_len(l: list) -> int:
-    return len(l)
-
-strings_of_distinct_lengths: Stream[str] = (
-    Stream(["a", "foo", "bar", "z"])
-    .adistinct(async_len)
-)
-
-assert list(strings_of_distinct_lengths) == ["a", "foo"]
-```
-</details>
+> Removes duplicates according to an `async` deduplication `key`.
 
 ## `.atruncate`
 
-> Ends iteration once a given number of elements have been yielded or `when` an `async` condition is satisfied:
-
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
-
-```python
-async def async_eq_5(n: int) -> bool:
-    return n == 5
-
-five_first_integers: Stream[int] = integers.atruncate(when=async_eq_5)
-
-assert list(five_first_integers) == [0, 1, 2, 3, 4]
-```
-</details>
+> Ends iteration once a given number of elements have been yielded or `when` an `async` condition is satisfied.
 
 ## `.askip`
 
-> Skips the specified number of elements or `until` an `async` predicate is satisfied:
-
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
-
-```python
-async def async_gte_5(n: int) -> bool:
-    return n >= 5
-
-integers_after_five: Stream[int] = integers.askip(until=async_gte_5)
-
-assert list(integers_after_five) == [5, 6, 7, 8, 9]
-```
-</details>
-
-> If both `count` and `until` are set, skipping stops as soon as either condition is met.
+> Skips the specified number of elements or `until` an `async` predicate is satisfied.
 
 ## `.acatch`
 
 > Catches a given type of exception `when` an `async` condition is satisfied.
-
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
-
-```python
-import requests
-from requests.exceptions import ConnectionError
-
-async def async_catch_condition(error: Exception) -> bool:
-    return "Max retries exceeded with url" in str(error)
-
-status_codes_ignoring_resolution_errors: Stream[int] = (
-    Stream(["https://github.com", "https://foo.bar", "https://github.com/foo/bar"])
-    .map(requests.get, concurrency=2)
-    .acatch(ConnectionError, when=async_catch_condition)
-    .map(lambda response: response.status_code)
-)
-
-assert list(status_codes_ignoring_resolution_errors) == [200, 404]
-```
-</details>
 
 ## Shorthands for consuming the stream as an `AsyncIterable[T]`
 
