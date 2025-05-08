@@ -931,6 +931,22 @@ class ConcurrentAFlattenAsyncIterator(_RaisingAsyncIterator[T]):
         )
 
 
+class BiIterable(Iterable[T], AsyncIterable[T]):
+    def __init__(self, iterable: Union[Iterable[T], AsyncIterable[T]]):
+        self.iterable = iterable
+    
+    def __iter__(self) -> Iterator[T]:
+        if isinstance(self.iterable, Iterable):
+            return iter(self.iterable)
+        return BiIterator(self.iterable.__aiter__())
+
+    def __aiter__(self) -> AsyncIterator[T]:
+        if isinstance(self.iterable, AsyncIterable):
+            return self.iterable.__aiter__()
+        return BiIterator(iter(self.iterable))
+        
+
+
 class BiIterator(Iterator[T], AsyncIterator[T]):
     def __init__(self, iterator: Union[Iterator[T], AsyncIterator[T]]):
         self.iterator: Union[Iterator[T], AsyncIterator[T]] = iterator

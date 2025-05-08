@@ -39,7 +39,7 @@ from typing import (
 from parameterized import parameterized  # type: ignore
 
 from streamable import Stream
-from streamable.aiterators import BiIterator
+from streamable.aiterators import BiIterable, BiIterator
 from streamable.util.asynctools import await_result
 from streamable.util.functiontools import WrappedError, asyncify, star
 from streamable.util.iterabletools import aiterable_to_list, aiterable_to_set
@@ -849,12 +849,10 @@ class TestStream(unittest.TestCase):
             flatten(
                 Stream(range(n_iterables))
                 .map(lambda i:
-                    BiIterator(
-                        iter(
-                            IterableRaisingInIter()
-                            if i % 2
-                            else range(i, i + 1)
-                        )
+                    BiIterable(
+                        IterableRaisingInIter()
+                        if i % 2
+                        else range(i, i + 1)
                     )
                 ),
                 concurrency=concurrency,
@@ -864,7 +862,7 @@ class TestStream(unittest.TestCase):
         self.assertSetEqual(
             res,
             set(range(0, n_iterables, 2)),
-            msg="At any concurrency the `flatten` method should be resilient to exceptions thrown by iterators, especially it should remap StopIteration one to PacifiedStopIteration.",
+            msg="At any concurrency the `flatten` method should be resilient to exceptions thrown by iterators, especially it should wrap (Async)StopIteration.",
         )
 
         class IteratorRaisingInNext(Iterator[int]):
@@ -898,7 +896,7 @@ class TestStream(unittest.TestCase):
         self.assertSetEqual(
             res,
             set(range(0, n_iterables, 2)),
-            msg="At any concurrency the `flatten` method should be resilient to exceptions thrown by iterators, especially it should remap StopIteration one to PacifiedStopIteration.",
+            msg="At any concurrency the `flatten` method should be resilient to exceptions thrown by iterators, especially it should wrap (Async)StopIteration.",
         )
 
     @parameterized.expand(
