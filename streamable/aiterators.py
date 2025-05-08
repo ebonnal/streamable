@@ -39,7 +39,7 @@ from streamable.util.asynctools import (
 )
 from streamable.util.functiontools import (
     awrap_error,
-    iter_wo_stopiteration,
+    iter_wo_stopasynciteration,
     aiter_wo_stopasynciteration,
     wrap_error,
 )
@@ -164,7 +164,7 @@ class FlattenAsyncIterator(AsyncIterator[U]):
             try:
                 return next(self._current_iterator_elem)
             except StopIteration:
-                self._current_iterator_elem = iter_wo_stopiteration(
+                self._current_iterator_elem = iter_wo_stopasynciteration(
                     await self.iterator.__anext__()
                 )
 
@@ -820,7 +820,7 @@ class _ConcurrentFlattenAsyncIterable(
                         except StopAsyncIteration:
                             break
                         try:
-                            iterator_to_queue = iter_wo_stopiteration(iterable)
+                            iterator_to_queue = iter_wo_stopasynciteration(iterable)
                         except Exception as e:
                             yield _RaisingAsyncIterator.ExceptionContainer(e)
                             continue
@@ -934,7 +934,7 @@ class ConcurrentAFlattenAsyncIterator(_RaisingAsyncIterator[T]):
 class BiIterable(Iterable[T], AsyncIterable[T]):
     def __init__(self, iterable: Union[Iterable[T], AsyncIterable[T]]):
         self.iterable = iterable
-    
+
     def __iter__(self) -> Iterator[T]:
         if isinstance(self.iterable, Iterable):
             return iter(self.iterable)
@@ -944,7 +944,6 @@ class BiIterable(Iterable[T], AsyncIterable[T]):
         if isinstance(self.iterable, AsyncIterable):
             return self.iterable.__aiter__()
         return BiIterator(iter(self.iterable))
-        
 
 
 class BiIterator(Iterator[T], AsyncIterator[T]):

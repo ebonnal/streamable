@@ -839,6 +839,7 @@ class TestStream(unittest.TestCase):
         itype: IterableType,
         flatten: Callable,
     ) -> None:
+
         n_iterables = 5
 
         class IterableRaisingInIter(Iterable[int]):
@@ -847,12 +848,9 @@ class TestStream(unittest.TestCase):
 
         res: Set[int] = to_set(
             flatten(
-                Stream(range(n_iterables))
-                .map(lambda i:
-                    BiIterable(
-                        IterableRaisingInIter()
-                        if i % 2
-                        else range(i, i + 1)
+                Stream(range(n_iterables)).map(
+                    lambda i: BiIterable(
+                        IterableRaisingInIter() if i % 2 else range(i, i + 1)
                     )
                 ),
                 concurrency=concurrency,

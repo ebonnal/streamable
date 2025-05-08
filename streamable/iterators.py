@@ -33,7 +33,6 @@ from typing import (
     cast,
 )
 
-from streamable.util import asynctools
 from streamable.util.asynctools import (
     awaitable_to_coroutine,
     empty_aiter,
@@ -41,7 +40,7 @@ from streamable.util.asynctools import (
 )
 from streamable.util.functiontools import (
     iter_wo_stopiteration,
-    aiter_wo_stopasynciteration,
+    aiter_wo_stopiteration,
     wrap_error,
 )
 from streamable.util.loggertools import get_logger
@@ -178,7 +177,7 @@ class AFlattenIterator(Iterator[U]):
                     self._current_iterator_elem.__anext__()
                 )
             except StopAsyncIteration:
-                self._current_iterator_elem = aiter_wo_stopasynciteration(
+                self._current_iterator_elem = aiter_wo_stopiteration(
                     next(self.iterator)
                 )
 
@@ -836,7 +835,7 @@ class _ConcurrentAFlattenIterable(
                     except StopIteration:
                         break
                     try:
-                        iterator_to_queue = aiter_wo_stopasynciteration(iterable)
+                        iterator_to_queue = aiter_wo_stopiteration(iterable)
                     except Exception as e:
                         yield _RaisingIterator.ExceptionContainer(e)
                         continue
