@@ -847,7 +847,7 @@ class TestStream(unittest.TestCase):
 
         res: Set[int] = to_set(
             flatten(
-                Stream(BiIterator(iter(range(n_iterables))))
+                Stream(range(n_iterables))
                 .map(lambda i:
                     BiIterator(
                         iter(
