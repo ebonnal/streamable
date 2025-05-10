@@ -39,7 +39,7 @@ from typing import (
 from parameterized import parameterized  # type: ignore
 
 from streamable import Stream
-from streamable.aiterators import SyncToAsyncIterable
+from streamable.aiterators import SyncToAsyncIterable, SyncToAsyncIterator
 from streamable.util.asynctools import await_result
 from streamable.util.functiontools import WrappedError, asyncify, star
 from streamable.util.iterabletools import aiterable_to_list, aiterable_to_set
@@ -1592,12 +1592,12 @@ class TestStream(unittest.TestCase):
             catch(cast(Iterator[int], [3, 4]), Exception)
         with self.assertRaisesRegex(
             TypeError,
-            "`iterator` must be an Iterator but got a <class 'list'>",
+            "`iterator` must be an AsyncIterator but got a <class 'list'>",
             msg="`afunctions.catch` function should raise TypeError when first argument is not an AsyncIterator",
         ):
             from streamable import afunctions
 
-            afunctions.catch(cast(AsyncIterator[int], [3, 4]), Exception)
+            afunctions.catch(cast(AsyncIterator, [3, 4]), Exception)
 
         with self.assertRaisesRegex(
             TypeError,

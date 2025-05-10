@@ -938,7 +938,7 @@ class SyncToAsyncIterable(Iterable[T], AsyncIterable[T]):
         return iter(self.iterable)
 
     def __aiter__(self) -> AsyncIterator[T]:
-        return SyncToAsyncIterator(iter(self.iterable))
+        return SyncToAsyncIterator(self.iterable)
 class AsyncToSyncIterable(Iterable[T], AsyncIterable[T]):
     def __init__(self, iterable: AsyncIterable[T]):
         self.iterable = iterable
@@ -950,8 +950,8 @@ class AsyncToSyncIterable(Iterable[T], AsyncIterable[T]):
         return self.iterable.__aiter__()
 
 class SyncToAsyncIterator(Iterator[T], AsyncIterator[T]):
-    def __init__(self, iterator: Iterator[T]):
-        self.iterator = iterator
+    def __init__(self, iterator: Iterable[T]):
+        self.iterator: Iterator[T] = iter(iterator)
 
     def __next__(self) -> T:
         return self.iterator.__next__()
@@ -963,8 +963,8 @@ class SyncToAsyncIterator(Iterator[T], AsyncIterator[T]):
             raise StopAsyncIteration() from e
 
 class AsyncToSyncIterator(Iterator[T], AsyncIterator[T]):
-    def __init__(self, iterator: AsyncIterator[T]):
-        self.iterator = iterator
+    def __init__(self, iterator: AsyncIterable[T]):
+        self.iterator: AsyncIterator[T] = iterator.__aiter__()
         self.event_loop: Optional[asyncio.AbstractEventLoop] = get_event_loop()
 
     def __next__(self) -> T:
