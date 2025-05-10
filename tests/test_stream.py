@@ -826,12 +826,12 @@ class TestStream(unittest.TestCase):
             for itype in ITERABLE_TYPES
             for exception_type, mapped_exception_type in [
                 (TestError, TestError),
-                (overloaded_stopiteration(itype), WrappedError),
+                (overloaded_stopiteration(itype), (RuntimeError, WrappedError)),
             ]
             for flatten in (Stream.flatten, Stream.aflatten)
         ]
     )
-    def test_flatten_with_exception(
+    def test_flatten_with_exception_in_iter(
         self,
         exception_type: Type[Exception],
         mapped_exception_type: Type[Exception],
@@ -839,7 +839,6 @@ class TestStream(unittest.TestCase):
         itype: IterableType,
         flatten: Callable,
     ) -> None:
-
         n_iterables = 5
 
         class IterableRaisingInIter(Iterable[int]):
@@ -850,7 +849,9 @@ class TestStream(unittest.TestCase):
             flatten(
                 Stream(
                     map(
-                        lambda i: SyncToAsyncIterable(IterableRaisingInIter() if i % 2 else range(i, i + 1)),
+                        lambda i: SyncToAsyncIterable(
+                            IterableRaisingInIter() if i % 2 else range(i, i + 1)
+                        ),
                         range(n_iterables),
                     )
                 ),
@@ -864,6 +865,22 @@ class TestStream(unittest.TestCase):
             msg="At any concurrency the `flatten` method should be resilient to exceptions thrown by iterators, especially it should wrap (Async)StopIteration.",
         )
 
+    @parameterized.expand(
+        [
+            [concurrency, itype, flatten]
+            for concurrency in [1, 2]
+            for itype in ITERABLE_TYPES
+            for flatten in (Stream.flatten, Stream.aflatten)
+        ]
+    )
+    def test_flatten_with_exception_in_next(
+        self,
+        concurrency: int,
+        itype: IterableType,
+        flatten: Callable,
+    ) -> None:
+        n_iterables = 5
+
         class IteratorRaisingInNext(Iterator[int]):
             def __init__(self) -> None:
                 self.first_next = True
@@ -872,21 +889,22 @@ class TestStream(unittest.TestCase):
                 if not self.first_next:
                     raise StopIteration()
                 self.first_next = False
-                raise exception_type
+                raise TestError
 
         res = to_set(
-            Stream(
-                map(
-                    lambda i: (
-                        IteratorRaisingInNext()
-                        if i % 2
-                        else cast(Iterable[int], range(i, i + 1))
-                    ),
-                    range(n_iterables),
-                )
-            )
-            .flatten(concurrency=concurrency)
-            .catch(mapped_exception_type),
+            flatten(
+                Stream(
+                    map(
+                        lambda i: (
+                            SyncToAsyncIterable(
+                                IteratorRaisingInNext() if i % 2 else range(i, i + 1)
+                            )
+                        ),
+                        range(n_iterables),
+                    )
+                ),
+                concurrency=concurrency,
+            ).catch(TestError),
             itype=itype,
         )
         self.assertSetEqual(
