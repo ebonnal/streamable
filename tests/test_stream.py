@@ -1610,14 +1610,14 @@ class TestStream(unittest.TestCase):
         self.assertListEqual(
             to_list(Stream("abbcaabcccddd").adistinct(), itype=itype),
             list("abcd"),
-            msg="`distinct` should yield distinct elements",
+            msg="`adistinct` should yield distinct elements",
         )
         self.assertListEqual(
             to_list(
                 Stream("aabbcccaabbcccc").adistinct(consecutive_only=True), itype=itype
             ),
             list("abcabc"),
-            msg="`distinct` should only remove the duplicates that are consecutive if `consecutive_only=True`",
+            msg="`adistinct` should only remove the duplicates that are consecutive if `consecutive_only=True`",
         )
         for consecutive_only in [True, False]:
             self.assertListEqual(
@@ -1628,19 +1628,19 @@ class TestStream(unittest.TestCase):
                     itype=itype,
                 ),
                 ["foo", "a"],
-                msg="`distinct` should yield the first encountered elem among duplicates",
+                msg="`adistinct` should yield the first encountered elem among duplicates",
             )
             self.assertListEqual(
                 to_list(
                     Stream([]).adistinct(consecutive_only=consecutive_only), itype=itype
                 ),
                 [],
-                msg="`distinct` should yield zero elements on empty stream",
+                msg="`adistinct` should yield zero elements on empty stream",
             )
         with self.assertRaisesRegex(
             TypeError,
             "unhashable type: 'list'",
-            msg="`distinct` should raise for non-hashable elements",
+            msg="`adistinct` should raise for non-hashable elements",
         ):
             to_list(Stream([[1]]).adistinct(), itype=itype)
 
@@ -1660,14 +1660,7 @@ class TestStream(unittest.TestCase):
             from streamable.functions import catch
 
             catch(cast(Iterator[int], [3, 4]), Exception)
-        with self.assertRaisesRegex(
-            TypeError,
-            "`iterator` must be an AsyncIterator but got a <class 'list'>",
-            msg="`afunctions.catch` function should raise TypeError when first argument is not an AsyncIterator",
-        ):
-            from streamable import afunctions
 
-            afunctions.catch(cast(AsyncIterator, [3, 4]), Exception)
 
         with self.assertRaisesRegex(
             TypeError,
@@ -1871,6 +1864,226 @@ class TestStream(unittest.TestCase):
             msg="`catch` must be noop if error types are None",
         ):
             to_list(Stream(map(int, "foo")).catch((None, None, None)), itype=itype)
+
+    @parameterized.expand(ITERABLE_TYPES)
+    def test_acatch(self, itype: IterableType) -> None:
+        self.assertListEqual(
+            to_list(Stream(src).acatch(finally_raise=True), itype=itype),
+            list(src),
+            msg="`acatch` should yield elements in exception-less scenarios",
+        )
+        
+        with self.assertRaisesRegex(
+            TypeError,
+            "`iterator` must be an AsyncIterator but got a <class 'list'>",
+            msg="`afunctions.acatch` function should raise TypeError when first argument is not an AsyncIterator",
+        ):
+            from streamable import afunctions
+
+            afunctions.acatch(cast(AsyncIterator, [3, 4]), Exception)
+
+        with self.assertRaisesRegex(
+            TypeError,
+            "`errors` must be None, or a subclass of `Exception`, or an iterable of optional subclasses of `Exception`, but got <class 'int'>",
+            msg="`acatch` should raise TypeError when first argument is not None or Type[Exception], or Iterable[Optional[Type[Exception]]]",
+        ):
+            Stream(src).acatch(1)  # type: ignore
+
+        def f(i):
+            return i / (3 - i)
+
+        stream = Stream(lambda: map(f, src))
+        safe_src = list(src)
+        del safe_src[3]
+        self.assertListEqual(
+            to_list(stream.acatch(ZeroDivisionError), itype=itype),
+            list(map(f, safe_src)),
+            msg="If the exception type matches the `error_type`, then the impacted element should be ignored.",
+        )
+        self.assertListEqual(
+            to_list(stream.acatch(), itype=itype),
+            list(map(f, safe_src)),
+            msg="If the predicate is not specified, then all exceptions should be caught.",
+        )
+
+        with self.assertRaises(
+            ZeroDivisionError,
+            msg="If a non caught exception type occurs, then it should be raised.",
+        ):
+            to_list(stream.acatch(TestError), itype=itype)
+
+        first_value = 1
+        second_value = 2
+        third_value = 3
+        functions = [
+            lambda: throw(TestError),
+            lambda: throw(TypeError),
+            lambda: first_value,
+            lambda: second_value,
+            lambda: throw(ValueError),
+            lambda: third_value,
+            lambda: throw(ZeroDivisionError),
+        ]
+
+        erroring_stream: Stream[int] = Stream(lambda: map(lambda f: f(), functions))
+        for caught_erroring_stream in [
+            erroring_stream.acatch(finally_raise=True),
+            erroring_stream.acatch(finally_raise=True),
+        ]:
+            erroring_stream_iterator = cast_iter(caught_erroring_stream, itype=itype)
+            self.assertEqual(
+                overloaded_next(erroring_stream_iterator),
+                first_value,
+                msg="`acatch` should yield the first non exception throwing element.",
+            )
+            n_yields = 1
+            with self.assertRaises(
+                TestError,
+                msg="`acatch` should raise the first error encountered when `finally_raise` is True.",
+            ):
+                while True:
+                    overloaded_next(erroring_stream_iterator)
+                    n_yields += 1
+            with self.assertRaises(
+                overloaded_stopiteration(type(erroring_stream_iterator)),
+                msg="`acatch` with `finally_raise`=True should finally raise StopIteration to avoid infinite recursion if there is another catch downstream.",
+            ):
+                overloaded_next(erroring_stream_iterator)
+            self.assertEqual(
+                n_yields,
+                3,
+                msg="3 elements should have passed been yielded between caught exceptions.",
+            )
+
+        only_caught_errors_stream = Stream(
+            map(lambda _: throw(TestError), range(2000))
+        ).acatch(TestError)
+        self.assertListEqual(
+            to_list(only_caught_errors_stream, itype=itype),
+            [],
+            msg="When upstream raise exceptions without yielding any element, listing the stream must return empty list, without recursion issue.",
+        )
+        with self.assertRaises(
+            overloaded_stopiteration(itype),
+            msg="When upstream raise exceptions without yielding any element, then the first call to `next` on a stream catching all errors should raise StopIteration.",
+        ):
+            overloaded_next(cast_iter(only_caught_errors_stream, itype=itype))
+
+        iterator = cast_iter(
+            Stream(map(throw, [TestError, ValueError]))
+            .acatch(ValueError, finally_raise=True)
+            .acatch(TestError, finally_raise=True),
+            itype=itype,
+        )
+        with self.assertRaises(
+            ValueError,
+            msg="With 2 chained `acatch`s with `finally_raise=True`, the error caught by the first `acatch` is finally raised first (even though it was raised second)...",
+        ):
+            overloaded_next(iterator)
+        with self.assertRaises(
+            TestError,
+            msg="... and then the error caught by the second `acatch` is raised...",
+        ):
+            overloaded_next(iterator)
+        with self.assertRaises(
+            overloaded_stopiteration(type(iterator)),
+            msg="... and a StopIteration is raised next.",
+        ):
+            overloaded_next(iterator)
+
+        with self.assertRaises(
+            TypeError,
+            msg="`acatch` does not catch if `when` not satisfied",
+        ):
+            to_list(
+                Stream(map(throw, [ValueError, TypeError])).acatch(
+                    when=asyncify(lambda exception: "ValueError" in repr(exception))
+                ),
+                itype=itype,
+            )
+
+        self.assertListEqual(
+            to_list(
+                Stream(map(lambda n: 1 / n, [0, 1, 2, 4])).acatch(
+                    ZeroDivisionError, replacement=float("inf")
+                ),
+                itype=itype,
+            ),
+            [float("inf"), 1, 0.5, 0.25],
+            msg="`acatch` should be able to yield a non-None replacement",
+        )
+        self.assertListEqual(
+            to_list(
+                Stream(map(lambda n: 1 / n, [0, 1, 2, 4])).acatch(
+                    ZeroDivisionError, replacement=cast(float, None)
+                ),
+                itype=itype,
+            ),
+            [None, 1, 0.5, 0.25],
+            msg="`acatch` should be able to yield a None replacement",
+        )
+
+        errors_counter: Counter[Type[Exception]] = Counter()
+
+        self.assertListEqual(
+            to_list(
+                Stream(
+                    map(
+                        lambda n: 1 / n,  # potential ZeroDivisionError
+                        map(
+                            throw_for_odd_func(TestError),  # potential TestError
+                            map(
+                                int,  # potential ValueError
+                                "01234foo56789",
+                            ),
+                        ),
+                    )
+                ).acatch(
+                    (ValueError, TestError, ZeroDivisionError),
+                    when=asyncify(lambda err: errors_counter.update([type(err)]) is None),
+                ),
+                itype=itype,
+            ),
+            list(map(lambda n: 1 / n, range(2, 10, 2))),
+            msg="`acatch` should accept multiple types",
+        )
+        self.assertDictEqual(
+            errors_counter,
+            {TestError: 5, ValueError: 3, ZeroDivisionError: 1},
+            msg="`acatch` should accept multiple types",
+        )
+
+        # with self.assertRaises(
+        #     TypeError,
+        #     msg="`acatch` without any error type must raise",
+        # ):
+        #     Stream(src).acatch()  # type: ignore
+
+        self.assertEqual(
+            to_list(Stream(map(int, "foo")).acatch(replacement=0), itype=itype),
+            [0] * len("foo"),
+            msg="`acatch` must catch all errors when no error type provided",
+        )
+        self.assertEqual(
+            to_list(
+                Stream(map(int, "foo")).acatch(
+                    (None, None, ValueError, None), replacement=0
+                ),
+                itype=itype,
+            ),
+            [0] * len("foo"),
+            msg="`acatch` must catch the provided non-None error types",
+        )
+        with self.assertRaises(
+            ValueError,
+            msg="`acatch` must be noop if error type is None",
+        ):
+            to_list(Stream(map(int, "foo")).acatch(None), itype=itype)
+        with self.assertRaises(
+            ValueError,
+            msg="`acatch` must be noop if error types are None",
+        ):
+            to_list(Stream(map(int, "foo")).acatch((None, None, None)), itype=itype)
 
     @parameterized.expand(ITERABLE_TYPES)
     def test_observe(self, itype: IterableType) -> None:
