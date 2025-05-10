@@ -932,30 +932,49 @@ class ConcurrentAFlattenAsyncIterator(_RaisingAsyncIterator[T]):
 
 
 class BiIterable(Iterable[T], AsyncIterable[T]):
-    def __init__(self, iterable: Union[Iterable[T], AsyncIterable[T]]):
+    pass
+class SyncToAsyncIterable(BiIterable[T]):
+    def __init__(self, iterable: Iterable[T]):
         self.iterable = iterable
 
     def __iter__(self) -> Iterator[T]:
-        if isinstance(self.iterable, Iterable):
-            return iter(self.iterable)
-        return BiIterator(self.iterable.__aiter__())
+        return iter(self.iterable)
 
     def __aiter__(self) -> AsyncIterator[T]:
-        if isinstance(self.iterable, AsyncIterable):
-            return self.iterable.__aiter__()
-        return BiIterator(iter(self.iterable))
+        return SyncToAsyncIterator(iter(self.iterable))
+class AsyncToSyncIterable(BiIterable[T]):
+    def __init__(self, iterable: AsyncIterable[T]):
+        self.iterable = iterable
+
+    def __iter__(self) -> Iterator[T]:
+        return AsyncToSyncIterator(self.iterable.__aiter__())
+
+    def __aiter__(self) -> AsyncIterator[T]:
+        return self.iterable.__aiter__()
 
 
 class BiIterator(Iterator[T], AsyncIterator[T]):
-    def __init__(self, iterator: Union[Iterator[T], AsyncIterator[T]]):
-        self.iterator: Union[Iterator[T], AsyncIterator[T]] = iterator
-        self.event_loop: Optional[asyncio.AbstractEventLoop] = None
-        if isinstance(self.iterator, AsyncIterator):
-            self.event_loop = get_event_loop()
+    pass
+
+class SyncToAsyncIterator(BiIterator[T]):
+    def __init__(self, iterator: Iterator[T]):
+        self.iterator = iterator
 
     def __next__(self) -> T:
-        if isinstance(self.iterator, Iterator):
-            return self.iterator.__next__()
+        return self.iterator.__next__()
+
+    async def __anext__(self) -> T:
+        try:
+            return next(self.iterator)
+        except StopIteration as e:
+            raise StopAsyncIteration() from e
+
+class AsyncToSyncIterator(BiIterator[T]):
+    def __init__(self, iterator: AsyncIterator[T]):
+        self.iterator = iterator
+        self.event_loop: Optional[asyncio.AbstractEventLoop] = get_event_loop()
+
+    def __next__(self) -> T:
         try:
             return cast(asyncio.AbstractEventLoop, self.event_loop).run_until_complete(
                 self.iterator.__anext__()
@@ -964,9 +983,4 @@ class BiIterator(Iterator[T], AsyncIterator[T]):
             raise StopIteration() from e
 
     async def __anext__(self) -> T:
-        if isinstance(self.iterator, AsyncIterator):
-            return await self.iterator.__anext__()
-        try:
-            return next(self.iterator)
-        except StopIteration as e:
-            raise StopAsyncIteration() from e
+        return await self.iterator.__anext__()

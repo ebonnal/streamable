@@ -39,7 +39,7 @@ from typing import (
 from parameterized import parameterized  # type: ignore
 
 from streamable import Stream
-from streamable.aiterators import BiIterable, BiIterator
+from streamable.aiterators import BiIterable, BiIterator, SyncToAsyncIterable
 from streamable.util.asynctools import await_result
 from streamable.util.functiontools import WrappedError, asyncify, star
 from streamable.util.iterabletools import aiterable_to_list, aiterable_to_set
@@ -293,7 +293,7 @@ class TestStream(unittest.TestCase):
             .map(star(lambda key, group: group))
             .observe("groups")
             .flatten(concurrency=4)
-            .map(lambda g: cast(AsyncIterator, BiIterator(iter(g))))
+            .map(lambda g: cast(AsyncIterable, SyncToAsyncIterable(g)))
             .aflatten(concurrency=4)
             .map(lambda _: 0)
             .throttle(
@@ -436,7 +436,7 @@ class TestStream(unittest.TestCase):
         ]
     )
     def test_sanitize_concurrency(self, method, args) -> None:
-        stream = Stream(BiIterator(iter(src)))
+        stream = Stream(SyncToAsyncIterable(src))
         with self.assertRaises(
             TypeError,
             msg=f"`{method}` should be raising TypeError for non-int concurrency.",
@@ -848,9 +848,10 @@ class TestStream(unittest.TestCase):
 
         res: Set[int] = to_set(
             flatten(
-                Stream(range(n_iterables)).map(
-                    lambda i: BiIterable(
-                        IterableRaisingInIter() if i % 2 else range(i, i + 1)
+                Stream(
+                    map(
+                        lambda i: SyncToAsyncIterable(IterableRaisingInIter() if i % 2 else range(i, i + 1)),
+                        range(n_iterables),
                     )
                 ),
                 concurrency=concurrency,
@@ -867,12 +868,9 @@ class TestStream(unittest.TestCase):
             def __init__(self) -> None:
                 self.first_next = True
 
-            def __iter__(self) -> Iterator[int]:
-                return self
-
             def __next__(self) -> int:
                 if not self.first_next:
-                    raise StopIteration
+                    raise StopIteration()
                 self.first_next = False
                 raise exception_type
 
