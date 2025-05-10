@@ -40,7 +40,7 @@ from parameterized import parameterized  # type: ignore
 
 from streamable import Stream
 from streamable.util.asynctools import await_result
-from streamable.util.functiontools import WrappedError, star
+from streamable.util.functiontools import WrappedError, asyncify, star
 from streamable.util.iterabletools import aiterable_to_list, aiterable_to_set, to_aiter
 
 T = TypeVar("T")
@@ -1604,6 +1604,45 @@ class TestStream(unittest.TestCase):
             msg="`distinct` should raise for non-hashable elements",
         ):
             to_list(Stream([[1]]).distinct(), itype=itype)
+
+    @parameterized.expand(ITERABLE_TYPES)
+    def test_adistinct(self, itype: IterableType) -> None:
+        self.assertListEqual(
+            to_list(Stream("abbcaabcccddd").adistinct(), itype=itype),
+            list("abcd"),
+            msg="`distinct` should yield distinct elements",
+        )
+        self.assertListEqual(
+            to_list(
+                Stream("aabbcccaabbcccc").adistinct(consecutive_only=True), itype=itype
+            ),
+            list("abcabc"),
+            msg="`distinct` should only remove the duplicates that are consecutive if `consecutive_only=True`",
+        )
+        for consecutive_only in [True, False]:
+            self.assertListEqual(
+                to_list(
+                    Stream(["foo", "bar", "a", "b"]).adistinct(
+                        asyncify(len), consecutive_only=consecutive_only
+                    ),
+                    itype=itype,
+                ),
+                ["foo", "a"],
+                msg="`distinct` should yield the first encountered elem among duplicates",
+            )
+            self.assertListEqual(
+                to_list(
+                    Stream([]).adistinct(consecutive_only=consecutive_only), itype=itype
+                ),
+                [],
+                msg="`distinct` should yield zero elements on empty stream",
+            )
+        with self.assertRaisesRegex(
+            TypeError,
+            "unhashable type: 'list'",
+            msg="`distinct` should raise for non-hashable elements",
+        ):
+            to_list(Stream([[1]]).adistinct(), itype=itype)
 
     @parameterized.expand(ITERABLE_TYPES)
     def test_catch(self, itype: IterableType) -> None:
