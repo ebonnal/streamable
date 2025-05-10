@@ -822,12 +822,12 @@ class TestStream(unittest.TestCase):
     @parameterized.expand(
         [
             [exception_type, mapped_exception_type, concurrency, itype, flatten]
-            for exception_type, mapped_exception_type in [
-                (TestError, TestError),
-                (StopIteration, WrappedError),
-            ]
             for concurrency in [1, 2]
             for itype in ITERABLE_TYPES
+            for exception_type, mapped_exception_type in [
+                (TestError, TestError),
+                (overloaded_stopiteration(itype), WrappedError),
+            ]
             for flatten in (Stream.flatten, Stream.aflatten)
         ]
     )
