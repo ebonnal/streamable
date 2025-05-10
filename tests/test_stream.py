@@ -693,6 +693,7 @@ class TestStream(unittest.TestCase):
             [method, func, concurrency, itype]
             for method, func in [
                 (Stream.foreach, slow_identity),
+                (Stream.aforeach, async_slow_identity),
                 (Stream.map, slow_identity),
                 (Stream.amap, async_slow_identity),
             ]
