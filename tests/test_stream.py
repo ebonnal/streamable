@@ -649,6 +649,7 @@ class TestStream(unittest.TestCase):
             for concurrency in [1, 2]
             for method, throw_func_, throw_for_odd_func_ in [
                 (Stream.foreach, throw_func, throw_for_odd_func),
+                (Stream.aforeach, async_throw_func, async_throw_for_odd_func),
                 (Stream.map, throw_func, throw_for_odd_func),
                 (Stream.amap, async_throw_func, async_throw_for_odd_func),
             ]
