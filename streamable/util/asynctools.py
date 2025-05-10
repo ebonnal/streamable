@@ -10,7 +10,7 @@ def get_event_loop() -> asyncio.AbstractEventLoop:
     global _EVENT_LOOP
     if not _EVENT_LOOP:
         try:
-            _EVENT_LOOP = asyncio.get_event_loop()
+            _EVENT_LOOP = asyncio.get_running_loop()
         except RuntimeError:
             _EVENT_LOOP = asyncio.new_event_loop()
             asyncio.set_event_loop(_EVENT_LOOP)
