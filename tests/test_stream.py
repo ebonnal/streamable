@@ -1253,6 +1253,113 @@ class TestStream(unittest.TestCase):
         )
 
     @parameterized.expand(ITERABLE_TYPES)
+    def test_atruncate(self, itype: IterableType) -> None:
+        self.assertListEqual(
+            to_list(Stream(src).atruncate(N * 2), itype=itype),
+            list(src),
+            msg="`atruncate` must be ok with count >= stream length",
+        )
+
+        self.assertListEqual(
+            to_list(Stream(src).atruncate(), itype=itype),
+            list(src),
+            msg="`atruncate` must be no-op if both `count` and `when` are None",
+        )
+
+        self.assertListEqual(
+            to_list(Stream(src).atruncate(None), itype=itype),
+            list(src),
+            msg="`atruncate` must be no-op if both `count` and `when` are None",
+        )
+
+        self.assertListEqual(
+            to_list(Stream(src).atruncate(2), itype=itype),
+            [0, 1],
+            msg="`atruncate` must be ok with count >= 1",
+        )
+        self.assertListEqual(
+            to_list(Stream(src).atruncate(1), itype=itype),
+            [0],
+            msg="`atruncate` must be ok with count == 1",
+        )
+        self.assertListEqual(
+            to_list(Stream(src).atruncate(0), itype=itype),
+            [],
+            msg="`atruncate` must be ok with count == 0",
+        )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "`count` must be >= 0 but got -1",
+            msg="`atruncate` must raise ValueError if `count` is negative",
+        ):
+            Stream(src).atruncate(-1)
+
+        self.assertListEqual(
+            to_list(Stream(src).atruncate(cast(int, float("inf"))), itype=itype),
+            list(src),
+            msg="`atruncate` must be no-op if `count` is inf",
+        )
+
+        count = N // 2
+        raising_stream_iterator = cast_iter(
+            Stream(lambda: map(lambda x: round((1 / x) * x**2), src)).atruncate(count),
+            itype=itype,
+        )
+
+        with self.assertRaises(
+            ZeroDivisionError,
+            msg="`atruncate` must not stop iteration when encountering exceptions and raise them without counting them...",
+        ):
+            overloaded_next(raising_stream_iterator)
+
+        self.assertListEqual(
+            overloaded_to_list(raising_stream_iterator), list(range(1, count + 1))
+        )
+
+        with self.assertRaises(
+            overloaded_stopiteration(type(raising_stream_iterator)),
+            msg="... and after reaching the limit it still continues to raise StopIteration on calls to next",
+        ):
+            overloaded_next(raising_stream_iterator)
+
+        iter_truncated_on_predicate = cast_iter(
+            Stream(src).atruncate(when=asyncify(lambda n: n == 5)), itype=itype
+        )
+        self.assertListEqual(
+            overloaded_to_list(iter_truncated_on_predicate),
+            to_list(Stream(src).atruncate(5), itype=itype),
+            msg="`when` n == 5 must be equivalent to `count` = 5",
+        )
+        with self.assertRaises(
+            overloaded_stopiteration(type(iter_truncated_on_predicate)),
+            msg="After exhaustion a call to __next__ on a truncated iterator must raise StopIteration",
+        ):
+            overloaded_next(iter_truncated_on_predicate)
+
+        with self.assertRaises(
+            ZeroDivisionError,
+            msg="an exception raised by `when` must be raised",
+        ):
+            to_list(Stream(src).atruncate(when=asyncify(lambda _: 1 / 0)), itype=itype)
+
+        self.assertListEqual(
+            to_list(
+                Stream(src).atruncate(6, when=asyncify(lambda n: n == 5)), itype=itype
+            ),
+            list(range(5)),
+            msg="`when` and `count` argument can be set at the same time, and the truncation should happen as soon as one or the other is satisfied.",
+        )
+
+        self.assertListEqual(
+            to_list(
+                Stream(src).atruncate(5, when=asyncify(lambda n: n == 6)), itype=itype
+            ),
+            list(range(5)),
+            msg="`when` and `count` argument can be set at the same time, and the truncation should happen as soon as one or the other is satisfied.",
+        )
+
+    @parameterized.expand(ITERABLE_TYPES)
     def test_group(self, itype: IterableType) -> None:
         # behavior with invalid arguments
         for seconds in [-1, 0]:
