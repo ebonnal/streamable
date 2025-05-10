@@ -53,6 +53,7 @@ from streamable.util.validationtools import (
     validate_group_size,
     validate_aiterator,
     validate_iterator,
+    validate_not_none,
     validate_optional_positive_interval,
 )
 
@@ -443,22 +444,19 @@ class AFilterAsyncIterator(AsyncIterator[T]):
     def __init__(
         self,
         iterator: AsyncIterator[T],
-        when: Optional[Callable[[T], Coroutine[Any, Any, Any]]],
+        when: Callable[[T], Coroutine[Any, Any, Any]],
     ) -> None:
         validate_aiterator(iterator)
+        validate_not_none(when, "when")
 
         self.iterator = iterator
-        self.when = awrap_error(when, StopAsyncIteration) if when else None
+        self.when = awrap_error(when, StopAsyncIteration)
 
     async def __anext__(self) -> T:
         while True:
             elem = await self.iterator.__anext__()
-            if self.when:
-                if await self.when(elem):
-                    return elem
-            else:
-                if elem:
-                    return elem
+            if await self.when(elem):
+                return elem
 
 
 class ObserveAsyncIterator(AsyncIterator[T]):

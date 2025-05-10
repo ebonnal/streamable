@@ -967,6 +967,15 @@ class TestStream(unittest.TestCase):
                 msg=f"`after the first call to `next` a concurrent {type(stream)} with concurrency={concurrency} should have pulled only {n_pulls_after_first_next} upstream elements.",
             )
 
+    def test_afilter_with_none_when(self, itype: IterableType) -> None:
+        with self.assertRaisesRegex(
+            TypeError,
+            "`when` must not be None",
+            msg="`afilter` must refuse a None predicate",
+        ):
+            Stream(src).afilter(None)  # type: ignore
+
+
     @parameterized.expand(ITERABLE_TYPES)
     def test_filter(self, itype: IterableType) -> None:
         def keep(x) -> Any:
