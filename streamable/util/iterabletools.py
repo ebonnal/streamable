@@ -1,5 +1,14 @@
 import asyncio
-from typing import AsyncIterable, AsyncIterator, Callable, Iterable, Iterator, List, Set, TypeVar
+from typing import (
+    AsyncIterable,
+    AsyncIterator,
+    Callable,
+    Iterable,
+    Iterator,
+    List,
+    Set,
+    TypeVar,
+)
 
 from streamable.util.asynctools import get_event_loop
 
@@ -20,7 +29,6 @@ async def _aiter_to_set(aiterable: AsyncIterable[T]) -> Set[T]:
 
 def aiterable_to_set(aiterable: AsyncIterable[T]) -> Set[T]:
     return get_event_loop().run_until_complete(_aiter_to_set(aiterable))
-
 
 
 # class SyncToAsyncIterable(Iterable[T], AsyncIterable[T]):
@@ -58,7 +66,9 @@ class SyncToAsyncIterator(Iterator[T], AsyncIterator[T]):
         except StopIteration as e:
             raise StopAsyncIteration() from e
 
+
 to_aiter: Callable[[Iterable[T]], AsyncIterator[T]] = SyncToAsyncIterator
+
 
 class AsyncToSyncIterator(Iterator[T], AsyncIterator[T]):
     def __init__(self, iterator: AsyncIterable[T]):
@@ -73,5 +83,6 @@ class AsyncToSyncIterator(Iterator[T], AsyncIterator[T]):
 
     async def __anext__(self) -> T:
         return await self.iterator.__anext__()
+
 
 to_iter: Callable[[AsyncIterable[T]], Iterator[T]] = AsyncToSyncIterator

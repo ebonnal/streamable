@@ -822,7 +822,6 @@ class TestStream(unittest.TestCase):
 
         flattened_asynciter_stream: Stream[str] = Stream("abc").map(to_aiter).aflatten()
 
-
     @parameterized.expand(
         [
             [exception_type, mapped_exception_type, concurrency, itype, flatten]
@@ -979,7 +978,6 @@ class TestStream(unittest.TestCase):
         ):
             Stream(src).afilter(None)  # type: ignore
 
-
     @parameterized.expand(ITERABLE_TYPES)
     def test_filter(self, itype: IterableType) -> None:
         def keep(x) -> Any:
@@ -1078,6 +1076,77 @@ class TestStream(unittest.TestCase):
             to_list(Stream(src).skip(until=lambda n: False), itype=itype),
             [],
             msg="`skip` must not yield any element if `until` is never satisfied",
+        )
+
+    @parameterized.expand(ITERABLE_TYPES)
+    def test_askip(self, itype: IterableType) -> None:
+        with self.assertRaisesRegex(
+            ValueError,
+            "`count` must be >= 0 but got -1",
+            msg="`askip` must raise ValueError if `count` is negative",
+        ):
+            Stream(src).askip(-1)
+
+        self.assertListEqual(
+            to_list(Stream(src).askip(), itype=itype),
+            list(src),
+            msg="`askip` must be no-op if both `count` and `until` are None",
+        )
+
+        self.assertListEqual(
+            to_list(Stream(src).askip(None), itype=itype),
+            list(src),
+            msg="`askip` must be no-op if both `count` and `until` are None",
+        )
+
+        for count in [0, 1, 3]:
+            self.assertListEqual(
+                to_list(Stream(src).askip(count), itype=itype),
+                list(src)[count:],
+                msg="`askip` must skip `count` elements",
+            )
+
+            self.assertListEqual(
+                to_list(
+                    Stream(map(throw_for_odd_func(TestError), src))
+                    .askip(count)
+                    .catch(TestError),
+                    itype=itype,
+                ),
+                list(filter(lambda i: i % 2 == 0, src))[count:],
+                msg="`askip` must not count exceptions as skipped elements",
+            )
+
+            self.assertListEqual(
+                to_list(
+                    Stream(src).askip(until=asyncify(lambda n: n >= count)), itype=itype
+                ),
+                list(src)[count:],
+                msg="`askip` must yield starting from the first element satisfying `until`",
+            )
+
+            self.assertListEqual(
+                to_list(
+                    Stream(src).askip(count, until=asyncify(lambda n: False)),
+                    itype=itype,
+                ),
+                list(src)[count:],
+                msg="`askip` must ignore `count` elements if `until` is never satisfied",
+            )
+
+            self.assertListEqual(
+                to_list(
+                    Stream(src).askip(count * 2, until=asyncify(lambda n: n >= count)),
+                    itype=itype,
+                ),
+                list(src)[count:],
+                msg="`askip` must ignore less than `count` elements if `until` is satisfied first",
+            )
+
+        self.assertListEqual(
+            to_list(Stream(src).askip(until=asyncify(lambda n: False)), itype=itype),
+            [],
+            msg="`askip` must not yield any element if `until` is never satisfied",
         )
 
     @parameterized.expand(ITERABLE_TYPES)
@@ -1661,7 +1730,6 @@ class TestStream(unittest.TestCase):
 
             catch(cast(Iterator[int], [3, 4]), Exception)
 
-
         with self.assertRaisesRegex(
             TypeError,
             "`errors` must be None, or a subclass of `Exception`, or an iterable of optional subclasses of `Exception`, but got <class 'int'>",
@@ -1872,7 +1940,7 @@ class TestStream(unittest.TestCase):
             list(src),
             msg="`acatch` should yield elements in exception-less scenarios",
         )
-        
+
         with self.assertRaisesRegex(
             TypeError,
             "`iterator` must be an AsyncIterator but got a <class 'list'>",
@@ -2040,7 +2108,9 @@ class TestStream(unittest.TestCase):
                     )
                 ).acatch(
                     (ValueError, TestError, ZeroDivisionError),
-                    when=asyncify(lambda err: errors_counter.update([type(err)]) is None),
+                    when=asyncify(
+                        lambda err: errors_counter.update([type(err)]) is None
+                    ),
                 ),
                 itype=itype,
             ),
