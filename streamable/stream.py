@@ -448,18 +448,18 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
     # fmt: off
     @overload
     def aflatten(
-        self: "Stream[AsyncIterator[T]]",
+        self: "Stream[AsyncIterator[U]]",
         *,
         concurrency: int = 1,
-    ) -> "Stream[T]": ...
+    ) -> "Stream[U]": ...
     # fmt: on
     # fmt: off
     @overload
     def aflatten(
-        self: "Stream[AsyncIterable[T]]",
+        self: "Stream[AsyncIterable[U]]",
         *,
         concurrency: int = 1,
-    ) -> "Stream[T]": ...
+    ) -> "Stream[U]": ...
     # fmt: on
 
     def aflatten(

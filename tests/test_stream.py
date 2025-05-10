@@ -39,10 +39,9 @@ from typing import (
 from parameterized import parameterized  # type: ignore
 
 from streamable import Stream
-from streamable.aiterators import SyncToAsyncIterable, SyncToAsyncIterator
 from streamable.util.asynctools import await_result
-from streamable.util.functiontools import WrappedError, asyncify, star
-from streamable.util.iterabletools import aiterable_to_list, aiterable_to_set
+from streamable.util.functiontools import WrappedError, star
+from streamable.util.iterabletools import aiterable_to_list, aiterable_to_set, to_aiter
 
 T = TypeVar("T")
 R = TypeVar("R")
@@ -73,7 +72,7 @@ def to_set(stream: Stream[T], itype: IterableType) -> Set[T]:
         return set(stream)
 
 
-def to_iter(
+def cast_iter(
     stream: Stream[T], itype: IterableType
 ) -> Union[Iterator[T], AsyncIterator[T]]:
     assert isinstance(stream, Stream)
@@ -293,7 +292,7 @@ class TestStream(unittest.TestCase):
             .map(star(lambda key, group: group))
             .observe("groups")
             .flatten(concurrency=4)
-            .map(lambda g: cast(AsyncIterable, SyncToAsyncIterable(g)))
+            .map(lambda g: cast(AsyncIterable, to_aiter(g)))
             .aflatten(concurrency=4)
             .map(lambda _: 0)
             .throttle(
@@ -386,7 +385,7 @@ class TestStream(unittest.TestCase):
     @parameterized.expand(ITERABLE_TYPES)
     def test_iter(self, itype: IterableType) -> None:
         self.assertIsInstance(
-            to_iter(Stream(src), itype=itype),
+            cast_iter(Stream(src), itype=itype),
             itype,
             msg="iter(stream) must return an Iterator.",
         )
@@ -436,7 +435,7 @@ class TestStream(unittest.TestCase):
         ]
     )
     def test_sanitize_concurrency(self, method, args) -> None:
-        stream = Stream(SyncToAsyncIterable(src))
+        stream = Stream(to_aiter(src))
         with self.assertRaises(
             TypeError,
             msg=f"`{method}` should be raising TypeError for non-int concurrency.",
@@ -529,7 +528,7 @@ class TestStream(unittest.TestCase):
         )
         # test partial iteration:
         self.assertEqual(
-            overloaded_next(to_iter(stream, itype=itype)),
+            overloaded_next(cast_iter(stream, itype=itype)),
             expected_result_list[0],
             msg="process-based concurrency must behave ok with partial iteration",
         )
@@ -723,7 +722,7 @@ class TestStream(unittest.TestCase):
             for itype in ITERABLE_TYPES
             for flatten, iterator_cast in [
                 (Stream.flatten, identity),
-                (Stream.aflatten, SyncToAsyncIterable),
+                (Stream.aflatten, to_aiter),
             ]
         ]
     )
@@ -757,7 +756,7 @@ class TestStream(unittest.TestCase):
             msg="`flatten` should raise if an upstream element is not iterable.",
         ):
             overloaded_next(
-                to_iter(
+                cast_iter(
                     flatten(Stream(cast(Union[Iterable, AsyncIterable], src))),
                     itype=itype,
                 )
@@ -821,6 +820,9 @@ class TestStream(unittest.TestCase):
             Stream("abc").map(lambda char: filter(lambda _: True, char)).flatten()
         )
 
+        flattened_asynciter_stream: Stream[str] = Stream("abc").map(to_aiter).aflatten()
+
+
     @parameterized.expand(
         [
             [exception_type, mapped_exception_type, concurrency, itype, flatten]
@@ -851,7 +853,7 @@ class TestStream(unittest.TestCase):
             flatten(
                 Stream(
                     map(
-                        lambda i: SyncToAsyncIterable(
+                        lambda i: to_aiter(
                             IterableRaisingInIter() if i % 2 else range(i, i + 1)
                         ),
                         range(n_iterables),
@@ -898,7 +900,7 @@ class TestStream(unittest.TestCase):
                 Stream(
                     map(
                         lambda i: (
-                            SyncToAsyncIterable(
+                            to_aiter(
                                 IteratorRaisingInNext() if i % 2 else range(i, i + 1)
                             )
                         ),
@@ -954,7 +956,7 @@ class TestStream(unittest.TestCase):
             ),
         ]:
             yielded_elems = []
-            iterator = to_iter(stream, itype=itype)
+            iterator = cast_iter(stream, itype=itype)
             time.sleep(0.5)
             self.assertEqual(
                 len(yielded_elems),
@@ -1128,7 +1130,7 @@ class TestStream(unittest.TestCase):
         )
 
         count = N // 2
-        raising_stream_iterator = to_iter(
+        raising_stream_iterator = cast_iter(
             Stream(lambda: map(lambda x: round((1 / x) * x**2), src)).truncate(count),
             itype=itype,
         )
@@ -1149,7 +1151,7 @@ class TestStream(unittest.TestCase):
         ):
             overloaded_next(raising_stream_iterator)
 
-        iter_truncated_on_predicate = to_iter(
+        iter_truncated_on_predicate = cast_iter(
             Stream(src).truncate(when=lambda n: n == 5), itype=itype
         )
         self.assertListEqual(
@@ -1224,7 +1226,7 @@ class TestStream(unittest.TestCase):
         def f(i):
             return i / (110 - i)
 
-        stream_iterator = to_iter(Stream(lambda: map(f, src)).group(100), itype=itype)
+        stream_iterator = cast_iter(Stream(lambda: map(f, src)).group(100), itype=itype)
         overloaded_next(stream_iterator)
         self.assertListEqual(
             overloaded_next(stream_iterator),
@@ -1283,13 +1285,13 @@ class TestStream(unittest.TestCase):
         )
 
         self.assertListEqual(
-            overloaded_next(to_iter(Stream(src).group(), itype=itype)),
+            overloaded_next(cast_iter(Stream(src).group(), itype=itype)),
             list(src),
             msg="`group` without arguments should group the elements all together",
         )
 
         # test by
-        stream_iter = to_iter(
+        stream_iter = cast_iter(
             Stream(src).group(size=2, by=lambda n: n % 2), itype=itype
         )
         self.assertListEqual(
@@ -1300,7 +1302,7 @@ class TestStream(unittest.TestCase):
 
         self.assertListEqual(
             overloaded_next(
-                to_iter(
+                cast_iter(
                     Stream(src_raising_at_exhaustion).group(
                         size=10, by=lambda n: n % 4 != 0
                     ),
@@ -1323,7 +1325,7 @@ class TestStream(unittest.TestCase):
             msg="`group` called with a `by` function and reaching exhaustion must cogroup elements and yield uncomplete groups starting with the group containing the oldest element, even though it's not the largest.",
         )
 
-        stream_iter = to_iter(
+        stream_iter = cast_iter(
             Stream(src_raising_at_exhaustion).group(by=lambda n: n % 2), itype=itype
         )
         self.assertListEqual(
@@ -1350,7 +1352,7 @@ class TestStream(unittest.TestCase):
             msg="`group` called with a `by` function must cogroup elements and yield the largest groups when `seconds` is reached event though it's not the oldest.",
         )
 
-        stream_iter = to_iter(
+        stream_iter = cast_iter(
             Stream(src).group(
                 size=3,
                 by=lambda n: throw(overloaded_stopiteration(itype)) if n == 2 else n,
@@ -1442,7 +1444,7 @@ class TestStream(unittest.TestCase):
 
         self.assertEqual(
             overloaded_next(
-                to_iter(
+                cast_iter(
                     Stream(src)
                     .throttle(1, per=datetime.timedelta(seconds=0.2))
                     .throttle(1, per=datetime.timedelta(seconds=0.1)),
@@ -1676,7 +1678,7 @@ class TestStream(unittest.TestCase):
             erroring_stream.catch(finally_raise=True),
             erroring_stream.catch(finally_raise=True),
         ]:
-            erroring_stream_iterator = to_iter(caught_erroring_stream, itype=itype)
+            erroring_stream_iterator = cast_iter(caught_erroring_stream, itype=itype)
             self.assertEqual(
                 overloaded_next(erroring_stream_iterator),
                 first_value,
@@ -1713,9 +1715,9 @@ class TestStream(unittest.TestCase):
             overloaded_stopiteration(itype),
             msg="When upstream raise exceptions without yielding any element, then the first call to `next` on a stream catching all errors should raise StopIteration.",
         ):
-            overloaded_next(to_iter(only_caught_errors_stream, itype=itype))
+            overloaded_next(cast_iter(only_caught_errors_stream, itype=itype))
 
-        iterator = to_iter(
+        iterator = cast_iter(
             Stream(map(throw, [TestError, ValueError]))
             .catch(ValueError, finally_raise=True)
             .catch(TestError, finally_raise=True),
@@ -1951,7 +1953,7 @@ class TestStream(unittest.TestCase):
             r"must be an async function i\.e\. a function returning a Coroutine but it returned a <class 'int'>",
             msg="`amap` should raise a TypeError if a non async function is passed to it.",
         ):
-            overloaded_next(to_iter(stream, itype=itype))
+            overloaded_next(cast_iter(stream, itype=itype))
 
     @parameterized.expand(
         [(concurrency, itype) for concurrency in (1, 100) for itype in ITERABLE_TYPES]
@@ -1973,7 +1975,7 @@ class TestStream(unittest.TestCase):
             r"`transformation` must be an async function i\.e\. a function returning a Coroutine but it returned a <class 'int'>",
             msg="`aforeach` should raise a TypeError if a non async function is passed to it.",
         ):
-            overloaded_next(to_iter(stream, itype=itype))
+            overloaded_next(cast_iter(stream, itype=itype))
 
     @parameterized.expand(ITERABLE_TYPES)
     def test_pipe(self, itype: IterableType) -> None:
