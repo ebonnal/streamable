@@ -1,7 +1,7 @@
 from typing import AsyncIterable, Iterable, AsyncIterator, TypeVar, cast
 
 from streamable import afunctions
-from streamable.aiterators import BiIterator, SyncToAsyncIterator
+from streamable.aiterators import SyncToAsyncIterator
 from streamable.stream import (
     ACatchStream,
     ADistinctStream,

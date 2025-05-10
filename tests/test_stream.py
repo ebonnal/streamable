@@ -39,7 +39,7 @@ from typing import (
 from parameterized import parameterized  # type: ignore
 
 from streamable import Stream
-from streamable.aiterators import BiIterable, BiIterator, SyncToAsyncIterable
+from streamable.aiterators import SyncToAsyncIterable
 from streamable.util.asynctools import await_result
 from streamable.util.functiontools import WrappedError, asyncify, star
 from streamable.util.iterabletools import aiterable_to_list, aiterable_to_set
@@ -721,7 +721,7 @@ class TestStream(unittest.TestCase):
             for itype in ITERABLE_TYPES
             for flatten, iterator_cast in [
                 (Stream.flatten, identity),
-                (Stream.aflatten, BiIterator),
+                (Stream.aflatten, SyncToAsyncIterable),
             ]
         ]
     )

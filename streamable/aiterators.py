@@ -930,10 +930,7 @@ class ConcurrentAFlattenAsyncIterator(_RaisingAsyncIterator[T]):
             ).__aiter__()
         )
 
-
-class BiIterable(Iterable[T], AsyncIterable[T]):
-    pass
-class SyncToAsyncIterable(BiIterable[T]):
+class SyncToAsyncIterable(Iterable[T], AsyncIterable[T]):
     def __init__(self, iterable: Iterable[T]):
         self.iterable = iterable
 
@@ -942,7 +939,7 @@ class SyncToAsyncIterable(BiIterable[T]):
 
     def __aiter__(self) -> AsyncIterator[T]:
         return SyncToAsyncIterator(iter(self.iterable))
-class AsyncToSyncIterable(BiIterable[T]):
+class AsyncToSyncIterable(Iterable[T], AsyncIterable[T]):
     def __init__(self, iterable: AsyncIterable[T]):
         self.iterable = iterable
 
@@ -952,11 +949,7 @@ class AsyncToSyncIterable(BiIterable[T]):
     def __aiter__(self) -> AsyncIterator[T]:
         return self.iterable.__aiter__()
 
-
-class BiIterator(Iterator[T], AsyncIterator[T]):
-    pass
-
-class SyncToAsyncIterator(BiIterator[T]):
+class SyncToAsyncIterator(Iterator[T], AsyncIterator[T]):
     def __init__(self, iterator: Iterator[T]):
         self.iterator = iterator
 
@@ -969,7 +962,7 @@ class SyncToAsyncIterator(BiIterator[T]):
         except StopIteration as e:
             raise StopAsyncIteration() from e
 
-class AsyncToSyncIterator(BiIterator[T]):
+class AsyncToSyncIterator(Iterator[T], AsyncIterator[T]):
     def __init__(self, iterator: AsyncIterator[T]):
         self.iterator = iterator
         self.event_loop: Optional[asyncio.AbstractEventLoop] = get_event_loop()
