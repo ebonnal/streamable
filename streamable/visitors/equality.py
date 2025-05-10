@@ -6,6 +6,7 @@ from streamable.stream import (
     AFilterStream,
     AFlattenStream,
     AForeachStream,
+    AGroupStream,
     AGroupbyStream,
     AMapStream,
     ASkipStream,
@@ -105,7 +106,7 @@ class EqualityVisitor(Visitor[bool]):
     def visit_aforeach_stream(self, stream: AForeachStream) -> bool:
         return self.foreach_eq(stream)
 
-    def visit_group_stream(self, stream: GroupStream) -> bool:
+    def group_eq(self, stream: Union[GroupStream, AGroupStream]) -> bool:
         return (
             self.type_eq(stream)
             and stream.upstream.accept(EqualityVisitor(self.other.upstream))
@@ -113,7 +114,12 @@ class EqualityVisitor(Visitor[bool]):
             and stream._size == self.other._size
             and stream._interval == self.other._interval
         )
+    def visit_group_stream(self, stream: GroupStream) -> bool:
+        return self.group_eq(stream)
 
+    def visit_agroup_stream(self, stream: AGroupStream) -> bool:
+        return self.group_eq(stream)
+        
     def groupby_eq(self, stream: Union[GroupbyStream, AGroupbyStream]) -> bool:
         return (
             self.type_eq(stream)

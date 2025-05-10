@@ -7,6 +7,7 @@ from streamable.stream import (
     AFilterStream,
     AFlattenStream,
     AForeachStream,
+    AGroupStream,
     AGroupbyStream,
     AMapStream,
     ASkipStream,
@@ -115,6 +116,17 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         return cast(
             Iterator[T],
             functions.group(
+                stream.upstream.accept(IteratorVisitor[U]()),
+                stream._size,
+                interval=stream._interval,
+                by=stream._by,
+            ),
+        )
+
+    def visit_agroup_stream(self, stream: AGroupStream[U]) -> Iterator[T]:
+        return cast(
+            Iterator[T],
+            functions.agroup(
                 stream.upstream.accept(IteratorVisitor[U]()),
                 stream._size,
                 interval=stream._interval,

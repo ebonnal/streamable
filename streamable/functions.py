@@ -169,6 +169,20 @@ def group(
         return GroupIterator(iterator, size, interval)
     return map(itemgetter(1), GroupbyIterator(iterator, by, size, interval))
 
+def agroup(
+    iterator: Iterator[T],
+    size: Optional[int] = None,
+    *,
+    interval: Optional[datetime.timedelta] = None,
+    by: Optional[Callable[[T], Coroutine[Any, Any, Any]]] = None,
+) -> Iterator[List[T]]:
+    return group(
+        iterator,
+        size,
+        interval=interval,
+        by=syncify(by) if by else None,
+    )
+
 
 def groupby(
     iterator: Iterator[T],

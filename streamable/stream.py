@@ -553,6 +553,34 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         validate_optional_positive_interval(interval)
         return GroupStream(self, size, interval, by)
 
+    def agroup(
+        self,
+        size: Optional[int] = None,
+        *,
+        interval: Optional[datetime.timedelta] = None,
+        by: Optional[Callable[[T], Coroutine[Any, Any, Any]]] = None,
+    ) -> "Stream[List[T]]":
+        """
+        Groups upstream elements into lists.
+
+        A group is yielded when any of the following conditions is met:
+        - The group reaches `size` elements.
+        - `interval` seconds have passed since the last group was yielded.
+        - The upstream source is exhausted.
+
+        If `by` is specified, groups will only contain elements sharing the same `by(elem)` value (see `.agroupby` for `(key, elements)` pairs).
+
+        Args:
+            size (Optional[int], optional): The maximum number of elements per group. (default: no size limit)
+            interval (float, optional): Yields a group if `interval` seconds have passed since the last group was yielded. (default: no interval limit)
+            by (Optional[Callable[[T], Coroutine[Any, Any, Any]]], optional): If specified, groups will only contain elements sharing the same `by(elem)` value. (default: does not co-group elements)
+        Returns:
+            Stream[List[T]]: A stream of upstream elements grouped into lists.
+        """
+        validate_group_size(size)
+        validate_optional_positive_interval(interval)
+        return AGroupStream(self, size, interval, by)
+
     def groupby(
         self,
         key: Callable[[T], U],
@@ -1034,6 +1062,24 @@ class GroupStream(DownStream[T, List[T]]):
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_group_stream(self)
+
+class AGroupStream(DownStream[T, List[T]]):
+    __slots__ = ("_upstream", "_size", "_interval", "_by")
+
+    def __init__(
+        self,
+        upstream: Stream[T],
+        size: Optional[int],
+        interval: Optional[datetime.timedelta],
+        by: Optional[Callable[[T], Coroutine[Any, Any, Any]]],
+    ) -> None:
+        super().__init__(upstream)
+        self._size = size
+        self._interval = interval
+        self._by = by
+
+    def accept(self, visitor: "Visitor[V]") -> V:
+        return visitor.visit_agroup_stream(self)
 
 
 class GroupbyStream(DownStream[T, Tuple[U, List[T]]]):
