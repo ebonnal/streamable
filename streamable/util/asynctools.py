@@ -1,23 +1,7 @@
 import asyncio
-from typing import Any, AsyncIterator, Awaitable, Coroutine, Optional, TypeVar
-
-from streamable.util.errors import WrappedError
+from typing import AsyncIterator, Awaitable, Optional, TypeVar
 
 T = TypeVar("T")
-
-_EVENT_LOOP: Optional[asyncio.AbstractEventLoop] = None
-
-
-def get_event_loop() -> asyncio.AbstractEventLoop:
-    global _EVENT_LOOP
-    if not _EVENT_LOOP:
-        try:
-            _EVENT_LOOP = asyncio.get_running_loop()
-        except RuntimeError:
-            _EVENT_LOOP = asyncio.new_event_loop()
-            asyncio.set_event_loop(_EVENT_LOOP)
-    return _EVENT_LOOP
-
 
 async def awaitable_to_coroutine(aw: Awaitable[T]) -> T:
     return await aw
@@ -26,3 +10,15 @@ async def awaitable_to_coroutine(aw: Awaitable[T]) -> T:
 async def empty_aiter() -> AsyncIterator:
     return
     yield
+
+class GetEventLoopMixin:
+    _EVENT_LOOP: Optional[asyncio.AbstractEventLoop] = None
+    @classmethod
+    def get_event_loop(cls) -> asyncio.AbstractEventLoop:
+        try:
+            return asyncio.get_running_loop()
+        except RuntimeError:
+            if not cls._EVENT_LOOP:
+                cls._EVENT_LOOP = asyncio.new_event_loop()
+            return cls._EVENT_LOOP
+
