@@ -193,19 +193,29 @@ class TestStream(unittest.TestCase):
         complex_stream.display(logging.ERROR)
 
         self.assertEqual(
-            """(
-    Stream(range(0, 256))
-)""",
             str(Stream(src)),
+            "Stream(range(0, 256))",
             msg="`repr` should work as expected on a stream without operation",
         )
         self.assertEqual(
+            str(Stream(src).skip(10)),
+            "Stream(range(0, 256)).skip(10, until=None)",
+            msg="`repr` should return a one-liner for a stream with 1 operations",
+        )
+        self.assertEqual(
+            str(Stream(src).skip(10).skip(10)),
+            "Stream(range(0, 256)).skip(10, until=None).skip(10, until=None)",
+            msg="`repr` should return a one-liner for a stream with 2 operations",
+        )
+        self.assertEqual(
+            str(Stream(src).skip(10).skip(10).skip(10)),
             """(
     Stream(range(0, 256))
-    .map(<lambda>, concurrency=2, ordered=True, via='process')
+    .skip(10, until=None)
+    .skip(10, until=None)
+    .skip(10, until=None)
 )""",
-            str(Stream(src).map(lambda _: _, concurrency=2, via="process")),
-            msg="`repr` should work as expected on a stream with 1 operation",
+            msg="`repr` should go to line for a stream with 3 operations",
         )
         self.assertEqual(
             str(complex_stream),
