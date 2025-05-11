@@ -55,9 +55,11 @@ inverses: Stream[float] = (
 
 ## 5. iterate
 
-Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`, elements are processed *on-the-fly*:
+Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`/`AsyncIterable`, elements are processed *on-the-fly*:
 
-- **collect**
+
+### `Iterable[T]`
+- **collect into a data structure**
 ```python
 >>> list(inverses)
 [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
@@ -85,8 +87,7 @@ Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`, eleme
 1.0
 ```
 
-> [!NOTE]
-> A `Stream[T]` is also an `AsyncIterable[T]` and can be consumed as such:
+### `AsyncIterable[T]`
 
 - **`async for`**
 ```python
