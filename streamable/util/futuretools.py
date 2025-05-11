@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from collections import deque
 from concurrent.futures import Future
 from contextlib import suppress
-from typing import Awaitable, Deque, Iterator, Sized, Type, TypeVar, cast
+from typing import AsyncIterator, Awaitable, Deque, Iterator, Sized, Type, TypeVar, cast
 
 with suppress(ImportError):
     from streamable.util.protocols import Queue
@@ -11,13 +11,16 @@ with suppress(ImportError):
 T = TypeVar("T")
 
 
-class FutureResultCollection(Iterator[T], Sized, ABC):
+class FutureResultCollection(Iterator[T], AsyncIterator[T], Sized, ABC):
     """
     Iterator over added futures' results. Supports adding new futures after iteration started.
     """
 
     @abstractmethod
     def add_future(self, future: "Future[T]") -> None: ...
+
+    async def __anext__(self) -> T:
+        return next(self)
 
 
 class DequeFutureResultCollection(FutureResultCollection[T]):
@@ -87,6 +90,9 @@ class FIFOAsyncFutureResultCollection(DequeFutureResultCollection[T]):
             cast(Awaitable[T], self._futures.popleft())
         )
 
+    async def __anext__(self) -> T:
+        return await cast(Awaitable[T], self._futures.popleft())
+
 
 class FDFOAsyncFutureResultCollection(CallbackFutureResultCollection[T]):
     """
@@ -103,6 +109,12 @@ class FDFOAsyncFutureResultCollection(CallbackFutureResultCollection[T]):
 
     def __next__(self) -> T:
         result = self.event_loop.run_until_complete(self._waiter)
+        self._n_futures -= 1
+        self._waiter = self.event_loop.create_future()
+        return result
+
+    async def __anext__(self) -> T:
+        result = await self._waiter
         self._n_futures -= 1
         self._waiter = self.event_loop.create_future()
         return result

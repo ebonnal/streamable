@@ -1,13 +1,21 @@
-from typing import Any, Callable, Coroutine, Generic, Tuple, Type, TypeVar, overload
+from functools import partial
+from typing import (
+    Any,
+    AsyncIterable,
+    Callable,
+    Coroutine,
+    Generic,
+    Tuple,
+    Type,
+    TypeVar,
+    overload,
+)
+
+from streamable.util.asynctools import GetEventLoopMixin
+from streamable.util.errors import WrappedError
 
 T = TypeVar("T")
 R = TypeVar("R")
-
-
-class WrappedError(Exception):
-    def __init__(self, error: Exception):
-        super().__init__(repr(error))
-        self.error = error
 
 
 class _ErrorWrappingDecorator(Generic[T, R]):
@@ -26,7 +34,33 @@ def wrap_error(func: Callable[[T], R], error_type: Type[Exception]) -> Callable[
     return _ErrorWrappingDecorator(func, error_type)
 
 
+def awrap_error(
+    async_func: Callable[[T], Coroutine[Any, Any, R]], error_type: Type[Exception]
+) -> Callable[[T], Coroutine[Any, Any, R]]:
+    async def wrap(elem: T) -> R:
+        try:
+            coroutine = async_func(elem)
+            if not isinstance(coroutine, Coroutine):
+                raise TypeError(
+                    f"must be an async function i.e. a function returning a Coroutine but it returned a {type(coroutine)}"
+                )
+            return await coroutine
+        except error_type as e:
+            raise WrappedError(e) from e
+
+    return wrap
+
+
 iter_wo_stopiteration = wrap_error(iter, StopIteration)
+iter_wo_stopasynciteration = wrap_error(iter, StopAsyncIteration)
+
+
+def _aiter(aiterable: AsyncIterable):
+    return aiterable.__aiter__()
+
+
+aiter_wo_stopasynciteration = wrap_error(_aiter, StopAsyncIteration)
+aiter_wo_stopiteration = wrap_error(_aiter, StopIteration)
 
 
 class _Sidify(Generic[T]):
@@ -115,3 +149,28 @@ def star(func: Callable[..., R]) -> Callable[[Tuple], R]:
     ```
     """
     return _Star(func)
+
+
+class _Syncify(Generic[R], GetEventLoopMixin):
+    def __init__(self, async_func: Callable[[T], Coroutine[Any, Any, R]]) -> None:
+        self.async_func = async_func
+
+    def __call__(self, T) -> R:
+        coroutine = self.async_func(T)
+        if not isinstance(coroutine, Coroutine):
+            raise TypeError(
+                f"must be an async function i.e. a function returning a Coroutine but it returned a {type(coroutine)}"
+            )
+        return self.get_event_loop().run_until_complete(coroutine)
+
+
+def syncify(async_func: Callable[[T], Coroutine[Any, Any, R]]) -> Callable[[T], R]:
+    return _Syncify(async_func)
+
+
+async def _async_call(func: Callable[[T], R], o: T) -> R:
+    return func(o)
+
+
+def asyncify(func: Callable[[T], R]) -> Callable[[T], Coroutine[Any, Any, R]]:
+    return partial(_async_call, func)
