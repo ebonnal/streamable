@@ -48,181 +48,39 @@ from streamable.util.iterabletools import (
     sync_to_bi_iterable,
     sync_to_async_iter,
 )
-
-T = TypeVar("T")
-R = TypeVar("R")
-
-IterableType = Union[Type[Iterable], Type[AsyncIterable]]
-ITERABLE_TYPES: Tuple[IterableType, ...] = (Iterable, AsyncIterable)
-
-
-def overloaded_stopiteration(itype: IterableType) -> Type[Exception]:
-    if issubclass(itype, AsyncIterable):
-        return StopAsyncIteration
-    return StopIteration
-
-
-def to_list(stream: Stream[T], itype: IterableType) -> List[T]:
-    assert isinstance(stream, Stream)
-    if itype is AsyncIterable:
-        return aiterable_to_list(stream)
-    else:
-        return list(stream)
-
-
-def to_set(stream: Stream[T], itype: IterableType) -> Set[T]:
-    assert isinstance(stream, Stream)
-    if itype is AsyncIterable:
-        return aiterable_to_set(stream)
-    else:
-        return set(stream)
-
-
-def stream_to_iter(
-    stream: Stream[T], itype: IterableType
-) -> Union[Iterator[T], AsyncIterator[T]]:
-    if itype is AsyncIterable:
-        return stream.__aiter__()
-    else:
-        return iter(stream)
-
-
-def anext_or_next(it: Union[Iterator[T], AsyncIterator[T]]) -> T:
-    if isinstance(it, AsyncIterator):
-        return get_event_loop().run_until_complete(it.__anext__())
-    else:
-        return next(it)
-
-
-def alist_or_list(iterable: Union[Iterable[T], AsyncIterable[T]]) -> List[T]:
-    if isinstance(iterable, AsyncIterable):
-        return aiterable_to_list(iterable)
-    else:
-        return list(iterable)
-
-
-def timestream(
-    stream: Stream[T], times: int = 1, itype: IterableType = Iterable
-) -> Tuple[float, List[T]]:
-    res: List[T] = []
-
-    def iterate():
-        nonlocal res
-        res = to_list(stream, itype=itype)
-
-    return timeit.timeit(iterate, number=times) / times, res
-
-
-def identity_sleep(seconds: float) -> float:
-    time.sleep(seconds)
-    return seconds
-
-
-async def async_identity_sleep(seconds: float) -> float:
-    await asyncio.sleep(seconds)
-    return seconds
-
-
-# simulates an I/0 bound function
-slow_identity_duration = 0.05
-
-
-def slow_identity(x: T) -> T:
-    time.sleep(slow_identity_duration)
-    return x
-
-
-async def async_slow_identity(x: T) -> T:
-    await asyncio.sleep(slow_identity_duration)
-    return x
-
-
-def identity(x: T) -> T:
-    return x
-
-
-# fmt: off
-async def async_identity(x: T) -> T: return x
-# fmt: on
-
-
-def square(x):
-    return x**2
-
-
-async def async_square(x):
-    return x**2
-
-
-def throw(exc: Type[Exception]):
-    raise exc()
-
-
-def throw_func(exc: Type[Exception]) -> Callable[[T], T]:
-    return lambda _: throw(exc)
-
-
-def async_throw_func(exc: Type[Exception]) -> Callable[[T], Coroutine[Any, Any, T]]:
-    async def f(_: T) -> T:
-        raise exc
-
-    return f
-
-
-def throw_for_odd_func(exc):
-    return lambda i: throw(exc) if i % 2 == 1 else i
-
-
-def async_throw_for_odd_func(exc):
-    async def f(i):
-        return throw(exc) if i % 2 == 1 else i
-
-    return f
-
-
-class TestError(Exception):
-    pass
-
-
-DELTA_RATE = 0.4
-# size of the test collections
-N = 256
-
-src = range(N)
-
-even_src = range(0, N, 2)
-
-
-def randomly_slowed(
-    func: Callable[[T], R], min_sleep: float = 0.001, max_sleep: float = 0.05
-) -> Callable[[T], R]:
-    def wrap(x: T) -> R:
-        time.sleep(min_sleep + random.random() * (max_sleep - min_sleep))
-        return func(x)
-
-    return wrap
-
-
-def async_randomly_slowed(
-    async_func: Callable[[T], Coroutine[Any, Any, R]],
-    min_sleep: float = 0.001,
-    max_sleep: float = 0.05,
-) -> Callable[[T], Coroutine[Any, Any, R]]:
-    async def wrap(x: T) -> R:
-        await asyncio.sleep(min_sleep + random.random() * (max_sleep - min_sleep))
-        return await async_func(x)
-
-    return wrap
-
-
-def range_raising_at_exhaustion(
-    start: int, end: int, step: int, exception: Exception
-) -> Iterator[int]:
-    yield from range(start, end, step)
-    raise exception
-
-
-src_raising_at_exhaustion = lambda: range_raising_at_exhaustion(0, N, 1, TestError())
+from tests.utils import (
+    DELTA_RATE,
+    ITERABLE_TYPES,
+    N,
+    IterableType,
+    TestError,
+    alist_or_list,
+    anext_or_next,
+    async_identity,
+    async_identity_sleep,
+    async_randomly_slowed,
+    async_slow_identity,
+    async_square,
+    async_throw_for_odd_func,
+    async_throw_func,
+    identity,
+    identity_sleep,
+    overloaded_stopiteration,
+    randomly_slowed,
+    slow_identity,
+    square,
+    src,
+    stream_to_iter,
+    throw,
+    throw_for_odd_func,
+    throw_func,
+    timestream,
+    to_list,
+    to_set,
+    slow_identity_duration,
+    even_src,
+    src_raising_at_exhaustion,
+)
 
 
 class TestStream(unittest.TestCase):

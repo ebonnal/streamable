@@ -89,7 +89,7 @@ class SyncToAsyncIterator(AsyncIterator[T]):
         return await self.bi_iterator.__anext__()
 
 
-sync_to_async_iter: Callable[[Iterable[T]], AsyncIterator[T]] = SyncToBiIterator
+sync_to_async_iter: Callable[[Iterable[T]], AsyncIterator[T]] = SyncToAsyncIterator
 
 
 class AsyncToBiIterator(BiIterator[T]):
