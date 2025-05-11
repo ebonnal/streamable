@@ -27,7 +27,7 @@ from streamable.stream import (
     TruncateStream,
 )
 from streamable.util.functiontools import async_sidify, sidify
-from streamable.util.iterabletools import sync_to_bi_iter
+from streamable.util.iterabletools import sync_to_async_iter
 from streamable.visitors import Visitor
 
 T = TypeVar("T")
@@ -210,13 +210,13 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
 
     def visit_stream(self, stream: Stream[T]) -> AsyncIterator[T]:
         if isinstance(stream.source, Iterable):
-            return sync_to_bi_iter(stream.source)
+            return sync_to_async_iter(stream.source)
         elif isinstance(stream.source, AsyncIterable):
             return stream.source.__aiter__()
         elif callable(stream.source):
             iterable = stream.source()
             if isinstance(iterable, Iterable):
-                return sync_to_bi_iter(iterable)
+                return sync_to_async_iter(iterable)
             elif isinstance(iterable, AsyncIterable):
                 return iterable.__aiter__()
             if not isinstance(iterable, Iterable):

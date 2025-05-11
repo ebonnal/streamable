@@ -20,7 +20,11 @@ from typing import (
 
 from streamable.stream import Stream
 from streamable.util.asynctools import get_event_loop
-from streamable.util.iterabletools import aiterable_to_list, aiterable_to_set
+from streamable.util.iterabletools import (
+    BiIterable,
+    aiterable_to_list,
+    aiterable_to_set,
+)
 
 T = TypeVar("T")
 R = TypeVar("R")
@@ -51,13 +55,13 @@ def to_set(stream: Stream[T], itype: IterableType) -> Set[T]:
         return set(stream)
 
 
-def stream_to_iter(
-    stream: Stream[T], itype: IterableType
+def bi_iterable_to_iter(
+    iterable: Union[BiIterable[T], Stream[T]], itype: IterableType
 ) -> Union[Iterator[T], AsyncIterator[T]]:
     if itype is AsyncIterable:
-        return stream.__aiter__()
+        return iterable.__aiter__()
     else:
-        return iter(stream)
+        return iter(iterable)
 
 
 def anext_or_next(it: Union[Iterator[T], AsyncIterator[T]]) -> T:

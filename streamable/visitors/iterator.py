@@ -27,7 +27,7 @@ from streamable.stream import (
     TruncateStream,
 )
 from streamable.util.functiontools import async_sidify, sidify, syncify, wrap_error
-from streamable.util.iterabletools import async_to_bi_iter
+from streamable.util.iterabletools import async_to_sync_iter
 from streamable.visitors import Visitor
 
 T = TypeVar("T")
@@ -218,13 +218,13 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         if isinstance(stream.source, Iterable):
             return iter(stream.source)
         elif isinstance(stream.source, AsyncIterable):
-            return async_to_bi_iter(stream.source)
+            return async_to_sync_iter(stream.source)
         elif callable(stream.source):
             iterable = stream.source()
             if isinstance(iterable, Iterable):
                 return iter(iterable)
             elif isinstance(iterable, AsyncIterable):
-                return async_to_bi_iter(iterable)
+                return async_to_sync_iter(iterable)
             if not isinstance(iterable, Iterable):
                 raise TypeError(
                     f"`source` must be an Iterable/AsyncIterable or a Callable[[], Iterable/AsyncIterable] but got a Callable[[], {type(iterable)}]"

@@ -47,29 +47,15 @@ class SyncToBiIterable(BiIterable[T]):
         return iter(self.iterable)
 
     def __aiter__(self) -> AsyncIterator[T]:
-        return SyncToBiIterator(self.iterable)
+        return SyncToAsyncIterator(self.iterable)
 
 
 sync_to_bi_iterable: Callable[[Iterable[T]], BiIterable[T]] = SyncToBiIterable
 
 
-# class AsyncToSyncIterable(Iterable[T], AsyncIterable[T]):
-#     def __init__(self, iterable: AsyncIterable[T]):
-#         self.iterable = iterable
-
-#     def __iter__(self) -> Iterator[T]:
-#         return AsyncToSyncIterator(self.iterable.__aiter__())
-
-#     def __aiter__(self) -> AsyncIterator[T]:
-#         return self.iterable.__aiter__()
-
-
-class SyncToBiIterator(BiIterator[T]):
+class SyncToAsyncIterator(AsyncIterator[T]):
     def __init__(self, iterator: Iterable[T]):
         self.iterator: Iterator[T] = iter(iterator)
-
-    def __next__(self) -> T:
-        return next(self.iterator)
 
     async def __anext__(self) -> T:
         try:
@@ -78,21 +64,10 @@ class SyncToBiIterator(BiIterator[T]):
             raise StopAsyncIteration() from e
 
 
-sync_to_bi_iter: Callable[[Iterable[T]], BiIterator[T]] = SyncToBiIterator
-
-
-class SyncToAsyncIterator(AsyncIterator[T]):
-    def __init__(self, iterator: Iterable[T]):
-        self.bi_iterator: BiIterator[T] = SyncToBiIterator(iterator)
-
-    async def __anext__(self) -> T:
-        return await self.bi_iterator.__anext__()
-
-
 sync_to_async_iter: Callable[[Iterable[T]], AsyncIterator[T]] = SyncToAsyncIterator
 
 
-class AsyncToBiIterator(BiIterator[T]):
+class AsyncToSyncIterator(Iterator[T]):
     def __init__(self, iterator: AsyncIterable[T]):
         self.iterator: AsyncIterator[T] = iterator.__aiter__()
         self.event_loop: asyncio.AbstractEventLoop = get_event_loop()
@@ -103,8 +78,5 @@ class AsyncToBiIterator(BiIterator[T]):
         except StopAsyncIteration as e:
             raise StopIteration() from e
 
-    async def __anext__(self) -> T:
-        return await self.iterator.__anext__()
 
-
-async_to_bi_iter: Callable[[AsyncIterable[T]], BiIterator[T]] = AsyncToBiIterator
+async_to_sync_iter: Callable[[AsyncIterable[T]], Iterator[T]] = AsyncToSyncIterator
