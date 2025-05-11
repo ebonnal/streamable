@@ -1,6 +1,15 @@
 import datetime
 from contextlib import suppress
-from typing import Any, Iterable, Iterator, Optional, Type, TypeVar, Union
+from typing import (
+    Any,
+    AsyncIterator,
+    Iterable,
+    Iterator,
+    Optional,
+    Type,
+    TypeVar,
+    Union,
+)
 
 with suppress(ImportError):
     from typing import Literal
@@ -11,6 +20,13 @@ T = TypeVar("T")
 def validate_iterator(iterator: Iterator):
     if not isinstance(iterator, Iterator):
         raise TypeError(f"`iterator` must be an Iterator but got a {type(iterator)}")
+
+
+def validate_aiterator(iterator: AsyncIterator):
+    if not isinstance(iterator, AsyncIterator):
+        raise TypeError(
+            f"`iterator` must be an AsyncIterator but got a {type(iterator)}"
+        )
 
 
 def validate_base(base: int):
@@ -69,7 +85,7 @@ def validate_optional_positive_count(count: Optional[int]):
 
 # def validate_not_none(value: Any, name: str) -> None:
 #     if value is None:
-#         raise TypeError(f"`{name}` cannot be None")
+#         raise TypeError(f"`{name}` must not be None")
 
 
 def validate_errors(

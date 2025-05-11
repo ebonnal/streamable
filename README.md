@@ -7,11 +7,11 @@
 
 # ༄ `streamable`
 
-### *Pythonic Stream-like manipulation of iterables*
+### *Pythonic Stream-like manipulation of (async) iterables*
 
 - 🔗 ***Fluent*** chainable lazy operations
-- 🔀 ***Concurrent*** via *threads*/*processes*/`asyncio`
-- 🇹 ***Typed***, fully annotated, `Stream[T]` is an `Iterable[T]`
+- 🔀 ***Concurrent*** via *threads*/*processes*/`async`
+- 🇹 ***Typed***, fully annotated, `Stream[T]` is both an `Iterable[T]` and an `AsyncIterable[T]`
 - 🛡️ ***Tested*** extensively with **Python 3.7 to 3.14**
 - 🪶 ***Light***, no dependencies
 
@@ -35,7 +35,7 @@ from streamable import Stream
 
 ## 3. init
 
-Create a `Stream[T]` *decorating* an `Iterable[T]`:
+Create a `Stream[T]` *decorating* an `Iterable[T]` (or an `AsyncIterable[T]`):
 
 ```python
 integers: Stream[int] = Stream(range(10))
@@ -55,9 +55,11 @@ inverses: Stream[float] = (
 
 ## 5. iterate
 
-Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`, elements are processed *on-the-fly*:
+Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`/`AsyncIterable`, elements are processed *on-the-fly*:
 
-- **collect**
+
+### as `Iterable[T]`
+- **into data structure**
 ```python
 >>> list(inverses)
 [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
@@ -65,7 +67,13 @@ Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`, eleme
 {0.5, 1.0, 0.2, 0.33, 0.25, 0.17, 0.14, 0.12, 0.11}
 ```
 
-- **reduce**
+- **`for`**
+```python
+>>> [inverse for inverse in inverses]:
+[1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
+```
+
+- **`reduce`**
 ```python
 >>> sum(inverses)
 2.82
@@ -73,23 +81,140 @@ Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`, eleme
 >>> reduce(..., inverses)
 ```
 
-- **loop**
-```python
->>> for inverse in inverses:
->>>    ...
-```
-
-- **next**
+- **`iter`/`next`**
 ```python
 >>> next(iter(inverses))
 1.0
+```
+
+### as `AsyncIterable[T]`
+
+- **`async for`**
+```python
+>>> async def main() -> List[int]:
+>>>     return [inverse async for inverse in inverses]
+
+>>> asyncio.run(main())
+[1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
+```
+
+- **`aiter`/`anext`**
+```python
+>>> asyncio.run(anext(aiter(inverses)))  # before 3.10: inverses.__aiter__().__anext__()
+1.0
+```
+
+
+
+# ↔️ **Extract-Transform-Load**
+
+> [!TIP]
+> **ETL scripts** can benefit from the expressiveness of this library. Below is a pipeline that extracts the 67 quadruped Pokémon from the first three generations using [PokéAPI](https://pokeapi.co/) and loads them into a CSV:
+
+```python
+import csv
+from datetime import timedelta
+import itertools
+import requests
+from streamable import Stream
+
+with open("./quadruped_pokemons.csv", mode="w") as file:
+    fields = ["id", "name", "is_legendary", "base_happiness", "capture_rate"]
+    writer = csv.DictWriter(file, fields, extrasaction='ignore')
+    writer.writeheader()
+
+    pipeline: Stream = (
+        # Infinite Stream[int] of Pokemon ids starting from Pokémon #1: Bulbasaur
+        Stream(itertools.count(1))
+        # Limits to 16 requests per second to be friendly to our fellow PokéAPI devs
+        .throttle(16, per=timedelta(seconds=1))
+        # GETs pokemons concurrently using a pool of 8 threads
+        .map(lambda poke_id: f"https://pokeapi.co/api/v2/pokemon-species/{poke_id}")
+        .map(requests.get, concurrency=8)
+        .foreach(requests.Response.raise_for_status)
+        .map(requests.Response.json)
+        # Stops the iteration when reaching the 1st pokemon of the 4th generation
+        .truncate(when=lambda poke: poke["generation"]["name"] == "generation-iv")
+        .observe("pokemons")
+        # Keeps only quadruped Pokemons
+        .filter(lambda poke: poke["shape"]["name"] == "quadruped")
+        .observe("quadruped pokemons")
+        # Catches errors due to None "generation" or "shape"
+        .catch(
+            TypeError,
+            when=lambda error: str(error) == "'NoneType' object is not subscriptable"
+        )
+        # Writes a batch of pokemons every 5 seconds to the CSV file
+        .group(interval=timedelta(seconds=5))
+        .foreach(writer.writerows)
+        .flatten()
+        .observe("written pokemons")
+        # Catches exceptions and raises the 1st one at the end of the iteration
+        .catch(Exception, finally_raise=True)
+    )
+
+    pipeline()
+```
+
+## Or the `async` way
+
+Using `.amap` (the `.map`'s `async` counterpart) and `await`ing the stream (exhausts it as an `AsyncIterable[T]`):
+
+```python
+import asyncio
+import csv
+from datetime import timedelta
+import itertools
+import httpx
+from streamable import Stream
+
+async def main() -> None:
+    with open("./quadruped_pokemons.csv", mode="w") as file:
+        fields = ["id", "name", "is_legendary", "base_happiness", "capture_rate"]
+        writer = csv.DictWriter(file, fields, extrasaction='ignore')
+        writer.writeheader()
+
+        async with httpx.AsyncClient() as http_async_client:
+            pipeline: Stream = (
+                # Infinite Stream[int] of Pokemon ids starting from Pokémon #1: Bulbasaur
+                Stream(itertools.count(1))
+                # Limits to 16 requests per second to be friendly to our fellow PokéAPI devs
+                .throttle(16, per=timedelta(seconds=1))
+                # GETs pokemons via 8 concurrent asyncio coroutines
+                .map(lambda poke_id: f"https://pokeapi.co/api/v2/pokemon-species/{poke_id}")
+                .amap(http_async_client.get, concurrency=8)
+                .foreach(httpx.Response.raise_for_status)
+                .map(httpx.Response.json)
+                # Stops the iteration when reaching the 1st pokemon of the 4th generation
+                .truncate(when=lambda poke: poke["generation"]["name"] == "generation-iv")
+                .observe("pokemons")
+                # Keeps only quadruped Pokemons
+                .filter(lambda poke: poke["shape"]["name"] == "quadruped")
+                .observe("quadruped pokemons")
+                # Catches errors due to None "generation" or "shape"
+                .catch(
+                    TypeError,
+                    when=lambda error: str(error) == "'NoneType' object is not subscriptable"
+                )
+                # Writes a batch of pokemons every 5 seconds to the CSV file
+                .group(interval=timedelta(seconds=5))
+                .foreach(writer.writerows)
+                .flatten()
+                .observe("written pokemons")
+                # Catches exceptions and raises the 1st one at the end of the iteration
+                .catch(Exception, finally_raise=True)
+            )
+
+            await pipeline
+
+asyncio.run(main())
 ```
 
 # 📒 ***Operations***
 
 *A dozen expressive lazy operations and that’s it!*
 
-# `.map`
+## `.map`
 
 > Applies a transformation on elements:
 
@@ -102,7 +227,7 @@ assert list(integer_strings) == ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9
 ```
 </details>
 
-## concurrency
+### concurrency
 
 > [!NOTE]
 > By default, all the concurrency modes presented below yield results in the upstream order (FIFO). Set the parameter `ordered=False` to yield results as they become available (***First Done, First Out***).
@@ -149,32 +274,11 @@ if __name__ == "__main__":
 ```
 </details>
 
-### `asyncio`-based concurrency
+### `async`-based concurrency: [see `.amap`](#amap)
 
-> The sibling operation `.amap` applies an async function:
+> [The `.amap` operation can apply an `async` function concurrently.](#amap)
 
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
-
-```python
-import httpx
-import asyncio
-
-http_async_client = httpx.AsyncClient()
-
-pokemon_names: Stream[str] = (
-    Stream(range(1, 4))
-    .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
-    .amap(http_async_client.get, concurrency=3)
-    .map(httpx.Response.json)
-    .map(lambda poke: poke["name"])
-)
-
-assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
-asyncio.get_event_loop().run_until_complete(http_async_client.aclose())
-```
-</details>
-
-## "starmap"
+### "starmap"
 
 > The `star` function decorator transforms a function that takes several positional arguments into a function that takes a tuple:
 
@@ -194,9 +298,7 @@ assert list(zeros) == [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
 
 
-# `.foreach`
-
-
+## `.foreach`
 
 > Applies a side effect on elements:
 
@@ -211,18 +313,19 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 </details>
 
-## concurrency
+### concurrency
 
 > Similar to `.map`:
 > - set the `concurrency` parameter for **thread-based concurrency**
 > - set `via="process"` for **process-based concurrency**
-> - use the sibling `.aforeach` operation for **`asyncio`-based concurrency**
 > - set `ordered=False` for ***First Done First Out***
+> - [The `.aforeach` operation can apply an `async` effect concurrently.](#aforeach)
 
-# `.group`
+## `.group`
 
-> Groups elements into `List`s:
+> Groups into `List`s
 
+> ... up to a given group `size`:
 <details ><summary style="text-indent: 40px;">👀 show example</summary></br>
 
 ```python
@@ -231,6 +334,9 @@ integers_by_5: Stream[List[int]] = integers.group(size=5)
 assert list(integers_by_5) == [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]]
 ```
 </details>
+
+> ... and/or co-groups `by` a given key:
+
 <details ><summary style="text-indent: 40px;">👀 show example</summary></br>
 
 ```python
@@ -239,6 +345,9 @@ integers_by_parity: Stream[List[int]] = integers.group(by=lambda n: n % 2)
 assert list(integers_by_parity) == [[0, 2, 4, 6, 8], [1, 3, 5, 7, 9]]
 ```
 </details>
+
+> ... and/or co-groups the elements yielded by the upstream within a given time `interval`:
+
 <details ><summary style="text-indent: 40px;">👀 show example</summary></br>
 
 ```python
@@ -254,7 +363,9 @@ assert list(integers_within_1_sec) == [[0, 1, 2], [3, 4], [5, 6], [7, 8], [9]]
 ```
 </details>
 
-> Mix the `size`/`by`/`interval` parameters:
+> [!TIP]
+> Combine the `size`/`by`/`interval` parameters:
+
 <details ><summary style="text-indent: 40px;">👀 show example</summary></br>
 
 ```python
@@ -266,7 +377,6 @@ integers_by_parity_by_2: Stream[List[int]] = (
 assert list(integers_by_parity_by_2) == [[0, 2], [1, 3], [4, 6], [5, 7], [8], [9]]
 ```
 </details>
-
 
 ## `.groupby`
 
@@ -300,7 +410,7 @@ assert list(counts_by_parity) == [("even", 5), ("odd", 5)]
 ```
 </details>
 
-# `.flatten`
+## `.flatten`
 
 > Ungroups elements assuming that they are `Iterable`s:
 
@@ -328,7 +438,7 @@ assert list(mixed_ones_and_zeros) == [0, 1, 0, 1, 0, 1, 0, 1]
 ```
 </details>
 
-# `.filter`
+## `.filter`
 
 > Keeps only the elements that satisfy a condition:
 
@@ -341,7 +451,7 @@ assert list(even_integers) == [0, 2, 4, 6, 8]
 ```
 </details>
 
-# `.distinct`
+## `.distinct`
 
 > Removes duplicates:
 
@@ -383,7 +493,7 @@ assert list(consecutively_distinct_chars) == ["f", "o", "b", "a", "r", "f", "o"]
 ```
 </details>
 
-# `.truncate`
+## `.truncate`
 
 > Ends iteration once a given number of elements have been yielded:
 
@@ -409,7 +519,7 @@ assert list(five_first_integers) == [0, 1, 2, 3, 4]
 
 > If both `count` and `when` are set, truncation occurs as soon as either condition is met.
 
-# `.skip`
+## `.skip`
 
 > Skips the first specified number of elements:
 
@@ -435,7 +545,7 @@ assert list(integers_after_five) == [5, 6, 7, 8, 9]
 
 > If both `count` and `until` are set, skipping stops as soon as either condition is met.
 
-# `.catch`
+## `.catch`
 
 > Catches a given type of exception, and optionally yields a `replacement` value:
 
@@ -495,8 +605,7 @@ assert len(errors) == len("foo")
 ```
 </details>
 
-
-# `.throttle`
+## `.throttle`
 
 > Limits the number of yields `per` time interval:
 
@@ -513,7 +622,7 @@ assert list(three_integers_per_second) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 </details>
 
 
-# `.observe`
+## `.observe`
 
 > Logs the progress of iterations:
 <details ><summary style="text-indent: 40px;">👀 show example</summary></br>
@@ -545,7 +654,7 @@ logging.getLogger("streamable").setLevel(logging.WARNING)
 ```
 </details>
 
-# `+`
+## `+`
 
 > Concatenates streams:
 
@@ -557,7 +666,7 @@ assert list(integers + integers) == [0, 1, 2, 3 ,4, 5, 6, 7, 8, 9, 0, 1, 2, 3 ,4
 </details>
 
 
-# `zip`
+## `zip`
 
 > [!TIP]
 > Use the standard `zip` function:
@@ -583,8 +692,6 @@ assert list(cubes) == [0, 1, 8, 27, 64, 125, 216, 343, 512, 729]
 
 ## `.count`
 
-
-
 > Iterates over the stream until exhaustion and returns the number of elements yielded:
 
 <details ><summary style="text-indent: 40px;">👀 show example</summary></br>
@@ -594,10 +701,7 @@ assert integers.count() == 10
 ```
 </details>
 
-
 ## `()`
-
-
 
 > *Calling* the stream iterates over it until exhaustion and returns it:
 <details ><summary style="text-indent: 40px;">👀 show example</summary></br>
@@ -610,8 +714,7 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 </details>
 
-
-# `.pipe`
+## `.pipe`
 
 > Calls a function, passing the stream as first argument, followed by `*args/**kwargs` if any:
 
@@ -631,6 +734,138 @@ import pandas as pd
 
 > Inspired by the `.pipe` from [pandas](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.pipe.html) or [polars](https://docs.pola.rs/api/python/stable/reference/dataframe/api/polars.DataFrame.pipe.html).
 
+---
+---
+
+# 📒 ***`async` Operations***
+
+Operations that accept a function as an argument have an `async` counterpart, which has the same signature but accepts `async` functions instead. These `async` operations are named the same as the original ones but with an `a` prefix.
+
+> [!TIP]
+> One can mix regular and `async` operations on the same `Stream`, and then consume it as a regular `Iterable` or as an `AsyncIterable`.
+
+## `.amap`
+
+> Applies an `async` transformation on elements:
+
+
+### Consume as `Iterable[T]`
+
+<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+
+```python
+import asyncio
+import httpx
+
+http_async_client = httpx.AsyncClient()
+
+pokemon_names: Stream[str] = (
+    Stream(range(1, 4))
+    .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
+    .amap(http_async_client.get, concurrency=3)
+    .map(httpx.Response.json)
+    .map(lambda poke: poke["name"])
+)
+
+assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
+asyncio.run(http_async_client.aclose())
+```
+</details>
+
+### Consume as `AsyncIterable[T]`
+
+<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+
+```python
+import asyncio
+import httpx
+
+async def main() -> None:
+    async with httpx.AsyncClient() as http_async_client:
+        pokemon_names: Stream[str] = (
+            Stream(range(1, 4))
+            .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
+            .amap(http_async_client.get, concurrency=3)
+            .map(httpx.Response.json)
+            .map(lambda poke: poke["name"])
+        )
+        assert [name async for name in pokemon_names] == ['bulbasaur', 'ivysaur', 'venusaur']
+
+asyncio.run(main())
+```
+</details>
+
+
+## `.aforeach`
+
+> Applies an `async` side effect on elements. Supports `concurrency` like `.amap`.
+
+## `.agroup`
+
+> Groups into `List`s according to an `async` grouping function.
+
+## `.agroupby`
+
+> Groups into `(key, elements)` tuples, according to an `async` grouping function.
+
+## `.aflatten`
+
+> Ungroups elements assuming that they are `AsyncIterable`s.
+
+> Like for `.flatten` you can set the `concurrency` parameter.
+
+## `.afilter`
+
+> Keeps only the elements that satisfy an `async` condition.
+
+## `.adistinct`
+
+> Removes duplicates according to an `async` deduplication `key`.
+
+## `.atruncate`
+
+> Ends iteration once a given number of elements have been yielded or `when` an `async` condition is satisfied.
+
+## `.askip`
+
+> Skips the specified number of elements or `until` an `async` predicate is satisfied.
+
+## `.acatch`
+
+> Catches a given type of exception `when` an `async` condition is satisfied.
+
+## Shorthands for consuming the stream as an `AsyncIterable[T]`
+
+## `.acount`
+
+> Iterates over the stream until exhaustion and returns the number of elements yielded:
+
+<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+
+```python
+assert asyncio.run(integers.acount()) == 10
+```
+</details>
+
+
+## `await`
+
+> *Awaiting* the stream iterates over it until exhaustion and returns it:
+
+<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+
+```python
+async def test_await() -> None:
+    state: List[int] = []
+    appending_integers: Stream[int] = integers.foreach(state.append)
+    appending_integers is await appending_integers
+    assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+asyncio.run(test_await())
+```
+</details>
+
+---
+---
 
 # 💡 Notes
 
@@ -661,58 +896,6 @@ assert collected == [0, 1, 2, 3, 5, 6, 7, 8, 9]
 ```
 
 </details >
-
-## Extract-Transform-Load
-> [!TIP]
-> **Custom ETL scripts** can benefit from the expressiveness of this library. Below is a pipeline that extracts the 67 quadruped Pokémon from the first three generations using [PokéAPI](https://pokeapi.co/) and loads them into a CSV:
-
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
-
-```python
-import csv
-from datetime import timedelta
-import itertools
-import requests
-from streamable import Stream
-
-with open("./quadruped_pokemons.csv", mode="w") as file:
-    fields = ["id", "name", "is_legendary", "base_happiness", "capture_rate"]
-    writer = csv.DictWriter(file, fields, extrasaction='ignore')
-    writer.writeheader()
-
-    pipeline: Stream = (
-        # Infinite Stream[int] of Pokemon ids starting from Pokémon #1: Bulbasaur
-        Stream(itertools.count(1))
-        # Limits to 16 requests per second to be friendly to our fellow PokéAPI devs
-        .throttle(16, per=timedelta(seconds=1))
-        # GETs pokemons concurrently using a pool of 8 threads
-        .map(lambda poke_id: f"https://pokeapi.co/api/v2/pokemon-species/{poke_id}")
-        .map(requests.get, concurrency=8)
-        .foreach(requests.Response.raise_for_status)
-        .map(requests.Response.json)
-        # Stops the iteration when reaching the 1st pokemon of the 4th generation
-        .truncate(when=lambda poke: poke["generation"]["name"] == "generation-iv")
-        .observe("pokemons")
-        # Keeps only quadruped Pokemons
-        .filter(lambda poke: poke["shape"]["name"] == "quadruped")
-        .observe("quadruped pokemons")
-        # Catches errors due to None "generation" or "shape"
-        .catch(
-            TypeError,
-            when=lambda error: str(error) == "'NoneType' object is not subscriptable"
-        )
-        # Writes a batch of pokemons every 5 seconds to the CSV file
-        .group(interval=timedelta(seconds=5))
-        .foreach(writer.writerows)
-        .flatten()
-        .observe("written pokemons")
-        # Catches exceptions and raises the 1st one at the end of the iteration
-        .catch(Exception, finally_raise=True)
-    )
-
-    pipeline()
-```
-</details>
 
 ## Visitor Pattern
 > [!TIP]
