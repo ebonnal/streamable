@@ -82,7 +82,7 @@ def cast_iter(
         return iter(stream)
 
 
-def overloaded_next(it: Union[Iterator[T], AsyncIterator[T]]) -> T:
+def anext_or_next(it: Union[Iterator[T], AsyncIterator[T]]) -> T:
     if isinstance(it, AsyncIterator):
         return await_result(it.__anext__())
     else:
@@ -287,6 +287,7 @@ class TestStream(unittest.TestCase):
             .map(cast(Callable[[Any], Any], CustomCallable()))
             .amap(async_identity)
             .group(100)
+            .agroup(100)
             .groupby(len)
             .agroupby(async_identity)
             .map(star(lambda key, group: group))
@@ -362,6 +363,7 @@ class TestStream(unittest.TestCase):
     .map(CustomCallable(...), concurrency=1, ordered=True)
     .amap(async_identity, concurrency=1, ordered=True)
     .group(size=100, by=None, interval=None)
+    .agroup(size=100, by=None, interval=None)
     .groupby(len, size=None, interval=None)
     .agroupby(async_identity, size=None, interval=None)
     .map(star(<lambda>), concurrency=1, ordered=True)
@@ -528,7 +530,7 @@ class TestStream(unittest.TestCase):
         )
         # test partial iteration:
         self.assertEqual(
-            overloaded_next(cast_iter(stream, itype=itype)),
+            anext_or_next(cast_iter(stream, itype=itype)),
             expected_result_list[0],
             msg="process-based concurrency must behave ok with partial iteration",
         )
@@ -755,7 +757,7 @@ class TestStream(unittest.TestCase):
             (TypeError, AttributeError),
             msg="`flatten` should raise if an upstream element is not iterable.",
         ):
-            overloaded_next(
+            anext_or_next(
                 cast_iter(
                     flatten(Stream(cast(Union[Iterable, AsyncIterable], src))),
                     itype=itype,
@@ -962,7 +964,7 @@ class TestStream(unittest.TestCase):
                 0,
                 msg=f"before the first call to `next` a concurrent {type(stream)} should have pulled 0 upstream elements.",
             )
-            overloaded_next(iterator)
+            anext_or_next(iterator)
             time.sleep(0.5)
             self.assertEqual(
                 len(yielded_elems),
@@ -1208,7 +1210,7 @@ class TestStream(unittest.TestCase):
             ZeroDivisionError,
             msg="`truncate` must not stop iteration when encountering exceptions and raise them without counting them...",
         ):
-            overloaded_next(raising_stream_iterator)
+            anext_or_next(raising_stream_iterator)
 
         self.assertListEqual(
             overloaded_to_list(raising_stream_iterator), list(range(1, count + 1))
@@ -1218,7 +1220,7 @@ class TestStream(unittest.TestCase):
             overloaded_stopiteration(type(raising_stream_iterator)),
             msg="... and after reaching the limit it still continues to raise StopIteration on calls to next",
         ):
-            overloaded_next(raising_stream_iterator)
+            anext_or_next(raising_stream_iterator)
 
         iter_truncated_on_predicate = cast_iter(
             Stream(src).truncate(when=lambda n: n == 5), itype=itype
@@ -1232,7 +1234,7 @@ class TestStream(unittest.TestCase):
             overloaded_stopiteration(type(iter_truncated_on_predicate)),
             msg="After exhaustion a call to __next__ on a truncated iterator must raise StopIteration",
         ):
-            overloaded_next(iter_truncated_on_predicate)
+            anext_or_next(iter_truncated_on_predicate)
 
         with self.assertRaises(
             ZeroDivisionError,
@@ -1311,7 +1313,7 @@ class TestStream(unittest.TestCase):
             ZeroDivisionError,
             msg="`atruncate` must not stop iteration when encountering exceptions and raise them without counting them...",
         ):
-            overloaded_next(raising_stream_iterator)
+            anext_or_next(raising_stream_iterator)
 
         self.assertListEqual(
             overloaded_to_list(raising_stream_iterator), list(range(1, count + 1))
@@ -1321,7 +1323,7 @@ class TestStream(unittest.TestCase):
             overloaded_stopiteration(type(raising_stream_iterator)),
             msg="... and after reaching the limit it still continues to raise StopIteration on calls to next",
         ):
-            overloaded_next(raising_stream_iterator)
+            anext_or_next(raising_stream_iterator)
 
         iter_truncated_on_predicate = cast_iter(
             Stream(src).atruncate(when=asyncify(lambda n: n == 5)), itype=itype
@@ -1335,7 +1337,7 @@ class TestStream(unittest.TestCase):
             overloaded_stopiteration(type(iter_truncated_on_predicate)),
             msg="After exhaustion a call to __next__ on a truncated iterator must raise StopIteration",
         ):
-            overloaded_next(iter_truncated_on_predicate)
+            anext_or_next(iter_truncated_on_predicate)
 
         with self.assertRaises(
             ZeroDivisionError,
@@ -1403,9 +1405,9 @@ class TestStream(unittest.TestCase):
             return i / (110 - i)
 
         stream_iterator = cast_iter(Stream(lambda: map(f, src)).group(100), itype=itype)
-        overloaded_next(stream_iterator)
+        anext_or_next(stream_iterator)
         self.assertListEqual(
-            overloaded_next(stream_iterator),
+            anext_or_next(stream_iterator),
             list(map(f, range(100, 110))),
             msg="when encountering upstream exception, `group` should yield the current accumulated group...",
         )
@@ -1414,10 +1416,10 @@ class TestStream(unittest.TestCase):
             ZeroDivisionError,
             msg="... and raise the upstream exception during the next call to `next`...",
         ):
-            overloaded_next(stream_iterator)
+            anext_or_next(stream_iterator)
 
         self.assertListEqual(
-            overloaded_next(stream_iterator),
+            anext_or_next(stream_iterator),
             list(map(f, range(111, 211))),
             msg="... and restarting a fresh group to yield after that.",
         )
@@ -1461,7 +1463,7 @@ class TestStream(unittest.TestCase):
         )
 
         self.assertListEqual(
-            overloaded_next(cast_iter(Stream(src).group(), itype=itype)),
+            anext_or_next(cast_iter(Stream(src).group(), itype=itype)),
             list(src),
             msg="`group` without arguments should group the elements all together",
         )
@@ -1471,13 +1473,13 @@ class TestStream(unittest.TestCase):
             Stream(src).group(size=2, by=lambda n: n % 2), itype=itype
         )
         self.assertListEqual(
-            [overloaded_next(stream_iter), overloaded_next(stream_iter)],
+            [anext_or_next(stream_iter), anext_or_next(stream_iter)],
             [[0, 2], [1, 3]],
             msg="`group` called with a `by` function must cogroup elements.",
         )
 
         self.assertListEqual(
-            overloaded_next(
+            anext_or_next(
                 cast_iter(
                     Stream(src_raising_at_exhaustion).group(
                         size=10, by=lambda n: n % 4 != 0
@@ -1505,7 +1507,7 @@ class TestStream(unittest.TestCase):
             Stream(src_raising_at_exhaustion).group(by=lambda n: n % 2), itype=itype
         )
         self.assertListEqual(
-            [overloaded_next(stream_iter), overloaded_next(stream_iter)],
+            [anext_or_next(stream_iter), anext_or_next(stream_iter)],
             [list(range(0, N, 2)), list(range(1, N, 2))],
             msg="`group` called with a `by` function and encountering an exception must cogroup elements and yield uncomplete groups starting with the group containing the oldest element.",
         )
@@ -1513,7 +1515,7 @@ class TestStream(unittest.TestCase):
             TestError,
             msg="`group` called with a `by` function and encountering an exception must raise it after all groups have been yielded",
         ):
-            overloaded_next(stream_iter)
+            anext_or_next(stream_iter)
 
         # test seconds + by
         self.assertListEqual(
@@ -1536,7 +1538,7 @@ class TestStream(unittest.TestCase):
             itype=itype,
         )
         self.assertListEqual(
-            [overloaded_next(stream_iter), overloaded_next(stream_iter)],
+            [anext_or_next(stream_iter), anext_or_next(stream_iter)],
             [[0], [1]],
             msg="`group` should yield incomplete groups when `by` raises",
         )
@@ -1545,12 +1547,207 @@ class TestStream(unittest.TestCase):
             overloaded_stopiteration(itype).__name__,
             msg="`group` should raise and skip `elem` if `by(elem)` raises",
         ):
-            overloaded_next(stream_iter)
+            anext_or_next(stream_iter)
         self.assertListEqual(
-            overloaded_next(stream_iter),
+            anext_or_next(stream_iter),
             [3],
             msg="`group` should continue yielding after `by`'s exception has been raised.",
         )
+
+
+    @parameterized.expand(ITERABLE_TYPES)
+    def test_agroup(self, itype: IterableType) -> None:
+        # behavior with invalid arguments
+        for seconds in [-1, 0]:
+            with self.assertRaises(
+                ValueError,
+                msg="`agroup` should raise error when called with `seconds` <= 0.",
+            ):
+                to_list(
+                    Stream([1]).agroup(
+                        size=100, interval=datetime.timedelta(seconds=seconds)
+                    ),
+                    itype=itype,
+                )
+
+        for size in [-1, 0]:
+            with self.assertRaises(
+                ValueError,
+                msg="`agroup` should raise error when called with `size` < 1.",
+            ):
+                to_list(Stream([1]).agroup(size=size), itype=itype)
+
+        # group size
+        self.assertListEqual(
+            to_list(Stream(range(6)).agroup(size=4), itype=itype),
+            [[0, 1, 2, 3], [4, 5]],
+            msg="",
+        )
+        self.assertListEqual(
+            to_list(Stream(range(6)).agroup(size=2), itype=itype),
+            [[0, 1], [2, 3], [4, 5]],
+            msg="",
+        )
+        self.assertListEqual(
+            to_list(Stream([]).agroup(size=2), itype=itype),
+            [],
+            msg="",
+        )
+
+        # behavior with exceptions
+        def f(i):
+            return i / (110 - i)
+
+        stream_iterator = cast_iter(Stream(lambda: map(f, src)).agroup(100), itype=itype)
+        anext_or_next(stream_iterator)
+        self.assertListEqual(
+            anext_or_next(stream_iterator),
+            list(map(f, range(100, 110))),
+            msg="when encountering upstream exception, `agroup` should yield the current accumulated group...",
+        )
+
+        with self.assertRaises(
+            ZeroDivisionError,
+            msg="... and raise the upstream exception during the next call to `next`...",
+        ):
+            anext_or_next(stream_iterator)
+
+        self.assertListEqual(
+            anext_or_next(stream_iterator),
+            list(map(f, range(111, 211))),
+            msg="... and restarting a fresh group to yield after that.",
+        )
+
+        # behavior of the `seconds` parameter
+        self.assertListEqual(
+            to_list(
+                Stream(lambda: map(slow_identity, src)).agroup(
+                    size=100,
+                    interval=datetime.timedelta(seconds=slow_identity_duration / 1000),
+                ),
+                itype=itype,
+            ),
+            list(map(lambda e: [e], src)),
+            msg="`agroup` should not yield empty groups even though `interval` if smaller than upstream's frequency",
+        )
+        self.assertListEqual(
+            to_list(
+                Stream(lambda: map(slow_identity, src)).agroup(
+                    size=100,
+                    interval=datetime.timedelta(seconds=slow_identity_duration / 1000),
+                    by=asyncify(lambda _: None),
+                ),
+                itype=itype,
+            ),
+            list(map(lambda e: [e], src)),
+            msg="`agroup` with `by` argument should not yield empty groups even though `interval` if smaller than upstream's frequency",
+        )
+        self.assertListEqual(
+            to_list(
+                Stream(lambda: map(slow_identity, src)).agroup(
+                    size=100,
+                    interval=datetime.timedelta(
+                        seconds=2 * slow_identity_duration * 0.99
+                    ),
+                ),
+                itype=itype,
+            ),
+            list(map(lambda e: [e, e + 1], even_src)),
+            msg="`agroup` should yield upstream elements in a two-element group if `interval` inferior to twice the upstream yield period",
+        )
+
+        self.assertListEqual(
+            anext_or_next(cast_iter(Stream(src).agroup(), itype=itype)),
+            list(src),
+            msg="`agroup` without arguments should group the elements all together",
+        )
+
+        # test by
+        stream_iter = cast_iter(
+            Stream(src).agroup(size=2, by=asyncify(lambda n: n % 2)), itype=itype
+        )
+        self.assertListEqual(
+            [anext_or_next(stream_iter), anext_or_next(stream_iter)],
+            [[0, 2], [1, 3]],
+            msg="`agroup` called with a `by` function must cogroup elements.",
+        )
+
+        self.assertListEqual(
+            anext_or_next(
+                cast_iter(
+                    Stream(src_raising_at_exhaustion).agroup(
+                        size=10, by=asyncify(lambda n: n % 4 != 0)
+                    ),
+                    itype=itype,
+                ),
+            ),
+            [1, 2, 3, 5, 6, 7, 9, 10, 11, 13],
+            msg="`agroup` called with a `by` function and a `size` should yield the first batch becoming full.",
+        )
+
+        self.assertListEqual(
+            to_list(Stream(src).agroup(by=asyncify(lambda n: n % 2)), itype=itype),
+            [list(range(0, N, 2)), list(range(1, N, 2))],
+            msg="`agroup` called with a `by` function and an infinite size must cogroup elements and yield groups starting with the group containing the oldest element.",
+        )
+
+        self.assertListEqual(
+            to_list(Stream(range(10)).agroup(by=asyncify(lambda n: n % 4 == 0)), itype=itype),
+            [[0, 4, 8], [1, 2, 3, 5, 6, 7, 9]],
+            msg="`agroup` called with a `by` function and reaching exhaustion must cogroup elements and yield uncomplete groups starting with the group containing the oldest element, even though it's not the largest.",
+        )
+
+        stream_iter = cast_iter(
+            Stream(src_raising_at_exhaustion).agroup(by=asyncify(lambda n: n % 2)), itype=itype
+        )
+        self.assertListEqual(
+            [anext_or_next(stream_iter), anext_or_next(stream_iter)],
+            [list(range(0, N, 2)), list(range(1, N, 2))],
+            msg="`agroup` called with a `by` function and encountering an exception must cogroup elements and yield uncomplete groups starting with the group containing the oldest element.",
+        )
+        with self.assertRaises(
+            TestError,
+            msg="`agroup` called with a `by` function and encountering an exception must raise it after all groups have been yielded",
+        ):
+            anext_or_next(stream_iter)
+
+        # test seconds + by
+        self.assertListEqual(
+            to_list(
+                Stream(lambda: map(slow_identity, range(10))).agroup(
+                    interval=datetime.timedelta(seconds=slow_identity_duration * 2.9),
+                    by=asyncify(lambda n: n % 4 == 0),
+                ),
+                itype=itype,
+            ),
+            [[1, 2], [0, 4], [3, 5, 6, 7], [8], [9]],
+            msg="`agroup` called with a `by` function must cogroup elements and yield the largest groups when `seconds` is reached event though it's not the oldest.",
+        )
+
+        stream_iter = cast_iter(
+            Stream(src).agroup(
+                size=3,
+                by=asyncify(lambda n: throw(overloaded_stopiteration(itype)) if n == 2 else n),
+            ),
+            itype=itype,
+        )
+        self.assertListEqual(
+            [anext_or_next(stream_iter), anext_or_next(stream_iter)],
+            [[0], [1]],
+            msg="`agroup` should yield incomplete groups when `by` raises",
+        )
+        with self.assertRaisesRegex(
+            WrappedError,
+            overloaded_stopiteration(itype).__name__,
+            msg="`agroup` should raise and skip `elem` if `by(elem)` raises",
+        ):
+            anext_or_next(stream_iter)
+        self.assertListEqual(
+            anext_or_next(stream_iter),
+            [3],
+            msg="`agroup` should continue yielding after `by`'s exception has been raised.",
+        )
+
 
     @parameterized.expand(ITERABLE_TYPES)
     def test_throttle(self, itype: IterableType) -> None:
@@ -1619,7 +1816,7 @@ class TestStream(unittest.TestCase):
                 )
 
         self.assertEqual(
-            overloaded_next(
+            anext_or_next(
                 cast_iter(
                     Stream(src)
                     .throttle(1, per=datetime.timedelta(seconds=0.2))
@@ -1887,7 +2084,7 @@ class TestStream(unittest.TestCase):
         ]:
             erroring_stream_iterator = cast_iter(caught_erroring_stream, itype=itype)
             self.assertEqual(
-                overloaded_next(erroring_stream_iterator),
+                anext_or_next(erroring_stream_iterator),
                 first_value,
                 msg="`catch` should yield the first non exception throwing element.",
             )
@@ -1897,13 +2094,13 @@ class TestStream(unittest.TestCase):
                 msg="`catch` should raise the first error encountered when `finally_raise` is True.",
             ):
                 while True:
-                    overloaded_next(erroring_stream_iterator)
+                    anext_or_next(erroring_stream_iterator)
                     n_yields += 1
             with self.assertRaises(
                 overloaded_stopiteration(type(erroring_stream_iterator)),
                 msg="`catch` with `finally_raise`=True should finally raise StopIteration to avoid infinite recursion if there is another catch downstream.",
             ):
-                overloaded_next(erroring_stream_iterator)
+                anext_or_next(erroring_stream_iterator)
             self.assertEqual(
                 n_yields,
                 3,
@@ -1922,7 +2119,7 @@ class TestStream(unittest.TestCase):
             overloaded_stopiteration(itype),
             msg="When upstream raise exceptions without yielding any element, then the first call to `next` on a stream catching all errors should raise StopIteration.",
         ):
-            overloaded_next(cast_iter(only_caught_errors_stream, itype=itype))
+            anext_or_next(cast_iter(only_caught_errors_stream, itype=itype))
 
         iterator = cast_iter(
             Stream(map(throw, [TestError, ValueError]))
@@ -1934,17 +2131,17 @@ class TestStream(unittest.TestCase):
             ValueError,
             msg="With 2 chained `catch`s with `finally_raise=True`, the error caught by the first `catch` is finally raised first (even though it was raised second)...",
         ):
-            overloaded_next(iterator)
+            anext_or_next(iterator)
         with self.assertRaises(
             TestError,
             msg="... and then the error caught by the second `catch` is raised...",
         ):
-            overloaded_next(iterator)
+            anext_or_next(iterator)
         with self.assertRaises(
             overloaded_stopiteration(type(iterator)),
             msg="... and a StopIteration is raised next.",
         ):
-            overloaded_next(iterator)
+            anext_or_next(iterator)
 
         with self.assertRaises(
             TypeError,
@@ -2107,7 +2304,7 @@ class TestStream(unittest.TestCase):
         ]:
             erroring_stream_iterator = cast_iter(caught_erroring_stream, itype=itype)
             self.assertEqual(
-                overloaded_next(erroring_stream_iterator),
+                anext_or_next(erroring_stream_iterator),
                 first_value,
                 msg="`acatch` should yield the first non exception throwing element.",
             )
@@ -2117,13 +2314,13 @@ class TestStream(unittest.TestCase):
                 msg="`acatch` should raise the first error encountered when `finally_raise` is True.",
             ):
                 while True:
-                    overloaded_next(erroring_stream_iterator)
+                    anext_or_next(erroring_stream_iterator)
                     n_yields += 1
             with self.assertRaises(
                 overloaded_stopiteration(type(erroring_stream_iterator)),
                 msg="`acatch` with `finally_raise`=True should finally raise StopIteration to avoid infinite recursion if there is another catch downstream.",
             ):
-                overloaded_next(erroring_stream_iterator)
+                anext_or_next(erroring_stream_iterator)
             self.assertEqual(
                 n_yields,
                 3,
@@ -2142,7 +2339,7 @@ class TestStream(unittest.TestCase):
             overloaded_stopiteration(itype),
             msg="When upstream raise exceptions without yielding any element, then the first call to `next` on a stream catching all errors should raise StopIteration.",
         ):
-            overloaded_next(cast_iter(only_caught_errors_stream, itype=itype))
+            anext_or_next(cast_iter(only_caught_errors_stream, itype=itype))
 
         iterator = cast_iter(
             Stream(map(throw, [TestError, ValueError]))
@@ -2154,17 +2351,17 @@ class TestStream(unittest.TestCase):
             ValueError,
             msg="With 2 chained `acatch`s with `finally_raise=True`, the error caught by the first `acatch` is finally raised first (even though it was raised second)...",
         ):
-            overloaded_next(iterator)
+            anext_or_next(iterator)
         with self.assertRaises(
             TestError,
             msg="... and then the error caught by the second `acatch` is raised...",
         ):
-            overloaded_next(iterator)
+            anext_or_next(iterator)
         with self.assertRaises(
             overloaded_stopiteration(type(iterator)),
             msg="... and a StopIteration is raised next.",
         ):
-            overloaded_next(iterator)
+            anext_or_next(iterator)
 
         with self.assertRaises(
             TypeError,
@@ -2382,7 +2579,7 @@ class TestStream(unittest.TestCase):
             r"must be an async function i\.e\. a function returning a Coroutine but it returned a <class 'int'>",
             msg="`amap` should raise a TypeError if a non async function is passed to it.",
         ):
-            overloaded_next(cast_iter(stream, itype=itype))
+            anext_or_next(cast_iter(stream, itype=itype))
 
     @parameterized.expand(
         [(concurrency, itype) for concurrency in (1, 100) for itype in ITERABLE_TYPES]
@@ -2404,7 +2601,7 @@ class TestStream(unittest.TestCase):
             r"`transformation` must be an async function i\.e\. a function returning a Coroutine but it returned a <class 'int'>",
             msg="`aforeach` should raise a TypeError if a non async function is passed to it.",
         ):
-            overloaded_next(cast_iter(stream, itype=itype))
+            anext_or_next(cast_iter(stream, itype=itype))
 
     @parameterized.expand(ITERABLE_TYPES)
     def test_pipe(self, itype: IterableType) -> None:
@@ -2442,7 +2639,7 @@ class TestStream(unittest.TestCase):
             .aforeach(async_identity, concurrency=3)
             .group(3, by=bool)
             .flatten(concurrency=3)
-            .group(3)
+            .agroup(3, by=async_identity)
             .map(to_aiter)
             .aflatten(concurrency=3)
             .groupby(bool)
@@ -2470,7 +2667,7 @@ class TestStream(unittest.TestCase):
             .aforeach(async_identity, concurrency=3)
             .group(3, by=bool)
             .flatten(concurrency=3)
-            .group(3)
+            .agroup(3, by=async_identity)
             .map(to_aiter)
             .aflatten(concurrency=3)
             .groupby(bool)
@@ -2497,7 +2694,7 @@ class TestStream(unittest.TestCase):
             .aforeach(async_identity, concurrency=3)
             .group(3, by=bool)
             .flatten(concurrency=3)
-            .group(3)
+            .agroup(3, by=async_identity)
             .map(to_aiter)
             .aflatten(concurrency=3)
             .groupby(bool)
@@ -2524,7 +2721,7 @@ class TestStream(unittest.TestCase):
             .aforeach(async_identity, concurrency=3)
             .group(3, by=bool)
             .flatten(concurrency=3)
-            .group(3)
+            .agroup(3, by=async_identity)
             .map(to_aiter)
             .aflatten(concurrency=3)
             .groupby(bool)
