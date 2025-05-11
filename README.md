@@ -59,7 +59,7 @@ Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`/`Async
 
 
 ### as `Iterable[T]`
-- **collect into a data structure**
+- **into data structure**
 ```python
 >>> list(inverses)
 [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
