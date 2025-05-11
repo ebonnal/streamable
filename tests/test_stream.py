@@ -1379,7 +1379,9 @@ class TestStream(unittest.TestCase):
         # test agroupby
         groupby_stream_iter: Union[
             Iterator[Tuple[int, List[int]]], AsyncIterator[Tuple[int, List[int]]]
-        ] = bi_iterable_to_iter(Stream(src).groupby(lambda n: n % 2, size=2), itype=itype)
+        ] = bi_iterable_to_iter(
+            Stream(src).groupby(lambda n: n % 2, size=2), itype=itype
+        )
         self.assertListEqual(
             [anext_or_next(groupby_stream_iter), anext_or_next(groupby_stream_iter)],
             [(0, [0, 2]), (1, [1, 3])],
