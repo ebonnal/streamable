@@ -1,7 +1,4 @@
 [![coverage](https://codecov.io/gh/ebonnal/streamable/graph/badge.svg?token=S62T0JQK9N)](https://codecov.io/gh/ebonnal/streamable)
-[![testing](https://github.com/ebonnal/streamable/actions/workflows/testing.yml/badge.svg?branch=main)](https://github.com/ebonnal/streamable/actions)
-[![typing](https://github.com/ebonnal/streamable/actions/workflows/typing.yml/badge.svg?branch=main)](https://github.com/ebonnal/streamable/actions)
-[![formatting](https://github.com/ebonnal/streamable/actions/workflows/formatting.yml/badge.svg?branch=main)](https://github.com/ebonnal/streamable/actions)
 [![PyPI](https://github.com/ebonnal/streamable/actions/workflows/pypi.yml/badge.svg?branch=main)](https://pypi.org/project/streamable)
 [![Anaconda-Server Badge](https://anaconda.org/conda-forge/streamable/badges/version.svg)](https://anaconda.org/conda-forge/streamable)
 
@@ -11,19 +8,16 @@
 
 - 🔗 ***Fluent*** chainable lazy operations
 - 🔀 ***Concurrent*** via *threads*/*processes*/`async`
-- 🇹 ***Typed***, fully annotated, `Stream[T]` is both an `Iterable[T]` and an `AsyncIterable[T]`
-- 🛡️ ***Tested*** extensively with **Python 3.7 to 3.14**
-- 🪶 ***Light***, no dependencies
-
+- 🇹 Fully ***Typed***, `Stream[T]` is both an `Iterable[T]` and an `AsyncIterable[T]`
+- 🛡️ ***Battle-tested*** for prod, extensively tested with **Python 3.7 to 3.14**.
 
 
 ## 1. install
 
+> no dependencies
 ```bash
 pip install streamable
-```
-*or*
-```bash
+# or
 conda install conda-forge::streamable 
 ```
 
@@ -55,10 +49,13 @@ inverses: Stream[float] = (
 
 ## 5. iterate
 
-Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`/`AsyncIterable`, elements are processed *on-the-fly*:
+Iterate over a `Stream[T]` just as you would over any other `Iterable[T]` (or `AsyncIterable`), elements are processed *on-the-fly*:
 
 
 ### as `Iterable[T]`
+
+<details ><summary style="text-indent: 40px;">👀 show snippets</summary></br>
+
 - **into data structure**
 ```python
 >>> list(inverses)
@@ -87,7 +84,11 @@ Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`/`Async
 1.0
 ```
 
+</details>
+
 ### as `AsyncIterable[T]`
+
+<details ><summary style="text-indent: 40px;">👀 show snippets</summary></br>
 
 - **`async for`**
 ```python
@@ -104,11 +105,12 @@ Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`/`Async
 1.0
 ```
 
+</details>
 
 
-# ↔️ **Extract-Transform-Load**
+# ↔ example: Extract-Transform-Load
 
-**ETL scripts** can benefit from the expressiveness of this library. Below is a pipeline that extracts the 67 quadruped Pokémon from the first three generations using [PokéAPI](https://pokeapi.co/) and loads them into a CSV:
+Let's take an example showcasing most of the `Stream`'s operations: Below is a pipeline that extracts the 67 quadruped Pokémon from the first three generations using [PokéAPI](https://pokeapi.co/) and loads them into a CSV:
 
 ```python
 import csv
@@ -157,7 +159,8 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
 
 ## or the `async` way
 
-Using `.amap` (the `.map`'s `async` counterpart), and `await`ing the stream to exhaust it as an `AsyncIterable[T]`:
+- use the `.amap` operation: the `.map`'s `async` counterpart, see [`async` Operations](#-async-operations).
+- `await` the `Stream`: runs a full iteration over it as an `AsyncIterable[T]`.
 
 ```python
 import asyncio
@@ -211,13 +214,11 @@ asyncio.run(main())
 
 # 📒 ***Operations***
 
-*A dozen expressive lazy operations and that’s it!*
-
 ## `.map`
 
 > Applies a transformation on elements:
 
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 integer_strings: Stream[str] = integers.map(str)
@@ -226,16 +227,11 @@ assert list(integer_strings) == ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9
 ```
 </details>
 
-### concurrency
-
-> [!NOTE]
-> By default, all the concurrency modes presented below yield results in the upstream order (FIFO). Set the parameter `ordered=False` to yield results as they become available (***First Done, First Out***).
-
 ### thread-based concurrency
 
-> Applies the transformation via `concurrency` threads:
+> Applies the transformation via `concurrency` threads, yielding results in the upstream order (FIFO), set the parameter `ordered=False` to yield results as they become available (*First Done, First Out*).
 
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 import requests
@@ -252,16 +248,13 @@ assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
 </details>
 
 > [!NOTE]
-> `concurrency` is also the size of the buffer containing not-yet-yielded results. **If the buffer is full, the iteration over the upstream is paused** until a result is yielded from the buffer.
-
-> [!TIP]
-> The performance of thread-based concurrency in a CPU-bound script can be drastically improved by using a [Python 3.13+ free-threading build](https://docs.python.org/3/using/configure.html#cmdoption-disable-gil).
+> **Memory-efficient**: Only `concurrent` upstream elements are pulled for processing; the next upstream element is pulled only when a result is yielded downstream.
 
 ### process-based concurrency
 
 > Set `via="process"`:
 
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 if __name__ == "__main__":
@@ -273,15 +266,15 @@ if __name__ == "__main__":
 ```
 </details>
 
-### `async`-based concurrency: [see `.amap`](#amap)
+### `async`-based concurrency: [`.amap`](#amap)
 
-> [The `.amap` operation can apply an `async` function concurrently.](#amap)
+> The [`.amap`](#amap) operation can apply an `async` function concurrently.
 
 ### "starmap"
 
 > The `star` function decorator transforms a function that takes several positional arguments into a function that takes a tuple:
 
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 from streamable import star
@@ -296,12 +289,11 @@ assert list(zeros) == [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 </details>
 
 
-
 ## `.foreach`
 
 > Applies a side effect on elements:
 
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 state: List[int] = []
@@ -318,14 +310,14 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 > - set the `concurrency` parameter for **thread-based concurrency**
 > - set `via="process"` for **process-based concurrency**
 > - set `ordered=False` for ***First Done First Out***
-> - [The `.aforeach` operation can apply an `async` effect concurrently.](#aforeach)
+> - The [`.aforeach`](#aforeach) operation can apply an `async` effect concurrently.
 
 ## `.group`
 
 > Groups into `List`s
 
 > ... up to a given group `size`:
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 integers_by_5: Stream[List[int]] = integers.group(size=5)
@@ -336,7 +328,7 @@ assert list(integers_by_5) == [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]]
 
 > ... and/or co-groups `by` a given key:
 
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 integers_by_parity: Stream[List[int]] = integers.group(by=lambda n: n % 2)
@@ -347,7 +339,7 @@ assert list(integers_by_parity) == [[0, 2, 4, 6, 8], [1, 3, 5, 7, 9]]
 
 > ... and/or co-groups the elements yielded by the upstream within a given time `interval`:
 
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 from datetime import timedelta
@@ -365,7 +357,7 @@ assert list(integers_within_1_sec) == [[0, 1, 2], [3, 4], [5, 6], [7, 8], [9]]
 > [!TIP]
 > Combine the `size`/`by`/`interval` parameters:
 
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 integers_by_parity_by_2: Stream[List[int]] = (
@@ -380,7 +372,7 @@ assert list(integers_by_parity_by_2) == [[0, 2], [1, 3], [4, 6], [5, 7], [8], [9
 ## `.groupby`
 
 > Like `.group`, but groups into `(key, elements)` tuples:
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 integers_by_parity: Stream[Tuple[str, List[int]]] = (
@@ -395,7 +387,7 @@ assert list(integers_by_parity) == [("even", [0, 2, 4, 6, 8]), ("odd", [1, 3, 5,
 > [!TIP]
 > Then *"starmap"* over the tuples:
 
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 from streamable import star
@@ -413,7 +405,7 @@ assert list(counts_by_parity) == [("even", 5), ("odd", 5)]
 
 > Ungroups elements assuming that they are `Iterable`s:
 
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 even_then_odd_integers: Stream[int] = integers_by_parity.flatten()
@@ -426,7 +418,7 @@ assert list(even_then_odd_integers) == [0, 2, 4, 6, 8, 1, 3, 5, 7, 9]
 
 > Flattens `concurrency` iterables concurrently:
 
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 mixed_ones_and_zeros: Stream[int] = (
@@ -441,7 +433,7 @@ assert list(mixed_ones_and_zeros) == [0, 1, 0, 1, 0, 1, 0, 1]
 
 > Keeps only the elements that satisfy a condition:
 
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 even_integers: Stream[int] = integers.filter(lambda n: n % 2 == 0)
@@ -454,7 +446,7 @@ assert list(even_integers) == [0, 2, 4, 6, 8]
 
 > Removes duplicates:
 
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 distinct_chars: Stream[str] = Stream("foobarfooo").distinct()
@@ -465,7 +457,7 @@ assert list(distinct_chars) == ["f", "o", "b", "a", "r"]
 
 > specifying a deduplication `key`:
 
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 strings_of_distinct_lengths: Stream[str] = (
@@ -480,7 +472,7 @@ assert list(strings_of_distinct_lengths) == ["a", "foo"]
 > [!WARNING]
 > During iteration, all distinct elements that are yielded are retained in memory to perform deduplication. However, you can remove only consecutive duplicates without a memory footprint by setting `consecutive_only=True`:
 
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 consecutively_distinct_chars: Stream[str] = (
@@ -496,7 +488,7 @@ assert list(consecutively_distinct_chars) == ["f", "o", "b", "a", "r", "f", "o"]
 
 > Ends iteration once a given number of elements have been yielded:
 
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 five_first_integers: Stream[int] = integers.truncate(5)
@@ -507,7 +499,7 @@ assert list(five_first_integers) == [0, 1, 2, 3, 4]
 
 > or `when` a condition is satisfied:
 
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 five_first_integers: Stream[int] = integers.truncate(when=lambda n: n == 5)
@@ -522,7 +514,7 @@ assert list(five_first_integers) == [0, 1, 2, 3, 4]
 
 > Skips the first specified number of elements:
 
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 integers_after_five: Stream[int] = integers.skip(5)
@@ -533,7 +525,7 @@ assert list(integers_after_five) == [5, 6, 7, 8, 9]
 
 > or skips elements `until` a predicate is satisfied:
 
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 integers_after_five: Stream[int] = integers.skip(until=lambda n: n >= 5)
@@ -548,7 +540,7 @@ assert list(integers_after_five) == [5, 6, 7, 8, 9]
 
 > Catches a given type of exception, and optionally yields a `replacement` value:
 
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 inverses: Stream[float] = (
@@ -562,7 +554,7 @@ assert list(inverses) == [float("inf"), 1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0
 </details>
 
 > You can specify an additional `when` condition for the catch:
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 import requests
@@ -582,9 +574,9 @@ assert list(status_codes_ignoring_resolution_errors) == [200, 404]
 > It has an optional `finally_raise: bool` parameter to raise the first exception caught (if any) when the iteration terminates.
 
 > [!TIP]
-> Apply side effects when catching an exception by integrating them into `when`:
+> Leverage `when` to apply side effects on catch:
 
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 errors: List[Exception] = []
@@ -608,7 +600,7 @@ assert len(errors) == len("foo")
 
 > Limits the number of yields `per` time interval:
 
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 from datetime import timedelta
@@ -624,7 +616,7 @@ assert list(three_integers_per_second) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ## `.observe`
 
 > Logs the progress of iterations:
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 >>> assert list(integers.throttle(2, per=timedelta(seconds=1)).observe("integers")) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
@@ -645,7 +637,7 @@ INFO: [duration=0:00:04.003852 errors=0] 10 integers yielded
 > [!TIP]
 > To mute these logs, set the logging level above `INFO`:
 
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 import logging
@@ -657,7 +649,7 @@ logging.getLogger("streamable").setLevel(logging.WARNING)
 
 > Concatenates streams:
 
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 assert list(integers + integers) == [0, 1, 2, 3 ,4, 5, 6, 7, 8, 9, 0, 1, 2, 3 ,4, 5, 6, 7, 8, 9]
@@ -667,10 +659,9 @@ assert list(integers + integers) == [0, 1, 2, 3 ,4, 5, 6, 7, 8, 9, 0, 1, 2, 3 ,4
 
 ## `zip`
 
-> [!TIP]
 > Use the standard `zip` function:
 
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 from streamable import star
@@ -686,14 +677,14 @@ assert list(cubes) == [0, 1, 8, 27, 64, 125, 216, 343, 512, 729]
 
 
 ## Shorthands for consuming the stream
-> [!NOTE]
-> Although consuming the stream is beyond the scope of this library, it provides two basic shorthands to trigger an iteration:
+
+Although consuming the stream is beyond the scope of this library, it provides two basic shorthands to trigger an iteration:
 
 ## `.count`
 
 > Iterates over the stream until exhaustion and returns the number of elements yielded:
 
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 assert integers.count() == 10
@@ -703,7 +694,7 @@ assert integers.count() == 10
 ## `()`
 
 > *Calling* the stream iterates over it until exhaustion and returns it:
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 state: List[int] = []
@@ -715,9 +706,9 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 ## `.pipe`
 
-> Calls a function, passing the stream as first argument, followed by `*args/**kwargs` if any:
+> Calls a function, passing the stream as first argument, followed by `*args/**kwargs` if any (inspired by the `.pipe` from [pandas](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.pipe.html) or [polars](https://docs.pola.rs/api/python/stable/reference/dataframe/api/polars.DataFrame.pipe.html)):
 
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 import pandas as pd
@@ -731,26 +722,22 @@ import pandas as pd
 ```
 </details>
 
-> Inspired by the `.pipe` from [pandas](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.pipe.html) or [polars](https://docs.pola.rs/api/python/stable/reference/dataframe/api/polars.DataFrame.pipe.html).
-
 ---
 ---
 
 # 📒 ***`async` Operations***
 
-Operations that accept a function as an argument have an `async` counterpart, which has the same signature but accepts `async` functions instead. These `async` operations are named the same as the original ones but with an `a` prefix.
+The operations accepting a function as an argument have an `async` counterpart operation, which has the same signature but accepts `async` functions instead.
 
-> [!TIP]
-> One can mix regular and `async` operations on the same `Stream`, and then consume it as a regular `Iterable` or as an `AsyncIterable`.
+**inter-operability**: Both regular and `async` operations can be mixed on the same `Stream`, and it can then be consumed as regular `Iterable` or as `AsyncIterable`.
 
-## `.amap`
+## `.amap` 
 
 > Applies an `async` transformation on elements:
 
+- consume as `Iterable[T]`:
 
-### Consume as `Iterable[T]`
-
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 import asyncio
@@ -771,9 +758,9 @@ asyncio.run(http_async_client.aclose())
 ```
 </details>
 
-### Consume as `AsyncIterable[T]`
+- consume as `AsyncIterable[T]`:
 
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 import asyncio
@@ -794,52 +781,33 @@ asyncio.run(main())
 ```
 </details>
 
+## Others
 
-## `.aforeach`
+> **`.aforeach`**: Applies an `async` side effect on elements. Supports `concurrency` like `.amap`.
 
-> Applies an `async` side effect on elements. Supports `concurrency` like `.amap`.
+> **`.agroup`**: Groups into `List`s according to an `async` grouping function.
 
-## `.agroup`
+> **`.agroupby`**: Groups into `(key, elements)` tuples, according to an `async` grouping function.
 
-> Groups into `List`s according to an `async` grouping function.
+> **`.aflatten`**: Ungroups elements assuming that they are `AsyncIterable`s. Like for `.flatten` you can set the `concurrency` parameter.
 
-## `.agroupby`
+> **`.afilter`**: Keeps only the elements that satisfy an `async` condition.
 
-> Groups into `(key, elements)` tuples, according to an `async` grouping function.
+> **`.adistinct`**: Removes duplicates according to an `async` deduplication `key`.
 
-## `.aflatten`
+> **`.atruncate`**: Ends iteration once a given number of elements have been yielded or `when` an `async` condition is satisfied.
 
-> Ungroups elements assuming that they are `AsyncIterable`s.
+> **`.askip`**: Skips the specified number of elements or `until` an `async` predicate is satisfied.
 
-> Like for `.flatten` you can set the `concurrency` parameter.
-
-## `.afilter`
-
-> Keeps only the elements that satisfy an `async` condition.
-
-## `.adistinct`
-
-> Removes duplicates according to an `async` deduplication `key`.
-
-## `.atruncate`
-
-> Ends iteration once a given number of elements have been yielded or `when` an `async` condition is satisfied.
-
-## `.askip`
-
-> Skips the specified number of elements or `until` an `async` predicate is satisfied.
-
-## `.acatch`
-
-> Catches a given type of exception `when` an `async` condition is satisfied.
+> **`.acatch`**: Catches a given type of exception `when` an `async` condition is satisfied.
 
 ## Shorthands for consuming the stream as an `AsyncIterable[T]`
 
-## `.acount`
+### `.acount`
 
 > Iterates over the stream until exhaustion and returns the number of elements yielded:
 
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 assert asyncio.run(integers.acount()) == 10
@@ -847,11 +815,11 @@ assert asyncio.run(integers.acount()) == 10
 </details>
 
 
-## `await`
+### `await`
 
 > *Awaiting* the stream iterates over it until exhaustion and returns it:
 
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 async def test_await() -> None:
@@ -873,7 +841,7 @@ asyncio.run(test_await())
 > [!TIP]
 > If any of the operations raises an exception, you can resume the iteration after handling it:
 
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 from contextlib import suppress
@@ -900,7 +868,7 @@ assert collected == [0, 1, 2, 3, 5, 6, 7, 8, 9]
 > [!TIP]
 > A `Stream` can be visited via its `.accept` method: implement a custom [***visitor***](https://en.wikipedia.org/wiki/Visitor_pattern) by extending the abstract class `streamable.visitors.Visitor`:
 
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 from streamable.visitors import Visitor
@@ -921,7 +889,7 @@ assert depth(Stream(range(10)).map(str).foreach(print)) == 3
 ## Functions
 > [!TIP]
 > The `Stream`'s methods are also exposed as functions:
-<details ><summary style="text-indent: 40px;">👀 show example</summary></br>
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 from streamable.functions import catch
