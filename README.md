@@ -11,7 +11,7 @@
 
 - 🔗 ***Fluent*** chainable lazy operations
 - 🔀 ***Concurrent*** via *threads*/*processes*/`async`
-- 🇹 ***Typed***, fully annotated, `Stream[T]` is an `Iterable[T]`/`AsyncIterable[T]`
+- 🇹 ***Typed***, fully annotated, `Stream[T]` is both an `Iterable[T]` and an `AsyncIterable[T]`
 - 🛡️ ***Tested*** extensively with **Python 3.7 to 3.14**
 - 🪶 ***Light***, no dependencies
 
@@ -742,14 +742,14 @@ import pandas as pd
 Operations that accept a function as an argument have an `async` counterpart, which has the same signature but accepts `async` functions instead. These `async` operations are named the same as the original ones but with an `a` prefix.
 
 > [!TIP]
-> One can mix regular and `async` operations on the same stream, and then consume it as a regular `Iterable` or as an `AsyncIterable`.
+> One can mix regular and `async` operations on the same `Stream`, and then consume it as a regular `Iterable` or as an `AsyncIterable`.
 
 ## `.amap`
 
 > Applies an `async` transformation on elements:
 
 
-### Consume as a `Iterable[T]`
+### Consume as `Iterable[T]`
 
 <details ><summary style="text-indent: 40px;">👀 show example</summary></br>
 
@@ -772,7 +772,7 @@ asyncio.run(http_async_client.aclose())
 ```
 </details>
 
-### Consume as a `AsyncIterable[T]`
+### Consume as `AsyncIterable[T]`
 
 <details ><summary style="text-indent: 40px;">👀 show example</summary></br>
 
