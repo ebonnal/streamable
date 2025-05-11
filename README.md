@@ -58,13 +58,19 @@ inverses: Stream[float] = (
 Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`/`AsyncIterable`, elements are processed *on-the-fly*:
 
 
-### `Iterable[T]`
+### as `Iterable[T]`
 - **collect into a data structure**
 ```python
 >>> list(inverses)
 [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
 >>> set(inverses)
 {0.5, 1.0, 0.2, 0.33, 0.25, 0.17, 0.14, 0.12, 0.11}
+```
+
+- **`for`**
+```python
+>>> [inverse for inverse in inverses]:
+[1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
 ```
 
 - **`reduce`**
@@ -75,34 +81,30 @@ Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`/`Async
 >>> reduce(..., inverses)
 ```
 
-- **`for`**
-```python
->>> for inverse in inverses:
->>>    ...
-```
-
 - **`iter`/`next`**
 ```python
 >>> next(iter(inverses))
 1.0
 ```
 
-### `AsyncIterable[T]`
+### as `AsyncIterable[T]`
 
 - **`async for`**
 ```python
->>> async def to_list(it: AsyncIterable[T]) -> List[T]:
->>>     return [_ async for _ in it]
+>>> async def main() -> List[int]:
+>>>     return [i async for i in inverses]
 
->>> asyncio.run(to_list(inverses))
+>>> asyncio.run(main())
 [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
 ```
 
 - **`aiter`/`anext`**
 ```python
->>> asyncio.run(anext(aiter(inverses)))
-[1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
+>>> asyncio.run(anext(aiter(inverses)))  # or prior to 3.10: `inverses.__aiter__().__anext__()`
+1.0
 ```
+
+
 
 # ↔️ **Extract-Transform-Load**
 
