@@ -1513,6 +1513,16 @@ class TestStream(unittest.TestCase):
             msg="`group` without arguments should group the elements all together",
         )
 
+        # test agroupby
+        groupby_stream_iter: Union[Iterator[Tuple[int, List[int]]], AsyncIterator[Tuple[int, List[int]]]] = stream_to_iter(
+            Stream(src).groupby(lambda n: n % 2, size=2), itype=itype
+        )
+        self.assertListEqual(
+            [anext_or_next(groupby_stream_iter), anext_or_next(groupby_stream_iter)],
+            [(0, [0, 2]), (1, [1, 3])],
+            msg="`groupby` must cogroup elements.",
+        )
+
         # test by
         stream_iter = stream_to_iter(
             Stream(src).group(size=2, by=lambda n: n % 2), itype=itype
@@ -1706,6 +1716,16 @@ class TestStream(unittest.TestCase):
             anext_or_next(stream_to_iter(Stream(src).agroup(), itype=itype)),
             list(src),
             msg="`agroup` without arguments should group the elements all together",
+        )
+
+        # test agroupby
+        groupby_stream_iter: Union[Iterator[Tuple[int, List[int]]], AsyncIterator[Tuple[int, List[int]]]] = stream_to_iter(
+            Stream(src).agroupby(asyncify(lambda n: n % 2), size=2), itype=itype
+        )
+        self.assertListEqual(
+            [anext_or_next(groupby_stream_iter), anext_or_next(groupby_stream_iter)],
+            [(0, [0, 2]), (1, [1, 3])],
+            msg="`agroupby` must cogroup elements.",
         )
 
         # test by
