@@ -162,11 +162,7 @@ class _Syncify(Generic[R]):
             raise TypeError(
                 f"must be an async function i.e. a function returning a Coroutine but it returned a {type(coroutine)}"
             )
-        try:
-            return self.event_loop.run_until_complete(coroutine)
-        except StopIteration as e:
-            # replace RuntimeError for "coroutine raised StopIteration"
-            raise WrappedError(e) from e
+        return self.event_loop.run_until_complete(coroutine)
 
 
 def syncify(async_func: Callable[[T], Coroutine[Any, Any, R]]) -> Callable[[T], R]:
@@ -174,11 +170,7 @@ def syncify(async_func: Callable[[T], Coroutine[Any, Any, R]]) -> Callable[[T], 
 
 
 async def _async_call(func: Callable[[T], R], o: T) -> R:
-    try:
-        return func(o)
-    except StopIteration as e:
-        # replace RuntimeError for "coroutine raised StopIteration"
-        raise WrappedError(e) from e
+    return func(o)
 
 
 def asyncify(func: Callable[[T], R]) -> Callable[[T], Coroutine[Any, Any, R]]:

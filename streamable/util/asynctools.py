@@ -22,14 +22,6 @@ def get_event_loop() -> asyncio.AbstractEventLoop:
 async def awaitable_to_coroutine(aw: Awaitable[T]) -> T:
     return await aw
 
-
-async def awaitable_to_coroutine_wrapping_stopiteration(aw: Awaitable[T]) -> T:
-    try:
-        return await aw
-    except StopIteration as e:
-        raise WrappedError(e) from e
-
-
 async def empty_aiter() -> AsyncIterator:
     return
     yield

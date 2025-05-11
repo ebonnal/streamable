@@ -35,7 +35,6 @@ from typing import (
 
 from streamable.util.asynctools import (
     awaitable_to_coroutine,
-    awaitable_to_coroutine_wrapping_stopiteration,
     empty_aiter,
     get_event_loop,
 )
@@ -175,9 +174,7 @@ class AFlattenIterator(Iterator[U]):
         while True:
             try:
                 return self.event_loop.run_until_complete(
-                    awaitable_to_coroutine_wrapping_stopiteration(
-                        self._current_iterator_elem.__anext__()
-                    )
+                    self._current_iterator_elem.__anext__()
                 )
             except StopAsyncIteration:
                 self._current_iterator_elem = aiter_wo_stopiteration(
