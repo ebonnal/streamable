@@ -10,25 +10,9 @@ from typing import (
     TypeVar,
 )
 
-from streamable.util.asynctools import get_event_loop
+from streamable.util.asynctools import GetEventLoopMixin
 
 T = TypeVar("T")
-
-
-async def _aiter_to_list(aiterable: AsyncIterable[T]) -> List[T]:
-    return [elem async for elem in aiterable]
-
-
-def aiterable_to_list(aiterable: AsyncIterable[T]) -> List[T]:
-    return get_event_loop().run_until_complete(_aiter_to_list(aiterable))
-
-
-async def _aiter_to_set(aiterable: AsyncIterable[T]) -> Set[T]:
-    return {elem async for elem in aiterable}
-
-
-def aiterable_to_set(aiterable: AsyncIterable[T]) -> Set[T]:
-    return get_event_loop().run_until_complete(_aiter_to_set(aiterable))
 
 
 class BiIterable(Iterable[T], AsyncIterable[T]):
@@ -67,14 +51,13 @@ class SyncToAsyncIterator(AsyncIterator[T]):
 sync_to_async_iter: Callable[[Iterable[T]], AsyncIterator[T]] = SyncToAsyncIterator
 
 
-class AsyncToSyncIterator(Iterator[T]):
+class AsyncToSyncIterator(Iterator[T], GetEventLoopMixin):
     def __init__(self, iterator: AsyncIterable[T]):
         self.iterator: AsyncIterator[T] = iterator.__aiter__()
-        self.event_loop: asyncio.AbstractEventLoop = get_event_loop()
 
     def __next__(self) -> T:
         try:
-            return self.event_loop.run_until_complete(self.iterator.__anext__())
+            return self.get_event_loop().run_until_complete(self.iterator.__anext__())
         except StopAsyncIteration as e:
             raise StopIteration() from e
 

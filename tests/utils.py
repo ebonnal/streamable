@@ -19,18 +19,31 @@ from typing import (
 )
 
 from streamable.stream import Stream
-from streamable.util.asynctools import get_event_loop
-from streamable.util.iterabletools import (
-    BiIterable,
-    aiterable_to_list,
-    aiterable_to_set,
-)
+from streamable.util.iterabletools import BiIterable
 
 T = TypeVar("T")
 R = TypeVar("R")
 
 IterableType = Union[Type[Iterable], Type[AsyncIterable]]
 ITERABLE_TYPES: Tuple[IterableType, ...] = (Iterable, AsyncIterable)
+
+TEST_EVENT_LOOP = asyncio.new_event_loop()
+
+
+async def _aiter_to_list(aiterable: AsyncIterable[T]) -> List[T]:
+    return [elem async for elem in aiterable]
+
+
+def aiterable_to_list(aiterable: AsyncIterable[T]) -> List[T]:
+    return TEST_EVENT_LOOP.run_until_complete(_aiter_to_list(aiterable))
+
+
+async def _aiter_to_set(aiterable: AsyncIterable[T]) -> Set[T]:
+    return {elem async for elem in aiterable}
+
+
+def aiterable_to_set(aiterable: AsyncIterable[T]) -> Set[T]:
+    return TEST_EVENT_LOOP.run_until_complete(_aiter_to_set(aiterable))
 
 
 def overloaded_stopiteration(itype: IterableType) -> Type[Exception]:
@@ -66,7 +79,7 @@ def bi_iterable_to_iter(
 
 def anext_or_next(it: Union[Iterator[T], AsyncIterator[T]]) -> T:
     if isinstance(it, AsyncIterator):
-        return get_event_loop().run_until_complete(it.__anext__())
+        return TEST_EVENT_LOOP.run_until_complete(it.__anext__())
     else:
         return next(it)
 

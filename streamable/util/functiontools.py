@@ -11,7 +11,7 @@ from typing import (
     overload,
 )
 
-from streamable.util.asynctools import get_event_loop
+from streamable.util.asynctools import GetEventLoopMixin
 from streamable.util.errors import WrappedError
 
 T = TypeVar("T")
@@ -151,10 +151,9 @@ def star(func: Callable[..., R]) -> Callable[[Tuple], R]:
     return _Star(func)
 
 
-class _Syncify(Generic[R]):
+class _Syncify(Generic[R], GetEventLoopMixin):
     def __init__(self, async_func: Callable[[T], Coroutine[Any, Any, R]]) -> None:
         self.async_func = async_func
-        self.event_loop = get_event_loop()
 
     def __call__(self, T) -> R:
         coroutine = self.async_func(T)
@@ -162,7 +161,7 @@ class _Syncify(Generic[R]):
             raise TypeError(
                 f"must be an async function i.e. a function returning a Coroutine but it returned a {type(coroutine)}"
             )
-        return self.event_loop.run_until_complete(coroutine)
+        return self.get_event_loop().run_until_complete(coroutine)
 
 
 def syncify(async_func: Callable[[T], Coroutine[Any, Any, R]]) -> Callable[[T], R]:

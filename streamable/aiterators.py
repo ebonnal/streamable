@@ -33,9 +33,9 @@ from typing import (
 )
 
 from streamable.util.asynctools import (
+    GetEventLoopMixin,
     awaitable_to_coroutine,
     empty_aiter,
-    get_event_loop,
 )
 from streamable.util.functiontools import (
     awrap_error,
@@ -706,7 +706,9 @@ class ConcurrentMapAsyncIterator(_RaisingAsyncIterator[U]):
         )
 
 
-class _ConcurrentAMapAsyncIterable(_ConcurrentMapAsyncIterableMixin[T, U]):
+class _ConcurrentAMapAsyncIterable(
+    _ConcurrentMapAsyncIterableMixin[T, U], GetEventLoopMixin
+):
     def __init__(
         self,
         iterator: AsyncIterator[T],
@@ -735,16 +737,16 @@ class _ConcurrentAMapAsyncIterable(_ConcurrentMapAsyncIterableMixin[T, U]):
     ) -> "Future[Union[U, _RaisingAsyncIterator.ExceptionContainer]]":
         return cast(
             "Future[Union[U, _RaisingAsyncIterator.ExceptionContainer]]",
-            get_event_loop().create_task(self._safe_transformation(elem)),
+            self.get_event_loop().create_task(self._safe_transformation(elem)),
         )
 
     def _future_result_collection(
         self,
     ) -> FutureResultCollection[Union[U, _RaisingAsyncIterator.ExceptionContainer]]:
         if self.ordered:
-            return FIFOAsyncFutureResultCollection(get_event_loop())
+            return FIFOAsyncFutureResultCollection(self.get_event_loop())
         else:
-            return FDFOAsyncFutureResultCollection(get_event_loop())
+            return FDFOAsyncFutureResultCollection(self.get_event_loop())
 
 
 class ConcurrentAMapAsyncIterator(_RaisingAsyncIterator[U]):
@@ -842,7 +844,7 @@ class ConcurrentFlattenAsyncIterator(_RaisingAsyncIterator[T]):
 
 
 class _ConcurrentAFlattenAsyncIterable(
-    AsyncIterable[Union[T, _RaisingAsyncIterator.ExceptionContainer]]
+    AsyncIterable[Union[T, _RaisingAsyncIterator.ExceptionContainer]], GetEventLoopMixin
 ):
     def __init__(
         self,
@@ -891,7 +893,7 @@ class _ConcurrentAFlattenAsyncIterable(
                     except Exception as e:
                         yield _RaisingAsyncIterator.ExceptionContainer(e)
                         continue
-                future = get_event_loop().create_task(
+                future = self.get_event_loop().create_task(
                     awaitable_to_coroutine(
                         cast(AsyncIterator, iterator_to_queue).__anext__()
                     )

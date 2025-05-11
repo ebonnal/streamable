@@ -39,7 +39,7 @@ from typing import (
 from parameterized import parameterized  # type: ignore
 
 from streamable import Stream
-from streamable.util.asynctools import get_event_loop
+from streamable.util.asynctools import awaitable_to_coroutine
 from streamable.util.functiontools import WrappedError, asyncify, star
 from streamable.util.iterabletools import (
     sync_to_bi_iterable,
@@ -2454,7 +2454,7 @@ class TestStream(unittest.TestCase):
 
         stream = Stream(lambda: map(effect, src))
         self.assertEqual(
-            get_event_loop().run_until_complete(stream.acount()),
+            asyncio.run(stream.acount()),
             N,
             msg="`count` should return the count of elements.",
         )
@@ -2480,7 +2480,7 @@ class TestStream(unittest.TestCase):
         l: List[int] = []
         stream = Stream(src).map(l.append)
         self.assertIs(
-            get_event_loop().run_until_complete(stream),
+            asyncio.run(awaitable_to_coroutine(stream)),
             stream,
             msg="`__call__` should return the stream.",
         )

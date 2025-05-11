@@ -5,7 +5,6 @@ from datetime import timedelta
 from typing import AsyncIterable, Iterator, List, Tuple, TypeVar
 
 from streamable.stream import Stream
-from streamable.util.asynctools import get_event_loop
 
 integers: Stream[int] = Stream(range(10))
 
@@ -101,7 +100,7 @@ class TestReadme(unittest.TestCase):
                 )
                 assert [name async for name in pokemon_names] == ['bulbasaur', 'ivysaur', 'venusaur']
 
-        get_event_loop().run_until_complete(main())
+        asyncio.run(main())
 
     def test_starmap_example(self) -> None:
         from streamable import star
