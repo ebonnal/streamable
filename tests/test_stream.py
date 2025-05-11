@@ -984,17 +984,9 @@ class TestStream(unittest.TestCase):
                 msg=f"`after the first call to `next` a concurrent {type(stream)} with concurrency={concurrency} should have pulled only {n_pulls_after_first_next} upstream elements.",
             )
 
-    def test_afilter_with_none_when(self) -> None:
-        with self.assertRaisesRegex(
-            TypeError,
-            "`when` must not be None",
-            msg="`afilter` must refuse a None predicate",
-        ):
-            Stream(src).afilter(None)  # type: ignore
-
     @parameterized.expand(ITERABLE_TYPES)
     def test_filter(self, itype: IterableType) -> None:
-        def keep(x) -> Any:
+        def keep(x) -> int:
             return x % 2
 
         self.assertListEqual(
@@ -1003,7 +995,7 @@ class TestStream(unittest.TestCase):
             msg="`filter` must act like builtin filter",
         )
         self.assertListEqual(
-            to_list(Stream(src).filter(), itype=itype),
+            to_list(Stream(src).filter(bool), itype=itype),
             list(filter(None, src)),
             msg="`filter` with `bool` as predicate must act like builtin filter with None predicate.",
         )
@@ -1018,14 +1010,53 @@ class TestStream(unittest.TestCase):
             msg="`filter` with None predicate must act unofficially like builtin filter with None predicate.",
         )
 
-        # Unofficially accept `stream.filter(None)`, behaving as builtin `filter(None, iter)`
-        to_list(Stream(src).filter(None), itype=itype)  # type: ignore
+        self.assertEqual(
+            to_list(Stream(src).filter(None), itype=itype),  # type: ignore
+            list(filter(None, src)),
+            msg="Unofficially accept `stream.filter(None)`, behaving as builtin `filter(None, iter)`",
+        )
         # with self.assertRaisesRegex(
         #     TypeError,
         #     "`when` cannot be None",
         #     msg="`filter` does not accept a None predicate",
         # ):
         #     to_list(Stream(src).filter(None), itype=itype)  # type: ignore
+
+    @parameterized.expand(ITERABLE_TYPES)
+    def test_afilter(self, itype: IterableType) -> None:
+        def keep(x) -> int:
+            return x % 2
+
+        async def async_keep(x) -> int:
+            return keep(x)
+
+        self.assertListEqual(
+            to_list(Stream(src).afilter(async_keep), itype=itype),
+            list(filter(keep, src)),
+            msg="`afilter` must act like builtin filter",
+        )
+        self.assertListEqual(
+            to_list(Stream(src).afilter(asyncify(bool)), itype=itype),
+            list(filter(None, src)),
+            msg="`afilter` with `bool` as predicate must act like builtin filter with None predicate.",
+        )
+        self.assertListEqual(
+            to_list(Stream(src).afilter(None), itype=itype),  # type: ignore
+            list(filter(None, src)),
+            msg="`afilter` with None predicate must act unofficially like builtin filter with None predicate.",
+        )
+
+        self.assertEqual(
+            to_list(Stream(src).afilter(None), itype=itype),  # type: ignore
+            list(filter(None, src)),
+            msg="Unofficially accept `stream.afilter(None)`, behaving as builtin `filter(None, iter)`",
+        )
+        # with self.assertRaisesRegex(
+        #     TypeError,
+        #     "`when` cannot be None",
+        #     msg="`afilter` does not accept a None predicate",
+        # ):
+        #     to_list(Stream(src).afilter(None), itype=itype)  # type: ignore
 
     @parameterized.expand(ITERABLE_TYPES)
     def test_skip(self, itype: IterableType) -> None:

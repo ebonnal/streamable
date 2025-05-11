@@ -52,8 +52,6 @@ from streamable.util.validationtools import (
     validate_errors,
     validate_group_size,
     validate_aiterator,
-    validate_iterator,
-    validate_not_none,
     validate_optional_positive_interval,
 )
 
@@ -447,7 +445,6 @@ class AFilterAsyncIterator(AsyncIterator[T]):
         when: Callable[[T], Coroutine[Any, Any, Any]],
     ) -> None:
         validate_aiterator(iterator)
-        validate_not_none(when, "when")
 
         self.iterator = iterator
         self.when = awrap_error(when, StopAsyncIteration)

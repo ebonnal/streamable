@@ -83,9 +83,9 @@ def validate_optional_positive_count(count: Optional[int]):
         validate_positive_count(count)
 
 
-def validate_not_none(value: Any, name: str) -> None:
-    if value is None:
-        raise TypeError(f"`{name}` must not be None")
+# def validate_not_none(value: Any, name: str) -> None:
+#     if value is None:
+#         raise TypeError(f"`{name}` must not be None")
 
 
 def validate_errors(

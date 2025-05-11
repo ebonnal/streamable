@@ -29,6 +29,7 @@ from typing import (
 )
 
 from streamable.util.constants import NO_REPLACEMENT
+from streamable.util.functiontools import asyncify
 from streamable.util.loggertools import get_logger
 from streamable.util.validationtools import (
     validate_concurrency,
@@ -358,8 +359,13 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Returns:
             Stream[T]: A stream of upstream elements satisfying the `when` predicate.
         """
+        # Unofficially accept `stream.afilter(None)`, behaving as builtin `filter(None, iter)`
         # validate_not_none(when, "when")
-        return AFilterStream(self, when)
+        return AFilterStream(
+            self,
+            cast(Optional[Callable[[T], Coroutine[Any, Any, Any]]], when)
+            or asyncify(bool),
+        )
 
     # fmt: off
     @overload
