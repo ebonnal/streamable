@@ -92,7 +92,7 @@ Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`/`Async
 - **`async for`**
 ```python
 >>> async def main() -> List[int]:
->>>     return [i async for i in inverses]
+>>>     return [inverse async for inverse in inverses]
 
 >>> asyncio.run(main())
 [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
@@ -100,7 +100,7 @@ Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`/`Async
 
 - **`aiter`/`anext`**
 ```python
->>> asyncio.run(anext(aiter(inverses)))  # or prior to 3.10: `inverses.__aiter__().__anext__()`
+>>> asyncio.run(anext(aiter(inverses)))  # before 3.10: inverses.__aiter__().__anext__()
 1.0
 ```
 
