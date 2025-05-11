@@ -85,7 +85,7 @@ Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`, eleme
 1.0
 ```
 
-> [!INFO]
+> [!NOTE]
 > A `Stream[T]` is also an `AsyncIterable[T]` and can be consumed as such:
 
 - **`async for`**
