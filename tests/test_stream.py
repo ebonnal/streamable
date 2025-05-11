@@ -274,7 +274,6 @@ class TestStream(unittest.TestCase):
             msg="a stream with an async source must be collectable as an Iterable or as AsyncIterable",
         )
 
-
     def test_repr_and_display(self) -> None:
         class CustomCallable:
             pass
@@ -985,7 +984,7 @@ class TestStream(unittest.TestCase):
                 msg=f"`after the first call to `next` a concurrent {type(stream)} with concurrency={concurrency} should have pulled only {n_pulls_after_first_next} upstream elements.",
             )
 
-    def test_afilter_with_none_when(self, itype: IterableType) -> None:
+    def test_afilter_with_none_when(self) -> None:
         with self.assertRaisesRegex(
             TypeError,
             "`when` must not be None",
