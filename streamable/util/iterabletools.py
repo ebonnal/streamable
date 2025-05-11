@@ -31,7 +31,15 @@ def aiterable_to_set(aiterable: AsyncIterable[T]) -> Set[T]:
     return get_event_loop().run_until_complete(_aiter_to_set(aiterable))
 
 
-class SyncToAsyncIterable(Iterable[T], AsyncIterable[T]):
+class BiIterable(Iterable[T], AsyncIterable[T]):
+    pass
+
+
+class BiIterator(Iterator[T], AsyncIterator[T]):
+    pass
+
+
+class SyncToBiIterable(BiIterable[T]):
     def __init__(self, iterable: Iterable[T]):
         self.iterable = iterable
 
@@ -39,10 +47,10 @@ class SyncToAsyncIterable(Iterable[T], AsyncIterable[T]):
         return iter(self.iterable)
 
     def __aiter__(self) -> AsyncIterator[T]:
-        return SyncToAsyncIterator(self.iterable)
+        return SyncToBiIterator(self.iterable)
 
 
-to_aiterable: Callable[[Iterable[T]], AsyncIterable[T]] = SyncToAsyncIterable
+sync_to_bi_iterable: Callable[[Iterable[T]], BiIterable[T]] = SyncToBiIterable
 
 
 # class AsyncToSyncIterable(Iterable[T], AsyncIterable[T]):
@@ -56,7 +64,7 @@ to_aiterable: Callable[[Iterable[T]], AsyncIterable[T]] = SyncToAsyncIterable
 #         return self.iterable.__aiter__()
 
 
-class SyncToAsyncIterator(Iterator[T], AsyncIterator[T]):
+class SyncToBiIterator(BiIterator[T]):
     def __init__(self, iterator: Iterable[T]):
         self.iterator: Iterator[T] = iter(iterator)
 
@@ -70,10 +78,21 @@ class SyncToAsyncIterator(Iterator[T], AsyncIterator[T]):
             raise StopAsyncIteration() from e
 
 
-to_aiter: Callable[[Iterable[T]], AsyncIterator[T]] = SyncToAsyncIterator
+sync_to_bi_iter: Callable[[Iterable[T]], BiIterator[T]] = SyncToBiIterator
 
 
-class AsyncToSyncIterator(Iterator[T], AsyncIterator[T]):
+class SyncToAsyncIterator(AsyncIterator[T]):
+    def __init__(self, iterator: Iterable[T]):
+        self.bi_iterator: BiIterator[T] = SyncToBiIterator(iterator)
+
+    async def __anext__(self) -> T:
+        return await self.bi_iterator.__anext__()
+
+
+sync_to_async_iter: Callable[[Iterable[T]], AsyncIterator[T]] = SyncToBiIterator
+
+
+class AsyncToBiIterator(BiIterator[T]):
     def __init__(self, iterator: AsyncIterable[T]):
         self.iterator: AsyncIterator[T] = iterator.__aiter__()
         self.event_loop: asyncio.AbstractEventLoop = get_event_loop()
@@ -88,4 +107,4 @@ class AsyncToSyncIterator(Iterator[T], AsyncIterator[T]):
         return await self.iterator.__anext__()
 
 
-to_iter: Callable[[AsyncIterable[T]], Iterator[T]] = AsyncToSyncIterator
+async_to_bi_iter: Callable[[AsyncIterable[T]], BiIterator[T]] = AsyncToBiIterator

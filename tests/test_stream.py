@@ -44,8 +44,9 @@ from streamable.util.functiontools import WrappedError, asyncify, star
 from streamable.util.iterabletools import (
     aiterable_to_list,
     aiterable_to_set,
-    to_aiter,
-    to_aiterable,
+    sync_to_bi_iter,
+    sync_to_bi_iterable,
+    sync_to_async_iter,
 )
 
 T = TypeVar("T")
@@ -269,7 +270,7 @@ class TestStream(unittest.TestCase):
     @parameterized.expand(ITERABLE_TYPES)
     def test_async_src(self, itype) -> None:
         self.assertEqual(
-            to_list(Stream(to_aiter(src)), itype),
+            to_list(Stream(sync_to_async_iter(src)), itype),
             list(src),
             msg="a stream with an async source must be collectable as an Iterable or as AsyncIterable",
         )
@@ -305,7 +306,7 @@ class TestStream(unittest.TestCase):
             .map(star(lambda key, group: group))
             .observe("groups")
             .flatten(concurrency=4)
-            .map(lambda g: cast(AsyncIterable, to_aiter(g)))
+            .map(lambda g: cast(AsyncIterable, sync_to_bi_iter(g)))
             .aflatten(concurrency=4)
             .map(lambda _: 0)
             .throttle(
@@ -449,7 +450,7 @@ class TestStream(unittest.TestCase):
         ]
     )
     def test_sanitize_concurrency(self, method, args) -> None:
-        stream = Stream(to_aiter(src))
+        stream = Stream(sync_to_bi_iter(src))
         with self.assertRaises(
             TypeError,
             msg=f"`{method}` should be raising TypeError for non-int concurrency.",
@@ -736,7 +737,7 @@ class TestStream(unittest.TestCase):
             for itype in ITERABLE_TYPES
             for flatten, iterator_cast in [
                 (Stream.flatten, identity),
-                (Stream.aflatten, to_aiter),
+                (Stream.aflatten, sync_to_bi_iter),
             ]
         ]
     )
@@ -834,7 +835,9 @@ class TestStream(unittest.TestCase):
             Stream("abc").map(lambda char: filter(lambda _: True, char)).flatten()
         )
 
-        flattened_asynciter_stream: Stream[str] = Stream("abc").map(to_aiter).aflatten()
+        flattened_asynciter_stream: Stream[str] = (
+            Stream("abc").map(sync_to_async_iter).aflatten()
+        )
 
     @parameterized.expand(
         [
@@ -866,7 +869,7 @@ class TestStream(unittest.TestCase):
             flatten(
                 Stream(
                     map(
-                        lambda i: to_aiterable(
+                        lambda i: sync_to_bi_iterable(
                             IterableRaisingInIter() if i % 2 else range(i, i + 1)
                         ),
                         range(n_iterables),
@@ -913,7 +916,7 @@ class TestStream(unittest.TestCase):
                 Stream(
                     map(
                         lambda i: (
-                            to_aiterable(
+                            sync_to_bi_iterable(
                                 IteratorRaisingInNext() if i % 2 else range(i, i + 1)
                             )
                         ),
@@ -1514,9 +1517,9 @@ class TestStream(unittest.TestCase):
         )
 
         # test agroupby
-        groupby_stream_iter: Union[Iterator[Tuple[int, List[int]]], AsyncIterator[Tuple[int, List[int]]]] = stream_to_iter(
-            Stream(src).groupby(lambda n: n % 2, size=2), itype=itype
-        )
+        groupby_stream_iter: Union[
+            Iterator[Tuple[int, List[int]]], AsyncIterator[Tuple[int, List[int]]]
+        ] = stream_to_iter(Stream(src).groupby(lambda n: n % 2, size=2), itype=itype)
         self.assertListEqual(
             [anext_or_next(groupby_stream_iter), anext_or_next(groupby_stream_iter)],
             [(0, [0, 2]), (1, [1, 3])],
@@ -1719,7 +1722,9 @@ class TestStream(unittest.TestCase):
         )
 
         # test agroupby
-        groupby_stream_iter: Union[Iterator[Tuple[int, List[int]]], AsyncIterator[Tuple[int, List[int]]]] = stream_to_iter(
+        groupby_stream_iter: Union[
+            Iterator[Tuple[int, List[int]]], AsyncIterator[Tuple[int, List[int]]]
+        ] = stream_to_iter(
             Stream(src).agroupby(asyncify(lambda n: n % 2), size=2), itype=itype
         )
         self.assertListEqual(
@@ -2714,7 +2719,7 @@ class TestStream(unittest.TestCase):
             .group(3, by=bool)
             .flatten(concurrency=3)
             .agroup(3, by=async_identity)
-            .map(to_aiter)
+            .map(sync_to_async_iter)
             .aflatten(concurrency=3)
             .groupby(bool)
             .agroupby(async_identity)
@@ -2742,7 +2747,7 @@ class TestStream(unittest.TestCase):
             .group(3, by=bool)
             .flatten(concurrency=3)
             .agroup(3, by=async_identity)
-            .map(to_aiter)
+            .map(sync_to_async_iter)
             .aflatten(concurrency=3)
             .groupby(bool)
             .agroupby(async_identity)
@@ -2769,7 +2774,7 @@ class TestStream(unittest.TestCase):
             .group(3, by=bool)
             .flatten(concurrency=3)
             .agroup(3, by=async_identity)
-            .map(to_aiter)
+            .map(sync_to_async_iter)
             .aflatten(concurrency=3)
             .groupby(bool)
             .agroupby(async_identity)
@@ -2796,7 +2801,7 @@ class TestStream(unittest.TestCase):
             .group(3, by=bool)
             .flatten(concurrency=3)
             .agroup(3, by=async_identity)
-            .map(to_aiter)
+            .map(sync_to_async_iter)
             .aflatten(concurrency=3)
             .groupby(bool)
             .agroupby(async_identity)
