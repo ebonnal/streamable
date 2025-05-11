@@ -31,15 +31,18 @@ def aiterable_to_set(aiterable: AsyncIterable[T]) -> Set[T]:
     return get_event_loop().run_until_complete(_aiter_to_set(aiterable))
 
 
-# class SyncToAsyncIterable(Iterable[T], AsyncIterable[T]):
-#     def __init__(self, iterable: Iterable[T]):
-#         self.iterable = iterable
+class SyncToAsyncIterable(Iterable[T], AsyncIterable[T]):
+    def __init__(self, iterable: Iterable[T]):
+        self.iterable = iterable
 
-#     def __iter__(self) -> Iterator[T]:
-#         return iter(self.iterable)
+    def __iter__(self) -> Iterator[T]:
+        return iter(self.iterable)
 
-#     def __aiter__(self) -> AsyncIterator[T]:
-#         return SyncToAsyncIterator(self.iterable)
+    def __aiter__(self) -> AsyncIterator[T]:
+        return SyncToAsyncIterator(self.iterable)
+
+
+to_aiterable: Callable[[Iterable[T]], AsyncIterable[T]] = SyncToAsyncIterable
 
 
 # class AsyncToSyncIterable(Iterable[T], AsyncIterable[T]):

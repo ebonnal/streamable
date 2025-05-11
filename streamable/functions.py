@@ -169,6 +169,7 @@ def group(
         return GroupIterator(iterator, size, interval)
     return map(itemgetter(1), GroupbyIterator(iterator, by, size, interval))
 
+
 def agroup(
     iterator: Iterator[T],
     size: Optional[int] = None,

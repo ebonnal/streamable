@@ -39,9 +39,14 @@ from typing import (
 from parameterized import parameterized  # type: ignore
 
 from streamable import Stream
-from streamable.util.asynctools import await_result
+from streamable.util.asynctools import get_event_loop
 from streamable.util.functiontools import WrappedError, asyncify, star
-from streamable.util.iterabletools import aiterable_to_list, aiterable_to_set, to_aiter
+from streamable.util.iterabletools import (
+    aiterable_to_list,
+    aiterable_to_set,
+    to_aiter,
+    to_aiterable,
+)
 
 T = TypeVar("T")
 R = TypeVar("R")
@@ -83,7 +88,7 @@ def stream_to_iter(
 
 def anext_or_next(it: Union[Iterator[T], AsyncIterator[T]]) -> T:
     if isinstance(it, AsyncIterator):
-        return await_result(it.__anext__())
+        return get_event_loop().run_until_complete(it.__anext__())
     else:
         return next(it)
 
@@ -643,8 +648,8 @@ class TestStream(unittest.TestCase):
                 itype,
             ]
             for raised_exc, caught_exc in [
-                (TestError, (TestError,)),
-                (StopIteration, (WrappedError, RuntimeError)),
+                (TestError, TestError),
+                (StopIteration, WrappedError),
             ]
             for concurrency in [1, 2]
             for method, throw_func_, throw_for_odd_func_ in [
@@ -659,7 +664,7 @@ class TestStream(unittest.TestCase):
     def test_map_or_foreach_with_exception(
         self,
         raised_exc: Type[Exception],
-        caught_exc: Tuple[Type[Exception], ...],
+        caught_exc: Type[Exception],
         concurrency: int,
         method: Callable[[Stream, Callable[[Any], int], int], Stream],
         throw_func: Callable[[Exception], Callable[[Any], int]],
@@ -830,7 +835,7 @@ class TestStream(unittest.TestCase):
             for itype in ITERABLE_TYPES
             for exception_type, mapped_exception_type in [
                 (TestError, TestError),
-                (overloaded_stopiteration(itype), (RuntimeError, WrappedError)),
+                (overloaded_stopiteration(itype), WrappedError),
             ]
             for flatten in (Stream.flatten, Stream.aflatten)
         ]
@@ -853,7 +858,7 @@ class TestStream(unittest.TestCase):
             flatten(
                 Stream(
                     map(
-                        lambda i: to_aiter(
+                        lambda i: to_aiterable(
                             IterableRaisingInIter() if i % 2 else range(i, i + 1)
                         ),
                         range(n_iterables),
@@ -866,7 +871,7 @@ class TestStream(unittest.TestCase):
         self.assertSetEqual(
             res,
             set(range(0, n_iterables, 2)),
-            msg="At any concurrency the `flatten` method should be resilient to exceptions thrown by iterators, especially it should wrap (Async)StopIteration.",
+            msg="At any concurrency the `flatten` method should be resilient to exceptions thrown by iterators, especially it should wrap Stop(Async)Iteration.",
         )
 
     @parameterized.expand(
@@ -900,7 +905,7 @@ class TestStream(unittest.TestCase):
                 Stream(
                     map(
                         lambda i: (
-                            to_aiter(
+                            to_aiterable(
                                 IteratorRaisingInNext() if i % 2 else range(i, i + 1)
                             )
                         ),
@@ -914,7 +919,7 @@ class TestStream(unittest.TestCase):
         self.assertSetEqual(
             res,
             set(range(0, n_iterables, 2)),
-            msg="At any concurrency the `flatten` method should be resilient to exceptions thrown by iterators, especially it should wrap (Async)StopIteration.",
+            msg="At any concurrency the `flatten` method should be resilient to exceptions thrown by iterators, especially it should wrap Stop(Async)Iteration.",
         )
 
     @parameterized.expand(
@@ -1403,7 +1408,9 @@ class TestStream(unittest.TestCase):
         def f(i):
             return i / (110 - i)
 
-        stream_iterator = stream_to_iter(Stream(lambda: map(f, src)).group(100), itype=itype)
+        stream_iterator = stream_to_iter(
+            Stream(lambda: map(f, src)).group(100), itype=itype
+        )
         anext_or_next(stream_iterator)
         self.assertListEqual(
             anext_or_next(stream_iterator),
@@ -1553,7 +1560,6 @@ class TestStream(unittest.TestCase):
             msg="`group` should continue yielding after `by`'s exception has been raised.",
         )
 
-
     @parameterized.expand(ITERABLE_TYPES)
     def test_agroup(self, itype: IterableType) -> None:
         # behavior with invalid arguments
@@ -1597,7 +1603,9 @@ class TestStream(unittest.TestCase):
         def f(i):
             return i / (110 - i)
 
-        stream_iterator = stream_to_iter(Stream(lambda: map(f, src)).agroup(100), itype=itype)
+        stream_iterator = stream_to_iter(
+            Stream(lambda: map(f, src)).agroup(100), itype=itype
+        )
         anext_or_next(stream_iterator)
         self.assertListEqual(
             anext_or_next(stream_iterator),
@@ -1691,13 +1699,16 @@ class TestStream(unittest.TestCase):
         )
 
         self.assertListEqual(
-            to_list(Stream(range(10)).agroup(by=asyncify(lambda n: n % 4 == 0)), itype=itype),
+            to_list(
+                Stream(range(10)).agroup(by=asyncify(lambda n: n % 4 == 0)), itype=itype
+            ),
             [[0, 4, 8], [1, 2, 3, 5, 6, 7, 9]],
             msg="`agroup` called with a `by` function and reaching exhaustion must cogroup elements and yield uncomplete groups starting with the group containing the oldest element, even though it's not the largest.",
         )
 
         stream_iter = stream_to_iter(
-            Stream(src_raising_at_exhaustion).agroup(by=asyncify(lambda n: n % 2)), itype=itype
+            Stream(src_raising_at_exhaustion).agroup(by=asyncify(lambda n: n % 2)),
+            itype=itype,
         )
         self.assertListEqual(
             [anext_or_next(stream_iter), anext_or_next(stream_iter)],
@@ -1726,7 +1737,9 @@ class TestStream(unittest.TestCase):
         stream_iter = stream_to_iter(
             Stream(src).agroup(
                 size=3,
-                by=asyncify(lambda n: throw(overloaded_stopiteration(itype)) if n == 2 else n),
+                by=asyncify(
+                    lambda n: throw(overloaded_stopiteration(itype)) if n == 2 else n
+                ),
             ),
             itype=itype,
         )
@@ -1746,7 +1759,6 @@ class TestStream(unittest.TestCase):
             [3],
             msg="`agroup` should continue yielding after `by`'s exception has been raised.",
         )
-
 
     @parameterized.expand(ITERABLE_TYPES)
     def test_throttle(self, itype: IterableType) -> None:
@@ -2081,7 +2093,9 @@ class TestStream(unittest.TestCase):
             erroring_stream.catch(finally_raise=True),
             erroring_stream.catch(finally_raise=True),
         ]:
-            erroring_stream_iterator = stream_to_iter(caught_erroring_stream, itype=itype)
+            erroring_stream_iterator = stream_to_iter(
+                caught_erroring_stream, itype=itype
+            )
             self.assertEqual(
                 anext_or_next(erroring_stream_iterator),
                 first_value,
@@ -2301,7 +2315,9 @@ class TestStream(unittest.TestCase):
             erroring_stream.acatch(finally_raise=True),
             erroring_stream.acatch(finally_raise=True),
         ]:
-            erroring_stream_iterator = stream_to_iter(caught_erroring_stream, itype=itype)
+            erroring_stream_iterator = stream_to_iter(
+                caught_erroring_stream, itype=itype
+            )
             self.assertEqual(
                 anext_or_next(erroring_stream_iterator),
                 first_value,
@@ -2512,7 +2528,7 @@ class TestStream(unittest.TestCase):
 
         stream = Stream(lambda: map(effect, src))
         self.assertEqual(
-            await_result(stream.acount()),
+            get_event_loop().run_until_complete(stream.acount()),
             N,
             msg="`count` should return the count of elements.",
         )
@@ -2538,7 +2554,7 @@ class TestStream(unittest.TestCase):
         l: List[int] = []
         stream = Stream(src).map(l.append)
         self.assertIs(
-            await_result(stream),
+            get_event_loop().run_until_complete(stream),
             stream,
             msg="`__call__` should return the stream.",
         )

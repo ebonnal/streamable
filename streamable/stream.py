@@ -1063,6 +1063,7 @@ class GroupStream(DownStream[T, List[T]]):
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_group_stream(self)
 
+
 class AGroupStream(DownStream[T, List[T]]):
     __slots__ = ("_upstream", "_size", "_interval", "_by")
 

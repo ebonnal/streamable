@@ -1,6 +1,8 @@
 import asyncio
 from typing import Any, AsyncIterator, Awaitable, Coroutine, Optional, TypeVar
 
+from streamable.util.errors import WrappedError
+
 T = TypeVar("T")
 
 _EVENT_LOOP: Optional[asyncio.AbstractEventLoop] = None
@@ -21,8 +23,11 @@ async def awaitable_to_coroutine(aw: Awaitable[T]) -> T:
     return await aw
 
 
-def await_result(aw: Awaitable[T]) -> T:
-    return get_event_loop().run_until_complete(awaitable_to_coroutine(aw))
+async def awaitable_to_coroutine_wrapping_stopiteration(aw: Awaitable[T]) -> T:
+    try:
+        return await aw
+    except StopIteration as e:
+        raise WrappedError(e) from e
 
 
 async def empty_aiter() -> AsyncIterator:

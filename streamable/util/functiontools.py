@@ -2,7 +2,6 @@ from functools import partial
 from typing import (
     Any,
     AsyncIterable,
-    Awaitable,
     Callable,
     Coroutine,
     Generic,
@@ -13,15 +12,10 @@ from typing import (
 )
 
 from streamable.util.asynctools import get_event_loop
+from streamable.util.errors import WrappedError
 
 T = TypeVar("T")
 R = TypeVar("R")
-
-
-class WrappedError(Exception):
-    def __init__(self, error: Exception):
-        super().__init__(repr(error))
-        self.error = error
 
 
 class _ErrorWrappingDecorator(Generic[T, R]):
@@ -168,7 +162,11 @@ class _Syncify(Generic[R]):
             raise TypeError(
                 f"must be an async function i.e. a function returning a Coroutine but it returned a {type(coroutine)}"
             )
-        return self.event_loop.run_until_complete(coroutine)
+        try:
+            return self.event_loop.run_until_complete(coroutine)
+        except StopIteration as e:
+            # replace RuntimeError for "coroutine raised StopIteration"
+            raise WrappedError(e) from e
 
 
 def syncify(async_func: Callable[[T], Coroutine[Any, Any, R]]) -> Callable[[T], R]:
@@ -176,7 +174,11 @@ def syncify(async_func: Callable[[T], Coroutine[Any, Any, R]]) -> Callable[[T], 
 
 
 async def _async_call(func: Callable[[T], R], o: T) -> R:
-    return func(o)
+    try:
+        return func(o)
+    except StopIteration as e:
+        # replace RuntimeError for "coroutine raised StopIteration"
+        raise WrappedError(e) from e
 
 
 def asyncify(func: Callable[[T], R]) -> Callable[[T], Coroutine[Any, Any, R]]:
