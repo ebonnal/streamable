@@ -266,6 +266,15 @@ class TestStream(unittest.TestCase):
         ):
             Stream(src).upstream = Stream(src)  # type: ignore
 
+    @parameterized.expand(ITERABLE_TYPES)
+    def test_async_src(self, itype) -> None:
+        self.assertEqual(
+            to_list(Stream(to_aiter(src)), itype),
+            list(src),
+            msg="a stream with an async source must be collectable as an Iterable or as AsyncIterable",
+        )
+
+
     def test_repr_and_display(self) -> None:
         class CustomCallable:
             pass
