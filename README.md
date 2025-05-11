@@ -319,8 +319,9 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 ## `.group`
 
-> Groups elements into `List`s:
+> Groups into `List`s
 
+> ... up to a given group `size`:
 <details ><summary style="text-indent: 40px;">👀 show example</summary></br>
 
 ```python
@@ -329,6 +330,9 @@ integers_by_5: Stream[List[int]] = integers.group(size=5)
 assert list(integers_by_5) == [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]]
 ```
 </details>
+
+> ... and/or co-groups `by` a given key:
+
 <details ><summary style="text-indent: 40px;">👀 show example</summary></br>
 
 ```python
@@ -337,6 +341,9 @@ integers_by_parity: Stream[List[int]] = integers.group(by=lambda n: n % 2)
 assert list(integers_by_parity) == [[0, 2, 4, 6, 8], [1, 3, 5, 7, 9]]
 ```
 </details>
+
+> ... and/or co-groups the elements yielded by the upstream within a given time `interval`:
+
 <details ><summary style="text-indent: 40px;">👀 show example</summary></br>
 
 ```python
@@ -352,7 +359,9 @@ assert list(integers_within_1_sec) == [[0, 1, 2], [3, 4], [5, 6], [7, 8], [9]]
 ```
 </details>
 
-> Mix the `size`/`by`/`interval` parameters:
+> [!TIP]
+> Combine the `size`/`by`/`interval` parameters:
+
 <details ><summary style="text-indent: 40px;">👀 show example</summary></br>
 
 ```python
@@ -786,6 +795,10 @@ asyncio.run(main())
 ## `.aforeach`
 
 > Applies an `async` side effect on elements. Supports `concurrency` like `.amap`.
+
+## `.agroup`
+
+> Groups into `List`s according to an `async` grouping function.
 
 ## `.agroupby`
 
