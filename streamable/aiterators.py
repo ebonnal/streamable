@@ -156,12 +156,12 @@ class FlattenAsyncIterator(AsyncIterator[U]):
     def __init__(self, iterator: AsyncIterator[Iterable[U]]) -> None:
         validate_aiterator(iterator)
         self.iterator = iterator
-        self._current_iterator_elem: Iterator[U] = iter(tuple())
+        self._current_iterator_elem: Iterator[U] = tuple().__iter__()
 
     async def __anext__(self) -> U:
         while True:
             try:
-                return next(self._current_iterator_elem)
+                return self._current_iterator_elem.__next__()
             except StopIteration:
                 self._current_iterator_elem = iter_wo_stopasynciteration(
                     await self.iterator.__anext__()
@@ -275,11 +275,11 @@ class AGroupbyAsyncIterator(
         return None
 
     def _pop_first_group(self) -> Tuple[U, List[T]]:
-        first_key: U = next(iter(self._groups_by), cast(U, ...))
+        first_key: U = self._groups_by.__iter__().__next__()
         return first_key, self._groups_by.pop(first_key)
 
     def _pop_largest_group(self) -> Tuple[U, List[T]]:
-        largest_group_key: Any = next(iter(self._groups_by), ...)
+        largest_group_key: Any = self._groups_by.__iter__().__next__()
 
         for key, group in self._groups_by.items():
             if len(group) > len(self._groups_by[largest_group_key]):

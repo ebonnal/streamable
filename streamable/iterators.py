@@ -90,7 +90,7 @@ class CatchIterator(Iterator[T]):
     def __next__(self) -> T:
         while True:
             try:
-                return next(self.iterator)
+                return self.iterator.__next__()
             except StopIteration:
                 if self._to_be_finally_raised:
                     try:
@@ -119,7 +119,7 @@ class DistinctIterator(Iterator[T]):
 
     def __next__(self) -> T:
         while True:
-            elem = next(self.iterator)
+            elem = self.iterator.__next__()
             key = self.key(elem) if self.key else elem
             if key not in self._already_seen:
                 break
@@ -138,7 +138,7 @@ class ConsecutiveDistinctIterator(Iterator[T]):
 
     def __next__(self) -> T:
         while True:
-            elem = next(self.iterator)
+            elem = self.iterator.__next__()
             key = self.key(elem) if self.key else elem
             if key != self._last_key:
                 break
@@ -150,14 +150,16 @@ class FlattenIterator(Iterator[U]):
     def __init__(self, iterator: Iterator[Iterable[U]]) -> None:
         validate_iterator(iterator)
         self.iterator = iterator
-        self._current_iterator_elem: Iterator[U] = iter(tuple())
+        self._current_iterator_elem: Iterator[U] = tuple().__iter__()
 
     def __next__(self) -> U:
         while True:
             try:
-                return next(self._current_iterator_elem)
+                return self._current_iterator_elem.__next__()
             except StopIteration:
-                self._current_iterator_elem = iter_wo_stopiteration(next(self.iterator))
+                self._current_iterator_elem = iter_wo_stopiteration(
+                    self.iterator.__next__()
+                )
 
 
 class AFlattenIterator(Iterator[U], GetEventLoopMixin):
@@ -175,7 +177,7 @@ class AFlattenIterator(Iterator[U], GetEventLoopMixin):
                 )
             except StopAsyncIteration:
                 self._current_iterator_elem = aiter_wo_stopiteration(
-                    next(self.iterator)
+                    self.iterator.__next__()
                 )
 
 
@@ -233,7 +235,7 @@ class GroupIterator(_GroupIteratorMixin[T], Iterator[List[T]]):
             while len(self._current_group) < self.size and (
                 not self._interval_seconds_have_elapsed() or not self._current_group
             ):
-                self._current_group.append(next(self.iterator))
+                self._current_group.append(self.iterator.__next__())
         except Exception as e:
             if not self._current_group:
                 raise
@@ -258,7 +260,7 @@ class GroupbyIterator(_GroupIteratorMixin[T], Iterator[Tuple[U, List[T]]]):
         self._groups_by: DefaultDict[U, List[T]] = defaultdict(list)
 
     def _group_next_elem(self) -> None:
-        elem = next(self.iterator)
+        elem = self.iterator.__next__()
         self._groups_by[self.key(elem)].append(elem)
 
     def _pop_full_group(self) -> Optional[Tuple[U, List[T]]]:
@@ -268,11 +270,11 @@ class GroupbyIterator(_GroupIteratorMixin[T], Iterator[Tuple[U, List[T]]]):
         return None
 
     def _pop_first_group(self) -> Tuple[U, List[T]]:
-        first_key: U = next(iter(self._groups_by), cast(U, ...))
+        first_key: U = self._groups_by.__iter__().__next__()
         return first_key, self._groups_by.pop(first_key)
 
     def _pop_largest_group(self) -> Tuple[U, List[T]]:
-        largest_group_key: Any = next(iter(self._groups_by), ...)
+        largest_group_key: Any = self._groups_by.__iter__().__next__()
 
         for key, group in self._groups_by.items():
             if len(group) > len(self._groups_by[largest_group_key]):
@@ -309,11 +311,11 @@ class GroupbyIterator(_GroupIteratorMixin[T], Iterator[Tuple[U, List[T]]]):
 
         except StopIteration:
             self._is_exhausted = True
-            return next(self)
+            return self.__next__()
 
         except Exception as e:
             self._to_be_raised = e
-            return next(self)
+            return self.__next__()
 
 
 class CountSkipIterator(Iterator[T]):
@@ -328,11 +330,11 @@ class CountSkipIterator(Iterator[T]):
     def __next__(self) -> T:
         if not self._done_skipping:
             while self._n_skipped < self.count:
-                next(self.iterator)
+                self.iterator.__next__()
                 # do not count exceptions as skipped elements
                 self._n_skipped += 1
             self._done_skipping = True
-        return next(self.iterator)
+        return self.iterator.__next__()
 
 
 class PredicateSkipIterator(Iterator[T]):
@@ -343,10 +345,10 @@ class PredicateSkipIterator(Iterator[T]):
         self._done_skipping = False
 
     def __next__(self) -> T:
-        elem = next(self.iterator)
+        elem = self.iterator.__next__()
         if not self._done_skipping:
             while not self.until(elem):
-                elem = next(self.iterator)
+                elem = self.iterator.__next__()
             self._done_skipping = True
         return elem
 
@@ -364,10 +366,10 @@ class CountAndPredicateSkipIterator(Iterator[T]):
         self._done_skipping = False
 
     def __next__(self) -> T:
-        elem = next(self.iterator)
+        elem = self.iterator.__next__()
         if not self._done_skipping:
             while self._n_skipped < self.count and not self.until(elem):
-                elem = next(self.iterator)
+                elem = self.iterator.__next__()
                 # do not count exceptions as skipped elements
                 self._n_skipped += 1
             self._done_skipping = True
@@ -385,7 +387,7 @@ class CountTruncateIterator(Iterator[T]):
     def __next__(self) -> T:
         if self._current_count == self.count:
             raise StopIteration()
-        elem = next(self.iterator)
+        elem = self.iterator.__next__()
         self._current_count += 1
         return elem
 
@@ -400,7 +402,7 @@ class PredicateTruncateIterator(Iterator[T]):
     def __next__(self) -> T:
         if self._satisfied:
             raise StopIteration()
-        elem = next(self.iterator)
+        elem = self.iterator.__next__()
         if self.when(elem):
             self._satisfied = True
             raise StopIteration()
@@ -436,7 +438,7 @@ class ObserveIterator(Iterator[T]):
 
     def __next__(self) -> T:
         try:
-            elem = next(self.iterator)
+            elem = self.iterator.__next__()
             self._n_nexts += 1
             self._n_yields += 1
             return elem
@@ -472,7 +474,7 @@ class YieldsPerPeriodThrottleIterator(Iterator[T]):
 
     def safe_next(self) -> Tuple[Optional[T], Optional[Exception]]:
         try:
-            return next(self.iterator), None
+            return self.iterator.__next__(), None
         except StopIteration:
             raise
         except Exception as e:
@@ -513,7 +515,7 @@ class _RaisingIterator(Iterator[T]):
         self.iterator = iterator
 
     def __next__(self) -> T:
-        elem = next(self.iterator)
+        elem = self.iterator.__next__()
         if isinstance(elem, self.ExceptionContainer):
             raise elem.exception
         return elem
@@ -566,13 +568,17 @@ class _ConcurrentMapIterableMixin(
             # queue tasks up to buffersize
             with suppress(StopIteration):
                 while len(future_results) < self.buffersize:
-                    future_results.add_future(self._launch_task(next(self.iterator)))
+                    future_results.add_future(
+                        self._launch_task(self.iterator.__next__())
+                    )
 
             # wait, queue, yield
             while future_results:
-                result = next(future_results)
+                result = future_results.__next__()
                 with suppress(StopIteration):
-                    future_results.add_future(self._launch_task(next(self.iterator)))
+                    future_results.add_future(
+                        self._launch_task(self.iterator.__next__())
+                    )
                 yield result
 
 
@@ -638,16 +644,14 @@ class ConcurrentMapIterator(_RaisingIterator[U]):
         via: "Literal['thread', 'process']",
     ) -> None:
         super().__init__(
-            iter(
-                _ConcurrentMapIterable(
-                    iterator,
-                    transformation,
-                    concurrency,
-                    buffersize,
-                    ordered,
-                    via,
-                )
-            )
+            _ConcurrentMapIterable(
+                iterator,
+                transformation,
+                concurrency,
+                buffersize,
+                ordered,
+                via,
+            ).__iter__()
         )
 
 
@@ -701,14 +705,12 @@ class ConcurrentAMapIterator(_RaisingIterator[U]):
         ordered: bool,
     ) -> None:
         super().__init__(
-            iter(
-                _ConcurrentAMapIterable(
-                    iterator,
-                    transformation,
-                    buffersize,
-                    ordered,
-                )
-            )
+            _ConcurrentAMapIterable(
+                iterator,
+                transformation,
+                buffersize,
+                ordered,
+            ).__iter__()
         )
 
 
@@ -751,7 +753,7 @@ class _ConcurrentFlattenIterable(
                 while len(iterator_and_future_pairs) < self.buffersize:
                     if not iterator_to_queue:
                         try:
-                            iterable = next(self.iterables_iterator)
+                            iterable = self.iterables_iterator.__next__()
                         except StopIteration:
                             break
                         try:
@@ -776,13 +778,11 @@ class ConcurrentFlattenIterator(_RaisingIterator[T]):
         buffersize: int,
     ) -> None:
         super().__init__(
-            iter(
-                _ConcurrentFlattenIterable(
-                    iterables_iterator,
-                    concurrency,
-                    buffersize,
-                )
-            )
+            _ConcurrentFlattenIterable(
+                iterables_iterator,
+                concurrency,
+                buffersize,
+            ).__iter__()
         )
 
 
@@ -828,7 +828,7 @@ class _ConcurrentAFlattenIterable(
             while len(iterator_and_future_pairs) < self.buffersize:
                 if not iterator_to_queue:
                     try:
-                        iterable = next(self.iterables_iterator)
+                        iterable = self.iterables_iterator.__next__()
                     except StopIteration:
                         break
                     try:
@@ -859,11 +859,9 @@ class ConcurrentAFlattenIterator(_RaisingIterator[T]):
         buffersize: int,
     ) -> None:
         super().__init__(
-            iter(
-                _ConcurrentAFlattenIterable(
-                    iterables_iterator,
-                    concurrency,
-                    buffersize,
-                )
-            )
+            _ConcurrentAFlattenIterable(
+                iterables_iterator,
+                concurrency,
+                buffersize,
+            ).__iter__()
         )

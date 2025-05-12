@@ -25,7 +25,7 @@ class SyncToBiIterable(BiIterable[T]):
         self.iterable = iterable
 
     def __iter__(self) -> Iterator[T]:
-        return iter(self.iterable)
+        return self.iterable.__iter__()
 
     def __aiter__(self) -> AsyncIterator[T]:
         return SyncToAsyncIterator(self.iterable)
@@ -36,11 +36,11 @@ sync_to_bi_iterable: Callable[[Iterable[T]], BiIterable[T]] = SyncToBiIterable
 
 class SyncToAsyncIterator(AsyncIterator[T]):
     def __init__(self, iterator: Iterable[T]):
-        self.iterator: Iterator[T] = iter(iterator)
+        self.iterator: Iterator[T] = iterator.__iter__()
 
     async def __anext__(self) -> T:
         try:
-            return next(self.iterator)
+            return self.iterator.__next__()
         except StopIteration as e:
             raise StopAsyncIteration() from e
 
