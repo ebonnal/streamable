@@ -216,13 +216,13 @@ class IteratorVisitor(Visitor[Iterator[T]]):
 
     def visit_stream(self, stream: Stream[T]) -> Iterator[T]:
         if isinstance(stream.source, Iterable):
-            return iter(stream.source)
+            return stream.source.__iter__()
         if isinstance(stream.source, AsyncIterable):
             return async_to_sync_iter(stream.source)
         if callable(stream.source):
             iterable = stream.source()
             if isinstance(iterable, Iterable):
-                return iter(iterable)
+                return iterable.__iter__()
             if isinstance(iterable, AsyncIterable):
                 return async_to_sync_iter(iterable)
             raise TypeError(

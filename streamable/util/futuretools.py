@@ -20,7 +20,7 @@ class FutureResultCollection(Iterator[T], AsyncIterator[T], Sized, ABC):
     def add_future(self, future: "Future[T]") -> None: ...
 
     async def __anext__(self) -> T:
-        return next(self)
+        return self.__next__()
 
 
 class DequeFutureResultCollection(FutureResultCollection[T]):
