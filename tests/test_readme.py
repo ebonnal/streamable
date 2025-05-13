@@ -347,7 +347,7 @@ class TestReadme(unittest.TestCase):
                             Stream(itertools.count(1))
                             # Limits to 16 requests per second to be friendly to our fellow PokéAPI devs
                             .throttle(16, per=timedelta(seconds=1))
-                            # GETs pokemons via 8 concurrent asyncio coroutines
+                            # GETs pokemons via 8 concurrent coroutines
                             .map(lambda poke_id: f"https://pokeapi.co/api/v2/pokemon-species/{poke_id}")
                             .amap(http_async_client.get, concurrency=8)
                             .foreach(httpx.Response.raise_for_status)
