@@ -109,9 +109,11 @@ Iterate over a `Stream[T]` just as you would over any other `Iterable[T]` (or `A
 </details>
 
 
-# ↔ example: Extract-Transform-Load
+# ↔ Showcase: Extract-Transform-Load
 
-Let's take an example showcasing most of the `Stream`'s operations: Below is a pipeline that extracts the 67 quadruped Pokémon from the first three generations using [PokéAPI](https://pokeapi.co/) and loads them into a CSV:
+Let's take an example showcasing most of the `Stream`'s operations:
+
+This script extracts the 67 quadruped Pokémon from the first three generations using [PokéAPI](https://pokeapi.co/) and loads them into a CSV:
 
 ```python
 import csv
@@ -217,7 +219,7 @@ asyncio.run(main())
 A dozen expressive lazy operations and that's it.
 
 > [!NOTE]
-> **`async` counterparts:** The operations accepting a function as an argument have an `async` counterpart operation (same name but with an "`a`" prefix), which has the same signature but accepts `async` functions instead. Both regular and `async` operations can be mixed on the same `Stream`, and it can then be consumed as regular `Iterable` or as `AsyncIterable`.
+> **`async` twin operations:** Each operation that takes a function also has an async version (same name with an “`a`” prefix) that accepts `async` functions. You can mix both types of operations on the same `Stream`, which can be used as either an `Iterable` or an `AsyncIterable`.
 
 ## `.map`/`.amap`
 
