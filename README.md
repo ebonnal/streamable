@@ -8,18 +8,19 @@
 
 - 🔗 ***Fluent*** chainable lazy operations
 - 🔀 ***Concurrent*** via *threads*/*processes*/`async`
-- 🇹 Fully ***Typed***, `Stream[T]` is both an `Iterable[T]` and an `AsyncIterable[T]`
+- 🇹 Fully ***Typed***, `Stream[T]` is an `Iterable[T]` (and an `AsyncIterable[T]`)
 - 🛡️ ***Battle-tested*** for prod, extensively tested with **Python 3.7 to 3.14**.
 
 
 ## 1. install
 
-> no dependencies
-```bash
-pip install streamable
-# or
-conda install conda-forge::streamable 
-```
+`pip install streamable`
+
+or
+
+`conda install conda-forge::streamable`
+
+No dependencies.
 
 ## 2. import
 
@@ -49,10 +50,10 @@ inverses: Stream[float] = (
 
 ## 5. iterate
 
-Iterate over a `Stream[T]` just as you would over any other `Iterable[T]` (or `AsyncIterable`), elements are processed *on-the-fly*:
+Iterate over a `Stream[T]` just as you would over any other `Iterable[T]` (or `AsyncIterable[T]`), elements are processed *on-the-fly*:
 
 
-### as `Iterable[T]`
+### as an `Iterable[T]`
 
 <details ><summary style="text-indent: 40px;">👀 show snippets</summary></br>
 
@@ -86,7 +87,7 @@ Iterate over a `Stream[T]` just as you would over any other `Iterable[T]` (or `A
 
 </details>
 
-### as `AsyncIterable[T]`
+### as an `AsyncIterable[T]`
 
 <details ><summary style="text-indent: 40px;">👀 show snippets</summary></br>
 
@@ -159,8 +160,7 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
 
 ## or the `async` way
 
-- use the `.amap` operation: the `.map`'s `async` counterpart, see [`async` Operations](#-async-operations).
-- `await` the `Stream`: runs a full iteration over it as an `AsyncIterable[T]`.
+Use the `.amap` operation and `await` the `Stream`:
 
 ```python
 import asyncio
@@ -182,7 +182,7 @@ async def main() -> None:
                 Stream(itertools.count(1))
                 # Limits to 16 requests per second to be friendly to our fellow PokéAPI devs
                 .throttle(16, per=timedelta(seconds=1))
-                # GETs pokemons via 8 concurrent asyncio coroutines
+                # GETs pokemons via 8 concurrent coroutines
                 .map(lambda poke_id: f"https://pokeapi.co/api/v2/pokemon-species/{poke_id}")
                 .amap(http_async_client.get, concurrency=8)
                 .foreach(httpx.Response.raise_for_status)
@@ -214,7 +214,12 @@ asyncio.run(main())
 
 # 📒 ***Operations***
 
-## `.map`
+A dozen expressive lazy operations and that's it.
+
+> [!NOTE]
+> **`async` counterparts:** The operations accepting a function as an argument have an `async` counterpart operation (same name but with an "`a`" prefix), which has the same signature but accepts `async` functions instead. Both regular and `async` operations can be mixed on the same `Stream`, and it can then be consumed as regular `Iterable` or as `AsyncIterable`.
+
+## `.map`/`.amap`
 
 > Applies a transformation on elements:
 
@@ -248,7 +253,7 @@ assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
 </details>
 
 > [!NOTE]
-> **Memory-efficient**: Only `concurrent` upstream elements are pulled for processing; the next upstream element is pulled only when a result is yielded downstream.
+> **Memory-efficient**: Only `concurrency` upstream elements are pulled for processing; the next upstream element is pulled only when a result is yielded downstream.
 
 ### process-based concurrency
 
@@ -266,9 +271,52 @@ if __name__ == "__main__":
 ```
 </details>
 
-### `async`-based concurrency: [`.amap`](#amap)
+### `async`-based concurrency: `.amap`
 
-> The [`.amap`](#amap) operation can apply an `async` function concurrently.
+> `.amap` can apply an `async` transformation concurrently.
+
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
+
+- consumed as an `Iterable[T]`:
+
+```python
+import asyncio
+import httpx
+
+http_async_client = httpx.AsyncClient()
+
+pokemon_names: Stream[str] = (
+    Stream(range(1, 4))
+    .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
+    .amap(http_async_client.get, concurrency=3)
+    .map(httpx.Response.json)
+    .map(lambda poke: poke["name"])
+)
+
+assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
+asyncio.run(http_async_client.aclose())
+```
+
+- consumed as an `AsyncIterable[T]`:
+
+```python
+import asyncio
+import httpx
+
+async def main() -> None:
+    async with httpx.AsyncClient() as http_async_client:
+        pokemon_names: Stream[str] = (
+            Stream(range(1, 4))
+            .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
+            .amap(http_async_client.get, concurrency=3)
+            .map(httpx.Response.json)
+            .map(lambda poke: poke["name"])
+        )
+        assert [name async for name in pokemon_names] == ['bulbasaur', 'ivysaur', 'venusaur']
+
+asyncio.run(main())
+```
+</details>
 
 ### "starmap"
 
@@ -289,7 +337,7 @@ assert list(zeros) == [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 </details>
 
 
-## `.foreach`
+## `.foreach` / `.aforeach`
 
 > Applies a side effect on elements:
 
@@ -310,9 +358,9 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 > - set the `concurrency` parameter for **thread-based concurrency**
 > - set `via="process"` for **process-based concurrency**
 > - set `ordered=False` for ***First Done First Out***
-> - The [`.aforeach`](#aforeach) operation can apply an `async` effect concurrently.
+> - The `.aforeach` operation can apply an `async` effect concurrently.
 
-## `.group`
+## `.group` / `.agroup`
 
 > Groups into `List`s
 
@@ -369,7 +417,7 @@ assert list(integers_by_parity_by_2) == [[0, 2], [1, 3], [4, 6], [5, 7], [8], [9
 ```
 </details>
 
-## `.groupby`
+## `.groupby` / `.agroupby`
 
 > Like `.group`, but groups into `(key, elements)` tuples:
 <details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
@@ -401,9 +449,9 @@ assert list(counts_by_parity) == [("even", 5), ("odd", 5)]
 ```
 </details>
 
-## `.flatten`
+## `.flatten` / `.aflatten`
 
-> Ungroups elements assuming that they are `Iterable`s:
+> Ungroups elements assuming that they are `Iterable`s (or `AsyncIterable`s for `.aflatten`):
 
 <details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
@@ -416,7 +464,7 @@ assert list(even_then_odd_integers) == [0, 2, 4, 6, 8, 1, 3, 5, 7, 9]
 
 ### thread-based concurrency
 
-> Flattens `concurrency` iterables concurrently:
+> Concurrently flattens `concurrency` iterables via threads (or via coroutines for `.aflatten`):
 
 <details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
@@ -429,7 +477,7 @@ assert list(mixed_ones_and_zeros) == [0, 1, 0, 1, 0, 1, 0, 1]
 ```
 </details>
 
-## `.filter`
+## `.filter` / `.afilter`
 
 > Keeps only the elements that satisfy a condition:
 
@@ -442,7 +490,7 @@ assert list(even_integers) == [0, 2, 4, 6, 8]
 ```
 </details>
 
-## `.distinct`
+## `.distinct` / `.adistinct`
 
 > Removes duplicates:
 
@@ -484,7 +532,7 @@ assert list(consecutively_distinct_chars) == ["f", "o", "b", "a", "r", "f", "o"]
 ```
 </details>
 
-## `.truncate`
+## `.truncate` / `.atruncate`
 
 > Ends iteration once a given number of elements have been yielded:
 
@@ -510,7 +558,7 @@ assert list(five_first_integers) == [0, 1, 2, 3, 4]
 
 > If both `count` and `when` are set, truncation occurs as soon as either condition is met.
 
-## `.skip`
+## `.skip` / `.askip`
 
 > Skips the first specified number of elements:
 
@@ -536,7 +584,7 @@ assert list(integers_after_five) == [5, 6, 7, 8, 9]
 
 > If both `count` and `until` are set, skipping stops as soon as either condition is met.
 
-## `.catch`
+## `.catch` / `.acatch`
 
 > Catches a given type of exception, and optionally yields a `replacement` value:
 
@@ -680,9 +728,9 @@ assert list(cubes) == [0, 1, 8, 27, 64, 125, 216, 343, 512, 729]
 
 Although consuming the stream is beyond the scope of this library, it provides two basic shorthands to trigger an iteration:
 
-## `.count`
+## `.count` / `.acount`
 
-> Iterates over the stream until exhaustion and returns the number of elements yielded:
+> `.count` iterates over the stream until exhaustion and returns the number of elements yielded:
 
 <details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
@@ -691,9 +739,19 @@ assert integers.count() == 10
 ```
 </details>
 
-## `()`
+> The `.acount` (`async` method) iterates over the stream as an `AsyncIterable` until exhaustion and returns the number of elements yielded:
 
-> *Calling* the stream iterates over it until exhaustion and returns it:
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
+
+```python
+assert asyncio.run(integers.acount()) == 10
+```
+
+</details>
+
+## `()` / `await`
+
+> *Calling* the stream iterates over it until exhaustion, and returns it:
 <details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
@@ -701,6 +759,20 @@ state: List[int] = []
 appending_integers: Stream[int] = integers.foreach(state.append)
 assert appending_integers() is appending_integers
 assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+```
+</details>
+
+> *Awaiting* the stream iterates over it as an `AsyncIterable` until exhaustion, and returns it:
+
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
+
+```python
+async def test_await() -> None:
+    state: List[int] = []
+    appending_integers: Stream[int] = integers.foreach(state.append)
+    appending_integers is await appending_integers
+    assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+asyncio.run(test_await())
 ```
 </details>
 
@@ -721,118 +793,6 @@ import pandas as pd
 )
 ```
 </details>
-
----
----
-
-# 📒 ***`async` Operations***
-
-The operations accepting a function as an argument have an `async` counterpart operation, which has the same signature but accepts `async` functions instead.
-
-**inter-operability**: Both regular and `async` operations can be mixed on the same `Stream`, and it can then be consumed as regular `Iterable` or as `AsyncIterable`.
-
-## `.amap` 
-
-> Applies an `async` transformation on elements:
-
-- consume as `Iterable[T]`:
-
-<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
-
-```python
-import asyncio
-import httpx
-
-http_async_client = httpx.AsyncClient()
-
-pokemon_names: Stream[str] = (
-    Stream(range(1, 4))
-    .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
-    .amap(http_async_client.get, concurrency=3)
-    .map(httpx.Response.json)
-    .map(lambda poke: poke["name"])
-)
-
-assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
-asyncio.run(http_async_client.aclose())
-```
-</details>
-
-- consume as `AsyncIterable[T]`:
-
-<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
-
-```python
-import asyncio
-import httpx
-
-async def main() -> None:
-    async with httpx.AsyncClient() as http_async_client:
-        pokemon_names: Stream[str] = (
-            Stream(range(1, 4))
-            .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
-            .amap(http_async_client.get, concurrency=3)
-            .map(httpx.Response.json)
-            .map(lambda poke: poke["name"])
-        )
-        assert [name async for name in pokemon_names] == ['bulbasaur', 'ivysaur', 'venusaur']
-
-asyncio.run(main())
-```
-</details>
-
-## Others
-
-> **`.aforeach`**: Applies an `async` side effect on elements. Supports `concurrency` like `.amap`.
-
-> **`.agroup`**: Groups into `List`s according to an `async` grouping function.
-
-> **`.agroupby`**: Groups into `(key, elements)` tuples, according to an `async` grouping function.
-
-> **`.aflatten`**: Ungroups elements assuming that they are `AsyncIterable`s. Like for `.flatten` you can set the `concurrency` parameter.
-
-> **`.afilter`**: Keeps only the elements that satisfy an `async` condition.
-
-> **`.adistinct`**: Removes duplicates according to an `async` deduplication `key`.
-
-> **`.atruncate`**: Ends iteration once a given number of elements have been yielded or `when` an `async` condition is satisfied.
-
-> **`.askip`**: Skips the specified number of elements or `until` an `async` predicate is satisfied.
-
-> **`.acatch`**: Catches a given type of exception `when` an `async` condition is satisfied.
-
-## Shorthands for consuming the stream as an `AsyncIterable[T]`
-
-### `.acount`
-
-> Iterates over the stream until exhaustion and returns the number of elements yielded:
-
-<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
-
-```python
-assert asyncio.run(integers.acount()) == 10
-```
-</details>
-
-
-### `await`
-
-> *Awaiting* the stream iterates over it until exhaustion and returns it:
-
-<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
-
-```python
-async def test_await() -> None:
-    state: List[int] = []
-    appending_integers: Stream[int] = integers.foreach(state.append)
-    appending_integers is await appending_integers
-    assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-asyncio.run(test_await())
-```
-</details>
-
----
----
 
 # 💡 Notes
 
