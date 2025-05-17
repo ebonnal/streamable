@@ -113,7 +113,7 @@ Iterate over a `Stream[T]` just as you would over any other `Iterable[T]` (or `A
 
 Let's take an example showcasing most of the `Stream`'s operations:
 
-This script extracts the 67 quadruped Pokémon from the first three generations using [PokéAPI](https://pokeapi.co/) and loads them into a CSV:
+This script extracts the 67 quadruped Pokémons from the first three generations using [PokéAPI](https://pokeapi.co/) and loads them into a CSV:
 
 ```python
 import csv
