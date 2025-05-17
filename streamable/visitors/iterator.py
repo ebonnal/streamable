@@ -26,7 +26,12 @@ from streamable.stream import (
     ThrottleStream,
     TruncateStream,
 )
-from streamable.util.functiontools import async_sidify, sidify, syncify, wrap_error
+from streamable.util.functiontools import (
+    async_sidify,
+    sidify,
+    syncify,
+    reraising_as_runtime_error,
+)
 from streamable.util.iterabletools import async_to_sync_iter
 from streamable.visitors import Visitor
 
@@ -69,13 +74,13 @@ class IteratorVisitor(Visitor[Iterator[T]]):
 
     def visit_filter_stream(self, stream: FilterStream[T]) -> Iterator[T]:
         return filter(
-            wrap_error(stream._when, StopIteration),
+            reraising_as_runtime_error(stream._when, StopIteration),
             cast(Iterable[T], stream.upstream.accept(self)),
         )
 
     def visit_afilter_stream(self, stream: AFilterStream[T]) -> Iterator[T]:
         return filter(
-            wrap_error(syncify(stream._when), StopIteration),
+            reraising_as_runtime_error(syncify(stream._when), StopIteration),
             cast(Iterable[T], stream.upstream.accept(self)),
         )
 

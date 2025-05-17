@@ -38,7 +38,7 @@ from streamable.iterators import (
     YieldsPerPeriodThrottleIterator,
 )
 from streamable.util.constants import NO_REPLACEMENT
-from streamable.util.functiontools import syncify, wrap_error
+from streamable.util.functiontools import syncify, reraising_as_runtime_error
 from streamable.util.validationtools import (
     validate_concurrency,
     validate_errors,
@@ -227,7 +227,9 @@ def map(
     validate_concurrency(concurrency)
     validate_via(via)
     if concurrency == 1:
-        return builtins.map(wrap_error(transformation, StopIteration), iterator)
+        return builtins.map(
+            reraising_as_runtime_error(transformation, StopIteration), iterator
+        )
     else:
         return ConcurrentMapIterator(
             iterator,

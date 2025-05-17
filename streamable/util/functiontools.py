@@ -12,13 +12,12 @@ from typing import (
 )
 
 from streamable.util.asynctools import GetEventLoopMixin
-from streamable.util.errors import WrappedError
 
 T = TypeVar("T")
 R = TypeVar("R")
 
 
-class _ErrorWrappingDecorator(Generic[T, R]):
+class _ReraiseAsRuntimeError(Generic[T, R]):
     def __init__(self, func: Callable[[T], R], error_type: Type[Exception]) -> None:
         self.func = func
         self.error_type = error_type
@@ -27,14 +26,16 @@ class _ErrorWrappingDecorator(Generic[T, R]):
         try:
             return self.func(arg)
         except self.error_type as e:
-            raise WrappedError(e) from e
+            raise RuntimeError(repr(e)) from e
 
 
-def wrap_error(func: Callable[[T], R], error_type: Type[Exception]) -> Callable[[T], R]:
-    return _ErrorWrappingDecorator(func, error_type)
+def reraising_as_runtime_error(
+    func: Callable[[T], R], error_type: Type[Exception]
+) -> Callable[[T], R]:
+    return _ReraiseAsRuntimeError(func, error_type)
 
 
-def awrap_error(
+def async_reraising_as_runtime_error(
     async_func: Callable[[T], Coroutine[Any, Any, R]], error_type: Type[Exception]
 ) -> Callable[[T], Coroutine[Any, Any, R]]:
     async def wrap(elem: T) -> R:
@@ -46,21 +47,21 @@ def awrap_error(
                 )
             return await coroutine
         except error_type as e:
-            raise WrappedError(e) from e
+            raise RuntimeError(repr(e)) from e
 
     return wrap
 
 
-iter_wo_stopiteration = wrap_error(iter, StopIteration)
-iter_wo_stopasynciteration = wrap_error(iter, StopAsyncIteration)
+iter_wo_stopiteration = reraising_as_runtime_error(iter, StopIteration)
+iter_wo_stopasynciteration = reraising_as_runtime_error(iter, StopAsyncIteration)
 
 
 def _aiter(aiterable: AsyncIterable):
     return aiterable.__aiter__()
 
 
-aiter_wo_stopasynciteration = wrap_error(_aiter, StopAsyncIteration)
-aiter_wo_stopiteration = wrap_error(_aiter, StopIteration)
+aiter_wo_stopasynciteration = reraising_as_runtime_error(_aiter, StopAsyncIteration)
+aiter_wo_stopiteration = reraising_as_runtime_error(_aiter, StopIteration)
 
 
 class _Sidify(Generic[T]):
