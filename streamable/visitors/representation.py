@@ -32,9 +32,9 @@ from streamable.visitors import Visitor
 
 
 class ToStringVisitor(Visitor[str], ABC):
-    def __init__(self, one_liner_max_depth: int = 3) -> None:
+    def __init__(self, max_len: int = 80) -> None:
         self.methods_reprs: List[str] = []
-        self.one_liner_max_depth = one_liner_max_depth
+        self.max_len = max_len
 
     @staticmethod
     @abstractmethod
@@ -187,8 +187,9 @@ class ToStringVisitor(Visitor[str], ABC):
         depth = len(self.methods_reprs) + 1
         if depth == 1:
             return source_stream
-        if depth <= self.one_liner_max_depth:
-            return f"{source_stream}.{'.'.join(reversed(self.methods_reprs))}"
+        one_liner_repr = f"{source_stream}.{'.'.join(reversed(self.methods_reprs))}"
+        if len(one_liner_repr) <= self.max_len:
+            return one_liner_repr
         methods_block = "".join(
             map(lambda r: f"    .{r}\n", reversed(self.methods_reprs))
         )
