@@ -39,7 +39,7 @@ from streamable.util.asynctools import (
 from streamable.util.functiontools import (
     aiter_wo_stopiteration,
     iter_wo_stopiteration,
-    wrap_error,
+    reraising_as_runtime_error,
 )
 from streamable.util.loggertools import get_logger
 from streamable.util.validationtools import (
@@ -82,7 +82,7 @@ class CatchIterator(Iterator[T]):
         validate_errors(errors)
         self.iterator = iterator
         self.errors = errors
-        self.when = wrap_error(when, StopIteration) if when else None
+        self.when = reraising_as_runtime_error(when, StopIteration) if when else None
         self.replacement = replacement
         self.finally_raise = finally_raise
         self._to_be_finally_raised: Optional[Exception] = None
@@ -114,7 +114,7 @@ class DistinctIterator(Iterator[T]):
     ) -> None:
         validate_iterator(iterator)
         self.iterator = iterator
-        self.key = wrap_error(key, StopIteration) if key else None
+        self.key = reraising_as_runtime_error(key, StopIteration) if key else None
         self._already_seen: Set[Any] = set()
 
     def __next__(self) -> T:
@@ -133,7 +133,7 @@ class ConsecutiveDistinctIterator(Iterator[T]):
     ) -> None:
         validate_iterator(iterator)
         self.iterator = iterator
-        self.key = wrap_error(key, StopIteration) if key else None
+        self.key = reraising_as_runtime_error(key, StopIteration) if key else None
         self._last_key: Any = object()
 
     def __next__(self) -> T:
@@ -255,7 +255,7 @@ class GroupbyIterator(_GroupIteratorMixin[T], Iterator[Tuple[U, List[T]]]):
         interval: Optional[datetime.timedelta],
     ) -> None:
         super().__init__(iterator, size, interval)
-        self.key = wrap_error(key, StopIteration)
+        self.key = reraising_as_runtime_error(key, StopIteration)
         self._is_exhausted = False
         self._groups_by: DefaultDict[U, List[T]] = defaultdict(list)
 
@@ -341,7 +341,7 @@ class PredicateSkipIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], until: Callable[[T], Any]) -> None:
         validate_iterator(iterator)
         self.iterator = iterator
-        self.until = wrap_error(until, StopIteration)
+        self.until = reraising_as_runtime_error(until, StopIteration)
         self._done_skipping = False
 
     def __next__(self) -> T:
@@ -361,7 +361,7 @@ class CountAndPredicateSkipIterator(Iterator[T]):
         validate_count(count)
         self.iterator = iterator
         self.count = count
-        self.until = wrap_error(until, StopIteration)
+        self.until = reraising_as_runtime_error(until, StopIteration)
         self._n_skipped = 0
         self._done_skipping = False
 
@@ -396,7 +396,7 @@ class PredicateTruncateIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], when: Callable[[T], Any]) -> None:
         validate_iterator(iterator)
         self.iterator = iterator
-        self.when = wrap_error(when, StopIteration)
+        self.when = reraising_as_runtime_error(when, StopIteration)
         self._satisfied = False
 
     def __next__(self) -> T:
@@ -594,7 +594,7 @@ class _ConcurrentMapIterable(_ConcurrentMapIterableMixin[T, U]):
     ) -> None:
         super().__init__(iterator, buffersize, ordered)
         validate_concurrency(concurrency)
-        self.transformation = wrap_error(transformation, StopIteration)
+        self.transformation = reraising_as_runtime_error(transformation, StopIteration)
         self.concurrency = concurrency
         self.executor: Executor
         self.via = via
@@ -664,7 +664,7 @@ class _ConcurrentAMapIterable(_ConcurrentMapIterableMixin[T, U], GetEventLoopMix
         ordered: bool,
     ) -> None:
         super().__init__(iterator, buffersize, ordered)
-        self.transformation = wrap_error(transformation, StopIteration)
+        self.transformation = reraising_as_runtime_error(transformation, StopIteration)
 
     async def _safe_transformation(
         self, elem: T

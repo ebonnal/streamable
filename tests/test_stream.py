@@ -34,7 +34,7 @@ from parameterized import parameterized  # type: ignore
 
 from streamable import Stream
 from streamable.util.asynctools import awaitable_to_coroutine
-from streamable.util.functiontools import WrappedError, asyncify, star
+from streamable.util.functiontools import asyncify, star
 from streamable.util.iterabletools import (
     sync_to_async_iter,
     sync_to_bi_iterable,
@@ -527,8 +527,8 @@ class TestStream(unittest.TestCase):
                 itype,
             ]
             for raised_exc, caught_exc in [
-                (TestError, (TestError,)),
-                (StopIteration, (WrappedError, RuntimeError)),
+                (TestError, TestError),
+                (StopIteration, RuntimeError),
             ]
             for concurrency in [1, 2]
             for method, throw_func_, throw_for_odd_func_ in [
@@ -543,7 +543,7 @@ class TestStream(unittest.TestCase):
     def test_map_or_foreach_with_exception(
         self,
         raised_exc: Type[Exception],
-        caught_exc: Tuple[Type[Exception], ...],
+        caught_exc: Type[Exception],
         concurrency: int,
         method: Callable[[Stream, Callable[[Any], int], int], Stream],
         throw_func: Callable[[Exception], Callable[[Any], int]],
@@ -713,7 +713,7 @@ class TestStream(unittest.TestCase):
             for itype in ITERABLE_TYPES
             for exception_type, mapped_exception_type in [
                 (TestError, TestError),
-                (stopiteration_for_iter_type(itype), (WrappedError, RuntimeError)),
+                (stopiteration_for_iter_type(itype), RuntimeError),
             ]
             for flatten in (Stream.flatten, Stream.aflatten)
         ]
@@ -1470,7 +1470,7 @@ class TestStream(unittest.TestCase):
             msg="`group` should yield incomplete groups when `by` raises",
         )
         with self.assertRaisesRegex(
-            (WrappedError, RuntimeError),
+            RuntimeError,
             stopiteration_for_iter_type(itype).__name__,
             msg="`group` should raise and skip `elem` if `by(elem)` raises",
         ):
@@ -1682,7 +1682,7 @@ class TestStream(unittest.TestCase):
             msg="`agroup` should yield incomplete groups when `by` raises",
         )
         with self.assertRaisesRegex(
-            (WrappedError, RuntimeError),
+            RuntimeError,
             stopiteration_for_iter_type(itype).__name__,
             msg="`agroup` should raise and skip `elem` if `by(elem)` raises",
         ):
