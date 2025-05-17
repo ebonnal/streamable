@@ -2,7 +2,7 @@ import asyncio
 import time
 import unittest
 from datetime import timedelta
-from typing import AsyncIterable, Iterator, List, Tuple, TypeVar
+from typing import Iterator, List, Tuple, TypeVar
 
 from streamable.stream import Stream
 
