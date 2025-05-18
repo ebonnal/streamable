@@ -682,16 +682,16 @@ INFO: [duration=0:00:04.003852 errors=0] 10 integers yielded
 </details>
 
 > [!NOTE]
-> The amount of logs will never be overwhelming because they are produced logarithmically (base 2): the 11th log will be produced after 1,024 elements have been yielded, the 21th log after 1,048,576 elements, ...
+> The amount of logs will never be overwhelming because they are produced logarithmically (`base=2` by default): the 11th log will be produced after 1,024 elements have been yielded, the 21th log after 1,048,576 elements, ...
 
 > [!TIP]
-> To mute these logs, set the logging level above `INFO`:
+> To mute these logs:
 
 <details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 import logging
-logging.getLogger("streamable").setLevel(logging.WARNING)
+logging.getLogger("streamable").disabled = True
 ```
 </details>
 

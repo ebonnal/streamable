@@ -463,7 +463,7 @@ class AFilterAsyncIterator(AsyncIterator[T]):
 
 
 class ObserveAsyncIterator(AsyncIterator[T]):
-    def __init__(self, iterator: AsyncIterator[T], what: str, base: int = 2) -> None:
+    def __init__(self, iterator: AsyncIterator[T], what: str, base: int) -> None:
         validate_aiterator(iterator)
         validate_base(base)
 

@@ -43,6 +43,7 @@ from streamable.util.constants import NO_REPLACEMENT
 from streamable.util.functiontools import asyncify
 from streamable.util.validationtools import (
     validate_aiterator,
+    validate_base,
     validate_concurrency,
     validate_errors,
     validate_group_size,
@@ -276,10 +277,11 @@ def amap(
     )
 
 
-def observe(aiterator: AsyncIterator[T], what: str) -> AsyncIterator[T]:
+def observe(aiterator: AsyncIterator[T], what: str, base: int = 2) -> AsyncIterator[T]:
     validate_aiterator(aiterator)
+    validate_base(base)
     # validate_not_none(what, "what")
-    return ObserveAsyncIterator(aiterator, what)
+    return ObserveAsyncIterator(aiterator, what, base)
 
 
 def skip(

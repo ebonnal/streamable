@@ -685,11 +685,26 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         validate_concurrency(concurrency)
         return AMapStream(self, transformation, concurrency, ordered)
 
-    def observe(self, what: str = "elements") -> "Stream[T]":
+    def observe(self, what: str = "elements", base: int = 2) -> "Stream[T]":
         """
-        Logs the progress of the iterations over this stream.
+        Logs the progress of iteration over this stream.
 
-        A logarithmic scale is used to prevent logs flood:
+        To avoid log flooding, a logarithmic scale is used (`base` 2 by default):
+        - The 1st log is emitted upon yielding the 1st element.
+        - The 2nd log is emitted upon yielding the 2nd element.
+        - The 3rd log is emitted upon yielding the 4th element.
+        - The 4th log is emitted upon yielding the 8th element.
+        - ...
+
+        Args:
+            what (str): A plural noun describing the yielded objects (e.g., "items", "elements").
+            base (int): Logs are emitted when the number of yielded elements reaches powers of `base`.
+
+        Returns:
+            Stream[T]: A stream of upstream elements with progress logging during iteration.
+
+
+        A logarithmic scale (`base=2` by default) is used to prevent logs flood:
         - a 1st log is produced for the yield of the 1st element
         - a 2nd log is produced when we reach the 2nd element
         - a 3rd log is produced when we reach the 4th element
@@ -698,12 +713,14 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
 
         Args:
             what (str): (plural) name representing the objects yielded.
+            base (int): A log will be produced after reaching `base**n` yielded elements or errors.
 
         Returns:
             Stream[T]: A stream of upstream elements whose iteration's progress is logged.
         """
         # validate_not_none(what, "what")
-        return ObserveStream(self, what)
+        validate_base(base)
+        return ObserveStream(self, what, base)
 
     def pipe(
         self,

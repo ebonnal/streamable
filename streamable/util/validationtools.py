@@ -28,11 +28,6 @@ def validate_aiterator(iterator: AsyncIterator):
         )
 
 
-def validate_base(base: int):
-    if base <= 0:
-        raise ValueError(f"`base` must be > 0 but got {base}")
-
-
 def validate_concurrency(concurrency: int) -> None:
     if concurrency is None or concurrency < 1:
         raise ValueError(f"`concurrency` must be >= 1 but got {concurrency}")
@@ -96,3 +91,7 @@ def validate_errors(
                 raise TypeError(
                     f"`errors` must be None, or a subclass of `Exception`, or an iterable of optional subclasses of `Exception`, but got {type(errors)}"
                 )
+
+def validate_base(base: int) -> None:
+    if base < 2:
+        raise ValueError(f"`base` must be >= 2 but got {base}")

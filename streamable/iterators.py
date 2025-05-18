@@ -410,7 +410,7 @@ class PredicateTruncateIterator(Iterator[T]):
 
 
 class ObserveIterator(Iterator[T]):
-    def __init__(self, iterator: Iterator[T], what: str, base: int = 2) -> None:
+    def __init__(self, iterator: Iterator[T], what: str, base: int) -> None:
         validate_iterator(iterator)
         validate_base(base)
 
