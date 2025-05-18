@@ -212,5 +212,5 @@ class StrVisitor(ToStringVisitor):
         if type(o) is type and issubclass(o, Exception):
             return o.__name__
         if repr(o).startswith("<"):
-            return getattr(o, "__name__", f"{o.__class__.__name__}(...)")
+            return getattr(o, "__name__", repr(o))
         return repr(o)

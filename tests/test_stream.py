@@ -131,7 +131,10 @@ class TestStream(unittest.TestCase):
 
     def test_repr_and_display(self) -> None:
         class CustomCallable:
-            pass
+            def __call__(self, *args, **kwds): ...
+
+            def __repr__(self) -> str:
+                return "CustomCallable()"
 
         complex_stream: Stream[int] = (
             Stream(src)
@@ -151,7 +154,7 @@ class TestStream(unittest.TestCase):
             .foreach(lambda _: _)
             .foreach(lambda _: _, concurrency=2)
             .aforeach(async_identity)
-            .map(cast(Callable[[Any], Any], CustomCallable()))
+            .map(CustomCallable())
             .amap(async_identity)
             .group(100)
             .agroup(100)
@@ -237,7 +240,7 @@ class TestStream(unittest.TestCase):
     .foreach(<lambda>, concurrency=1, ordered=True)
     .foreach(<lambda>, concurrency=2, ordered=True, via='thread')
     .aforeach(async_identity, concurrency=1, ordered=True)
-    .map(CustomCallable(...), concurrency=1, ordered=True)
+    .map(CustomCallable(), concurrency=1, ordered=True)
     .amap(async_identity, concurrency=1, ordered=True)
     .group(size=100, by=None, interval=None)
     .agroup(size=100, by=None, interval=None)
