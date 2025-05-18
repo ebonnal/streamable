@@ -219,7 +219,7 @@ asyncio.run(main())
 A dozen expressive lazy operations and that's it.
 
 > [!NOTE]
-> **`async` twin operations:** Each operation that takes a function also has an async version (same name with an “`a`” prefix) that accepts `async` functions. You can mix both types of operations on the same `Stream`, which can be used as either an `Iterable` or an `AsyncIterable`.
+> **`async` twin operations:** Each operation that takes a function (e.g. `.map`) also has a version that accepts an `async` function (e.g. `.amap`). You can mix both types of operations on the same `Stream`, which can then be used as either an `Iterable` or an `AsyncIterable`.
 
 ## `.map`/`.amap`
 
