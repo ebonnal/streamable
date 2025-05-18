@@ -611,6 +611,50 @@ class TestStream(unittest.TestCase):
         )
 
     @parameterized.expand(
+        [(concurrency, itype) for concurrency in (1, 100) for itype in ITERABLE_TYPES]
+    )
+    def test_amap(self, concurrency, itype) -> None:
+        self.assertListEqual(
+            to_list(
+                Stream(src).amap(
+                    async_randomly_slowed(async_square), concurrency=concurrency
+                ),
+                itype=itype,
+            ),
+            list(map(square, src)),
+            msg="At any concurrency the `amap` method should act as the builtin map function, transforming elements while preserving input elements order.",
+        )
+        stream = Stream(src).amap(identity, concurrency=concurrency)  # type: ignore
+        with self.assertRaisesRegex(
+            TypeError,
+            r"must be an async function i\.e\. a function returning a Coroutine but it returned a <class 'int'>",
+            msg="`amap` should raise a TypeError if a non async function is passed to it.",
+        ):
+            anext_or_next(bi_iterable_to_iter(stream, itype=itype))
+
+    @parameterized.expand(
+        [(concurrency, itype) for concurrency in (1, 100) for itype in ITERABLE_TYPES]
+    )
+    def test_aforeach(self, concurrency, itype) -> None:
+        self.assertListEqual(
+            to_list(
+                Stream(src).aforeach(
+                    async_randomly_slowed(async_square), concurrency=concurrency
+                ),
+                itype=itype,
+            ),
+            list(src),
+            msg="At any concurrency the `foreach` method must preserve input elements order.",
+        )
+        stream = Stream(src).aforeach(identity)  # type: ignore
+        with self.assertRaisesRegex(
+            TypeError,
+            r"`transformation` must be an async function i\.e\. a function returning a Coroutine but it returned a <class 'int'>",
+            msg="`aforeach` should raise a TypeError if a non async function is passed to it.",
+        ):
+            anext_or_next(bi_iterable_to_iter(stream, itype=itype))
+
+    @parameterized.expand(
         [
             (concurrency, itype, flatten)
             for concurrency in (1, 2)
@@ -2516,50 +2560,6 @@ class TestStream(unittest.TestCase):
                 list(src),
                 msg="The first iteration over a stream should yield the same elements as any subsequent iteration on the same stream, even if it is based on a `source` returning an iterator that only support 1 iteration.",
             )
-
-    @parameterized.expand(
-        [(concurrency, itype) for concurrency in (1, 100) for itype in ITERABLE_TYPES]
-    )
-    def test_amap(self, concurrency, itype) -> None:
-        self.assertListEqual(
-            to_list(
-                Stream(src).amap(
-                    async_randomly_slowed(async_square), concurrency=concurrency
-                ),
-                itype=itype,
-            ),
-            list(map(square, src)),
-            msg="At any concurrency the `amap` method should act as the builtin map function, transforming elements while preserving input elements order.",
-        )
-        stream = Stream(src).amap(identity, concurrency=concurrency)  # type: ignore
-        with self.assertRaisesRegex(
-            TypeError,
-            r"must be an async function i\.e\. a function returning a Coroutine but it returned a <class 'int'>",
-            msg="`amap` should raise a TypeError if a non async function is passed to it.",
-        ):
-            anext_or_next(bi_iterable_to_iter(stream, itype=itype))
-
-    @parameterized.expand(
-        [(concurrency, itype) for concurrency in (1, 100) for itype in ITERABLE_TYPES]
-    )
-    def test_aforeach(self, concurrency, itype) -> None:
-        self.assertListEqual(
-            to_list(
-                Stream(src).aforeach(
-                    async_randomly_slowed(async_square), concurrency=concurrency
-                ),
-                itype=itype,
-            ),
-            list(src),
-            msg="At any concurrency the `foreach` method must preserve input elements order.",
-        )
-        stream = Stream(src).aforeach(identity)  # type: ignore
-        with self.assertRaisesRegex(
-            TypeError,
-            r"`transformation` must be an async function i\.e\. a function returning a Coroutine but it returned a <class 'int'>",
-            msg="`aforeach` should raise a TypeError if a non async function is passed to it.",
-        ):
-            anext_or_next(bi_iterable_to_iter(stream, itype=itype))
 
     @parameterized.expand(ITERABLE_TYPES)
     def test_pipe(self, itype: IterableType) -> None:
