@@ -546,18 +546,25 @@ class TestStream(unittest.TestCase):
         caught_exc: Type[Exception],
         concurrency: int,
         method: Callable[[Stream, Callable[[Any], int], int], Stream],
-        throw_func: Callable[[Exception], Callable[[Any], int]],
+        throw_func: Callable[[Type[Exception]], Callable[[Any], int]],
         throw_for_odd_func: Callable[[Type[Exception]], Callable[[Any], int]],
         itype: IterableType,
     ) -> None:
+        rasing_stream: Stream[int] = method(
+            Stream(iter(src)), throw_func(raised_exc), concurrency=concurrency
+        )  # type: ignore
+
         with self.assertRaises(
             caught_exc,
-            msg="At any concurrency, `map` and `foreach` and `amap` must raise",
+            msg="At any concurrency, `map` and `foreach` and `amap` must raise.",
         ):
-            to_list(
-                method(Stream(src), throw_func(raised_exc), concurrency=concurrency),  # type: ignore
-                itype=itype,
-            )
+            to_list(rasing_stream, itype=itype)
+
+        self.assertEqual(
+            next(cast(Iterator[int], rasing_stream.source)),
+            concurrency + 1 if concurrency > 1 else concurrency,
+            msg="Only `concurrency` upstream elements should be initially pulled for processing (0 if `concurrency=1`), and 1 more should be pulled for each call to `next`.",
+        )
 
         self.assertListEqual(
             to_list(
