@@ -14,13 +14,13 @@ async def empty_aiter() -> AsyncIterator:
 
 
 class GetEventLoopMixin:
-    _EVENT_LOOP_SINGLETON: Optional[asyncio.AbstractEventLoop] = None
+    _event_loop: Optional[asyncio.AbstractEventLoop] = None
 
     @classmethod
     def get_event_loop(cls) -> asyncio.AbstractEventLoop:
         try:
             return asyncio.get_running_loop()
         except RuntimeError:
-            if not cls._EVENT_LOOP_SINGLETON:
-                cls._EVENT_LOOP_SINGLETON = asyncio.new_event_loop()
-            return cls._EVENT_LOOP_SINGLETON
+            if not cls._event_loop:
+                cls._event_loop = asyncio.new_event_loop()
+            return cls._event_loop
