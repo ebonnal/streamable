@@ -345,30 +345,30 @@ class TestReadme(unittest.TestCase):
                         pipeline: Stream = (
                             # Infinite Stream[int] of Pokemon ids starting from Pokémon #1: Bulbasaur
                             Stream(itertools.count(1))
-                            # Limits to 16 requests per second to be friendly to our fellow PokéAPI devs
+                            # Limit to 16 requests per second to be friendly to our fellow PokéAPI devs
                             .throttle(16, per=timedelta(seconds=1))
-                            # GETs pokemons via 8 concurrent coroutines
+                            # GET pokemons via 8 concurrent coroutines
                             .map(lambda poke_id: f"https://pokeapi.co/api/v2/pokemon-species/{poke_id}")
                             .amap(http_async_client.get, concurrency=8)
                             .foreach(httpx.Response.raise_for_status)
                             .map(httpx.Response.json)
-                            # Stops the iteration when reaching the 1st pokemon of the 4th generation
+                            # Stop the iteration when reaching the 1st pokemon of the 4th generation
                             .truncate(when=lambda poke: poke["generation"]["name"] == "generation-iv")
                             .observe("pokemons")
-                            # Keeps only quadruped Pokemons
+                            # Keep only quadruped Pokemons
                             .filter(lambda poke: poke["shape"]["name"] == "quadruped")
                             .observe("quadruped pokemons")
-                            # Catches errors due to None "generation" or "shape"
+                            # Catch errors due to None "generation" or "shape"
                             .catch(
                                 TypeError,
                                 when=lambda error: str(error) == "'NoneType' object is not subscriptable"
                             )
-                            # Writes a batch of pokemons every 5 seconds to the CSV file
+                            # Write a batch of pokemons every 5 seconds to the CSV file
                             .group(interval=timedelta(seconds=5))
                             .foreach(writer.writerows)
                             .flatten()
                             .observe("written pokemons")
-                            # Catches exceptions and raises the 1st one at the end of the iteration
+                            # Catch exceptions and raises the 1st one at the end of the iteration
                             .catch(Exception, finally_raise=True)
                         )
 
@@ -394,30 +394,30 @@ class TestReadme(unittest.TestCase):
                 pipeline = (
                     # Infinite Stream[int] of Pokemon ids starting from Pokémon #1: Bulbasaur
                     Stream(itertools.count(1))
-                    # Limits to 16 requests per second to be friendly to our fellow PokéAPI devs
+                    # Limit to 16 requests per second to be friendly to our fellow PokéAPI devs
                     .throttle(16, per=timedelta(seconds=1))
-                    # GETs pokemons concurrently using a pool of 8 threads
+                    # GET pokemons concurrently using a pool of 8 threads
                     .map(lambda poke_id: f"https://pokeapi.co/api/v2/pokemon-species/{poke_id}")
                     .map(requests.get, concurrency=8)
                     .foreach(requests.Response.raise_for_status)
                     .map(requests.Response.json)
-                    # Stops the iteration when reaching the 1st pokemon of the 4th generation
+                    # Stop the iteration when reaching the 1st pokemon of the 4th generation
                     .truncate(when=lambda poke: poke["generation"]["name"] == "generation-iv")
                     .observe("pokemons")
-                    # Keeps only quadruped Pokemons
+                    # Keep only quadruped Pokemons
                     .filter(lambda poke: poke["shape"]["name"] == "quadruped")
                     .observe("quadruped pokemons")
-                    # Catches errors due to None "generation" or "shape"
+                    # Catch errors due to None "generation" or "shape"
                     .catch(
                         TypeError,
                         when=lambda error: str(error) == "'NoneType' object is not subscriptable"
                     )
-                    # Writes a batch of pokemons every 5 seconds to the CSV file
+                    # Write a batch of pokemons every 5 seconds to the CSV file
                     .group(interval=timedelta(seconds=5))
                     .foreach(writer.writerows)
                     .flatten()
                     .observe("written pokemons")
-                    # Catches exceptions and raises the 1st one at the end of the iteration
+                    # Catch exceptions and raises the 1st one at the end of the iteration
                     .catch(Exception, finally_raise=True)
                 )
 
