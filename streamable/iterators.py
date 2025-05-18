@@ -603,7 +603,10 @@ class _ConcurrentMapIterable(_ConcurrentMapIterableMixin[T, U]):
         if self.via == "thread":
             self.executor = ThreadPoolExecutor(max_workers=self.concurrency)
         if self.via == "process":
-            self.executor = ProcessPoolExecutor(max_workers=self.concurrency)
+            self.executor = ProcessPoolExecutor(
+                max_workers=self.concurrency,
+                mp_context=multiprocessing.get_context("spawn"),
+            )
         return self.executor
 
     # picklable
