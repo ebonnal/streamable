@@ -27,7 +27,7 @@ is relatively close to
 Applying an operation simply performs argument validation and returns a new instance of a `Stream` sub-class corresponding to the operation. Defining a stream is basically constructing a composite structure where each node is a `Stream` instance: The above `events` variable holds a `CatchStream[int]` instance, whose `.upstream` attribute points to a `TruncateStream[int]` instance, whose `.upstream` attribute points to a `ForeachStream[int]` instance, whose `.upstream` points to a `Stream[int]` instance. Each node's `.source` attribute points to the same `range(10)`.
 
 ## Visitor Pattern
-Each node in this composite structure exposes an `.accept` method enabling traversal by a visitor. `Stream.__iter__`/`Stream.__aiter__`/`Stream.__repr__` rely on visitor classes defined in the `streamable.visitors` package.
+Each node in this composite structure exposes an `.accept` method enabling traversal by a visitor. `.__iter__`/`.__aiter__`/`.__repr__`/`.__str__`/`.__eq__` rely on visitor classes defined in the `streamable.visitors` package.
 
 ## Decorator Pattern
 A `Stream[T]` both inherits from `Iterable[T]` and holds an `Iterable[T]` as its `.source`: when you instantiate a stream from an iterable you decorate it with a fluent interface.
