@@ -18,22 +18,19 @@ T = TypeVar("T")
 R = TypeVar("R")
 
 
-class _ReraiseAsRuntimeError(Generic[T, R]):
-    def __init__(self, func: Callable[[T], R], error_type: Type[Exception]) -> None:
-        self.func = func
-        self.error_type = error_type
-
-    def __call__(self, arg: T) -> R:
-        try:
-            return self.func(arg)
-        except self.error_type as e:
-            raise RuntimeError(repr(e)) from e
+def _reraising_as_runtime_error(
+    func: Callable[[T], R], error_type: Type[Exception], arg: T
+) -> R:
+    try:
+        return func(arg)
+    except error_type as e:
+        raise RuntimeError(repr(e)) from e
 
 
 def reraising_as_runtime_error(
     func: Callable[[T], R], error_type: Type[Exception]
 ) -> Callable[[T], R]:
-    return _ReraiseAsRuntimeError(func, error_type)
+    return partial(_reraising_as_runtime_error, func, error_type)
 
 
 def async_reraising_as_runtime_error(
@@ -156,21 +153,17 @@ def star(func: Callable[..., R]) -> Callable[[Tuple], R]:
     return _Star(func)
 
 
-class _Syncify(Generic[R], GetEventLoopMixin):
-    def __init__(self, async_func: Callable[[T], Coroutine[Any, Any, R]]) -> None:
-        self.async_func = async_func
-
-    def __call__(self, T) -> R:
-        coroutine = self.async_func(T)
-        if not isinstance(coroutine, Coroutine):
-            raise TypeError(
-                f"must be an async function i.e. a function returning a Coroutine but it returned a {type(coroutine)}"
-            )
-        return self.get_event_loop().run_until_complete(coroutine)
+def _syncify(async_func: Callable[[T], Coroutine[Any, Any, R]], arg: T) -> R:
+    coroutine = async_func(arg)
+    if not isinstance(coroutine, Coroutine):
+        raise TypeError(
+            f"must be an async function i.e. a function returning a Coroutine but it returned a {type(coroutine)}"
+        )
+    return GetEventLoopMixin.get_event_loop().run_until_complete(coroutine)
 
 
 def syncify(async_func: Callable[[T], Coroutine[Any, Any, R]]) -> Callable[[T], R]:
-    return _Syncify(async_func)
+    return partial(_syncify, async_func)
 
 
 async def _async_call(func: Callable[[T], R], o: T) -> R:
