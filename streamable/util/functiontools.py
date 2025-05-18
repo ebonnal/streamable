@@ -2,6 +2,7 @@ from functools import partial
 from typing import (
     Any,
     AsyncIterable,
+    AsyncIterator,
     Callable,
     Coroutine,
     Generic,
@@ -55,9 +56,12 @@ def async_reraising_as_runtime_error(
 iter_wo_stopiteration = reraising_as_runtime_error(iter, StopIteration)
 iter_wo_stopasynciteration = reraising_as_runtime_error(iter, StopAsyncIteration)
 
+try:
+    _aiter: Callable[[AsyncIterable], AsyncIterator] = aiter  # type: ignore
+except NameError:  # pragma: no cover
 
-def _aiter(aiterable: AsyncIterable):
-    return aiterable.__aiter__()
+    def _aiter(aiterable: AsyncIterable) -> AsyncIterator:
+        return aiterable.__aiter__()
 
 
 aiter_wo_stopasynciteration = reraising_as_runtime_error(_aiter, StopAsyncIteration)
