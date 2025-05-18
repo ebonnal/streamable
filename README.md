@@ -682,7 +682,8 @@ INFO: [duration=0:00:04.003852 errors=0] 10 integers yielded
 </details>
 
 > [!NOTE]
-> The amount of logs will never be overwhelming because they are produced logarithmically (base 2): the 11th log will be produced after 1,024 elements have been yielded, the 21th log after 1,048,576 elements, ...
+> To avoid flooding, logs are emitted only when the number of yielded elements (or errors) reaches powers of 2.
+
 
 > [!TIP]
 > To mute these logs, set the logging level above `INFO`:

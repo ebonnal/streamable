@@ -687,20 +687,15 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
 
     def observe(self, what: str = "elements") -> "Stream[T]":
         """
-        Logs the progress of the iterations over this stream.
+        Logs the progress of iteration over this stream.
 
-        A logarithmic scale is used to prevent logs flood:
-        - a 1st log is produced for the yield of the 1st element
-        - a 2nd log is produced when we reach the 2nd element
-        - a 3rd log is produced when we reach the 4th element
-        - a 4th log is produced when we reach the 8th element
-        - ...
+        To avoid flooding, logs are emitted only when the number of yielded elements (or errors) reaches powers of 2.
 
         Args:
-            what (str): (plural) name representing the objects yielded.
+            what (str): A plural noun describing the yielded objects (e.g., "cats", "dogs").
 
         Returns:
-            Stream[T]: A stream of upstream elements whose iteration's progress is logged.
+            Stream[T]: A stream of upstream elements with progress logging during iteration.
         """
         # validate_not_none(what, "what")
         return ObserveStream(self, what)
