@@ -35,7 +35,6 @@ from streamable.util.validationtools import (
     validate_concurrency,
     validate_errors,
     validate_group_size,
-    # validate_not_none,
     validate_optional_count,
     validate_optional_positive_count,
     validate_optional_positive_interval,
@@ -112,13 +111,6 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         """
         return self._source
 
-    def __add__(self, other: "Stream[T]") -> "Stream[T]":
-        """
-        `a + b` returns a stream yielding all elements of `a`, followed by all elements of `b`.
-        """
-        # validate_not_none(other, "other")
-        return cast(Stream[T], Stream((self, other)).flatten())
-
     def __iter__(self) -> Iterator[T]:
         from streamable.visitors.iterator import IteratorVisitor
 
@@ -128,11 +120,6 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         from streamable.visitors.aiterator import AsyncIteratorVisitor
 
         return self.accept(AsyncIteratorVisitor[T]())
-
-    def __repr__(self) -> str:
-        from streamable.visitors.representation import ReprVisitor
-
-        return self.accept(ReprVisitor())
 
     def __eq__(self, other: Any) -> bool:
         """
@@ -144,6 +131,11 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         from streamable.visitors.equality import EqualityVisitor
 
         return self.accept(EqualityVisitor(other))
+
+    def __repr__(self) -> str:
+        from streamable.visitors.representation import ReprVisitor
+
+        return self.accept(ReprVisitor())
 
     def __str__(self) -> str:
         from streamable.visitors.representation import StrVisitor
@@ -170,12 +162,75 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         yield from (self.acount().__await__())
         return self
 
+    def __add__(self, other: "Stream[T]") -> "Stream[T]":
+        """
+        `a + b` returns a stream yielding all elements of `a`, followed by all elements of `b`.
+        """
+        # validate_not_none(other, "other")
+        return cast(Stream[T], Stream((self, other)).flatten())
+
     def accept(self, visitor: "Visitor[V]") -> V:
         """
         Entry point to visit this stream (en.wikipedia.org/wiki/Visitor_pattern).
         """
         # validate_not_none(visitor, "visitor")
         return visitor.visit_stream(self)
+
+    def display(self, level: int = logging.INFO) -> "Stream[T]":
+        """
+        Logs (INFO level) a representation of the stream.
+
+        Args:
+            level (int, optional): The level of the log. (default: INFO)
+
+        Returns:
+            Stream[T]: This stream.
+        """
+        # validate_not_none(level, "level")
+        get_logger().log(level, str(self))
+        return self
+
+    def count(self) -> int:
+        """
+        Iterates over this stream until exhaustion and returns the count of elements.
+
+        Returns:
+            int: Number of elements yielded during an entire iteration over this stream.
+        """
+
+        return sum(1 for _ in self)
+
+    async def acount(self) -> int:
+        """
+        Iterates over this stream until exhaustion and returns the count of elements.
+
+        Returns:
+            int: Number of elements yielded during an entire iteration over this stream.
+        """
+        count = 0
+        async for _ in self:
+            count += 1
+        return count
+
+    def pipe(
+        self,
+        func: "Callable[Concatenate[Stream[T], P], U]",
+        *args: "P.args",
+        **kwargs: "P.kwargs",
+    ) -> U:
+        """
+        Calls `func`, with this stream as the first positional argument, optionally followed by `*args` and `**kwargs`.
+
+        Args:
+            func (Callable[Concatenate[Stream[T], P], U]): The function to apply.
+            *args (optional): Passed to `func`.
+            **kwargs (optional): Passed to `func`.
+
+        Returns:
+            U: Result of `func(self, *args, **kwargs)`.
+        """
+        # validate_not_none(func, "func")
+        return func(self, *args, **kwargs)
 
     def catch(
         self,
@@ -244,42 +299,6 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
             replacement=replacement,
             finally_raise=finally_raise,
         )
-
-    def count(self) -> int:
-        """
-        Iterates over this stream until exhaustion and returns the count of elements.
-
-        Returns:
-            int: Number of elements yielded during an entire iteration over this stream.
-        """
-
-        return sum(1 for _ in self)
-
-    async def acount(self) -> int:
-        """
-        Iterates over this stream until exhaustion and returns the count of elements.
-
-        Returns:
-            int: Number of elements yielded during an entire iteration over this stream.
-        """
-        count = 0
-        async for _ in self:
-            count += 1
-        return count
-
-    def display(self, level: int = logging.INFO) -> "Stream[T]":
-        """
-        Logs (INFO level) a representation of the stream.
-
-        Args:
-            level (int, optional): The level of the log. (default: INFO)
-
-        Returns:
-            Stream[T]: This stream.
-        """
-        # validate_not_none(level, "level")
-        get_logger().log(level, str(self))
-        return self
 
     def distinct(
         self,
@@ -699,26 +718,6 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         """
         # validate_not_none(what, "what")
         return ObserveStream(self, what)
-
-    def pipe(
-        self,
-        func: "Callable[Concatenate[Stream[T], P], U]",
-        *args: "P.args",
-        **kwargs: "P.kwargs",
-    ) -> U:
-        """
-        Calls `func`, with this stream as the first positional argument, optionally followed by `*args` and `**kwargs`.
-
-        Args:
-            func (Callable[Concatenate[Stream[T], P], U]): The function to apply.
-            *args (optional): Passed to `func`.
-            **kwargs (optional): Passed to `func`.
-
-        Returns:
-            U: Result of `func(self, *args, **kwargs)`.
-        """
-        # validate_not_none(func, "func")
-        return func(self, *args, **kwargs)
 
     def skip(
         self, count: Optional[int] = None, *, until: Optional[Callable[[T], Any]] = None
