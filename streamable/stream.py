@@ -149,7 +149,8 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Returns:
             Stream[T]: self.
         """
-        self.count()
+        for _ in self:
+            pass
         return self
 
     def __await__(self) -> Generator[int, None, "Stream[T]"]:
