@@ -32,9 +32,9 @@ from typing import (
 )
 
 from streamable.util.asynctools import (
-    GetEventLoopMixin,
     awaitable_to_coroutine,
     empty_aiter,
+    get_event_loop,
 )
 from streamable.util.functiontools import (
     aiter_wo_stopiteration,
@@ -162,7 +162,7 @@ class FlattenIterator(Iterator[U]):
                 )
 
 
-class AFlattenIterator(Iterator[U], GetEventLoopMixin):
+class AFlattenIterator(Iterator[U]):
     def __init__(self, iterator: Iterator[AsyncIterable[U]]) -> None:
         validate_iterator(iterator)
         self.iterator = iterator
@@ -172,7 +172,7 @@ class AFlattenIterator(Iterator[U], GetEventLoopMixin):
     def __next__(self) -> U:
         while True:
             try:
-                return self.get_event_loop().run_until_complete(
+                return get_event_loop().run_until_complete(
                     self._current_iterator_elem.__anext__()
                 )
             except StopAsyncIteration:
@@ -658,7 +658,7 @@ class ConcurrentMapIterator(_RaisingIterator[U]):
         )
 
 
-class _ConcurrentAMapIterable(_ConcurrentMapIterableMixin[T, U], GetEventLoopMixin):
+class _ConcurrentAMapIterable(_ConcurrentMapIterableMixin[T, U]):
     def __init__(
         self,
         iterator: Iterator[T],
@@ -687,16 +687,16 @@ class _ConcurrentAMapIterable(_ConcurrentMapIterableMixin[T, U], GetEventLoopMix
     ) -> "Future[Union[U, _RaisingIterator.ExceptionContainer]]":
         return cast(
             "Future[Union[U, _RaisingIterator.ExceptionContainer]]",
-            self.get_event_loop().create_task(self._safe_transformation(elem)),
+            get_event_loop().create_task(self._safe_transformation(elem)),
         )
 
     def _future_result_collection(
         self,
     ) -> FutureResultCollection[Union[U, _RaisingIterator.ExceptionContainer]]:
         if self.ordered:
-            return FIFOAsyncFutureResultCollection(self.get_event_loop())
+            return FIFOAsyncFutureResultCollection(get_event_loop())
         else:
-            return FDFOAsyncFutureResultCollection(self.get_event_loop())
+            return FDFOAsyncFutureResultCollection(get_event_loop())
 
 
 class ConcurrentAMapIterator(_RaisingIterator[U]):
@@ -790,7 +790,7 @@ class ConcurrentFlattenIterator(_RaisingIterator[T]):
 
 
 class _ConcurrentAFlattenIterable(
-    Iterable[Union[T, _RaisingIterator.ExceptionContainer]], GetEventLoopMixin
+    Iterable[Union[T, _RaisingIterator.ExceptionContainer]]
 ):
     def __init__(
         self,
@@ -817,9 +817,7 @@ class _ConcurrentAFlattenIterable(
             if iterator_and_future_pairs:
                 iterator, future = iterator_and_future_pairs.popleft()
                 try:
-                    element_to_yield.append(
-                        self.get_event_loop().run_until_complete(future)
-                    )
+                    element_to_yield.append(get_event_loop().run_until_complete(future))
                     iterator_to_queue = iterator
                 except StopAsyncIteration:
                     pass
@@ -839,7 +837,7 @@ class _ConcurrentAFlattenIterable(
                     except Exception as e:
                         yield _RaisingIterator.ExceptionContainer(e)
                         continue
-                future = self.get_event_loop().create_task(
+                future = get_event_loop().create_task(
                     awaitable_to_coroutine(
                         cast(AsyncIterator, iterator_to_queue).__anext__()
                     )

@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import functools
 from typing import Any, Iterable, List
 
 from streamable.stream import (
@@ -27,7 +28,7 @@ from streamable.stream import (
     TruncateStream,
 )
 from streamable.util.constants import NO_REPLACEMENT
-from streamable.util.functiontools import _Star
+from streamable.util.functiontools import _star
 from streamable.visitors import Visitor
 
 
@@ -199,16 +200,16 @@ class ToStringVisitor(Visitor[str], ABC):
 class ReprVisitor(ToStringVisitor):
     @staticmethod
     def to_string(o: object) -> str:
-        if isinstance(o, _Star):
-            return f"star({ReprVisitor.to_string(o.func)})"
+        if isinstance(o, functools.partial) and o.func is _star:
+            return f"star({ReprVisitor.to_string(o.starred_func)})"  # type: ignore
         return repr(o)
 
 
 class StrVisitor(ToStringVisitor):
     @staticmethod
     def to_string(o: Any) -> str:
-        if isinstance(o, _Star):
-            return f"star({StrVisitor.to_string(o.func)})"
+        if isinstance(o, functools.partial) and o.func is _star:
+            return f"star({StrVisitor.to_string(o.starred_func)})"  # type: ignore
         if type(o) is type and issubclass(o, Exception):
             return o.__name__
         if repr(o).startswith("<"):

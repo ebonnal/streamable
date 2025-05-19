@@ -7,7 +7,7 @@ from typing import (
     TypeVar,
 )
 
-from streamable.util.asynctools import GetEventLoopMixin
+from streamable.util.asynctools import get_event_loop
 
 T = TypeVar("T")
 
@@ -48,13 +48,13 @@ class SyncToAsyncIterator(AsyncIterator[T]):
 sync_to_async_iter: Callable[[Iterable[T]], AsyncIterator[T]] = SyncToAsyncIterator
 
 
-class AsyncToSyncIterator(Iterator[T], GetEventLoopMixin):
+class AsyncToSyncIterator(Iterator[T]):
     def __init__(self, iterator: AsyncIterable[T]):
         self.iterator: AsyncIterator[T] = iterator.__aiter__()
 
     def __next__(self) -> T:
         try:
-            return self.get_event_loop().run_until_complete(self.iterator.__anext__())
+            return get_event_loop().run_until_complete(self.iterator.__anext__())
         except StopAsyncIteration as e:
             raise StopIteration() from e
 
