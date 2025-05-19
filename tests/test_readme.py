@@ -68,22 +68,17 @@ class TestReadme(unittest.TestCase):
         assert state == []
 
     def test_amap_example(self) -> None:
-        import asyncio
-
         import httpx
-
-        http_async_client = httpx.AsyncClient()
 
         pokemon_names: Stream[str] = (
             Stream(range(1, 4))
             .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
-            .amap(http_async_client.get, concurrency=3)
+            .amap(httpx.AsyncClient().get, concurrency=3)
             .map(httpx.Response.json)
             .map(lambda poke: poke["name"])
         )
 
         assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
-        asyncio.run(http_async_client.aclose())
 
     def test_async_amap_example(self) -> None:
         import asyncio

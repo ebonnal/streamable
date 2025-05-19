@@ -13,11 +13,14 @@ async def empty_aiter() -> AsyncIterator:
     yield
 
 
-_event_loop: Optional[asyncio.AbstractEventLoop] = None
+class EventLoopMixin:
+    _event_loop: Optional[asyncio.AbstractEventLoop] = None
 
+    @property
+    def event_loop(self) -> asyncio.AbstractEventLoop:
+        if not self._event_loop:
+            self._event_loop = asyncio.new_event_loop()
+        return self._event_loop
 
-def get_event_loop() -> asyncio.AbstractEventLoop:
-    global _event_loop
-    if not _event_loop:
-        _event_loop = asyncio.new_event_loop()
-    return _event_loop
+    def __del__(self) -> None:
+        self.event_loop.close()
