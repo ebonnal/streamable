@@ -12,7 +12,7 @@ from typing import (
     overload,
 )
 
-from streamable.util.asynctools import GetEventLoopMixin
+from streamable.util.asynctools import get_event_loop
 
 T = TypeVar("T")
 R = TypeVar("R")
@@ -159,7 +159,7 @@ def _syncify(async_func: Callable[[T], Coroutine[Any, Any, R]], arg: T) -> R:
         raise TypeError(
             f"must be an async function i.e. a function returning a Coroutine but it returned a {type(coroutine)}"
         )
-    return GetEventLoopMixin.get_event_loop().run_until_complete(coroutine)
+    return get_event_loop().run_until_complete(coroutine)
 
 
 def syncify(async_func: Callable[[T], Coroutine[Any, Any, R]]) -> Callable[[T], R]:
