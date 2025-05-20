@@ -75,13 +75,13 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
 
     def visit_flatten_stream(self, stream: FlattenStream[T]) -> AsyncIterator[T]:
         return afunctions.flatten(
-            stream.upstream.accept(AsyncIteratorVisitor[Iterable]()),
+            stream.upstream.accept(cast(AsyncIteratorVisitor[Iterable], self)),
             concurrency=stream._concurrency,
         )
 
     def visit_aflatten_stream(self, stream: AFlattenStream[T]) -> AsyncIterator[T]:
         return afunctions.aflatten(
-            stream.upstream.accept(AsyncIteratorVisitor[AsyncIterable]()),
+            stream.upstream.accept(cast(AsyncIteratorVisitor[AsyncIterable], self)),
             concurrency=stream._concurrency,
         )
 
@@ -110,7 +110,7 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
         return cast(
             AsyncIterator[T],
             afunctions.group(
-                stream.upstream.accept(AsyncIteratorVisitor[U]()),
+                stream.upstream.accept(cast(AsyncIteratorVisitor[U], self)),
                 stream._size,
                 interval=stream._interval,
                 by=stream._by,
@@ -121,7 +121,7 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
         return cast(
             AsyncIterator[T],
             afunctions.agroup(
-                stream.upstream.accept(AsyncIteratorVisitor[U]()),
+                stream.upstream.accept(cast(AsyncIteratorVisitor[U], self)),
                 stream._size,
                 interval=stream._interval,
                 by=stream._by,
@@ -132,7 +132,7 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
         return cast(
             AsyncIterator[T],
             afunctions.groupby(
-                stream.upstream.accept(AsyncIteratorVisitor[U]()),
+                stream.upstream.accept(cast(AsyncIteratorVisitor[U], self)),
                 stream._key,
                 size=stream._size,
                 interval=stream._interval,
@@ -143,7 +143,7 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
         return cast(
             AsyncIterator[T],
             afunctions.agroupby(
-                stream.upstream.accept(AsyncIteratorVisitor[U]()),
+                stream.upstream.accept(cast(AsyncIteratorVisitor[U], self)),
                 stream._key,
                 size=stream._size,
                 interval=stream._interval,
@@ -153,7 +153,7 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
     def visit_map_stream(self, stream: MapStream[U, T]) -> AsyncIterator[T]:
         return afunctions.map(
             stream._transformation,
-            stream.upstream.accept(AsyncIteratorVisitor[U]()),
+            stream.upstream.accept(cast(AsyncIteratorVisitor[U], self)),
             concurrency=stream._concurrency,
             ordered=stream._ordered,
             via=stream._via,
@@ -162,7 +162,7 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
     def visit_amap_stream(self, stream: AMapStream[U, T]) -> AsyncIterator[T]:
         return afunctions.amap(
             stream._transformation,
-            stream.upstream.accept(AsyncIteratorVisitor[U]()),
+            stream.upstream.accept(cast(AsyncIteratorVisitor[U], self)),
             concurrency=stream._concurrency,
             ordered=stream._ordered,
         )
