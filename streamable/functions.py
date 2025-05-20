@@ -1,3 +1,4 @@
+import asyncio
 import builtins
 import datetime
 from contextlib import suppress
@@ -83,6 +84,7 @@ def catch(
 
 
 def acatch(
+    event_loop: asyncio.AbstractEventLoop,
     iterator: Iterator[T],
     errors: Union[
         Optional[Type[Exception]], Iterable[Optional[Type[Exception]]]
@@ -95,7 +97,7 @@ def acatch(
     return catch(
         iterator,
         errors,
-        when=syncify(when) if when else None,
+        when=syncify(event_loop, when) if when else None,
         replacement=replacement,
         finally_raise=finally_raise,
     )
@@ -115,6 +117,7 @@ def distinct(
 
 
 def adistinct(
+    event_loop: asyncio.AbstractEventLoop,
     iterator: Iterator[T],
     key: Optional[Callable[[T], Any]] = None,
     *,
@@ -122,7 +125,7 @@ def adistinct(
 ) -> Iterator[T]:
     return distinct(
         iterator,
-        syncify(key) if key else None,
+        syncify(event_loop, key) if key else None,
         consecutive_only=consecutive_only,
     )
 
@@ -141,14 +144,18 @@ def flatten(iterator: Iterator[Iterable[T]], *, concurrency: int = 1) -> Iterato
 
 
 def aflatten(
-    iterator: Iterator[AsyncIterable[T]], *, concurrency: int = 1
+    event_loop: asyncio.AbstractEventLoop,
+    iterator: Iterator[AsyncIterable[T]],
+    *,
+    concurrency: int = 1,
 ) -> Iterator[T]:
     validate_iterator(iterator)
     validate_concurrency(concurrency)
     if concurrency == 1:
-        return AFlattenIterator(iterator)
+        return AFlattenIterator(event_loop, iterator)
     else:
         return ConcurrentAFlattenIterator(
+            event_loop,
             iterator,
             concurrency=concurrency,
             buffersize=concurrency,
@@ -171,6 +178,7 @@ def group(
 
 
 def agroup(
+    event_loop: asyncio.AbstractEventLoop,
     iterator: Iterator[T],
     size: Optional[int] = None,
     *,
@@ -181,7 +189,7 @@ def agroup(
         iterator,
         size,
         interval=interval,
-        by=syncify(by) if by else None,
+        by=syncify(event_loop, by) if by else None,
     )
 
 
@@ -199,6 +207,7 @@ def groupby(
 
 
 def agroupby(
+    event_loop: asyncio.AbstractEventLoop,
     iterator: Iterator[T],
     key: Callable[[T], Coroutine[Any, Any, U]],
     *,
@@ -207,7 +216,7 @@ def agroupby(
 ) -> Iterator[Tuple[U, List[T]]]:
     return groupby(
         iterator,
-        syncify(key),
+        syncify(event_loop, key),
         size=size,
         interval=interval,
     )
@@ -242,6 +251,7 @@ def map(
 
 
 def amap(
+    event_loop: asyncio.AbstractEventLoop,
     transformation: Callable[[T], Coroutine[Any, Any, U]],
     iterator: Iterator[T],
     *,
@@ -253,8 +263,9 @@ def amap(
     # validate_not_none(ordered, "ordered")
     validate_concurrency(concurrency)
     if concurrency == 1:
-        return map(syncify(transformation), iterator)
+        return map(syncify(event_loop, transformation), iterator)
     return ConcurrentAMapIterator(
+        event_loop,
         iterator,
         transformation,
         buffersize=concurrency,
@@ -286,6 +297,7 @@ def skip(
 
 
 def askip(
+    event_loop: asyncio.AbstractEventLoop,
     iterator: Iterator[T],
     count: Optional[int] = None,
     *,
@@ -294,7 +306,7 @@ def askip(
     return skip(
         iterator,
         count,
-        until=syncify(until) if until else None,
+        until=syncify(event_loop, until) if until else None,
     )
 
 
@@ -327,6 +339,7 @@ def truncate(
 
 
 def atruncate(
+    event_loop: asyncio.AbstractEventLoop,
     iterator: Iterator[T],
     count: Optional[int] = None,
     *,
@@ -335,5 +348,5 @@ def atruncate(
     return truncate(
         iterator,
         count,
-        when=syncify(when) if when else None,
+        when=syncify(event_loop, when) if when else None,
     )

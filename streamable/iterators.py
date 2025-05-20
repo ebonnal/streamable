@@ -32,11 +32,7 @@ from typing import (
     cast,
 )
 
-from streamable.util.asynctools import (
-    EventLoopMixin,
-    awaitable_to_coroutine,
-    empty_aiter,
-)
+from streamable.util.asynctools import awaitable_to_coroutine, empty_aiter
 
 from streamable.util.functiontools import (
     aiter_wo_stopiteration,
@@ -164,10 +160,15 @@ class FlattenIterator(Iterator[U]):
                 )
 
 
-class AFlattenIterator(Iterator[U], EventLoopMixin):
-    def __init__(self, iterator: Iterator[AsyncIterable[U]]) -> None:
+class AFlattenIterator(Iterator[U]):
+    def __init__(
+        self,
+        event_loop: asyncio.AbstractEventLoop,
+        iterator: Iterator[AsyncIterable[U]],
+    ) -> None:
         validate_iterator(iterator)
         self.iterator = iterator
+        self.event_loop = event_loop
 
         self._current_iterator_elem: AsyncIterator[U] = empty_aiter()
 
@@ -660,9 +661,10 @@ class ConcurrentMapIterator(_RaisingIterator[U]):
         )
 
 
-class _ConcurrentAMapIterable(_ConcurrentMapIterableMixin[T, U], EventLoopMixin):
+class _ConcurrentAMapIterable(_ConcurrentMapIterableMixin[T, U]):
     def __init__(
         self,
+        event_loop: asyncio.AbstractEventLoop,
         iterator: Iterator[T],
         transformation: Callable[[T], Coroutine[Any, Any, U]],
         buffersize: int,
@@ -670,6 +672,7 @@ class _ConcurrentAMapIterable(_ConcurrentMapIterableMixin[T, U], EventLoopMixin)
     ) -> None:
         super().__init__(iterator, buffersize, ordered)
         self.transformation = reraising_as_runtime_error(transformation, StopIteration)
+        self.event_loop = event_loop
 
     async def _safe_transformation(
         self, elem: T
@@ -704,6 +707,7 @@ class _ConcurrentAMapIterable(_ConcurrentMapIterableMixin[T, U], EventLoopMixin)
 class ConcurrentAMapIterator(_RaisingIterator[U]):
     def __init__(
         self,
+        event_loop: asyncio.AbstractEventLoop,
         iterator: Iterator[T],
         transformation: Callable[[T], Coroutine[Any, Any, U]],
         buffersize: int,
@@ -711,6 +715,7 @@ class ConcurrentAMapIterator(_RaisingIterator[U]):
     ) -> None:
         super().__init__(
             _ConcurrentAMapIterable(
+                event_loop,
                 iterator,
                 transformation,
                 buffersize,
@@ -792,10 +797,11 @@ class ConcurrentFlattenIterator(_RaisingIterator[T]):
 
 
 class _ConcurrentAFlattenIterable(
-    Iterable[Union[T, _RaisingIterator.ExceptionContainer]], EventLoopMixin
+    Iterable[Union[T, _RaisingIterator.ExceptionContainer]]
 ):
     def __init__(
         self,
+        event_loop: asyncio.AbstractEventLoop,
         iterables_iterator: Iterator[AsyncIterable[T]],
         concurrency: int,
         buffersize: int,
@@ -805,6 +811,7 @@ class _ConcurrentAFlattenIterable(
         self.iterables_iterator = iterables_iterator
         self.concurrency = concurrency
         self.buffersize = buffersize
+        self.event_loop = event_loop
 
     def __iter__(self) -> Iterator[Union[T, _RaisingIterator.ExceptionContainer]]:
         iterator_and_future_pairs: Deque[Tuple[AsyncIterator[T], Awaitable[T]]] = (
@@ -857,12 +864,14 @@ class _ConcurrentAFlattenIterable(
 class ConcurrentAFlattenIterator(_RaisingIterator[T]):
     def __init__(
         self,
+        event_loop: asyncio.AbstractEventLoop,
         iterables_iterator: Iterator[AsyncIterable[T]],
         concurrency: int,
         buffersize: int,
     ) -> None:
         super().__init__(
             _ConcurrentAFlattenIterable(
+                event_loop,
                 iterables_iterator,
                 concurrency,
                 buffersize,

@@ -1,3 +1,4 @@
+import asyncio
 from typing import (
     AsyncIterable,
     AsyncIterator,
@@ -6,8 +7,6 @@ from typing import (
     Iterator,
     TypeVar,
 )
-
-from streamable.util.asynctools import EventLoopMixin
 
 T = TypeVar("T")
 
@@ -48,9 +47,14 @@ class SyncToAsyncIterator(AsyncIterator[T]):
 sync_to_async_iter: Callable[[Iterable[T]], AsyncIterator[T]] = SyncToAsyncIterator
 
 
-class AsyncToSyncIterator(Iterator[T], EventLoopMixin):
-    def __init__(self, iterator: AsyncIterable[T]):
+class AsyncToSyncIterator(Iterator[T]):
+    def __init__(
+        self,
+        event_loop: asyncio.AbstractEventLoop,
+        iterator: AsyncIterable[T],
+    ):
         self.iterator: AsyncIterator[T] = iterator.__aiter__()
+        self.event_loop = event_loop
 
     def __next__(self) -> T:
         try:
@@ -59,4 +63,6 @@ class AsyncToSyncIterator(Iterator[T], EventLoopMixin):
             raise StopIteration() from e
 
 
-async_to_sync_iter: Callable[[AsyncIterable[T]], Iterator[T]] = AsyncToSyncIterator
+async_to_sync_iter: Callable[
+    [asyncio.AbstractEventLoop, AsyncIterable[T]], Iterator[T]
+] = AsyncToSyncIterator
