@@ -595,7 +595,7 @@ class TestStream(unittest.TestCase):
             for itype in ITERABLE_TYPES
         ]
     )
-    def test_map_and_foreach_concurrency(
+    def test_map_or_foreach_concurrency(
         self, method, func, concurrency, itype
     ) -> None:
         expected_iteration_duration = N * slow_identity_duration / concurrency
