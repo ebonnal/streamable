@@ -58,13 +58,13 @@ from tests.utils import (
     even_src,
     identity,
     identity_sleep,
-    stopiteration_for_iter_type,
     randomly_slowed,
     slow_identity,
     slow_identity_duration,
     square,
     src,
     src_raising_at_exhaustion,
+    stopiteration_for_iter_type,
     throw,
     throw_for_odd_func,
     throw_func,
@@ -449,8 +449,8 @@ class TestStream(unittest.TestCase):
         [
             [ordered, order_mutation, expected_duration, operation, func, itype]
             for ordered, order_mutation, expected_duration in [
-                (True, identity, 0.3),
-                (False, sorted, 0.21),
+                (True, identity, 0.7),
+                (False, sorted, 0.41),
             ]
             for operation, func in [
                 (Stream.foreach, time.sleep),
@@ -470,7 +470,7 @@ class TestStream(unittest.TestCase):
         func,
         itype,
     ) -> None:
-        seconds = [0.1, 0.01, 0.2]
+        seconds = [0.3, 0.01, 0.01, 0.4]
         duration, res = timestream(
             operation(Stream(seconds), func, ordered=ordered, concurrency=2),
             5,
@@ -595,9 +595,7 @@ class TestStream(unittest.TestCase):
             for itype in ITERABLE_TYPES
         ]
     )
-    def test_map_or_foreach_concurrency(
-        self, method, func, concurrency, itype
-    ) -> None:
+    def test_map_or_foreach_concurrency(self, method, func, concurrency, itype) -> None:
         expected_iteration_duration = N * slow_identity_duration / concurrency
         duration, res = timestream(
             method(Stream(src), func, concurrency=concurrency), itype=itype
