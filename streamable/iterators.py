@@ -33,7 +33,6 @@ from typing import (
 )
 
 from streamable.util.asynctools import awaitable_to_coroutine, empty_aiter
-
 from streamable.util.functiontools import (
     aiter_wo_stopiteration,
     iter_wo_stopiteration,
@@ -577,12 +576,11 @@ class _ConcurrentMapIterableMixin(
 
             # wait, queue, yield
             while future_results:
-                result = future_results.__next__()
                 with suppress(StopIteration):
                     future_results.add_future(
                         self._launch_task(self.iterator.__next__())
                     )
-                yield result
+                yield future_results.__next__()
 
 
 class _ConcurrentMapIterable(_ConcurrentMapIterableMixin[T, U]):

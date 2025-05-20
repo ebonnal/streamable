@@ -39,7 +39,7 @@ from streamable.iterators import (
     YieldsPerPeriodThrottleIterator,
 )
 from streamable.util.constants import NO_REPLACEMENT
-from streamable.util.functiontools import syncify, reraising_as_runtime_error
+from streamable.util.functiontools import reraising_as_runtime_error, syncify
 from streamable.util.validationtools import (
     validate_concurrency,
     validate_errors,

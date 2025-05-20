@@ -1,5 +1,4 @@
-import asyncio
-from typing import AsyncIterator, Awaitable, Optional, Set, TypeVar
+from typing import AsyncIterator, Awaitable, TypeVar
 
 T = TypeVar("T")
 
