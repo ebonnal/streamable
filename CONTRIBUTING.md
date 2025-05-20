@@ -30,4 +30,4 @@ Applying an operation simply performs argument validation and returns a new inst
 Each node in this composite structure exposes an `.accept` method enabling traversal by a visitor. `.__iter__`/`.__aiter__`/`.__repr__`/`.__str__`/`.__eq__` rely on visitor classes defined in the `streamable.visitors` package.
 
 ## Decorator Pattern
-A `Stream[T]` both inherits from `Iterable[T]` and holds an `Iterable[T]` as its `.source`: when you instantiate a stream from an iterable you decorate it with a fluent interface.
+A `Stream[T]` *decorates* an iterable with a fluent interface: it is instanciated from an `Iterable[T]`/`AsyncIterable[T]` and is an `Iterable[T]`/`AsyncIterable[T]`.
