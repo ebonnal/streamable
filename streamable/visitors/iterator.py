@@ -1,4 +1,5 @@
-from typing import AsyncIterable, Iterable, Iterator, TypeVar, cast
+import asyncio
+from typing import AsyncIterable, Iterable, Iterator, Optional, TypeVar, cast
 
 from streamable import functions
 from streamable.stream import (
@@ -51,6 +52,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
 
     def visit_acatch_stream(self, stream: ACatchStream[T]) -> Iterator[T]:
         return functions.acatch(
+            stream._get_event_loop(),
             stream.upstream.accept(self),
             stream._errors,
             when=stream._when,
@@ -67,6 +69,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
 
     def visit_adistinct_stream(self, stream: ADistinctStream[T]) -> Iterator[T]:
         return functions.adistinct(
+            stream._get_event_loop(),
             stream.upstream.accept(self),
             stream._key,
             consecutive_only=stream._consecutive_only,
@@ -80,19 +83,22 @@ class IteratorVisitor(Visitor[Iterator[T]]):
 
     def visit_afilter_stream(self, stream: AFilterStream[T]) -> Iterator[T]:
         return filter(
-            reraising_as_runtime_error(syncify(stream._when), StopIteration),
+            reraising_as_runtime_error(
+                syncify(stream._get_event_loop(), stream._when), StopIteration
+            ),
             cast(Iterable[T], stream.upstream.accept(self)),
         )
 
     def visit_flatten_stream(self, stream: FlattenStream[T]) -> Iterator[T]:
         return functions.flatten(
-            stream.upstream.accept(IteratorVisitor[Iterable]()),
+            stream.upstream.accept(cast(IteratorVisitor[Iterable], self)),
             concurrency=stream._concurrency,
         )
 
     def visit_aflatten_stream(self, stream: AFlattenStream[T]) -> Iterator[T]:
         return functions.aflatten(
-            stream.upstream.accept(IteratorVisitor[AsyncIterable]()),
+            stream._get_event_loop(),
+            stream.upstream.accept(cast(IteratorVisitor[AsyncIterable], self)),
             concurrency=stream._concurrency,
         )
 
@@ -121,7 +127,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         return cast(
             Iterator[T],
             functions.group(
-                stream.upstream.accept(IteratorVisitor[U]()),
+                stream.upstream.accept(cast(IteratorVisitor[U], self)),
                 stream._size,
                 interval=stream._interval,
                 by=stream._by,
@@ -132,7 +138,8 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         return cast(
             Iterator[T],
             functions.agroup(
-                stream.upstream.accept(IteratorVisitor[U]()),
+                stream._get_event_loop(),
+                stream.upstream.accept(cast(IteratorVisitor[U], self)),
                 stream._size,
                 interval=stream._interval,
                 by=stream._by,
@@ -143,7 +150,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         return cast(
             Iterator[T],
             functions.groupby(
-                stream.upstream.accept(IteratorVisitor[U]()),
+                stream.upstream.accept(cast(IteratorVisitor[U], self)),
                 stream._key,
                 size=stream._size,
                 interval=stream._interval,
@@ -154,7 +161,8 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         return cast(
             Iterator[T],
             functions.agroupby(
-                stream.upstream.accept(IteratorVisitor[U]()),
+                stream._get_event_loop(),
+                stream.upstream.accept(cast(IteratorVisitor[U], self)),
                 stream._key,
                 size=stream._size,
                 interval=stream._interval,
@@ -164,7 +172,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
     def visit_map_stream(self, stream: MapStream[U, T]) -> Iterator[T]:
         return functions.map(
             stream._transformation,
-            stream.upstream.accept(IteratorVisitor[U]()),
+            stream.upstream.accept(cast(IteratorVisitor[U], self)),
             concurrency=stream._concurrency,
             ordered=stream._ordered,
             via=stream._via,
@@ -172,8 +180,9 @@ class IteratorVisitor(Visitor[Iterator[T]]):
 
     def visit_amap_stream(self, stream: AMapStream[U, T]) -> Iterator[T]:
         return functions.amap(
+            stream._get_event_loop(),
             stream._transformation,
-            stream.upstream.accept(IteratorVisitor[U]()),
+            stream.upstream.accept(cast(IteratorVisitor[U], self)),
             concurrency=stream._concurrency,
             ordered=stream._ordered,
         )
@@ -193,6 +202,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
 
     def visit_askip_stream(self, stream: ASkipStream[T]) -> Iterator[T]:
         return functions.askip(
+            stream._get_event_loop(),
             stream.upstream.accept(self),
             stream._count,
             until=stream._until,
@@ -214,6 +224,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
 
     def visit_atruncate_stream(self, stream: ATruncateStream[T]) -> Iterator[T]:
         return functions.atruncate(
+            stream._get_event_loop(),
             stream.upstream.accept(self),
             stream._count,
             when=stream._when,
@@ -223,13 +234,13 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         if isinstance(stream.source, Iterable):
             return stream.source.__iter__()
         if isinstance(stream.source, AsyncIterable):
-            return async_to_sync_iter(stream.source)
+            return async_to_sync_iter(stream._get_event_loop(), stream.source)
         if callable(stream.source):
             iterable = stream.source()
             if isinstance(iterable, Iterable):
                 return iterable.__iter__()
             if isinstance(iterable, AsyncIterable):
-                return async_to_sync_iter(iterable)
+                return async_to_sync_iter(stream._get_event_loop(), iterable)
             raise TypeError(
                 f"`source` must be an Iterable/AsyncIterable or a Callable[[], Iterable/AsyncIterable] but got a Callable[[], {type(iterable)}]"
             )

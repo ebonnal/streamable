@@ -1,3 +1,4 @@
+import asyncio
 import copy
 import datetime
 import logging
@@ -59,7 +60,7 @@ V = TypeVar("V")
 
 
 class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
-    __slots__ = ("_source", "_upstream")
+    __slots__ = ("_source", "_upstream", "event_loop")
 
     # fmt: off
     @overload
@@ -90,6 +91,7 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         # validate_not_none(source, "source")
         self._source = source
         self._upstream: "Optional[Stream]" = None
+        self.event_loop: "Optional[asyncio.AbstractEventLoop]" = None
 
     @property
     def upstream(self) -> "Optional[Stream]":
@@ -110,6 +112,20 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
             Callable[[], Iterable]: Function called at iteration time (i.e. by `__iter__`) to get a fresh source iterable.
         """
         return self._source
+
+    def _get_event_loop(self) -> asyncio.AbstractEventLoop:
+        if not self.event_loop:
+            self.event_loop = asyncio.new_event_loop()
+        return self.event_loop
+
+    def __del__(self) -> None:
+        if self.event_loop:
+            pending_tasks: Set[asyncio.Task] = asyncio.all_tasks(self.event_loop)
+            for task in pending_tasks:
+                task.cancel()
+            self.event_loop.run_until_complete(asyncio.gather(*pending_tasks))
+            self.event_loop.close()
+            self.event_loop = None
 
     def __iter__(self) -> Iterator[T]:
         from streamable.visitors.iterator import IteratorVisitor
@@ -866,6 +882,9 @@ class DownStream(Stream[U], Generic[T, U]):
         new._upstream = copy.deepcopy(self._upstream, memo)
         return new
 
+    def __del__(self) -> None:
+        pass
+
     @property
     def source(
         self,
@@ -881,6 +900,9 @@ class DownStream(Stream[U], Generic[T, U]):
             Stream: Parent stream.
         """
         return self._upstream
+
+    def _get_event_loop(self) -> asyncio.AbstractEventLoop:
+        return self._upstream._get_event_loop()
 
 
 class CatchStream(DownStream[T, T]):

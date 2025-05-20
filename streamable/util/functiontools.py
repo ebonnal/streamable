@@ -13,8 +13,6 @@ from typing import (
     overload,
 )
 
-from streamable.util.asynctools import EventLoopMixin
-
 T = TypeVar("T")
 R = TypeVar("R")
 
@@ -154,9 +152,14 @@ def star(func: Callable[..., R]) -> Callable[[Tuple], R]:
     return _Star(func)
 
 
-class _Syncify(Generic[T, R], EventLoopMixin):
-    def __init__(self, async_func: Callable[[T], Coroutine[Any, Any, R]]) -> None:
+class _Syncify(Generic[T, R]):
+    def __init__(
+        self,
+        event_loop: asyncio.AbstractEventLoop,
+        async_func: Callable[[T], Coroutine[Any, Any, R]],
+    ) -> None:
         self.async_func = async_func
+        self.event_loop = event_loop
 
     def __call__(self, arg: T) -> R:
         coroutine = self.async_func(arg)
@@ -167,8 +170,11 @@ class _Syncify(Generic[T, R], EventLoopMixin):
         return self.event_loop.run_until_complete(coroutine)
 
 
-def syncify(async_func: Callable[[T], Coroutine[Any, Any, R]]) -> Callable[[T], R]:
-    return _Syncify(async_func)
+def syncify(
+    event_loop: asyncio.AbstractEventLoop,
+    async_func: Callable[[T], Coroutine[Any, Any, R]],
+) -> Callable[[T], R]:
+    return _Syncify(event_loop, async_func)
 
 
 async def _async_call(func: Callable[[T], R], o: T) -> R:
