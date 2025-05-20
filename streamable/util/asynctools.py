@@ -1,5 +1,5 @@
 import asyncio
-from typing import AsyncIterator, Awaitable, Optional, TypeVar
+from typing import AsyncIterator, Awaitable, Optional, Set, TypeVar
 
 T = TypeVar("T")
 
@@ -23,4 +23,11 @@ class EventLoopMixin:
         return self._event_loop
 
     def __del__(self) -> None:
-        self.event_loop.close()
+        if self._event_loop:
+            pending_tasks: Set[asyncio.Task] = asyncio.all_tasks(self._event_loop)
+            if pending_tasks:
+                for task in pending_tasks:
+                    task.cancel()
+                self._event_loop.run_until_complete(asyncio.gather(*pending_tasks))
+
+            self._event_loop.close()
