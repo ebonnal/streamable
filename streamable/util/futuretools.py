@@ -102,19 +102,20 @@ class FDFOAsyncFutureResultCollection(CallbackFutureResultCollection[T]):
     def __init__(self, event_loop: asyncio.AbstractEventLoop) -> None:
         super().__init__()
         self.event_loop = event_loop
-        self._waiter: asyncio.futures.Future[T] = self.event_loop.create_future()
+        asyncio.set_event_loop(event_loop)
+        self._results: "asyncio.Queue[T]" = asyncio.Queue()
 
     def _done_callback(self, future: "Future[T]") -> None:
-        self._waiter.set_result(future.result())
+        self.event_loop.create_task(self._results.put(future.result()))
 
     def __next__(self) -> T:
-        result = self.event_loop.run_until_complete(self._waiter)
+        result = self.event_loop.run_until_complete(self._results.get())
         self._n_futures -= 1
         self._waiter = self.event_loop.create_future()
         return result
 
     async def __anext__(self) -> T:
-        result = await self._waiter
+        result = await self._results.get()
         self._n_futures -= 1
         self._waiter = self.event_loop.create_future()
         return result
