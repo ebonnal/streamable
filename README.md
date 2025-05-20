@@ -9,7 +9,7 @@
 - 🔗 ***Fluent*** chainable lazy operations
 - 🔀 ***Concurrent*** via *threads*/*processes*/`async`
 - 🇹 Fully ***Typed***, `Stream[T]` is an `Iterable[T]` (and an `AsyncIterable[T]`)
-- 🛡️ ***Battle-tested*** for prod, extensively tested with **Python 3.7 to 3.14**.
+- 🛡️ ***Battle-tested*** for prod, extensively tested with **CPython 3.7 to 3.14** and compatible with [PyPy](https://github.com/pypy/pypy).
 
 
 ## 1. install
