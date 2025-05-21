@@ -36,6 +36,7 @@ from streamable import Stream
 from streamable.util.asynctools import awaitable_to_coroutine
 from streamable.util.functiontools import asyncify, star
 from streamable.util.iterabletools import (
+    IteratorWithClosingLoop,
     sync_to_async_iter,
     sync_to_bi_iterable,
 )
@@ -2780,4 +2781,28 @@ class TestStream(unittest.TestCase):
             stream.__slots__,
             ("_upstream", "_when"),
             msg="a stream should have __slots__",
+        )
+
+    def test_iter_loop_auto_closing(self) -> None:
+        iterator = iter(Stream(src).filter(identity))
+        self.assertNotIsInstance(
+            iterator,
+            IteratorWithClosingLoop,
+            msg="If the last operation is not an async operation, then iter should not return a `IteratorWithClosingLoop`.",
+        )
+        iterator = iter(Stream(src).afilter(async_identity))
+        self.assertIsInstance(
+            iterator,
+            IteratorWithClosingLoop,
+            msg="If the last operation is an async operation, then iter should return a `IteratorWithClosingLoop`.",
+        )
+        event_loop = cast(IteratorWithClosingLoop, iterator)._event_loop
+        self.assertFalse(
+            event_loop.is_closed(),
+            msg="the event loop should not be closed",
+        )
+        del iterator
+        self.assertTrue(
+            event_loop.is_closed(),
+            msg="The event loop should be closed if the iterator is deleted.",
         )
