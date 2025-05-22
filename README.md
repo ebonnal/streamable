@@ -9,7 +9,7 @@
 - 🔗 ***Fluent*** chainable lazy operations
 - 🔀 ***Concurrent*** via *threads*/*processes*/`async`
 - 🇹 Fully ***Typed***, `Stream[T]` is an `Iterable[T]` (and an `AsyncIterable[T]`)
-- 🛡️ ***Battle-tested*** for prod, extensively tested with **CPython 3.7 to 3.14** and compatible with [PyPy](https://github.com/pypy/pypy).
+- 🛡️ ***Battle-tested*** for prod, extensively tested with **CPython 3.7 to 3.15** and compatible with [PyPy](https://github.com/pypy/pypy).
 
 
 ## 1. install
@@ -212,7 +212,8 @@ asyncio.run(main())
 
 # 📒 ***Operations***
 
-A dozen expressive lazy operations and that's it.
+> [!IMPORTANT]
+> The `Stream`'s interface is minimalist, features such as the creation of the stream's source or destination are not its responsability (it is meant to be combined with dedicated libraries like `csv`, `json`, `pyarrow`, `psycopg2`, `boto3`, `requests`, ...).
 
 > [!NOTE]
 > **`async` twin operations:** Each operation that takes a function (e.g. `.map`) also has a version that accepts an `async` function (e.g. `.amap`). You can mix both types of operations on the same `Stream`, which can then be used as either an `Iterable` or an `AsyncIterable`.
@@ -232,7 +233,13 @@ assert list(integer_strings) == ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9
 
 ### thread-based concurrency
 
-> Applies the transformation via `concurrency` threads, yielding results in the upstream order (FIFO), set the parameter `ordered=False` to yield results as they become available (*First Done, First Out*).
+> Applies the transformation via `concurrency` threads.
+
+> [!NOTE]
+> **Memory-efficient**: Only `concurrency` upstream elements are pulled for processing; the next upstream element is pulled only when a result is yielded downstream.
+
+> [!NOTE]
+> **Ordering**: it yields results in the upstream order (FIFO), set `ordered=False` to yield results as they become available (*First Done, First Out*).
 
 <details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
@@ -250,12 +257,10 @@ assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
 ```
 </details>
 
-> [!NOTE]
-> **Memory-efficient**: Only `concurrency` upstream elements are pulled for processing; the next upstream element is pulled only when a result is yielded downstream.
 
 ### process-based concurrency
 
-> Set `via="process"`:
+> Same but set `via="process"`:
 
 <details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
@@ -271,7 +276,7 @@ if __name__ == "__main__":
 
 ### `async`-based concurrency: `.amap`
 
-> `.amap` can apply an `async` transformation concurrently.
+> `.amap` can apply an `async` function concurrently.
 
 <details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
