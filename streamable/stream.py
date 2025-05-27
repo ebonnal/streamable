@@ -41,17 +41,17 @@ from streamable.util.validationtools import (
     validate_via,
 )
 
-with suppress(ImportError):
-    from typing import Literal
-
 if TYPE_CHECKING:  # pragma: no cover
     import builtins
+
+    from typing import Literal
 
     from typing_extensions import Concatenate, ParamSpec
 
     from streamable.visitors import Visitor
 
     P = ParamSpec("P")
+
 
 U = TypeVar("U")
 T = TypeVar("T")
