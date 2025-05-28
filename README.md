@@ -4,7 +4,7 @@
 
 # ༄ `streamable`
 
-### *Pythonic Stream-like manipulation of (async) iterables*
+### *Fluent interface for (async) iterables*
 
 - 🔗 ***Fluent*** chainable lazy operations
 - 🔀 ***Concurrent*** via *threads*/*processes*/`async`
