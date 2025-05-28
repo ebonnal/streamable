@@ -6,10 +6,10 @@
 
 ### *Fluent interface for (async) iterables*
 
-- 🔗 ***Fluent*** chainable lazy operations
-- 🔀 ***Concurrent*** via *threads*/*processes*/`async`
-- 🇹 Fully ***Typed***, `Stream[T]` is an `Iterable[T]` (and an `AsyncIterable[T]`)
-- 🛡️ ***Battle-tested*** for prod, extensively tested with **CPython 3.7 to 3.15** and compatible with [PyPy](https://github.com/pypy/pypy).
+- 🔗 chain ***lazy*** operations
+- 🔀 ***concurrent*** via *threads*/*processes*/`async`
+- 🇹 ***typed***, `Stream[T]` is an `Iterable[T]` (and an `AsyncIterable[T]`)
+- 🛡️ ***battle-tested*** for prod, extensively tested with CPython 3.7 to 3.15 and compatible with [PyPy](https://github.com/pypy/pypy).
 
 
 ## 1. install
