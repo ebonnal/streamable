@@ -14,9 +14,10 @@
 
 ## 1. install
 
-`pip install streamable` or `conda install conda-forge::streamable`
-
 (No dependencies)
+```
+pip install streamable
+```
 
 ## 2. import
 
