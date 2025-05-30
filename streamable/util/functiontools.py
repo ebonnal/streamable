@@ -51,19 +51,6 @@ def anostop(
     return wrap
 
 
-iter_nostop = nostop(iter)
-
-try:
-    _aiter: Callable[[AsyncIterable], AsyncIterator] = aiter  # type: ignore
-except NameError:  # pragma: no cover
-
-    def _aiter(aiterable: AsyncIterable) -> AsyncIterator:
-        return aiterable.__aiter__()
-
-
-aiter_nostop = nostop(_aiter)
-
-
 class _Sidify(Generic[T]):
     def __init__(self, func: Callable[[T], Any]) -> None:
         self.func = func

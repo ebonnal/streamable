@@ -33,7 +33,6 @@ from typing import (
 )
 
 from streamable.util.asynctools import awaitable_to_coroutine, empty_aiter
-from streamable.util.functiontools import aiter_nostop, iter_nostop
 from streamable.util.loggertools import get_logger
 from streamable.util.validationtools import (
     validate_aiterator,
@@ -154,9 +153,9 @@ class FlattenAsyncIterator(AsyncIterator[U]):
             try:
                 return self._current_iterator_elem.__next__()
             except StopIteration:
-                self._current_iterator_elem = iter_nostop(
+                self._current_iterator_elem = (
                     await self.iterator.__anext__()
-                )
+                ).__iter__()
 
 
 class AFlattenAsyncIterator(AsyncIterator[U]):
@@ -170,9 +169,9 @@ class AFlattenAsyncIterator(AsyncIterator[U]):
             try:
                 return await self._current_iterator_elem.__anext__()
             except StopAsyncIteration:
-                self._current_iterator_elem = aiter_nostop(
+                self._current_iterator_elem = (
                     await self.iterator.__anext__()
-                )
+                ).__aiter__()
 
 
 class _GroupAsyncIteratorMixin(Generic[T]):
@@ -810,7 +809,7 @@ class _ConcurrentFlattenAsyncIterable(
                         except StopAsyncIteration:
                             break
                         try:
-                            iterator_to_queue = iter_nostop(iterable)
+                            iterator_to_queue = iterable.__iter__()
                         except Exception as e:
                             yield _RaisingAsyncIterator.ExceptionContainer(e)
                             continue
@@ -885,7 +884,7 @@ class _ConcurrentAFlattenAsyncIterable(
                     except StopAsyncIteration:
                         break
                     try:
-                        iterator_to_queue = aiter_nostop(iterable)
+                        iterator_to_queue = iterable.__aiter__()
                     except Exception as e:
                         yield _RaisingAsyncIterator.ExceptionContainer(e)
                         continue

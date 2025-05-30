@@ -33,7 +33,6 @@ from typing import (
 )
 
 from streamable.util.asynctools import awaitable_to_coroutine, empty_aiter
-from streamable.util.functiontools import iter_nostop, aiter_nostop
 from streamable.util.loggertools import get_logger
 from streamable.util.validationtools import (
     validate_base,
@@ -150,7 +149,7 @@ class FlattenIterator(Iterator[U]):
             try:
                 return self._current_iterator_elem.__next__()
             except StopIteration:
-                self._current_iterator_elem = iter_nostop(self.iterator.__next__())
+                self._current_iterator_elem = self.iterator.__next__().__iter__()
 
 
 class AFlattenIterator(Iterator[U]):
@@ -172,7 +171,7 @@ class AFlattenIterator(Iterator[U]):
                     self._current_iterator_elem.__anext__()
                 )
             except StopAsyncIteration:
-                self._current_iterator_elem = aiter_nostop(self.iterator.__next__())
+                self._current_iterator_elem = self.iterator.__next__().__aiter__()
 
 
 class _GroupIteratorMixin(Generic[T]):
@@ -757,7 +756,7 @@ class _ConcurrentFlattenIterable(
                         except StopIteration:
                             break
                         try:
-                            iterator_to_queue = iter_nostop(iterable)
+                            iterator_to_queue = iterable.__iter__()
                         except Exception as e:
                             yield _RaisingIterator.ExceptionContainer(e)
                             continue
@@ -832,7 +831,7 @@ class _ConcurrentAFlattenIterable(
                     except StopIteration:
                         break
                     try:
-                        iterator_to_queue = aiter_nostop(iterable)
+                        iterator_to_queue = iterable.__aiter__()
                     except Exception as e:
                         yield _RaisingIterator.ExceptionContainer(e)
                         continue
