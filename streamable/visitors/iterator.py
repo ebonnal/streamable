@@ -29,7 +29,6 @@ from streamable.stream import (
 )
 from streamable.util.functiontools import (
     async_sidify,
-    reraising_as_runtime_error,
     sidify,
     syncify,
 )
@@ -92,16 +91,14 @@ class IteratorVisitor(Visitor[Iterator[T]]):
 
     def visit_filter_stream(self, stream: FilterStream[T]) -> Iterator[T]:
         return filter(
-            reraising_as_runtime_error(stream._when, StopIteration),
+            stream._when,
             cast(Iterable[T], stream.upstream.accept(self)),
         )
 
     def visit_afilter_stream(self, stream: AFilterStream[T]) -> Iterator[T]:
         return IteratorWithClosingLoop(
             filter(
-                reraising_as_runtime_error(
-                    syncify(self._get_event_loop(), stream._when), StopIteration
-                ),
+                syncify(self._get_event_loop(), stream._when),
                 cast(Iterable[T], stream.upstream.accept(self)),
             ),
             self._get_event_loop(),

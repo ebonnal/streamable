@@ -34,7 +34,7 @@ from parameterized import parameterized  # type: ignore
 
 from streamable import Stream
 from streamable.util.asynctools import awaitable_to_coroutine
-from streamable.util.functiontools import asyncify, star
+from streamable.util.functiontools import anostop, asyncify, nostop, star
 from streamable.util.iterabletools import (
     IteratorWithClosingLoop,
     sync_to_async_iter,
@@ -528,6 +528,7 @@ class TestStream(unittest.TestCase):
                 method,
                 throw_func_,
                 throw_for_odd_func_,
+                nostop_,
                 itype,
             ]
             for raised_exc, caught_exc in [
@@ -535,11 +536,11 @@ class TestStream(unittest.TestCase):
                 (StopIteration, RuntimeError),
             ]
             for concurrency in [1, 2]
-            for method, throw_func_, throw_for_odd_func_ in [
-                (Stream.foreach, throw_func, throw_for_odd_func),
-                (Stream.aforeach, async_throw_func, async_throw_for_odd_func),
-                (Stream.map, throw_func, throw_for_odd_func),
-                (Stream.amap, async_throw_func, async_throw_for_odd_func),
+            for method, throw_func_, throw_for_odd_func_, nostop_ in [
+                (Stream.foreach, throw_func, throw_for_odd_func, nostop),
+                (Stream.aforeach, async_throw_func, async_throw_for_odd_func, anostop),
+                (Stream.map, throw_func, throw_for_odd_func, nostop),
+                (Stream.amap, async_throw_func, async_throw_for_odd_func, anostop),
             ]
             for itype in ITERABLE_TYPES
         ]
@@ -552,10 +553,11 @@ class TestStream(unittest.TestCase):
         method: Callable[[Stream, Callable[[Any], int], int], Stream],
         throw_func: Callable[[Type[Exception]], Callable[[Any], int]],
         throw_for_odd_func: Callable[[Type[Exception]], Callable[[Any], int]],
+        nostop: Callable[[Any], Callable[[Any], int]],
         itype: IterableType,
     ) -> None:
         rasing_stream: Stream[int] = method(
-            Stream(iter(src)), throw_func(raised_exc), concurrency=concurrency
+            Stream(iter(src)), nostop(throw_func(raised_exc)), concurrency=concurrency
         )  # type: ignore
 
         with self.assertRaises(
@@ -574,7 +576,7 @@ class TestStream(unittest.TestCase):
             to_list(
                 method(
                     Stream(src),
-                    throw_for_odd_func(raised_exc),
+                    nostop(throw_for_odd_func(raised_exc)),
                     concurrency=concurrency,  # type: ignore
                 ).catch(caught_exc),
                 itype=itype,
@@ -789,7 +791,7 @@ class TestStream(unittest.TestCase):
             flatten(
                 Stream(
                     map(
-                        lambda i: sync_to_bi_iterable(
+                        lambda i: nostop(sync_to_bi_iterable)(
                             IterableRaisingInIter() if i % 2 else range(i, i + 1)
                         ),
                         range(n_iterables),
@@ -1513,7 +1515,9 @@ class TestStream(unittest.TestCase):
         stream_iter = bi_iterable_to_iter(
             Stream(src).group(
                 size=3,
-                by=lambda n: throw(stopiteration_for_iter_type(itype)) if n == 2 else n,
+                by=lambda n: nostop(throw(stopiteration_for_iter_type(itype)))
+                if n == 2
+                else n,
             ),
             itype=itype,
         )
@@ -1723,8 +1727,12 @@ class TestStream(unittest.TestCase):
         stream_iter = bi_iterable_to_iter(
             Stream(src).agroup(
                 size=3,
-                by=asyncify(
-                    lambda n: throw(stopiteration_for_iter_type(itype)) if n == 2 else n
+                by=anostop(
+                    asyncify(
+                        lambda n: throw(stopiteration_for_iter_type(itype))
+                        if n == 2
+                        else n
+                    )
                 ),
             ),
             itype=itype,

@@ -42,7 +42,7 @@ class TestIterators(unittest.TestCase):
     def test_ConcurrentAMapAsyncIterable(self) -> None:
         with self.assertRaisesRegex(
             TypeError,
-            r"must be an async function i\.e\. a function returning a Coroutine but it returned a <class 'int'>",
+            r"`transformation` must be an async function i\.e\. a function returning a Coroutine but it returned a <class 'int'>",
             msg="`amap` should raise a TypeError if a non async function is passed to it.",
         ):
             concurrent_amap_async_iterable: _ConcurrentAMapAsyncIterable[int, int] = (

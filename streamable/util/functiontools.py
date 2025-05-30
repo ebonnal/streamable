@@ -17,23 +17,23 @@ T = TypeVar("T")
 R = TypeVar("R")
 
 
-def _reraising_as_runtime_error(
-    func: Callable[[T], R], error_type: Type[Exception], arg: T
-) -> R:
+def _get_name(obj: Any) -> str:
+    return getattr(obj, "__name__", obj.__class__.__name__)
+
+
+def _nostop(func: Callable[[T], R], arg: T) -> R:
     try:
         return func(arg)
-    except error_type as e:
-        raise RuntimeError(repr(e)) from e
+    except (StopIteration, StopAsyncIteration) as e:
+        raise RuntimeError(f"{_get_name(func)} raised {e.__class__.__name__}") from e
 
 
-def reraising_as_runtime_error(
-    func: Callable[[T], R], error_type: Type[Exception]
-) -> Callable[[T], R]:
-    return partial(_reraising_as_runtime_error, func, error_type)
+def nostop(func: Callable[[T], R]) -> Callable[[T], R]:
+    return partial(_nostop, func)
 
 
-def async_reraising_as_runtime_error(
-    async_func: Callable[[T], Coroutine[Any, Any, R]], error_type: Type[Exception]
+def anostop(
+    async_func: Callable[[T], Coroutine[Any, Any, R]],
 ) -> Callable[[T], Coroutine[Any, Any, R]]:
     async def wrap(elem: T) -> R:
         try:
@@ -43,14 +43,15 @@ def async_reraising_as_runtime_error(
                     f"must be an async function i.e. a function returning a Coroutine but it returned a {type(coroutine)}"
                 )
             return await coroutine
-        except error_type as e:
-            raise RuntimeError(repr(e)) from e
+        except (StopIteration, StopAsyncIteration) as e:
+            raise RuntimeError(
+                f"{_get_name(async_func)} raised {e.__class__.__name__}"
+            ) from e
 
     return wrap
 
 
-iter_wo_stopiteration = reraising_as_runtime_error(iter, StopIteration)
-iter_wo_stopasynciteration = reraising_as_runtime_error(iter, StopAsyncIteration)
+iter_nostop = nostop(iter)
 
 try:
     _aiter: Callable[[AsyncIterable], AsyncIterator] = aiter  # type: ignore
@@ -60,8 +61,7 @@ except NameError:  # pragma: no cover
         return aiterable.__aiter__()
 
 
-aiter_wo_stopasynciteration = reraising_as_runtime_error(_aiter, StopAsyncIteration)
-aiter_wo_stopiteration = reraising_as_runtime_error(_aiter, StopIteration)
+aiter_nostop = nostop(_aiter)
 
 
 class _Sidify(Generic[T]):
