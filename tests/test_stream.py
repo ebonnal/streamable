@@ -1509,9 +1509,9 @@ class TestStream(unittest.TestCase):
         stream_iter = bi_iterable_to_iter(
             Stream(src).group(
                 size=3,
-                by=lambda n: nostop(throw(stopiteration_for_iter_type(itype)))
-                if n == 2
-                else n,
+                by=nostop(
+                    lambda n: throw(stopiteration_for_iter_type(itype)) if n == 2 else n
+                ),
             ),
             itype=itype,
         )
