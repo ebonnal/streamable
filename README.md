@@ -214,7 +214,7 @@ asyncio.run(main())
 # 📒 ***Operations***
 
 > [!IMPORTANT]
-> The `Stream`'s interface is minimalist, features such as the creation of the stream's source or destination are not its responsability (it is meant to be combined with dedicated libraries like `csv`, `json`, `pyarrow`, `psycopg2`, `boto3`, `requests`, ...).
+> The `Stream`'s interface is minimalist, features such as the creation of the stream's source or destination are not its responsability (combine it with dedicated libraries like `functools`, `csv`, `json`, `pyarrow`, `psycopg2`, `boto3`, `requests`, ...).
 
 > [!NOTE]
 > **`async` twin operations:** Each operation that takes a function (e.g. `.map`) also has a version that accepts an `async` function (e.g. `.amap`). You can mix both types of operations on the same `Stream`, which can then be used as either an `Iterable` or an `AsyncIterable`.
