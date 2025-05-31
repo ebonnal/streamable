@@ -797,6 +797,25 @@ import pandas as pd
 
 # 💡 Notes
 
+## Performances
+
+Creating a `Stream` is lazy and fast,
+
+```python
+stream: Stream[int] = (
+    Stream(range(1_000_000))
+    .map(str)
+    .map(int)
+    .filter(lambda i: i > 1_000)
+)
+```
+
+there is no overhead during iteration compared to builtins, as `iter(stream)` simply visits the operations lineage and returns:
+
+```python
+filter(lambda i: i > 1_000, map(int, map(str, range(1_000_000))))
+```
+
 ## Exceptions are not terminating the iteration
 
 > [!TIP]

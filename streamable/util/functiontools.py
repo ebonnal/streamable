@@ -2,13 +2,10 @@ import asyncio
 from functools import partial
 from typing import (
     Any,
-    AsyncIterable,
-    AsyncIterator,
     Callable,
     Coroutine,
     Generic,
     Tuple,
-    Type,
     TypeVar,
     overload,
 )
@@ -17,51 +14,33 @@ T = TypeVar("T")
 R = TypeVar("R")
 
 
-def _reraising_as_runtime_error(
-    func: Callable[[T], R], error_type: Type[Exception], arg: T
-) -> R:
+def _get_name(obj: Any) -> str:
+    return getattr(obj, "__name__", obj.__class__.__name__)
+
+
+def _nostop(func: Callable[[T], R], arg: T) -> R:
     try:
         return func(arg)
-    except error_type as e:
-        raise RuntimeError(repr(e)) from e
+    except (StopIteration, StopAsyncIteration) as e:
+        raise RuntimeError(f"{_get_name(func)} raised {e.__class__.__name__}") from e
 
 
-def reraising_as_runtime_error(
-    func: Callable[[T], R], error_type: Type[Exception]
-) -> Callable[[T], R]:
-    return partial(_reraising_as_runtime_error, func, error_type)
+def nostop(func: Callable[[T], R]) -> Callable[[T], R]:
+    return partial(_nostop, func)
 
 
-def async_reraising_as_runtime_error(
-    async_func: Callable[[T], Coroutine[Any, Any, R]], error_type: Type[Exception]
+def anostop(
+    async_func: Callable[[T], Coroutine[Any, Any, R]],
 ) -> Callable[[T], Coroutine[Any, Any, R]]:
     async def wrap(elem: T) -> R:
         try:
-            coroutine = async_func(elem)
-            if not isinstance(coroutine, Coroutine):
-                raise TypeError(
-                    f"must be an async function i.e. a function returning a Coroutine but it returned a {type(coroutine)}"
-                )
-            return await coroutine
-        except error_type as e:
-            raise RuntimeError(repr(e)) from e
+            return await async_func(elem)
+        except (StopIteration, StopAsyncIteration) as e:
+            raise RuntimeError(
+                f"{_get_name(async_func)} raised {e.__class__.__name__}"
+            ) from e
 
     return wrap
-
-
-iter_wo_stopiteration = reraising_as_runtime_error(iter, StopIteration)
-iter_wo_stopasynciteration = reraising_as_runtime_error(iter, StopAsyncIteration)
-
-try:
-    _aiter: Callable[[AsyncIterable], AsyncIterator] = aiter  # type: ignore
-except NameError:  # pragma: no cover
-
-    def _aiter(aiterable: AsyncIterable) -> AsyncIterator:
-        return aiterable.__aiter__()
-
-
-aiter_wo_stopasynciteration = reraising_as_runtime_error(_aiter, StopAsyncIteration)
-aiter_wo_stopiteration = reraising_as_runtime_error(_aiter, StopIteration)
 
 
 class _Sidify(Generic[T]):
@@ -81,12 +60,7 @@ def async_sidify(
     func: Callable[[T], Coroutine],
 ) -> Callable[[T], Coroutine[Any, Any, T]]:
     async def wrap(arg: T) -> T:
-        coroutine = func(arg)
-        if not isinstance(coroutine, Coroutine):
-            raise TypeError(
-                f"`transformation` must be an async function i.e. a function returning a Coroutine but it returned a {type(coroutine)}"
-            )
-        await coroutine
+        await func(arg)
         return arg
 
     return wrap
@@ -162,12 +136,7 @@ class _Syncify(Generic[T, R]):
         self.event_loop = event_loop
 
     def __call__(self, arg: T) -> R:
-        coroutine = self.async_func(arg)
-        if not isinstance(coroutine, Coroutine):
-            raise TypeError(
-                f"must be an async function i.e. a function returning a Coroutine but it returned a {type(coroutine)}"
-            )
-        return self.event_loop.run_until_complete(coroutine)
+        return self.event_loop.run_until_complete(self.async_func(arg))
 
 
 def syncify(
