@@ -802,6 +802,7 @@ import pandas as pd
 Creating a `Stream` is lazy and fast,
 
 ```python
+# runtime: ~1.5 μs
 stream: Stream[int] = (
     Stream(range(1_000_000))
     .map(str)
@@ -810,7 +811,7 @@ stream: Stream[int] = (
 )
 ```
 
-there is no overhead during iteration compared to builtins, as `iter(stream)` simply visits the operations lineage and returns:
+and there is no overhead during iteration compared to builtins, `iter(stream)` (runtime: ~3μs) visits the operations lineage and returns:
 
 ```python
 filter(lambda i: i > 1_000, map(int, map(str, range(1_000_000))))
