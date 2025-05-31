@@ -34,7 +34,7 @@ from parameterized import parameterized  # type: ignore
 
 from streamable import Stream
 from streamable.util.asynctools import awaitable_to_coroutine
-from streamable.util.functiontools import asyncify, star
+from streamable.util.functiontools import anostop, asyncify, nostop, star
 from streamable.util.iterabletools import (
     IteratorWithClosingLoop,
     sync_to_async_iter,
@@ -528,6 +528,7 @@ class TestStream(unittest.TestCase):
                 method,
                 throw_func_,
                 throw_for_odd_func_,
+                nostop_,
                 itype,
             ]
             for raised_exc, caught_exc in [
@@ -535,11 +536,11 @@ class TestStream(unittest.TestCase):
                 (StopIteration, RuntimeError),
             ]
             for concurrency in [1, 2]
-            for method, throw_func_, throw_for_odd_func_ in [
-                (Stream.foreach, throw_func, throw_for_odd_func),
-                (Stream.aforeach, async_throw_func, async_throw_for_odd_func),
-                (Stream.map, throw_func, throw_for_odd_func),
-                (Stream.amap, async_throw_func, async_throw_for_odd_func),
+            for method, throw_func_, throw_for_odd_func_, nostop_ in [
+                (Stream.foreach, throw_func, throw_for_odd_func, nostop),
+                (Stream.aforeach, async_throw_func, async_throw_for_odd_func, anostop),
+                (Stream.map, throw_func, throw_for_odd_func, nostop),
+                (Stream.amap, async_throw_func, async_throw_for_odd_func, anostop),
             ]
             for itype in ITERABLE_TYPES
         ]
@@ -552,10 +553,11 @@ class TestStream(unittest.TestCase):
         method: Callable[[Stream, Callable[[Any], int], int], Stream],
         throw_func: Callable[[Type[Exception]], Callable[[Any], int]],
         throw_for_odd_func: Callable[[Type[Exception]], Callable[[Any], int]],
+        nostop: Callable[[Any], Callable[[Any], int]],
         itype: IterableType,
     ) -> None:
         rasing_stream: Stream[int] = method(
-            Stream(iter(src)), throw_func(raised_exc), concurrency=concurrency
+            Stream(iter(src)), nostop(throw_func(raised_exc)), concurrency=concurrency
         )  # type: ignore
 
         with self.assertRaises(
@@ -574,7 +576,7 @@ class TestStream(unittest.TestCase):
             to_list(
                 method(
                     Stream(src),
-                    throw_for_odd_func(raised_exc),
+                    nostop(throw_for_odd_func(raised_exc)),
                     concurrency=concurrency,  # type: ignore
                 ).catch(caught_exc),
                 itype=itype,
@@ -626,7 +628,7 @@ class TestStream(unittest.TestCase):
         stream = Stream(src).amap(identity, concurrency=concurrency)  # type: ignore
         with self.assertRaisesRegex(
             TypeError,
-            r"must be an async function i\.e\. a function returning a Coroutine but it returned a <class 'int'>",
+            r"(An asyncio.Future, a coroutine or an awaitable is required)|(object int can't be used in 'await' expression)|('int' object can't be awaited)",
             msg="`amap` should raise a TypeError if a non async function is passed to it.",
         ):
             anext_or_next(bi_iterable_to_iter(stream, itype=itype))
@@ -648,7 +650,7 @@ class TestStream(unittest.TestCase):
         stream = Stream(src).aforeach(identity)  # type: ignore
         with self.assertRaisesRegex(
             TypeError,
-            r"`transformation` must be an async function i\.e\. a function returning a Coroutine but it returned a <class 'int'>",
+            r"(object int can't be used in 'await' expression)|('int' object can't be awaited)",
             msg="`aforeach` should raise a TypeError if a non async function is passed to it.",
         ):
             anext_or_next(bi_iterable_to_iter(stream, itype=itype))
@@ -761,20 +763,14 @@ class TestStream(unittest.TestCase):
 
     @parameterized.expand(
         [
-            [exception_type, mapped_exception_type, concurrency, itype, flatten]
+            [concurrency, itype, flatten]
             for concurrency in [1, 2]
             for itype in ITERABLE_TYPES
-            for exception_type, mapped_exception_type in [
-                (TestError, TestError),
-                (stopiteration_for_iter_type(itype), RuntimeError),
-            ]
             for flatten in (Stream.flatten, Stream.aflatten)
         ]
     )
     def test_flatten_with_exception_in_iter(
         self,
-        exception_type: Type[Exception],
-        mapped_exception_type: Type[Exception],
         concurrency: int,
         itype: IterableType,
         flatten: Callable,
@@ -783,7 +779,7 @@ class TestStream(unittest.TestCase):
 
         class IterableRaisingInIter(Iterable[int]):
             def __iter__(self) -> Iterator[int]:
-                raise exception_type
+                raise TestError
 
         res: Set[int] = to_set(
             flatten(
@@ -796,7 +792,7 @@ class TestStream(unittest.TestCase):
                     )
                 ),
                 concurrency=concurrency,
-            ).catch(mapped_exception_type),
+            ).catch(TestError),
             itype=itype,
         )
         self.assertSetEqual(
@@ -1513,7 +1509,9 @@ class TestStream(unittest.TestCase):
         stream_iter = bi_iterable_to_iter(
             Stream(src).group(
                 size=3,
-                by=lambda n: throw(stopiteration_for_iter_type(itype)) if n == 2 else n,
+                by=nostop(
+                    lambda n: throw(stopiteration_for_iter_type(itype)) if n == 2 else n
+                ),
             ),
             itype=itype,
         )
@@ -1723,8 +1721,12 @@ class TestStream(unittest.TestCase):
         stream_iter = bi_iterable_to_iter(
             Stream(src).agroup(
                 size=3,
-                by=asyncify(
-                    lambda n: throw(stopiteration_for_iter_type(itype)) if n == 2 else n
+                by=anostop(
+                    asyncify(
+                        lambda n: throw(stopiteration_for_iter_type(itype))
+                        if n == 2
+                        else n
+                    )
                 ),
             ),
             itype=itype,

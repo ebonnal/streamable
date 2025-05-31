@@ -33,11 +33,6 @@ from typing import (
 )
 
 from streamable.util.asynctools import awaitable_to_coroutine, empty_aiter
-from streamable.util.functiontools import (
-    aiter_wo_stopiteration,
-    iter_wo_stopiteration,
-    reraising_as_runtime_error,
-)
 from streamable.util.loggertools import get_logger
 from streamable.util.validationtools import (
     validate_base,
@@ -79,7 +74,7 @@ class CatchIterator(Iterator[T]):
         validate_errors(errors)
         self.iterator = iterator
         self.errors = errors
-        self.when = reraising_as_runtime_error(when, StopIteration) if when else None
+        self.when = when
         self.replacement = replacement
         self.finally_raise = finally_raise
         self._to_be_finally_raised: Optional[Exception] = None
@@ -111,7 +106,7 @@ class DistinctIterator(Iterator[T]):
     ) -> None:
         validate_iterator(iterator)
         self.iterator = iterator
-        self.key = reraising_as_runtime_error(key, StopIteration) if key else None
+        self.key = key
         self._already_seen: Set[Any] = set()
 
     def __next__(self) -> T:
@@ -130,7 +125,7 @@ class ConsecutiveDistinctIterator(Iterator[T]):
     ) -> None:
         validate_iterator(iterator)
         self.iterator = iterator
-        self.key = reraising_as_runtime_error(key, StopIteration) if key else None
+        self.key = key
         self._last_key: Any = object()
 
     def __next__(self) -> T:
@@ -154,9 +149,7 @@ class FlattenIterator(Iterator[U]):
             try:
                 return self._current_iterator_elem.__next__()
             except StopIteration:
-                self._current_iterator_elem = iter_wo_stopiteration(
-                    self.iterator.__next__()
-                )
+                self._current_iterator_elem = self.iterator.__next__().__iter__()
 
 
 class AFlattenIterator(Iterator[U]):
@@ -178,9 +171,7 @@ class AFlattenIterator(Iterator[U]):
                     self._current_iterator_elem.__anext__()
                 )
             except StopAsyncIteration:
-                self._current_iterator_elem = aiter_wo_stopiteration(
-                    self.iterator.__next__()
-                )
+                self._current_iterator_elem = self.iterator.__next__().__aiter__()
 
 
 class _GroupIteratorMixin(Generic[T]):
@@ -257,7 +248,7 @@ class GroupbyIterator(_GroupIteratorMixin[T], Iterator[Tuple[U, List[T]]]):
         interval: Optional[datetime.timedelta],
     ) -> None:
         super().__init__(iterator, size, interval)
-        self.key = reraising_as_runtime_error(key, StopIteration)
+        self.key = key
         self._is_exhausted = False
         self._groups_by: DefaultDict[U, List[T]] = defaultdict(list)
 
@@ -343,7 +334,7 @@ class PredicateSkipIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], until: Callable[[T], Any]) -> None:
         validate_iterator(iterator)
         self.iterator = iterator
-        self.until = reraising_as_runtime_error(until, StopIteration)
+        self.until = until
         self._done_skipping = False
 
     def __next__(self) -> T:
@@ -363,7 +354,7 @@ class CountAndPredicateSkipIterator(Iterator[T]):
         validate_count(count)
         self.iterator = iterator
         self.count = count
-        self.until = reraising_as_runtime_error(until, StopIteration)
+        self.until = until
         self._n_skipped = 0
         self._done_skipping = False
 
@@ -398,7 +389,7 @@ class PredicateTruncateIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], when: Callable[[T], Any]) -> None:
         validate_iterator(iterator)
         self.iterator = iterator
-        self.when = reraising_as_runtime_error(when, StopIteration)
+        self.when = when
         self._satisfied = False
 
     def __next__(self) -> T:
@@ -595,7 +586,7 @@ class _ConcurrentMapIterable(_ConcurrentMapIterableMixin[T, U]):
     ) -> None:
         super().__init__(iterator, buffersize, ordered)
         validate_concurrency(concurrency)
-        self.transformation = reraising_as_runtime_error(transformation, StopIteration)
+        self.transformation = transformation
         self.concurrency = concurrency
         self.executor: Executor
         self.via = via
@@ -669,19 +660,14 @@ class _ConcurrentAMapIterable(_ConcurrentMapIterableMixin[T, U]):
         ordered: bool,
     ) -> None:
         super().__init__(iterator, buffersize, ordered)
-        self.transformation = reraising_as_runtime_error(transformation, StopIteration)
+        self.transformation = transformation
         self.event_loop = event_loop
 
     async def _safe_transformation(
         self, elem: T
     ) -> Union[U, _RaisingIterator.ExceptionContainer]:
         try:
-            coroutine = self.transformation(elem)
-            if not isinstance(coroutine, Coroutine):
-                raise TypeError(
-                    f"`transformation` must be an async function i.e. a function returning a Coroutine but it returned a {type(coroutine)}",
-                )
-            return await coroutine
+            return await self.transformation(elem)
         except Exception as e:
             return _RaisingIterator.ExceptionContainer(e)
 
@@ -765,7 +751,7 @@ class _ConcurrentFlattenIterable(
                         except StopIteration:
                             break
                         try:
-                            iterator_to_queue = iter_wo_stopiteration(iterable)
+                            iterator_to_queue = iterable.__iter__()
                         except Exception as e:
                             yield _RaisingIterator.ExceptionContainer(e)
                             continue
@@ -840,7 +826,7 @@ class _ConcurrentAFlattenIterable(
                     except StopIteration:
                         break
                     try:
-                        iterator_to_queue = aiter_wo_stopiteration(iterable)
+                        iterator_to_queue = iterable.__aiter__()
                     except Exception as e:
                         yield _RaisingIterator.ExceptionContainer(e)
                         continue
