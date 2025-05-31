@@ -423,12 +423,7 @@ class AMapAsyncIterator(AsyncIterator[U]):
         self.transformation = transformation
 
     async def __anext__(self) -> U:
-        coroutine = self.transformation(await self.iterator.__anext__())
-        if not isinstance(coroutine, Coroutine):
-            raise TypeError(
-                f"`transformation` must be an async function i.e. a function returning a Coroutine but it returned a {type(coroutine)}",
-            )
-        return await coroutine
+        return await self.transformation(await self.iterator.__anext__())
 
 
 class AFilterAsyncIterator(AsyncIterator[T]):
@@ -718,12 +713,7 @@ class _ConcurrentAMapAsyncIterable(_ConcurrentMapAsyncIterableMixin[T, U]):
         self, elem: T
     ) -> Union[U, _RaisingAsyncIterator.ExceptionContainer]:
         try:
-            coroutine = self.transformation(elem)
-            if not isinstance(coroutine, Coroutine):
-                raise TypeError(
-                    f"`transformation` must be an async function i.e. a function returning a Coroutine but it returned a {type(coroutine)}",
-                )
-            return await coroutine
+            return await self.transformation(elem)
         except Exception as e:
             return _RaisingAsyncIterator.ExceptionContainer(e)
 

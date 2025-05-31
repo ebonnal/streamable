@@ -628,7 +628,7 @@ class TestStream(unittest.TestCase):
         stream = Stream(src).amap(identity, concurrency=concurrency)  # type: ignore
         with self.assertRaisesRegex(
             TypeError,
-            r"must be an async function i\.e\. a function returning a Coroutine but it returned a <class 'int'>",
+            r"(An asyncio.Future, a coroutine or an awaitable is required)|(object int can't be used in 'await' expression)|('int' object can't be awaited)",
             msg="`amap` should raise a TypeError if a non async function is passed to it.",
         ):
             anext_or_next(bi_iterable_to_iter(stream, itype=itype))
@@ -650,7 +650,7 @@ class TestStream(unittest.TestCase):
         stream = Stream(src).aforeach(identity)  # type: ignore
         with self.assertRaisesRegex(
             TypeError,
-            r"`transformation` must be an async function i\.e\. a function returning a Coroutine but it returned a <class 'int'>",
+            r"object int can't be used in 'await' expression",
             msg="`aforeach` should raise a TypeError if a non async function is passed to it.",
         ):
             anext_or_next(bi_iterable_to_iter(stream, itype=itype))

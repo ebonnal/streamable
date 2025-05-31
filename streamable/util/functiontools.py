@@ -37,12 +37,7 @@ def anostop(
 ) -> Callable[[T], Coroutine[Any, Any, R]]:
     async def wrap(elem: T) -> R:
         try:
-            coroutine = async_func(elem)
-            if not isinstance(coroutine, Coroutine):
-                raise TypeError(
-                    f"must be an async function i.e. a function returning a Coroutine but it returned a {type(coroutine)}"
-                )
-            return await coroutine
+            return await async_func(elem)
         except (StopIteration, StopAsyncIteration) as e:
             raise RuntimeError(
                 f"{_get_name(async_func)} raised {e.__class__.__name__}"
@@ -68,12 +63,7 @@ def async_sidify(
     func: Callable[[T], Coroutine],
 ) -> Callable[[T], Coroutine[Any, Any, T]]:
     async def wrap(arg: T) -> T:
-        coroutine = func(arg)
-        if not isinstance(coroutine, Coroutine):
-            raise TypeError(
-                f"`transformation` must be an async function i.e. a function returning a Coroutine but it returned a {type(coroutine)}"
-            )
-        await coroutine
+        await func(arg)
         return arg
 
     return wrap
@@ -149,12 +139,7 @@ class _Syncify(Generic[T, R]):
         self.event_loop = event_loop
 
     def __call__(self, arg: T) -> R:
-        coroutine = self.async_func(arg)
-        if not isinstance(coroutine, Coroutine):
-            raise TypeError(
-                f"must be an async function i.e. a function returning a Coroutine but it returned a {type(coroutine)}"
-            )
-        return self.event_loop.run_until_complete(coroutine)
+        return self.event_loop.run_until_complete(self.async_func(arg))
 
 
 def syncify(

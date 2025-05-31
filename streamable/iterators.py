@@ -667,12 +667,7 @@ class _ConcurrentAMapIterable(_ConcurrentMapIterableMixin[T, U]):
         self, elem: T
     ) -> Union[U, _RaisingIterator.ExceptionContainer]:
         try:
-            coroutine = self.transformation(elem)
-            if not isinstance(coroutine, Coroutine):
-                raise TypeError(
-                    f"`transformation` must be an async function i.e. a function returning a Coroutine but it returned a {type(coroutine)}",
-                )
-            return await coroutine
+            return await self.transformation(elem)
         except Exception as e:
             return _RaisingIterator.ExceptionContainer(e)
 
