@@ -33,12 +33,6 @@ from typing import (
 )
 
 from streamable.util.asynctools import awaitable_to_coroutine, empty_aiter
-from streamable.util.functiontools import (
-    aiter_wo_stopasynciteration,
-    async_reraising_as_runtime_error,
-    iter_wo_stopasynciteration,
-    reraising_as_runtime_error,
-)
 from streamable.util.loggertools import get_logger
 from streamable.util.validationtools import (
     validate_aiterator,
@@ -80,9 +74,7 @@ class ACatchAsyncIterator(AsyncIterator[T]):
         validate_errors(errors)
         self.iterator = iterator
         self.errors = errors
-        self.when = (
-            async_reraising_as_runtime_error(when, StopAsyncIteration) if when else None
-        )
+        self.when = when
         self.replacement = replacement
         self.finally_raise = finally_raise
         self._to_be_finally_raised: Optional[Exception] = None
@@ -116,9 +108,7 @@ class ADistinctAsyncIterator(AsyncIterator[T]):
     ) -> None:
         validate_aiterator(iterator)
         self.iterator = iterator
-        self.key = (
-            async_reraising_as_runtime_error(key, StopAsyncIteration) if key else None
-        )
+        self.key = key
         self._already_seen: Set[Any] = set()
 
     async def __anext__(self) -> T:
@@ -139,9 +129,7 @@ class ConsecutiveADistinctAsyncIterator(AsyncIterator[T]):
     ) -> None:
         validate_aiterator(iterator)
         self.iterator = iterator
-        self.key = (
-            async_reraising_as_runtime_error(key, StopAsyncIteration) if key else None
-        )
+        self.key = key
         self._last_key: Any = object()
 
     async def __anext__(self) -> T:
@@ -165,9 +153,9 @@ class FlattenAsyncIterator(AsyncIterator[U]):
             try:
                 return self._current_iterator_elem.__next__()
             except StopIteration:
-                self._current_iterator_elem = iter_wo_stopasynciteration(
+                self._current_iterator_elem = (
                     await self.iterator.__anext__()
-                )
+                ).__iter__()
 
 
 class AFlattenAsyncIterator(AsyncIterator[U]):
@@ -181,9 +169,9 @@ class AFlattenAsyncIterator(AsyncIterator[U]):
             try:
                 return await self._current_iterator_elem.__anext__()
             except StopAsyncIteration:
-                self._current_iterator_elem = aiter_wo_stopasynciteration(
+                self._current_iterator_elem = (
                     await self.iterator.__anext__()
-                )
+                ).__aiter__()
 
 
 class _GroupAsyncIteratorMixin(Generic[T]):
@@ -262,7 +250,7 @@ class AGroupbyAsyncIterator(
         interval: Optional[datetime.timedelta],
     ) -> None:
         super().__init__(iterator, size, interval)
-        self.key = async_reraising_as_runtime_error(key, StopAsyncIteration)
+        self.key = key
         self._is_exhausted = False
         self._groups_by: DefaultDict[U, List[T]] = defaultdict(list)
 
@@ -350,7 +338,7 @@ class PredicateASkipAsyncIterator(AsyncIterator[T]):
     ) -> None:
         validate_aiterator(iterator)
         self.iterator = iterator
-        self.until = async_reraising_as_runtime_error(until, StopAsyncIteration)
+        self.until = until
         self._done_skipping = False
 
     async def __anext__(self) -> T:
@@ -373,7 +361,7 @@ class CountAndPredicateASkipAsyncIterator(AsyncIterator[T]):
         validate_count(count)
         self.iterator = iterator
         self.count = count
-        self.until = async_reraising_as_runtime_error(until, StopAsyncIteration)
+        self.until = until
         self._n_skipped = 0
         self._done_skipping = False
 
@@ -410,7 +398,7 @@ class PredicateATruncateAsyncIterator(AsyncIterator[T]):
     ) -> None:
         validate_aiterator(iterator)
         self.iterator = iterator
-        self.when = async_reraising_as_runtime_error(when, StopAsyncIteration)
+        self.when = when
         self._satisfied = False
 
     async def __anext__(self) -> T:
@@ -432,9 +420,7 @@ class AMapAsyncIterator(AsyncIterator[U]):
         validate_aiterator(iterator)
 
         self.iterator = iterator
-        self.transformation = async_reraising_as_runtime_error(
-            transformation, StopAsyncIteration
-        )
+        self.transformation = transformation
 
     async def __anext__(self) -> U:
         return await self.transformation(await self.iterator.__anext__())
@@ -449,7 +435,7 @@ class AFilterAsyncIterator(AsyncIterator[T]):
         validate_aiterator(iterator)
 
         self.iterator = iterator
-        self.when = async_reraising_as_runtime_error(when, StopAsyncIteration)
+        self.when = when
 
     async def __anext__(self) -> T:
         while True:
@@ -648,9 +634,7 @@ class _ConcurrentMapAsyncIterable(_ConcurrentMapAsyncIterableMixin[T, U]):
     ) -> None:
         super().__init__(iterator, buffersize, ordered)
         validate_concurrency(concurrency)
-        self.transformation = reraising_as_runtime_error(
-            transformation, StopAsyncIteration
-        )
+        self.transformation = transformation
         self.concurrency = concurrency
         self.executor: Executor
         self.via = via
@@ -723,20 +707,13 @@ class _ConcurrentAMapAsyncIterable(_ConcurrentMapAsyncIterableMixin[T, U]):
         ordered: bool,
     ) -> None:
         super().__init__(iterator, buffersize, ordered)
-        self.transformation = async_reraising_as_runtime_error(
-            transformation, StopAsyncIteration
-        )
+        self.transformation = transformation
 
     async def _safe_transformation(
         self, elem: T
     ) -> Union[U, _RaisingAsyncIterator.ExceptionContainer]:
         try:
-            coroutine = self.transformation(elem)
-            if not isinstance(coroutine, Coroutine):
-                raise TypeError(
-                    f"`transformation` must be an async function i.e. a function returning a Coroutine but it returned a {type(coroutine)}",
-                )
-            return await coroutine
+            return await self.transformation(elem)
         except Exception as e:
             return _RaisingAsyncIterator.ExceptionContainer(e)
 
@@ -822,7 +799,7 @@ class _ConcurrentFlattenAsyncIterable(
                         except StopAsyncIteration:
                             break
                         try:
-                            iterator_to_queue = iter_wo_stopasynciteration(iterable)
+                            iterator_to_queue = iterable.__iter__()
                         except Exception as e:
                             yield _RaisingAsyncIterator.ExceptionContainer(e)
                             continue
@@ -897,7 +874,7 @@ class _ConcurrentAFlattenAsyncIterable(
                     except StopAsyncIteration:
                         break
                     try:
-                        iterator_to_queue = aiter_wo_stopasynciteration(iterable)
+                        iterator_to_queue = iterable.__aiter__()
                     except Exception as e:
                         yield _RaisingAsyncIterator.ExceptionContainer(e)
                         continue
