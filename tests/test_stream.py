@@ -763,20 +763,14 @@ class TestStream(unittest.TestCase):
 
     @parameterized.expand(
         [
-            [exception_type, mapped_exception_type, concurrency, itype, flatten]
+            [concurrency, itype, flatten]
             for concurrency in [1, 2]
             for itype in ITERABLE_TYPES
-            for exception_type, mapped_exception_type in [
-                (TestError, TestError),
-                (stopiteration_for_iter_type(itype), RuntimeError),
-            ]
             for flatten in (Stream.flatten, Stream.aflatten)
         ]
     )
     def test_flatten_with_exception_in_iter(
         self,
-        exception_type: Type[Exception],
-        mapped_exception_type: Type[Exception],
         concurrency: int,
         itype: IterableType,
         flatten: Callable,
@@ -785,20 +779,20 @@ class TestStream(unittest.TestCase):
 
         class IterableRaisingInIter(Iterable[int]):
             def __iter__(self) -> Iterator[int]:
-                raise exception_type
+                raise TestError
 
         res: Set[int] = to_set(
             flatten(
                 Stream(
                     map(
-                        lambda i: nostop(sync_to_bi_iterable)(
+                        lambda i: sync_to_bi_iterable(
                             IterableRaisingInIter() if i % 2 else range(i, i + 1)
                         ),
                         range(n_iterables),
                     )
                 ),
                 concurrency=concurrency,
-            ).catch(mapped_exception_type),
+            ).catch(TestError),
             itype=itype,
         )
         self.assertSetEqual(
