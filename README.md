@@ -219,7 +219,7 @@ asyncio.run(main())
 > [!NOTE]
 > **`async` twin operations:** Each operation that takes a function (e.g. `.map`) also has a version that accepts an `async` function (e.g. `.amap`). You can mix both types of operations on the same `Stream`, which can then be used as either an `Iterable` or an `AsyncIterable`.
 
-## `.map`/`.amap`
+## 🟡 `.map`/`.amap`
 
 > Applies a transformation on elements:
 
@@ -337,7 +337,7 @@ assert list(zeros) == [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 </details>
 
 
-## `.foreach` / `.aforeach`
+## 🟡 `.foreach` / `.aforeach`
 
 > Applies a side effect on elements:
 
@@ -360,7 +360,7 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 > - set `ordered=False` for ***First Done First Out***
 > - The `.aforeach` operation can apply an `async` effect concurrently.
 
-## `.group` / `.agroup`
+## 🟡 `.group` / `.agroup`
 
 > Groups into `List`s
 
@@ -417,7 +417,7 @@ assert list(integers_by_parity_by_2) == [[0, 2], [1, 3], [4, 6], [5, 7], [8], [9
 ```
 </details>
 
-## `.groupby` / `.agroupby`
+## 🟡 `.groupby` / `.agroupby`
 
 > Like `.group`, but groups into `(key, elements)` tuples:
 <details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
@@ -449,7 +449,7 @@ assert list(counts_by_parity) == [("even", 5), ("odd", 5)]
 ```
 </details>
 
-## `.flatten` / `.aflatten`
+## 🟡 `.flatten` / `.aflatten`
 
 > Ungroups elements assuming that they are `Iterable`s (or `AsyncIterable`s for `.aflatten`):
 
@@ -477,7 +477,7 @@ assert list(mixed_ones_and_zeros) == [0, 1, 0, 1, 0, 1, 0, 1]
 ```
 </details>
 
-## `.filter` / `.afilter`
+## 🟡 `.filter` / `.afilter`
 
 > Keeps only the elements that satisfy a condition:
 
@@ -490,7 +490,7 @@ assert list(even_integers) == [0, 2, 4, 6, 8]
 ```
 </details>
 
-## `.distinct` / `.adistinct`
+## 🟡 `.distinct` / `.adistinct`
 
 > Removes duplicates:
 
@@ -532,7 +532,7 @@ assert list(consecutively_distinct_chars) == ["f", "o", "b", "a", "r", "f", "o"]
 ```
 </details>
 
-## `.truncate` / `.atruncate`
+## 🟡 `.truncate` / `.atruncate`
 
 > Ends iteration once a given number of elements have been yielded:
 
@@ -558,7 +558,7 @@ assert list(five_first_integers) == [0, 1, 2, 3, 4]
 
 > If both `count` and `when` are set, truncation occurs as soon as either condition is met.
 
-## `.skip` / `.askip`
+## 🟡 `.skip` / `.askip`
 
 > Skips the first specified number of elements:
 
@@ -584,7 +584,7 @@ assert list(integers_after_five) == [5, 6, 7, 8, 9]
 
 > If both `count` and `until` are set, skipping stops as soon as either condition is met.
 
-## `.catch` / `.acatch`
+## 🟡 `.catch` / `.acatch`
 
 > Catches a given type of exception, and optionally yields a `replacement` value:
 
@@ -644,7 +644,7 @@ assert len(errors) == len("foo")
 ```
 </details>
 
-## `.throttle`
+## 🟡 `.throttle`
 
 > Limits the number of yields `per` time interval:
 
@@ -661,7 +661,7 @@ assert list(three_integers_per_second) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 </details>
 
 
-## `.observe`
+## 🟡 `.observe`
 
 > Logs the progress of iterations:
 <details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
@@ -694,7 +694,7 @@ logging.getLogger("streamable").setLevel(logging.WARNING)
 ```
 </details>
 
-## `+`
+## 🟡 `+`
 
 > Concatenates streams:
 
@@ -706,7 +706,7 @@ assert list(integers + integers) == [0, 1, 2, 3 ,4, 5, 6, 7, 8, 9, 0, 1, 2, 3 ,4
 </details>
 
 
-## `zip`
+##  🟡 `zip`
 
 > Use the standard `zip` function:
 
@@ -729,7 +729,7 @@ assert list(cubes) == [0, 1, 8, 27, 64, 125, 216, 343, 512, 729]
 
 Although consuming the stream is beyond the scope of this library, it provides two basic shorthands to trigger an iteration:
 
-## `.count` / `.acount`
+## 🟡 `.count` / `.acount`
 
 > `.count` iterates over the stream until exhaustion and returns the number of elements yielded:
 
@@ -750,7 +750,7 @@ assert asyncio.run(integers.acount()) == 10
 
 </details>
 
-## `()` / `await`
+## 🟡 `()` / `await`
 
 > *Calling* the stream iterates over it until exhaustion, and returns it:
 <details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
@@ -777,7 +777,7 @@ asyncio.run(test_await())
 ```
 </details>
 
-## `.pipe`
+## 🟡 `.pipe`
 
 > Calls a function, passing the stream as first argument, followed by `*args/**kwargs` if any (inspired by the `.pipe` from [pandas](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.pipe.html) or [polars](https://docs.pola.rs/api/python/stable/reference/dataframe/api/polars.DataFrame.pipe.html)):
 
