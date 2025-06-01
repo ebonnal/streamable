@@ -843,9 +843,6 @@ class DownStream(Stream[U], Generic[T, U]):
         new._upstream = copy.deepcopy(self._upstream, memo)
         return new
 
-    def __del__(self) -> None:
-        pass
-
     @property
     def source(
         self,
