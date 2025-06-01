@@ -236,8 +236,13 @@ def amap(
     )
 
 
-def observe(iterator: Iterator[T], what: str) -> Iterator[T]:
-    return ObserveIterator(iterator, what)
+def observe(
+    iterator: Iterator[T],
+    what: str,
+    base: int = 2,
+    template: str = "[duration={duration}, errors={errors}] {yields} {what} yielded",
+) -> Iterator[T]:
+    return ObserveIterator(iterator, what, base, template)
 
 
 def skip(

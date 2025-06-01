@@ -240,8 +240,13 @@ def amap(
     )
 
 
-def observe(aiterator: AsyncIterator[T], what: str) -> AsyncIterator[T]:
-    return ObserveAsyncIterator(aiterator, what)
+def observe(
+    aiterator: AsyncIterator[T],
+    what: str,
+    base: int = 2,
+    template: str = "[duration={duration}, errors={errors}] {yields} {what} yielded",
+) -> AsyncIterator[T]:
+    return ObserveAsyncIterator(aiterator, what, base, template)
 
 
 def skip(

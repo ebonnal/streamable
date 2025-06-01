@@ -683,19 +683,26 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         validate_concurrency(concurrency)
         return AMapStream(self, transformation, concurrency, ordered)
 
-    def observe(self, what: str = "elements") -> "Stream[T]":
+    def observe(
+        self,
+        what: str = "elements",
+        base: int = 2,
+        template: str = "[duration={duration}, errors={errors}] {yields} {what} yielded",
+    ) -> "Stream[T]":
         """
         Logs the progress of iteration over this stream.
 
-        To avoid flooding, logs are emitted only when the number of yielded elements (or errors) reaches powers of 2.
+        To avoid flooding, logs are emitted only when the number of yielded elements (+ errors) reaches powers of `base`.
 
         Args:
             what (str): A plural noun describing the yielded objects (e.g., "cats", "dogs").
+            base (int, optional): A new log will be emitted when the number of yields + errors reaches the next `base**n`. (default: base 2)
+            template (str, optional): The logs' format, the placeholders are 'what', 'duration', 'yields', 'errors'. (default: "[duration={duration}, errors={errors}] {yields} {what} yielded")
 
         Returns:
             Stream[T]: A stream of upstream elements with progress logging during iteration.
         """
-        return ObserveStream(self, what)
+        return ObserveStream(self, what, base, template)
 
     def skip(
         self, count: Optional[int] = None, *, until: Optional[Callable[[T], Any]] = None
@@ -1141,7 +1148,9 @@ class AMapStream(DownStream[T, U]):
 class ObserveStream(DownStream[T, T]):
     __slots__ = ("_upstream", "_what")
 
-    def __init__(self, upstream: Stream[T], what: str) -> None:
+    def __init__(
+        self, upstream: Stream[T], what: str, base: int, template: str
+    ) -> None:
         super().__init__(upstream)
         self._what = what
 

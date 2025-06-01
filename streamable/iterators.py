@@ -384,8 +384,8 @@ class ObserveIterator(Iterator[T]):
         self,
         iterator: Iterator[T],
         what: str,
-        base: int = 2,
-        template: str = "[duration={duration}, errors={errors}] {yields} {what} yielded",
+        base: int,
+        template: str,
     ) -> None:
         self.iterator = iterator
         self.what = what
