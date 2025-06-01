@@ -34,16 +34,6 @@ from typing import (
 
 from streamable.util.asynctools import awaitable_to_coroutine, empty_aiter
 from streamable.util.loggertools import get_logger
-from streamable.util.validationtools import (
-    validate_base,
-    validate_buffersize,
-    validate_concurrency,
-    validate_count,
-    validate_errors,
-    validate_group_size,
-    validate_iterator,
-    validate_optional_positive_interval,
-)
 
 T = TypeVar("T")
 U = TypeVar("U")
@@ -70,8 +60,6 @@ class CatchIterator(Iterator[T]):
         replacement: T,
         finally_raise: bool,
     ) -> None:
-        validate_iterator(iterator)
-        validate_errors(errors)
         self.iterator = iterator
         self.errors = errors
         self.when = when
@@ -104,7 +92,6 @@ class DistinctIterator(Iterator[T]):
     def __init__(
         self, iterator: Iterator[T], key: Optional[Callable[[T], Any]]
     ) -> None:
-        validate_iterator(iterator)
         self.iterator = iterator
         self.key = key
         self._already_seen: Set[Any] = set()
@@ -123,7 +110,6 @@ class ConsecutiveDistinctIterator(Iterator[T]):
     def __init__(
         self, iterator: Iterator[T], key: Optional[Callable[[T], Any]]
     ) -> None:
-        validate_iterator(iterator)
         self.iterator = iterator
         self.key = key
         self._last_key: Any = object()
@@ -140,7 +126,6 @@ class ConsecutiveDistinctIterator(Iterator[T]):
 
 class FlattenIterator(Iterator[U]):
     def __init__(self, iterator: Iterator[Iterable[U]]) -> None:
-        validate_iterator(iterator)
         self.iterator = iterator
         self._current_iterator_elem: Iterator[U] = tuple().__iter__()
 
@@ -158,7 +143,6 @@ class AFlattenIterator(Iterator[U]):
         event_loop: asyncio.AbstractEventLoop,
         iterator: Iterator[AsyncIterable[U]],
     ) -> None:
-        validate_iterator(iterator)
         self.iterator = iterator
         self.event_loop = event_loop
 
@@ -181,9 +165,6 @@ class _GroupIteratorMixin(Generic[T]):
         size: Optional[int],
         interval: Optional[datetime.timedelta],
     ) -> None:
-        validate_iterator(iterator)
-        validate_group_size(size)
-        validate_optional_positive_interval(interval)
         self.iterator = iterator
         self.size = size or cast(int, float("inf"))
         self.interval = interval
@@ -313,8 +294,6 @@ class GroupbyIterator(_GroupIteratorMixin[T], Iterator[Tuple[U, List[T]]]):
 
 class CountSkipIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], count: int) -> None:
-        validate_iterator(iterator)
-        validate_count(count)
         self.iterator = iterator
         self.count = count
         self._n_skipped = 0
@@ -332,7 +311,6 @@ class CountSkipIterator(Iterator[T]):
 
 class PredicateSkipIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], until: Callable[[T], Any]) -> None:
-        validate_iterator(iterator)
         self.iterator = iterator
         self.until = until
         self._done_skipping = False
@@ -350,8 +328,6 @@ class CountAndPredicateSkipIterator(Iterator[T]):
     def __init__(
         self, iterator: Iterator[T], count: int, until: Callable[[T], Any]
     ) -> None:
-        validate_iterator(iterator)
-        validate_count(count)
         self.iterator = iterator
         self.count = count
         self.until = until
@@ -371,8 +347,6 @@ class CountAndPredicateSkipIterator(Iterator[T]):
 
 class CountTruncateIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], count: int) -> None:
-        validate_iterator(iterator)
-        validate_count(count)
         self.iterator = iterator
         self.count = count
         self._current_count = 0
@@ -387,7 +361,6 @@ class CountTruncateIterator(Iterator[T]):
 
 class PredicateTruncateIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], when: Callable[[T], Any]) -> None:
-        validate_iterator(iterator)
         self.iterator = iterator
         self.when = when
         self._satisfied = False
@@ -404,9 +377,6 @@ class PredicateTruncateIterator(Iterator[T]):
 
 class ObserveIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], what: str, base: int = 2) -> None:
-        validate_iterator(iterator)
-        validate_base(base)
-
         self.iterator = iterator
         self.what = what
         self.base = base
@@ -455,7 +425,6 @@ class YieldsPerPeriodThrottleIterator(Iterator[T]):
         max_yields: int,
         period: datetime.timedelta,
     ) -> None:
-        validate_iterator(iterator)
         self.iterator = iterator
         self.max_yields = max_yields
         self._period_seconds = period.total_seconds()
@@ -530,8 +499,6 @@ class _ConcurrentMapIterableMixin(
         buffersize: int,
         ordered: bool,
     ) -> None:
-        validate_iterator(iterator)
-        validate_buffersize(buffersize)
         self.iterator = iterator
         self.buffersize = buffersize
         self.ordered = ordered
@@ -585,7 +552,6 @@ class _ConcurrentMapIterable(_ConcurrentMapIterableMixin[T, U]):
         via: "Literal['thread', 'process']",
     ) -> None:
         super().__init__(iterator, buffersize, ordered)
-        validate_concurrency(concurrency)
         self.transformation = transformation
         self.concurrency = concurrency
         self.executor: Executor
@@ -717,8 +683,6 @@ class _ConcurrentFlattenIterable(
         concurrency: int,
         buffersize: int,
     ) -> None:
-        validate_iterator(iterables_iterator)
-        validate_concurrency(concurrency)
         self.iterables_iterator = iterables_iterator
         self.concurrency = concurrency
         self.buffersize = buffersize
@@ -790,8 +754,6 @@ class _ConcurrentAFlattenIterable(
         concurrency: int,
         buffersize: int,
     ) -> None:
-        validate_iterator(iterables_iterator)
-        validate_concurrency(concurrency)
         self.iterables_iterator = iterables_iterator
         self.concurrency = concurrency
         self.buffersize = buffersize

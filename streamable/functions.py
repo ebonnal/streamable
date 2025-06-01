@@ -40,17 +40,6 @@ from streamable.iterators import (
 )
 from streamable.util.constants import NO_REPLACEMENT
 from streamable.util.functiontools import syncify
-from streamable.util.validationtools import (
-    validate_concurrency,
-    validate_errors,
-    validate_group_size,
-    validate_iterator,
-    # validate_not_none,
-    validate_optional_count,
-    validate_optional_positive_count,
-    validate_optional_positive_interval,
-    validate_via,
-)
 
 with suppress(ImportError):
     from typing import Literal
@@ -69,9 +58,6 @@ def catch(
     replacement: T = NO_REPLACEMENT,  # type: ignore
     finally_raise: bool = False,
 ) -> Iterator[T]:
-    validate_iterator(iterator)
-    validate_errors(errors)
-    # validate_not_none(finally_raise, "finally_raise")
     if errors is None:
         return iterator
     return CatchIterator(
@@ -109,8 +95,6 @@ def distinct(
     *,
     consecutive_only: bool = False,
 ) -> Iterator[T]:
-    validate_iterator(iterator)
-    # validate_not_none(consecutive_only, "consecutive_only")
     if consecutive_only:
         return ConsecutiveDistinctIterator(iterator, key)
     return DistinctIterator(iterator, key)
@@ -131,8 +115,6 @@ def adistinct(
 
 
 def flatten(iterator: Iterator[Iterable[T]], *, concurrency: int = 1) -> Iterator[T]:
-    validate_iterator(iterator)
-    validate_concurrency(concurrency)
     if concurrency == 1:
         return FlattenIterator(iterator)
     else:
@@ -149,8 +131,6 @@ def aflatten(
     *,
     concurrency: int = 1,
 ) -> Iterator[T]:
-    validate_iterator(iterator)
-    validate_concurrency(concurrency)
     if concurrency == 1:
         return AFlattenIterator(event_loop, iterator)
     else:
@@ -169,9 +149,6 @@ def group(
     interval: Optional[datetime.timedelta] = None,
     by: Optional[Callable[[T], Any]] = None,
 ) -> Iterator[List[T]]:
-    validate_iterator(iterator)
-    validate_group_size(size)
-    validate_optional_positive_interval(interval)
     if by is None:
         return GroupIterator(iterator, size, interval)
     return map(itemgetter(1), GroupbyIterator(iterator, by, size, interval))
@@ -200,9 +177,6 @@ def groupby(
     size: Optional[int] = None,
     interval: Optional[datetime.timedelta] = None,
 ) -> Iterator[Tuple[U, List[T]]]:
-    validate_iterator(iterator)
-    validate_group_size(size)
-    validate_optional_positive_interval(interval)
     return GroupbyIterator(iterator, key, size, interval)
 
 
@@ -230,11 +204,6 @@ def map(
     ordered: bool = True,
     via: "Literal['thread', 'process']" = "thread",
 ) -> Iterator[U]:
-    validate_iterator(iterator)
-    # validate_not_none(transformation, "transformation")
-    # validate_not_none(ordered, "ordered")
-    validate_concurrency(concurrency)
-    validate_via(via)
     if concurrency == 1:
         return builtins.map(transformation, iterator)
     else:
@@ -256,10 +225,6 @@ def amap(
     concurrency: int = 1,
     ordered: bool = True,
 ) -> Iterator[U]:
-    validate_iterator(iterator)
-    # validate_not_none(transformation, "transformation")
-    # validate_not_none(ordered, "ordered")
-    validate_concurrency(concurrency)
     if concurrency == 1:
         return map(syncify(event_loop, transformation), iterator)
     return ConcurrentAMapIterator(
@@ -272,8 +237,6 @@ def amap(
 
 
 def observe(iterator: Iterator[T], what: str) -> Iterator[T]:
-    validate_iterator(iterator)
-    # validate_not_none(what, "what")
     return ObserveIterator(iterator, what)
 
 
@@ -283,8 +246,6 @@ def skip(
     *,
     until: Optional[Callable[[T], Any]] = None,
 ) -> Iterator[T]:
-    validate_iterator(iterator)
-    validate_optional_count(count)
     if until is not None:
         if count is not None:
             return CountAndPredicateSkipIterator(iterator, count, until)
@@ -314,8 +275,6 @@ def throttle(
     *,
     per: Optional[datetime.timedelta] = None,
 ) -> Iterator[T]:
-    validate_optional_positive_count(count)
-    validate_optional_positive_interval(per, name="per")
     if count and per:
         iterator = YieldsPerPeriodThrottleIterator(iterator, count, per)
     return iterator
@@ -327,8 +286,6 @@ def truncate(
     *,
     when: Optional[Callable[[T], Any]] = None,
 ) -> Iterator[T]:
-    validate_iterator(iterator)
-    validate_optional_count(count)
     if count is not None:
         iterator = CountTruncateIterator(iterator, count)
     if when is not None:

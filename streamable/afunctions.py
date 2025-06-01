@@ -41,17 +41,6 @@ from streamable.aiterators import (
 )
 from streamable.util.constants import NO_REPLACEMENT
 from streamable.util.functiontools import asyncify
-from streamable.util.validationtools import (
-    validate_aiterator,
-    validate_concurrency,
-    validate_errors,
-    validate_group_size,
-    # validate_not_none,
-    validate_optional_count,
-    validate_optional_positive_count,
-    validate_optional_positive_interval,
-    validate_via,
-)
 
 with suppress(ImportError):
     from typing import Literal
@@ -89,9 +78,6 @@ def acatch(
     replacement: T = NO_REPLACEMENT,  # type: ignore
     finally_raise: bool = False,
 ) -> AsyncIterator[T]:
-    validate_aiterator(aiterator)
-    validate_errors(errors)
-    # validate_not_none(finally_raise, "finally_raise")
     if errors is None:
         return aiterator
     return ACatchAsyncIterator(
@@ -124,8 +110,6 @@ def adistinct(
     *,
     consecutive_only: bool = False,
 ) -> AsyncIterator[T]:
-    validate_aiterator(aiterator)
-    # validate_not_none(consecutive_only, "consecutive_only")
     if consecutive_only:
         return ConsecutiveADistinctAsyncIterator(aiterator, key)
     return ADistinctAsyncIterator(aiterator, key)
@@ -142,15 +126,12 @@ def afilter(
     aiterator: AsyncIterator[T],
     when: Callable[[T], Any],
 ) -> AsyncIterator[T]:
-    validate_aiterator(aiterator)
     return AFilterAsyncIterator(aiterator, when)
 
 
 def flatten(
     aiterator: AsyncIterator[Iterable[T]], *, concurrency: int = 1
 ) -> AsyncIterator[T]:
-    validate_aiterator(aiterator)
-    validate_concurrency(concurrency)
     if concurrency == 1:
         return FlattenAsyncIterator(aiterator)
     else:
@@ -164,8 +145,6 @@ def flatten(
 def aflatten(
     aiterator: AsyncIterator[AsyncIterable[T]], *, concurrency: int = 1
 ) -> AsyncIterator[T]:
-    validate_aiterator(aiterator)
-    validate_concurrency(concurrency)
     if concurrency == 1:
         return AFlattenAsyncIterator(aiterator)
     else:
@@ -198,9 +177,6 @@ def agroup(
     interval: Optional[datetime.timedelta] = None,
     by: Optional[Callable[[T], Coroutine[Any, Any, Any]]] = None,
 ) -> AsyncIterator[List[T]]:
-    validate_aiterator(aiterator)
-    validate_group_size(size)
-    validate_optional_positive_interval(interval)
     if by is None:
         return GroupAsyncIterator(aiterator, size, interval)
     return map(itemgetter(1), AGroupbyAsyncIterator(aiterator, by, size, interval))
@@ -223,9 +199,6 @@ def agroupby(
     size: Optional[int] = None,
     interval: Optional[datetime.timedelta] = None,
 ) -> AsyncIterator[Tuple[U, List[T]]]:
-    validate_aiterator(aiterator)
-    validate_group_size(size)
-    validate_optional_positive_interval(interval)
     return AGroupbyAsyncIterator(aiterator, key, size, interval)
 
 
@@ -237,11 +210,6 @@ def map(
     ordered: bool = True,
     via: "Literal['thread', 'process']" = "thread",
 ) -> AsyncIterator[U]:
-    validate_aiterator(aiterator)
-    # validate_not_none(transformation, "transformation")
-    # validate_not_none(ordered, "ordered")
-    validate_concurrency(concurrency)
-    validate_via(via)
     if concurrency == 1:
         return amap(asyncify(transformation), aiterator)
     else:
@@ -262,10 +230,6 @@ def amap(
     concurrency: int = 1,
     ordered: bool = True,
 ) -> AsyncIterator[U]:
-    validate_aiterator(aiterator)
-    # validate_not_none(transformation, "transformation")
-    # validate_not_none(ordered, "ordered")
-    validate_concurrency(concurrency)
     if concurrency == 1:
         return AMapAsyncIterator(aiterator, transformation)
     return ConcurrentAMapAsyncIterator(
@@ -277,8 +241,6 @@ def amap(
 
 
 def observe(aiterator: AsyncIterator[T], what: str) -> AsyncIterator[T]:
-    validate_aiterator(aiterator)
-    # validate_not_none(what, "what")
     return ObserveAsyncIterator(aiterator, what)
 
 
@@ -301,8 +263,6 @@ def askip(
     *,
     until: Optional[Callable[[T], Coroutine[Any, Any, Any]]] = None,
 ) -> AsyncIterator[T]:
-    validate_aiterator(aiterator)
-    validate_optional_count(count)
     if until is not None:
         if count is not None:
             return CountAndPredicateASkipAsyncIterator(aiterator, count, until)
@@ -318,8 +278,6 @@ def throttle(
     *,
     per: Optional[datetime.timedelta] = None,
 ) -> AsyncIterator[T]:
-    validate_optional_positive_count(count)
-    validate_optional_positive_interval(per, name="per")
     if count and per:
         aiterator = YieldsPerPeriodThrottleAsyncIterator(aiterator, count, per)
     return aiterator
@@ -344,8 +302,6 @@ def atruncate(
     *,
     when: Optional[Callable[[T], Coroutine[Any, Any, Any]]] = None,
 ) -> AsyncIterator[T]:
-    validate_aiterator(aiterator)
-    validate_optional_count(count)
     if count is not None:
         aiterator = CountTruncateAsyncIterator(aiterator, count)
     if when is not None:

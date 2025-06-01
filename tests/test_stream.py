@@ -2026,15 +2026,6 @@ class TestStream(unittest.TestCase):
 
         with self.assertRaisesRegex(
             TypeError,
-            "`iterator` must be an Iterator but got a <class 'list'>",
-            msg="`catch` function should raise TypeError when first argument is not an Iterator",
-        ):
-            from streamable.functions import catch
-
-            catch(cast(Iterator[int], [3, 4]), Exception)
-
-        with self.assertRaisesRegex(
-            TypeError,
             "`errors` must be None, or a subclass of `Exception`, or an iterable of optional subclasses of `Exception`, but got <class 'int'>",
             msg="`catch` should raise TypeError when first argument is not None or Type[Exception], or Iterable[Optional[Type[Exception]]]",
         ):
@@ -2245,15 +2236,6 @@ class TestStream(unittest.TestCase):
             list(src),
             msg="`acatch` should yield elements in exception-less scenarios",
         )
-
-        with self.assertRaisesRegex(
-            TypeError,
-            "`iterator` must be an AsyncIterator but got a <class 'list'>",
-            msg="`afunctions.acatch` function should raise TypeError when first argument is not an AsyncIterator",
-        ):
-            from streamable import afunctions
-
-            afunctions.acatch(cast(AsyncIterator, [3, 4]), Exception)
 
         with self.assertRaisesRegex(
             TypeError,

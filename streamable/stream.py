@@ -86,7 +86,6 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Args:
             source (Union[Iterable[T], Callable[[], Iterable[T]]]): The iterable to decorate. Can be specified via a function that will be called each time an iteration is started over the stream.
         """
-        # validate_not_none(source, "source")
         self._source = source
         self._upstream: "Optional[Stream]" = None
 
@@ -166,14 +165,12 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         """
         `a + b` returns a stream yielding all elements of `a`, followed by all elements of `b`.
         """
-        # validate_not_none(other, "other")
         return cast(Stream[T], Stream((self, other)).flatten())
 
     def accept(self, visitor: "Visitor[V]") -> V:
         """
         Entry point to visit this stream (en.wikipedia.org/wiki/Visitor_pattern).
         """
-        # validate_not_none(visitor, "visitor")
         return visitor.visit_stream(self)
 
     def display(self, level: int = logging.INFO) -> "Stream[T]":
@@ -186,7 +183,6 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Returns:
             Stream[T]: This stream.
         """
-        # validate_not_none(level, "level")
         get_logger().log(level, str(self))
         return self
 
@@ -229,7 +225,6 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Returns:
             U: Result of `func(self, *args, **kwargs)`.
         """
-        # validate_not_none(func, "func")
         return func(self, *args, **kwargs)
 
     def catch(
@@ -257,7 +252,6 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
             Stream[T]: A stream of upstream elements catching the eligible exceptions.
         """
         validate_errors(errors)
-        # validate_not_none(finally_raise, "finally_raise")
         return CatchStream(
             self,
             errors,
@@ -291,7 +285,6 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
             Stream[T]: A stream of upstream elements catching the eligible exceptions.
         """
         validate_errors(errors)
-        # validate_not_none(finally_raise, "finally_raise")
         return ACatchStream(
             self,
             errors,
@@ -324,7 +317,6 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Returns:
             Stream: A stream containing only unique upstream elements.
         """
-        # validate_not_none(consecutive_only, "consecutive_only")
         return DistinctStream(self, key, consecutive_only)
 
     def adistinct(
@@ -351,7 +343,6 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Returns:
             Stream: A stream containing only unique upstream elements.
         """
-        # validate_not_none(consecutive_only, "consecutive_only")
         return ADistinctStream(self, key, consecutive_only)
 
     def filter(self, when: Callable[[T], Any] = bool) -> "Stream[T]":
@@ -365,7 +356,6 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
             Stream[T]: A stream of upstream elements satisfying the `when` predicate.
         """
         # Unofficially accept `stream.filter(None)`, behaving as builtin `filter(None, iter)`
-        # validate_not_none(when, "when")
         return FilterStream(self, cast(Optional[Callable[[T], Any]], when) or bool)
 
     def afilter(self, when: Callable[[T], Coroutine[Any, Any, Any]]) -> "Stream[T]":
@@ -379,7 +369,6 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
             Stream[T]: A stream of upstream elements satisfying the `when` predicate.
         """
         # Unofficially accept `stream.afilter(None)`, behaving as builtin `filter(None, iter)`
-        # validate_not_none(when, "when")
         return AFilterStream(
             self,
             cast(Optional[Callable[[T], Coroutine[Any, Any, Any]]], when)
@@ -520,8 +509,6 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Returns:
             Stream[T]: A stream of upstream elements, unchanged.
         """
-        # validate_not_none(effect, "effect")
-        # validate_not_none(ordered, "ordered")
         validate_concurrency(concurrency)
         validate_via(via)
         return ForeachStream(self, effect, concurrency, ordered, via)
@@ -544,8 +531,6 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Returns:
             Stream[T]: A stream of upstream elements, unchanged.
         """
-        # validate_not_none(effect, "effect")
-        # validate_not_none(ordered, "ordered")
         validate_concurrency(concurrency)
         return AForeachStream(self, effect, concurrency, ordered)
 
@@ -628,7 +613,6 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Returns:
             Stream[Tuple[U, List[T]]]: A stream of upstream elements grouped by key, as `(key, elements)` tuples.
         """
-        # validate_not_none(key, "key")
         return GroupbyStream(self, key, size, interval)
 
     def agroupby(
@@ -654,7 +638,6 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Returns:
             Stream[Tuple[U, List[T]]]: A stream of upstream elements grouped by key, as `(key, elements)` tuples.
         """
-        # validate_not_none(key, "key")
         return AGroupbyStream(self, key, size, interval)
 
     def map(
@@ -676,8 +659,6 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Returns:
             Stream[R]: A stream of transformed elements.
         """
-        # validate_not_none(transformation, "transformation")
-        # validate_not_none(ordered, "ordered")
         validate_concurrency(concurrency)
         validate_via(via)
         return MapStream(self, transformation, concurrency, ordered, via)
@@ -699,8 +680,6 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Returns:
             Stream[R]: A stream of transformed elements.
         """
-        # validate_not_none(transformation, "transformation")
-        # validate_not_none(ordered, "ordered")
         validate_concurrency(concurrency)
         return AMapStream(self, transformation, concurrency, ordered)
 
@@ -716,7 +695,6 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Returns:
             Stream[T]: A stream of upstream elements with progress logging during iteration.
         """
-        # validate_not_none(what, "what")
         return ObserveStream(self, what)
 
     def skip(
