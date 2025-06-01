@@ -240,14 +240,14 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         if isinstance(stream.source, Iterable):
             return stream.source.__iter__()
         if isinstance(stream.source, AsyncIterable):
-            return async_to_sync_iter(self._get_event_loop(), stream.source)
+            return async_to_sync_iter(self._get_event_loop(), stream.source.__aiter__())
 
         if callable(stream.source):
             iterable = stream.source()
             if isinstance(iterable, Iterable):
                 return iterable.__iter__()
             if isinstance(iterable, AsyncIterable):
-                return async_to_sync_iter(self._get_event_loop(), iterable)
+                return async_to_sync_iter(self._get_event_loop(), iterable.__aiter__())
             raise TypeError(
                 f"`source` must be an Iterable/AsyncIterable or a Callable[[], Iterable/AsyncIterable] but got a Callable[[], {type(iterable)}]"
             )
