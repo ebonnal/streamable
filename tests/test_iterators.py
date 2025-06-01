@@ -20,7 +20,7 @@ class TestIterators(unittest.TestCase):
         ):
             concurrent_amap_async_iterable: _ConcurrentAMapAsyncIterable[int, int] = (
                 _ConcurrentAMapAsyncIterable(
-                    sync_to_async_iter(src),
+                    sync_to_async_iter(iter(src)),
                     async_identity,
                     buffersize=2,
                     ordered=True,

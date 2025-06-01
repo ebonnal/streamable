@@ -210,13 +210,13 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
 
     def visit_stream(self, stream: Stream[T]) -> AsyncIterator[T]:
         if isinstance(stream.source, Iterable):
-            return sync_to_async_iter(stream.source)
+            return sync_to_async_iter(stream.source.__iter__())
         if isinstance(stream.source, AsyncIterable):
             return stream.source.__aiter__()
         if callable(stream.source):
             iterable = stream.source()
             if isinstance(iterable, Iterable):
-                return sync_to_async_iter(iterable)
+                return sync_to_async_iter(iterable.__iter__())
             if isinstance(iterable, AsyncIterable):
                 return iterable.__aiter__()
             raise TypeError(
