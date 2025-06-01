@@ -8,7 +8,7 @@
 
 - 🔗 chain ***lazy*** operations
 - 🔀 ***concurrent*** via *threads*/*processes*/`async`
-- 🇹 ***typed***, `Stream[T]` is an `Iterable[T]` (and an `AsyncIterable[T]`)
+- 🇹 ***typed***, `Stream[T]` is an `Iterable[T]` and an `AsyncIterable[T]`
 - 🛡️ ***battle-tested*** for prod, extensively tested with CPython 3.7 to 3.15 and compatible with [PyPy](https://github.com/pypy/pypy).
 
 
