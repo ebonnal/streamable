@@ -414,10 +414,17 @@ class AFilterAsyncIterator(AsyncIterator[T]):
 
 
 class ObserveAsyncIterator(AsyncIterator[T]):
-    def __init__(self, iterator: AsyncIterator[T], what: str, base: int = 2) -> None:
+    def __init__(
+        self,
+        iterator: AsyncIterator[T],
+        what: str,
+        base: int = 2,
+        template: str = "[duration={duration}, errors={errors}] {yields} {what} yielded",
+    ) -> None:
         self.iterator = iterator
         self.what = what
         self.base = base
+        self.template = template
 
         self._n_yields = 0
         self._n_errors = 0
@@ -429,10 +436,13 @@ class ObserveAsyncIterator(AsyncIterator[T]):
 
     def _log(self) -> None:
         get_logger().info(
-            "[%s %s] %s",
-            f"duration={datetime.datetime.fromtimestamp(time.perf_counter()) - datetime.datetime.fromtimestamp(self._start_time)}",
-            f"errors={self._n_errors}",
-            f"{self._n_yields} {self.what} yielded",
+            self.template.format(
+                duration=datetime.datetime.fromtimestamp(time.perf_counter())
+                - datetime.datetime.fromtimestamp(self._start_time),
+                yields=self._n_yields,
+                what=self.what,
+                errors=self._n_errors,
+            )
         )
         self._logged_n_nexts = self._n_nexts
         self._next_threshold = self.base * self._logged_n_nexts
