@@ -15,6 +15,9 @@ python -m unittest tests.test_stream.TestStream.test_distinct
 
 # Design principles
 
+## Decorator Pattern
+A `Stream[T]` *decorates* an iterable with a fluent interface: it is instanciated from an `Iterable[T]`/`AsyncIterable[T]` and is an `Iterable[T]`/`AsyncIterable[T]`.
+
 ## Fluent Interface Pattern
 The lib is built around a single entry point, the `Stream` class. This is the only import required. This lib must be trivial to use, all the behaviors it exposes should be carefully named and designed to make them as self-explanatory as possible. A stream declaration should resemble natural language:
 ```python
@@ -28,6 +31,3 @@ Applying an operation simply performs argument validation and returns a new inst
 
 ## Visitor Pattern
 Each node in this composite structure exposes an `.accept` method enabling traversal by a visitor. `.__iter__`/`.__aiter__`/`.__repr__`/`.__str__`/`.__eq__` rely on visitor classes defined in the `streamable.visitors` package.
-
-## Decorator Pattern
-A `Stream[T]` *decorates* an iterable with a fluent interface: it is instanciated from an `Iterable[T]`/`AsyncIterable[T]` and is an `Iterable[T]`/`AsyncIterable[T]`.
