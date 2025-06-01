@@ -5,6 +5,7 @@ from concurrent.futures import Future
 from contextlib import suppress
 from typing import AsyncIterator, Awaitable, Deque, Iterator, Sized, Type, TypeVar, cast
 
+
 with suppress(ImportError):
     from streamable.util.protocols import Queue
 
