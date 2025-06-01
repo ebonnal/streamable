@@ -28,19 +28,9 @@ def validate_aiterator(iterator: AsyncIterator):
         )
 
 
-def validate_base(base: int):
-    if base <= 0:
-        raise ValueError(f"`base` must be > 0 but got {base}")
-
-
 def validate_concurrency(concurrency: int) -> None:
     if concurrency is None or concurrency < 1:
         raise ValueError(f"`concurrency` must be >= 1 but got {concurrency}")
-
-
-def validate_buffersize(buffersize: int) -> None:
-    if buffersize < 1:
-        raise ValueError(f"`buffersize` must be >= 1 but got {buffersize}")
 
 
 def validate_via(via: "Literal['thread', 'process']") -> None:
@@ -80,11 +70,6 @@ def validate_optional_count(count: Optional[int]):
 def validate_optional_positive_count(count: Optional[int]):
     if count is not None:
         validate_positive_count(count)
-
-
-# def validate_not_none(value: Any, name: str) -> None:
-#     if value is None:
-#         raise TypeError(f"`{name}` must not be None")
 
 
 def validate_errors(

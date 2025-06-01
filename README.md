@@ -811,7 +811,7 @@ stream: Stream[int] = (
 )
 ```
 
-and there is no overhead during iteration compared to builtins, `iter(stream)` (runtime: ~3μs) visits the operations lineage and returns:
+and there is no overhead during iteration compared to builtins, `iter(stream)` (runtime: ~2.6 μs) visits the operations lineage and returns:
 
 ```python
 filter(lambda i: i > 1_000, map(int, map(str, range(1_000_000))))
@@ -864,19 +864,6 @@ def depth(stream: Stream) -> int:
     return stream.accept(DepthVisitor())
 
 assert depth(Stream(range(10)).map(str).foreach(print)) == 3
-```
-</details>
-
-## Functions
-> [!TIP]
-> The `Stream`'s methods are also exposed as functions:
-<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
-
-```python
-from streamable.functions import catch
-
-inverse_integers: Iterator[int] = map(lambda n: 1 / n, range(10))
-safe_inverse_integers: Iterator[int] = catch(inverse_integers, ZeroDivisionError)
 ```
 </details>
 
