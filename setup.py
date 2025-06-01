@@ -7,7 +7,7 @@ setup(
     version=__version__,
     packages=find_packages(exclude=["tests"]),
     package_data={"streamable": ["py.typed"]},
-    url="http://github.com/ebonnal/streamable",
+    url="https://github.com/ebonnal/streamable",
     license="Apache 2.",
     author="ebonnal",
     author_email="bonnal.enzo.dev@gmail.com",
