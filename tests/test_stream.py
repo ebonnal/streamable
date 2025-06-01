@@ -120,12 +120,12 @@ class TestStream(unittest.TestCase):
     @parameterized.expand(ITERABLE_TYPES)
     def test_async_src(self, itype) -> None:
         self.assertEqual(
-            to_list(Stream(sync_to_async_iter(src)), itype),
+            to_list(Stream(sync_to_async_iter(iter(src))), itype),
             list(src),
             msg="a stream with an async source must be collectable as an Iterable or as AsyncIterable",
         )
         self.assertEqual(
-            to_list(Stream(sync_to_async_iter(src).__aiter__), itype),
+            to_list(Stream(sync_to_async_iter(iter(src)).__aiter__), itype),
             list(src),
             msg="a stream with an async source must be collectable as an Iterable or as AsyncIterable",
         )
@@ -758,7 +758,7 @@ class TestStream(unittest.TestCase):
         )
 
         flattened_asynciter_stream: Stream[str] = (
-            Stream("abc").map(sync_to_async_iter).aflatten()
+            Stream("abc").map(iter).map(sync_to_async_iter).aflatten()
         )
 
     @parameterized.expand(
@@ -2581,6 +2581,7 @@ class TestStream(unittest.TestCase):
             .group(3, by=bool)
             .flatten(concurrency=3)
             .agroup(3, by=async_identity)
+            .map(iter)
             .map(sync_to_async_iter)
             .aflatten(concurrency=3)
             .groupby(bool)
@@ -2609,6 +2610,7 @@ class TestStream(unittest.TestCase):
             .group(3, by=bool)
             .flatten(concurrency=3)
             .agroup(3, by=async_identity)
+            .map(iter)
             .map(sync_to_async_iter)
             .aflatten(concurrency=3)
             .groupby(bool)
@@ -2636,6 +2638,7 @@ class TestStream(unittest.TestCase):
             .group(3, by=bool)
             .flatten(concurrency=3)
             .agroup(3, by=async_identity)
+            .map(iter)
             .map(sync_to_async_iter)
             .aflatten(concurrency=3)
             .groupby(bool)
@@ -2663,6 +2666,7 @@ class TestStream(unittest.TestCase):
             .group(3, by=bool)
             .flatten(concurrency=3)
             .agroup(3, by=async_identity)
+            .map(iter)
             .map(sync_to_async_iter)
             .aflatten(concurrency=3)
             .groupby(bool)
