@@ -866,19 +866,6 @@ assert depth(Stream(range(10)).map(str).foreach(print)) == 3
 ```
 </details>
 
-## Functions
-> [!TIP]
-> The `Stream`'s methods are also exposed as functions:
-<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
-
-```python
-from streamable.functions import catch
-
-inverse_integers: Iterator[int] = map(lambda n: 1 / n, range(10))
-safe_inverse_integers: Iterator[int] = catch(inverse_integers, ZeroDivisionError)
-```
-</details>
-
 # Contributing
 **Many thanks to our [contributors](https://github.com/ebonnal/streamable/graphs/contributors)!**
 
