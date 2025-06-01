@@ -8,6 +8,8 @@ from typing import (
     TypeVar,
 )
 
+from streamable.util.asynctools import CloseEventLoopMixin
+
 T = TypeVar("T")
 
 
@@ -47,7 +49,7 @@ class SyncToAsyncIterator(AsyncIterator[T]):
 sync_to_async_iter: Callable[[Iterable[T]], AsyncIterator[T]] = SyncToAsyncIterator
 
 
-class AsyncToSyncIterator(Iterator[T]):
+class AsyncToSyncIterator(Iterator[T], CloseEventLoopMixin):
     def __init__(
         self,
         event_loop: asyncio.AbstractEventLoop,
@@ -66,18 +68,3 @@ class AsyncToSyncIterator(Iterator[T]):
 async_to_sync_iter: Callable[
     [asyncio.AbstractEventLoop, AsyncIterable[T]], Iterator[T]
 ] = AsyncToSyncIterator
-
-
-class IteratorWithClosingLoop(Iterator[T]):
-    def __init__(
-        self, iterator: Iterator[T], event_loop: asyncio.AbstractEventLoop
-    ) -> None:
-        self.iterator = iterator
-        self._event_loop = event_loop
-
-    def __next__(self) -> T:
-        return self.iterator.__next__()
-
-    def __del__(self) -> None:
-        if not self._event_loop.is_closed():
-            self._event_loop.close()

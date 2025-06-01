@@ -32,7 +32,11 @@ from typing import (
     cast,
 )
 
-from streamable.util.asynctools import awaitable_to_coroutine, empty_aiter
+from streamable.util.asynctools import (
+    CloseEventLoopMixin,
+    awaitable_to_coroutine,
+    empty_aiter,
+)
 from streamable.util.loggertools import get_logger
 
 T = TypeVar("T")
@@ -137,7 +141,7 @@ class FlattenIterator(Iterator[U]):
                 self._current_iterator_elem = self.iterator.__next__().__iter__()
 
 
-class AFlattenIterator(Iterator[U]):
+class AFlattenIterator(Iterator[U], CloseEventLoopMixin):
     def __init__(
         self,
         event_loop: asyncio.AbstractEventLoop,
@@ -616,7 +620,7 @@ class ConcurrentMapIterator(_RaisingIterator[U]):
         )
 
 
-class _ConcurrentAMapIterable(_ConcurrentMapIterableMixin[T, U]):
+class _ConcurrentAMapIterable(_ConcurrentMapIterableMixin[T, U], CloseEventLoopMixin):
     def __init__(
         self,
         event_loop: asyncio.AbstractEventLoop,
@@ -745,7 +749,7 @@ class ConcurrentFlattenIterator(_RaisingIterator[T]):
 
 
 class _ConcurrentAFlattenIterable(
-    Iterable[Union[T, _RaisingIterator.ExceptionContainer]]
+    Iterable[Union[T, _RaisingIterator.ExceptionContainer]], CloseEventLoopMixin
 ):
     def __init__(
         self,
