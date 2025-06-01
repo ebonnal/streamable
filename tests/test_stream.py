@@ -36,7 +36,6 @@ from streamable import Stream
 from streamable.util.asynctools import awaitable_to_coroutine
 from streamable.util.functiontools import anostop, asyncify, nostop, star
 from streamable.util.iterabletools import (
-    IteratorWithClosingLoop,
     sync_to_async_iter,
     sync_to_bi_iterable,
 )
@@ -2768,25 +2767,44 @@ class TestStream(unittest.TestCase):
         )
 
     def test_iter_loop_auto_closing(self) -> None:
-        iterator = iter(Stream(src).filter(identity))
-        self.assertNotIsInstance(
-            iterator,
-            IteratorWithClosingLoop,
-            msg="If the last operation is not an async operation, then iter should not return a `IteratorWithClosingLoop`.",
+        original_new_event_loop = asyncio.new_event_loop
+        created_event_loop: "queue.Queue[asyncio.AbstractEventLoop]" = queue.Queue(
+            maxsize=1
         )
-        iterator = iter(Stream(src).afilter(async_identity))
-        self.assertIsInstance(
-            iterator,
-            IteratorWithClosingLoop,
-            msg="If the last operation is an async operation, then iter should return a `IteratorWithClosingLoop`.",
-        )
-        event_loop = cast(IteratorWithClosingLoop, iterator)._event_loop
+
+        def tracking_new_event_loop():
+            loop = original_new_event_loop()
+            created_event_loop.put_nowait(loop)
+            return loop
+
+        asyncio.new_event_loop = tracking_new_event_loop
+
+        iterator_a = iter(Stream(src).afilter(async_identity))
+        loop_a = created_event_loop.get_nowait()
+        iterator_b = iter(Stream(src).afilter(async_identity))
+        loop_b = created_event_loop.get_nowait()
+
         self.assertFalse(
-            event_loop.is_closed(),
-            msg="the event loop should not be closed",
+            loop_a.is_closed(),
+            msg="iterator_a is not deleted, its loop should not be closed",
         )
-        del iterator
+        self.assertFalse(
+            loop_b.is_closed(),
+            msg="iterator_b is not deleted, its loop should not be closed",
+        )
+        del iterator_a
         self.assertTrue(
-            event_loop.is_closed(),
-            msg="The event loop should be closed if the iterator is deleted.",
+            loop_a.is_closed(),
+            msg="iterator_a is deleted, its loop should be closed",
         )
+        self.assertFalse(
+            loop_b.is_closed(),
+            msg="iterator_b is not deleted, its loop should not be closed",
+        )
+        del iterator_b
+        self.assertTrue(
+            loop_b.is_closed(),
+            msg="iterator_b is deleted, its loop should be closed",
+        )
+
+        asyncio.new_event_loop = original_new_event_loop

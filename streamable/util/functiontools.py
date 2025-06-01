@@ -10,6 +10,8 @@ from typing import (
     overload,
 )
 
+from streamable.util.asynctools import CloseEventLoopMixin
+
 T = TypeVar("T")
 R = TypeVar("R")
 
@@ -126,7 +128,7 @@ def star(func: Callable[..., R]) -> Callable[[Tuple], R]:
     return _Star(func)
 
 
-class _Syncify(Generic[T, R]):
+class _Syncify(Generic[T, R], CloseEventLoopMixin):
     def __init__(
         self,
         event_loop: asyncio.AbstractEventLoop,
