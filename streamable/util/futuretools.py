@@ -69,7 +69,7 @@ class FDFOOSFutureResultCollection(CallbackFutureResultCollection[T]):
         self._results: "Queue[T]" = queue_type()
 
     def _done_callback(self, future: "Future[T]") -> None:
-        self._results.put(future.result())
+        self._results.put_nowait(future.result())
 
     def __next__(self) -> T:
         result = self._results.get()
@@ -107,7 +107,7 @@ class FDFOAsyncFutureResultCollection(CallbackFutureResultCollection[T]):
         self._results: "asyncio.Queue[T]" = asyncio.Queue()
 
     def _done_callback(self, future: "Future[T]") -> None:
-        self.event_loop.create_task(self._results.put(future.result()))
+        self._results.put_nowait(future.result())
 
     def __next__(self) -> T:
         result = self.event_loop.run_until_complete(self._results.get())
