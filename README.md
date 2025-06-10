@@ -274,7 +274,7 @@ if __name__ == "__main__":
 ```
 </details>
 
-### `async`-based concurrency: `.amap`
+### coroutine-based concurrency: `.amap`
 
 > `.amap` can apply an `async` function concurrently.
 
