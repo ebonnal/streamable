@@ -18,6 +18,10 @@ python -m unittest tests.test_stream.TestStream.test_distinct
 ## Decorator Pattern
 A `Stream[T]` *decorates* an iterable with a fluent interface: it is instanciated from an `Iterable[T]`/`AsyncIterable[T]` and is an `Iterable[T]`/`AsyncIterable[T]`.
 
+## Single Responsability
+
+A `Stream` exposes a minimalist interface to manipulate elements, creating its source or consuming it is not its responsability, it should be used in combination with specialized libraries like `functools`, `csv`, `json`, `pyarrow`, `psycopg2`, `boto3`, `requests`, ...
+
 ## Fluent Interface Pattern
 The lib is built around a single entry point, the `Stream` class. This is the only import required. This lib must be trivial to use, all the behaviors it exposes should be carefully named and designed to make them as self-explanatory as possible. A stream declaration should resemble natural language:
 ```python
