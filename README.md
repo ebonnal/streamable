@@ -236,12 +236,6 @@ assert list(integer_strings) == ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9
 
 > Applies the transformation via `concurrency` threads.
 
-> [!NOTE]
-> **Memory-efficient**: Only `concurrency` upstream elements are pulled for processing; the next upstream element is pulled only when a result is yielded downstream.
-
-> [!NOTE]
-> **Ordering**: it yields results in the upstream order (FIFO), set `ordered=False` to yield results as they become available (*First Done, First Out*).
-
 <details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
@@ -258,6 +252,11 @@ assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
 ```
 </details>
 
+> [!NOTE]
+> **Memory-efficient**: Only `concurrency` upstream elements are pulled for processing; the next upstream element is pulled only when a result is yielded downstream.
+
+> [!NOTE]
+> **Ordering**: it yields results in the upstream order (FIFO), set `ordered=False` to yield results as they become available (*First Done, First Out*).
 
 ### process-based concurrency
 
