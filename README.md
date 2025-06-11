@@ -4,7 +4,7 @@
 
 # ༄ `streamable`
 
-### *Fluent interface for (async) iterables*
+### *concurrent & fluent interface for (async) iterables*
 
 - 🔗 chain ***lazy*** operations
 - 🔀 ***concurrent*** via threads / processes / coroutines

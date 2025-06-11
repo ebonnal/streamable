@@ -11,7 +11,7 @@ setup(
     license="Apache 2.",
     author="ebonnal",
     author_email="bonnal.enzo.dev@gmail.com",
-    description="Fluent interface for (async) iterables",
+    description="concurrent & fluent interface for (async) iterables",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
 )
