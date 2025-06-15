@@ -37,6 +37,7 @@ from streamable.util.asynctools import (
     awaitable_to_coroutine,
     empty_aiter,
 )
+from streamable.util.contextmanagertools import noop_context_manager
 from streamable.util.loggertools import get_logger
 
 T = TypeVar("T")
@@ -508,11 +509,7 @@ class _ConcurrentMapIterableMixin(
         self.ordered = ordered
 
     def _context_manager(self) -> ContextManager:
-        @contextmanager
-        def dummy_context_manager_generator():
-            yield
-
-        return dummy_context_manager_generator()
+        return noop_context_manager()
 
     @abstractmethod
     def _launch_task(
