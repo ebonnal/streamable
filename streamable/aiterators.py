@@ -576,7 +576,7 @@ class _ConcurrentMapAsyncIterableMixin(
                         self._launch_task(await self.iterator.__anext__())
                     )
 
-            # wait, queue, yield
+            # queue, wait, yield
             while future_results:
                 with suppress(StopAsyncIteration):
                     future_results.add_future(

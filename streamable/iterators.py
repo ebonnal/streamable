@@ -536,7 +536,7 @@ class _ConcurrentMapIterableMixin(
                         self._launch_task(self.iterator.__next__())
                     )
 
-            # wait, queue, yield
+            # queue, wait, yield
             while future_results:
                 with suppress(StopIteration):
                     future_results.add_future(
