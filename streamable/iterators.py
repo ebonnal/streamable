@@ -38,16 +38,15 @@ from streamable.util.asynctools import (
     empty_aiter,
 )
 from streamable.util.loggertools import get_logger
+from streamable.util.protocols import Queue
 
 T = TypeVar("T")
 U = TypeVar("U")
 
 from streamable.util.constants import NO_REPLACEMENT
 from streamable.util.futuretools import (
-    FDFOAsyncFutureResultCollection,
-    FDFOOSFutureResultCollection,
-    FIFOAsyncFutureResultCollection,
-    FIFOOSFutureResultCollection,
+    FDFOFutureResultCollection,
+    FIFOFutureResultCollection,
     FutureResultCollection,
 )
 
@@ -519,15 +518,16 @@ class _ConcurrentMapIterableMixin(
         self, elem: T
     ) -> "Future[Union[U, _RaisingIterator.ExceptionContainer]]": ...
 
-    # factory method
     @abstractmethod
-    def _future_result_collection(
-        self,
-    ) -> FutureResultCollection[Union[U, _RaisingIterator.ExceptionContainer]]: ...
+    def _queue_type(self) -> Type[Queue]: ...
 
     def __iter__(self) -> Iterator[Union[U, _RaisingIterator.ExceptionContainer]]:
         with self._context_manager():
-            future_results = self._future_result_collection()
+            future_results: FutureResultCollection
+            if self.ordered:
+                future_results = FIFOFutureResultCollection()
+            else:
+                future_results = FDFOFutureResultCollection(self._queue_type())
 
             # queue tasks up to buffersize
             with suppress(StopIteration):
@@ -588,14 +588,10 @@ class _ConcurrentMapIterable(_ConcurrentMapIterableMixin[T, U]):
             self._safe_transformation, self.transformation, elem
         )
 
-    def _future_result_collection(
-        self,
-    ) -> FutureResultCollection[Union[U, _RaisingIterator.ExceptionContainer]]:
-        if self.ordered:
-            return FIFOOSFutureResultCollection()
-        return FDFOOSFutureResultCollection(
-            multiprocessing.Queue if self.via == "process" else queue.Queue
-        )
+    def _queue_type(self) -> Type[Queue]:
+        if self.via == "process":
+            return multiprocessing.Queue
+        return queue.Queue
 
 
 class ConcurrentMapIterator(_RaisingIterator[U]):
@@ -649,13 +645,8 @@ class _ConcurrentAMapIterable(_ConcurrentMapIterableMixin[T, U], CloseEventLoopM
             self.event_loop.create_task(self._safe_transformation(elem)),
         )
 
-    def _future_result_collection(
-        self,
-    ) -> FutureResultCollection[Union[U, _RaisingIterator.ExceptionContainer]]:
-        if self.ordered:
-            return FIFOAsyncFutureResultCollection(self.event_loop)
-        else:
-            return FDFOAsyncFutureResultCollection(self.event_loop)
+    def _queue_type(self) -> Type[Queue]:
+        return queue.Queue
 
 
 class ConcurrentAMapIterator(_RaisingIterator[U]):

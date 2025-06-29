@@ -42,7 +42,6 @@ from streamable.util.validationtools import (
 
 if TYPE_CHECKING:  # pragma: no cover
     import builtins
-
     from typing import Literal
 
     from typing_extensions import Concatenate, ParamSpec
