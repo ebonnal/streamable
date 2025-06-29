@@ -488,13 +488,6 @@ class _RaisingIterator(Iterator[T]):
 class _ConcurrentMapIterableMixin(
     Generic[T, U], ABC, Iterable[Union[U, ErrorContainer]]
 ):
-    """
-    Template Method Pattern:
-    This abstract class's `__iter__` is a skeleton for a queue-based concurrent mapping algorithm
-    that relies on abstract helper methods (`_context_manager`, `_create_future`, `_future_result_collection`)
-    that must be implemented by concrete subclasses.
-    """
-
     queue_type: Type[Queue] = queue.Queue
 
     def __init__(

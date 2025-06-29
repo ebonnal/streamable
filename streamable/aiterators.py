@@ -38,6 +38,7 @@ from streamable.util.errortools import (
     raise_if_error,
 )
 from streamable.util.loggertools import get_logger
+from streamable.util.protocols import Queue
 
 T = TypeVar("T")
 U = TypeVar("U")
@@ -524,12 +525,7 @@ class _ConcurrentMapAsyncIterableMixin(
     ABC,
     AsyncIterable[Union[U, ErrorContainer]],
 ):
-    """
-    Template Method Pattern:
-    This abstract class's `__iter__` is a skeleton for a queue-based concurrent mapping algorithm
-    that relies on abstract helper methods (`_context_manager`, `_create_future`, `_future_result_collection`)
-    that must be implemented by concrete subclasses.
-    """
+    queue_type: Union[Type[Queue], Type[asyncio.Queue]] = asyncio.Queue
 
     def __init__(
         self,
@@ -559,7 +555,7 @@ class _ConcurrentMapAsyncIterableMixin(
             if self.ordered:
                 future_results = FIFOAFutureResultCollection()
             else:
-                future_results = FDFOAFutureResultCollection()
+                future_results = FDFOAFutureResultCollection(self.queue_type)
 
             # queue tasks up to buffersize
             with suppress(StopAsyncIteration):
@@ -592,6 +588,8 @@ class _ConcurrentMapAsyncIterable(_ConcurrentMapAsyncIterableMixin[T, U]):
         self.concurrency = concurrency
         self.executor: Executor
         self.via = via
+        if via == "process":
+            self.queue_type = multiprocessing.Queue
 
     def _context_manager(self) -> ContextManager:
         if self.via == "thread":

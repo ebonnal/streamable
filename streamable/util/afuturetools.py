@@ -2,7 +2,9 @@ import asyncio
 from abc import ABC, abstractmethod
 from collections import deque
 from contextlib import suppress
-from typing import AsyncIterator, Deque, Sized, TypeVar
+from typing import AsyncIterator, Deque, Sized, Type, TypeVar, Union
+
+from streamable.util.protocols import Queue
 
 with suppress(ImportError):
     pass
@@ -42,21 +44,26 @@ class FDFOAFutureResultCollection(AFutureResultCollection[T]):
     First Done First Out
     """
 
-    def __init__(self) -> None:
+    def __init__(self, queue_type: Union[Type[Queue], Type[asyncio.Queue]]) -> None:
         self._n_futures = 0
-        self._results: "asyncio.Queue[T]" = asyncio.Queue()
+        self._results: Union[Queue[T], asyncio.Queue[T]] = queue_type()
 
     def __len__(self) -> int:
         return self._n_futures
 
-    def add_future(self, future: "asyncio.Future[T]") -> None:
+    def add_future(self, future: asyncio.Future[T]) -> None:
         future.add_done_callback(self._done_callback)
         self._n_futures += 1
 
-    def _done_callback(self, future: "asyncio.Future[T]") -> None:
+    def _done_callback(self, future: asyncio.Future[T]) -> None:
         self._results.put_nowait(future.result())
 
     async def __anext__(self) -> T:
-        result = await self._results.get()
+        if isinstance(self._results, asyncio.Queue):
+            result = await self._results.get()
+        else:
+            result = await asyncio.get_running_loop().run_in_executor(
+                None, self._results.get
+            )
         self._n_futures -= 1
         return result
