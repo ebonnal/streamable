@@ -193,13 +193,13 @@ def randomly_slowed(
 
 
 def async_randomly_slowed(
-    async_func: Callable[[T], Coroutine[Any, Any, R]],
+    coro: Callable[[T], Coroutine[Any, Any, R]],
     min_sleep: float = 0.001,
     max_sleep: float = 0.05,
 ) -> Callable[[T], Coroutine[Any, Any, R]]:
     async def wrap(x: T) -> R:
         await asyncio.sleep(min_sleep + random.random() * (max_sleep - min_sleep))
-        return await async_func(x)
+        return await coro(x)
 
     return wrap
 

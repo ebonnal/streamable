@@ -37,6 +37,11 @@ from streamable.util.asynctools import (
     awaitable_to_coroutine,
     empty_aiter,
 )
+from streamable.util.errortools import (
+    ExceptionContainer,
+    acontainerize_errors,
+    containerize_errors,
+)
 from streamable.util.loggertools import get_logger
 from streamable.util.protocols import Queue
 
@@ -470,9 +475,6 @@ class YieldsPerPeriodThrottleIterator(Iterator[T]):
 
 
 class _RaisingIterator(Iterator[T]):
-    class ExceptionContainer(NamedTuple):
-        exception: Exception
-
     def __init__(
         self,
         iterator: Iterator[Union[T, ExceptionContainer]],
@@ -481,13 +483,13 @@ class _RaisingIterator(Iterator[T]):
 
     def __next__(self) -> T:
         elem = self.iterator.__next__()
-        if isinstance(elem, self.ExceptionContainer):
+        if isinstance(elem, ExceptionContainer):
             raise elem.exception
         return elem
 
 
 class _ConcurrentMapIterableMixin(
-    Generic[T, U], ABC, Iterable[Union[U, _RaisingIterator.ExceptionContainer]]
+    Generic[T, U], ABC, Iterable[Union[U, ExceptionContainer]]
 ):
     """
     Template Method Pattern:
@@ -518,9 +520,9 @@ class _ConcurrentMapIterableMixin(
     @abstractmethod
     def _launch_task(
         self, elem: T
-    ) -> "Union[Future[Union[U, _RaisingIterator.ExceptionContainer]], asyncio.Task[Union[U, _RaisingIterator.ExceptionContainer]]]": ...
+    ) -> "Union[Future[Union[U, ExceptionContainer]], asyncio.Task[Union[U, ExceptionContainer]]]": ...
 
-    def __iter__(self) -> Iterator[Union[U, _RaisingIterator.ExceptionContainer]]:
+    def __iter__(self) -> Iterator[Union[U, ExceptionContainer]]:
         with self._context_manager():
             future_results: FutureResultCollection
             if self.ordered:
@@ -572,22 +574,8 @@ class _ConcurrentMapIterable(_ConcurrentMapIterableMixin[T, U]):
             )
         return self.executor
 
-    # picklable
-    @staticmethod
-    def _safe_transformation(
-        transformation: Callable[[T], U], elem: T
-    ) -> Union[U, _RaisingIterator.ExceptionContainer]:
-        try:
-            return transformation(elem)
-        except Exception as e:
-            return _RaisingIterator.ExceptionContainer(e)
-
-    def _launch_task(
-        self, elem: T
-    ) -> "Future[Union[U, _RaisingIterator.ExceptionContainer]]":
-        return self.executor.submit(
-            self._safe_transformation, self.transformation, elem
-        )
+    def _launch_task(self, elem: T) -> "Future[Union[U, ExceptionContainer]]":
+        return self.executor.submit(containerize_errors(self.transformation), elem)
 
 
 class ConcurrentMapIterator(_RaisingIterator[U]):
@@ -625,18 +613,10 @@ class _ConcurrentAMapIterable(_ConcurrentMapIterableMixin[T, U], CloseEventLoopM
         self.transformation = transformation
         self.event_loop = event_loop
 
-    async def _safe_transformation(
-        self, elem: T
-    ) -> Union[U, _RaisingIterator.ExceptionContainer]:
-        try:
-            return await self.transformation(elem)
-        except Exception as e:
-            return _RaisingIterator.ExceptionContainer(e)
-
-    def _launch_task(
-        self, elem: T
-    ) -> "asyncio.Task[Union[U, _RaisingIterator.ExceptionContainer]]":
-        return self.event_loop.create_task(self._safe_transformation(elem))
+    def _launch_task(self, elem: T) -> "asyncio.Task[Union[U, ExceptionContainer]]":
+        return self.event_loop.create_task(
+            acontainerize_errors(self.transformation)(elem)
+        )
 
 
 class ConcurrentAMapIterator(_RaisingIterator[U]):
@@ -659,9 +639,7 @@ class ConcurrentAMapIterator(_RaisingIterator[U]):
         )
 
 
-class _ConcurrentFlattenIterable(
-    Iterable[Union[T, _RaisingIterator.ExceptionContainer]]
-):
+class _ConcurrentFlattenIterable(Iterable[Union[T, ExceptionContainer]]):
     def __init__(
         self,
         iterables_iterator: Iterator[Iterable[T]],
@@ -672,12 +650,10 @@ class _ConcurrentFlattenIterable(
         self.concurrency = concurrency
         self.buffersize = buffersize
 
-    def __iter__(self) -> Iterator[Union[T, _RaisingIterator.ExceptionContainer]]:
+    def __iter__(self) -> Iterator[Union[T, ExceptionContainer]]:
         with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
             iterator_and_future_pairs: Deque[Tuple[Iterator[T], Future]] = deque()
-            element_to_yield: Deque[Union[T, _RaisingIterator.ExceptionContainer]] = (
-                deque(maxlen=1)
-            )
+            element_to_yield: Deque[Union[T, ExceptionContainer]] = deque(maxlen=1)
             iterator_to_queue: Optional[Iterator[T]] = None
             # wait, queue, yield (FIFO)
             while True:
@@ -689,7 +665,7 @@ class _ConcurrentFlattenIterable(
                     except StopIteration:
                         pass
                     except Exception as e:
-                        element_to_yield.append(_RaisingIterator.ExceptionContainer(e))
+                        element_to_yield.append(ExceptionContainer(e))
                         iterator_to_queue = iterator
 
                 # queue tasks up to buffersize
@@ -702,7 +678,7 @@ class _ConcurrentFlattenIterable(
                         try:
                             iterator_to_queue = iterable.__iter__()
                         except Exception as e:
-                            yield _RaisingIterator.ExceptionContainer(e)
+                            yield ExceptionContainer(e)
                             continue
                     future = executor.submit(next, iterator_to_queue)
                     iterator_and_future_pairs.append((iterator_to_queue, future))
@@ -730,7 +706,7 @@ class ConcurrentFlattenIterator(_RaisingIterator[T]):
 
 
 class _ConcurrentAFlattenIterable(
-    Iterable[Union[T, _RaisingIterator.ExceptionContainer]], CloseEventLoopMixin
+    Iterable[Union[T, ExceptionContainer]], CloseEventLoopMixin
 ):
     def __init__(
         self,
@@ -744,13 +720,11 @@ class _ConcurrentAFlattenIterable(
         self.buffersize = buffersize
         self.event_loop = event_loop
 
-    def __iter__(self) -> Iterator[Union[T, _RaisingIterator.ExceptionContainer]]:
+    def __iter__(self) -> Iterator[Union[T, ExceptionContainer]]:
         iterator_and_future_pairs: Deque[Tuple[AsyncIterator[T], Awaitable[T]]] = (
             deque()
         )
-        element_to_yield: Deque[Union[T, _RaisingIterator.ExceptionContainer]] = deque(
-            maxlen=1
-        )
+        element_to_yield: Deque[Union[T, ExceptionContainer]] = deque(maxlen=1)
         iterator_to_queue: Optional[AsyncIterator[T]] = None
         # wait, queue, yield (FIFO)
         while True:
@@ -762,7 +736,7 @@ class _ConcurrentAFlattenIterable(
                 except StopAsyncIteration:
                     pass
                 except Exception as e:
-                    element_to_yield.append(_RaisingIterator.ExceptionContainer(e))
+                    element_to_yield.append(ExceptionContainer(e))
                     iterator_to_queue = iterator
 
             # queue tasks up to buffersize
@@ -775,7 +749,7 @@ class _ConcurrentAFlattenIterable(
                     try:
                         iterator_to_queue = iterable.__aiter__()
                     except Exception as e:
-                        yield _RaisingIterator.ExceptionContainer(e)
+                        yield ExceptionContainer(e)
                         continue
                 future = self.event_loop.create_task(
                     awaitable_to_coroutine(

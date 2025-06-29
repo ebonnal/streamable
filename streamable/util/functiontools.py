@@ -32,14 +32,14 @@ def nostop(func: Callable[[T], R]) -> Callable[[T], R]:
 
 
 def anostop(
-    async_func: Callable[[T], Coroutine[Any, Any, R]],
+    coro: Callable[[T], Coroutine[Any, Any, R]],
 ) -> Callable[[T], Coroutine[Any, Any, R]]:
     async def wrap(elem: T) -> R:
         try:
-            return await async_func(elem)
+            return await coro(elem)
         except (StopIteration, StopAsyncIteration) as e:
             raise RuntimeError(
-                f"{_get_name(async_func)} raised {e.__class__.__name__}"
+                f"{_get_name(coro)} raised {e.__class__.__name__}"
             ) from e
 
     return wrap
@@ -59,10 +59,10 @@ def sidify(func: Callable[[T], Any]) -> Callable[[T], T]:
 
 
 def async_sidify(
-    func: Callable[[T], Coroutine],
+    coro: Callable[[T], Coroutine],
 ) -> Callable[[T], Coroutine[Any, Any, T]]:
     async def wrap(arg: T) -> T:
-        await func(arg)
+        await coro(arg)
         return arg
 
     return wrap
@@ -132,20 +132,20 @@ class _Syncify(Generic[T, R], CloseEventLoopMixin):
     def __init__(
         self,
         event_loop: asyncio.AbstractEventLoop,
-        async_func: Callable[[T], Coroutine[Any, Any, R]],
+        coro: Callable[[T], Coroutine[Any, Any, R]],
     ) -> None:
-        self.async_func = async_func
+        self.coro = coro
         self.event_loop = event_loop
 
     def __call__(self, arg: T) -> R:
-        return self.event_loop.run_until_complete(self.async_func(arg))
+        return self.event_loop.run_until_complete(self.coro(arg))
 
 
 def syncify(
     event_loop: asyncio.AbstractEventLoop,
-    async_func: Callable[[T], Coroutine[Any, Any, R]],
+    coro: Callable[[T], Coroutine[Any, Any, R]],
 ) -> Callable[[T], R]:
-    return _Syncify(event_loop, async_func)
+    return _Syncify(event_loop, coro)
 
 
 async def _async_call(func: Callable[[T], R], o: T) -> R:
