@@ -619,8 +619,8 @@ class _ConcurrentMapAsyncIterable(_ConcurrentMapAsyncIterableMixin[T, U]):
     def _launch_task(
         self, elem: T
     ) -> "asyncio.Future[Union[U, _RaisingAsyncIterator.ExceptionContainer]]":
-        return asyncio.wrap_future(
-            self.executor.submit(self._safe_transformation, self.transformation, elem)
+        return asyncio.get_running_loop().run_in_executor(
+            self.executor, self._safe_transformation, self.transformation, elem
         )
 
 
@@ -740,8 +740,8 @@ class _ConcurrentFlattenAsyncIterable(
                         except Exception as e:
                             yield _RaisingAsyncIterator.ExceptionContainer(e)
                             continue
-                    future = asyncio.wrap_future(
-                        executor.submit(next, iterator_to_queue)
+                    future = asyncio.get_running_loop().run_in_executor(
+                        executor, next, iterator_to_queue
                     )
                     iterator_and_future_pairs.append((iterator_to_queue, future))
                     iterator_to_queue = None

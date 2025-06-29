@@ -496,6 +496,8 @@ class _ConcurrentMapIterableMixin(
     that must be implemented by concrete subclasses.
     """
 
+    queue_type: Type[Queue] = queue.Queue
+
     def __init__(
         self,
         iterator: Iterator[T],
@@ -518,16 +520,13 @@ class _ConcurrentMapIterableMixin(
         self, elem: T
     ) -> "Future[Union[U, _RaisingIterator.ExceptionContainer]]": ...
 
-    @abstractmethod
-    def _queue_type(self) -> Type[Queue]: ...
-
     def __iter__(self) -> Iterator[Union[U, _RaisingIterator.ExceptionContainer]]:
         with self._context_manager():
             future_results: FutureResultCollection
             if self.ordered:
                 future_results = FIFOFutureResultCollection()
             else:
-                future_results = FDFOFutureResultCollection(self._queue_type())
+                future_results = FDFOFutureResultCollection(self.queue_type)
 
             # queue tasks up to buffersize
             with suppress(StopIteration):
@@ -560,6 +559,8 @@ class _ConcurrentMapIterable(_ConcurrentMapIterableMixin[T, U]):
         self.concurrency = concurrency
         self.executor: Executor
         self.via = via
+        if via == "process":
+            self.queue_type = multiprocessing.Queue
 
     def _context_manager(self) -> ContextManager:
         if self.via == "thread":
@@ -587,11 +588,6 @@ class _ConcurrentMapIterable(_ConcurrentMapIterableMixin[T, U]):
         return self.executor.submit(
             self._safe_transformation, self.transformation, elem
         )
-
-    def _queue_type(self) -> Type[Queue]:
-        if self.via == "process":
-            return multiprocessing.Queue
-        return queue.Queue
 
 
 class ConcurrentMapIterator(_RaisingIterator[U]):
@@ -640,13 +636,10 @@ class _ConcurrentAMapIterable(_ConcurrentMapIterableMixin[T, U], CloseEventLoopM
     def _launch_task(
         self, elem: T
     ) -> "Future[Union[U, _RaisingIterator.ExceptionContainer]]":
-        return cast(
-            "Future[Union[U, _RaisingIterator.ExceptionContainer]]",
-            self.event_loop.create_task(self._safe_transformation(elem)),
+        return asyncio.run_coroutine_threadsafe(
+            self._safe_transformation(elem),
+            self.event_loop,
         )
-
-    def _queue_type(self) -> Type[Queue]:
-        return queue.Queue
 
 
 class ConcurrentAMapIterator(_RaisingIterator[U]):
