@@ -1,5 +1,5 @@
-from abc import ABC, abstractmethod
 import asyncio
+from abc import ABC, abstractmethod
 from collections import deque
 from concurrent.futures import Future
 from contextlib import suppress

@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Any, Callable, Coroutine, NamedTuple, TypeVar, Union, overload
+from typing import Any, Callable, Coroutine, NamedTuple, TypeVar, Union
 
 T = TypeVar("T")
 R = TypeVar("R")

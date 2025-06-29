@@ -21,7 +21,6 @@ from typing import (
     Iterable,
     Iterator,
     List,
-    NamedTuple,
     Optional,
     Set,
     Tuple,
