@@ -786,9 +786,7 @@ class _ConcurrentAFlattenAsyncIterable(AsyncIterable[Union[T, ErrorContainer]]):
                 future = asyncio.get_running_loop().create_task(
                     awaitable_to_coroutine(iterator_to_queue.__anext__())
                 )
-                iterator_and_future_pairs.append(
-                    (iterator_to_queue, future)
-                )
+                iterator_and_future_pairs.append((iterator_to_queue, future))
                 iterator_to_queue = None
             if element_to_yield:
                 yield element_to_yield.pop()
