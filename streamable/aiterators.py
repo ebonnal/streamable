@@ -682,22 +682,20 @@ class _ConcurrentFlattenAsyncIterable(AsyncIterable[Union[T, ErrorContainer]]):
         self,
     ) -> AsyncIterator[Union[T, ErrorContainer]]:
         with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
-            iterator_and_future_pairs: Deque[Tuple[Iterator[T], asyncio.Future]] = (
-                deque()
-            )
+            iterator_and_future_pairs: Deque[
+                Tuple[Iterator[T], asyncio.Future[Union[T, ErrorContainer]]]
+            ] = deque()
             element_to_yield: Deque[Union[T, ErrorContainer]] = deque(maxlen=1)
             iterator_to_queue: Optional[Iterator[T]] = None
             # wait, queue, yield (FIFO)
             while True:
                 if iterator_and_future_pairs:
                     iterator, future = iterator_and_future_pairs.popleft()
-                    try:
-                        element_to_yield.append(await future)
-                        iterator_to_queue = iterator
-                    except StopIteration:
-                        pass
-                    except Exception as e:
-                        element_to_yield.append(ErrorContainer(e))
+                    result = await future
+                    if not isinstance(result, ErrorContainer) or not isinstance(
+                        result.error, StopIteration
+                    ):
+                        element_to_yield.append(result)
                         iterator_to_queue = iterator
 
                 # queue tasks up to buffersize
