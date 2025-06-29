@@ -40,6 +40,7 @@ from streamable.util.errortools import (
     ErrorContainer,
     acontainerize_errors,
     containerize_errors,
+    raise_if_error,
 )
 from streamable.util.loggertools import get_logger
 from streamable.util.protocols import Queue
@@ -481,10 +482,7 @@ class _RaisingIterator(Iterator[T]):
         self.iterator = iterator
 
     def __next__(self) -> T:
-        elem = self.iterator.__next__()
-        if isinstance(elem, ErrorContainer):
-            raise elem.error
-        return elem
+        return raise_if_error(self.iterator.__next__())
 
 
 class _ConcurrentMapIterableMixin(
@@ -614,7 +612,7 @@ class _ConcurrentAMapIterable(_ConcurrentMapIterableMixin[T, U], CloseEventLoopM
 
     def _launch_task(self, elem: T) -> "asyncio.Task[Union[U, ErrorContainer]]":
         return self.event_loop.create_task(
-            acontainerize_errors(self.transformation)(elem)
+            acontainerize_errors(self.transformation(elem))
         )
 
 
@@ -751,9 +749,7 @@ class _ConcurrentAFlattenIterable(
                         yield ErrorContainer(e)
                         continue
                 future = self.event_loop.create_task(
-                    awaitable_to_coroutine(
-                        cast(AsyncIterator, iterator_to_queue).__anext__()
-                    )
+                    awaitable_to_coroutine(iterator_to_queue.__anext__())
                 )
                 iterator_and_future_pairs.append(
                     (cast(AsyncIterator, iterator_to_queue), future)

@@ -36,6 +36,7 @@ from streamable.util.errortools import (
     ErrorContainer,
     acontainerize_errors,
     containerize_errors,
+    raise_if_error,
 )
 from streamable.util.loggertools import get_logger
 
@@ -516,10 +517,7 @@ class _RaisingAsyncIterator(AsyncIterator[T]):
         self.iterator = iterator
 
     async def __anext__(self) -> T:
-        elem = await self.iterator.__anext__()
-        if isinstance(elem, ErrorContainer):
-            raise elem.error
-        return elem
+        return raise_if_error(await self.iterator.__anext__())
 
 
 class _ConcurrentMapAsyncIterableMixin(
@@ -552,9 +550,7 @@ class _ConcurrentMapAsyncIterableMixin(
         return dummy_context_manager_generator()
 
     @abstractmethod
-    def _launch_task(
-        self, elem: T
-    ) -> "asyncio.Future[Union[U, ErrorContainer]]": ...
+    def _launch_task(self, elem: T) -> "asyncio.Future[Union[U, ErrorContainer]]": ...
 
     async def __aiter__(
         self,
@@ -649,7 +645,7 @@ class _ConcurrentAMapAsyncIterable(_ConcurrentMapAsyncIterableMixin[T, U]):
 
     def _launch_task(self, elem: T) -> "asyncio.Future[Union[U, ErrorContainer]]":
         return asyncio.get_running_loop().create_task(
-            acontainerize_errors(self.transformation)(elem)
+            acontainerize_errors(self.transformation(elem))
         )
 
 
@@ -696,10 +692,7 @@ class _ConcurrentFlattenAsyncIterable(AsyncIterable[Union[T, ErrorContainer]]):
                 if iterator_and_future_pairs:
                     iterator, future = iterator_and_future_pairs.popleft()
                     try:
-                        result = await future
-                        if isinstance(result, ErrorContainer):
-                            raise result.error
-                        element_to_yield.append(result)
+                        element_to_yield.append(await future)
                         iterator_to_queue = iterator
                     except StopIteration:
                         pass
@@ -720,7 +713,7 @@ class _ConcurrentFlattenAsyncIterable(AsyncIterable[Union[T, ErrorContainer]]):
                             yield ErrorContainer(e)
                             continue
                     future = asyncio.get_running_loop().run_in_executor(
-                        executor, next, iterator_to_queue
+                        executor, containerize_errors(next), iterator_to_queue
                     )
                     iterator_and_future_pairs.append((iterator_to_queue, future))
                     iterator_to_queue = None
@@ -791,12 +784,10 @@ class _ConcurrentAFlattenAsyncIterable(AsyncIterable[Union[T, ErrorContainer]]):
                         yield ErrorContainer(e)
                         continue
                 future = asyncio.get_running_loop().create_task(
-                    awaitable_to_coroutine(
-                        cast(AsyncIterator, iterator_to_queue).__anext__()
-                    )
+                    awaitable_to_coroutine(iterator_to_queue.__anext__())
                 )
                 iterator_and_future_pairs.append(
-                    (cast(AsyncIterator, iterator_to_queue), future)
+                    (iterator_to_queue, future)
                 )
                 iterator_to_queue = None
             if element_to_yield:
