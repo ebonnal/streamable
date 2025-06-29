@@ -48,6 +48,7 @@ from streamable.util.futuretools import (
     FDFOFutureResultCollection,
     FIFOFutureResultCollection,
     FutureResultCollection,
+    TaskToFuture,
 )
 
 with suppress(ImportError):
@@ -636,9 +637,8 @@ class _ConcurrentAMapIterable(_ConcurrentMapIterableMixin[T, U], CloseEventLoopM
     def _launch_task(
         self, elem: T
     ) -> "Future[Union[U, _RaisingIterator.ExceptionContainer]]":
-        return asyncio.run_coroutine_threadsafe(
-            self._safe_transformation(elem),
-            self.event_loop,
+        return TaskToFuture(
+            self.event_loop.create_task(self._safe_transformation(elem)),
         )
 
 

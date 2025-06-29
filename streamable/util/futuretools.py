@@ -1,13 +1,24 @@
 from abc import ABC, abstractmethod
+import asyncio
 from collections import deque
 from concurrent.futures import Future
 from contextlib import suppress
-from typing import Deque, Iterator, Sized, Type, TypeVar
+from typing import Deque, Iterator, Optional, Sized, Type, TypeVar
 
 with suppress(ImportError):
     from streamable.util.protocols import Queue
 
 T = TypeVar("T")
+
+
+class TaskToFuture(Future[T]):
+    def __init__(self, task: asyncio.Task[T]) -> None:
+        self.task = task
+
+    def result(self, timeout: Optional[float] = None) -> T:
+        if timeout:
+            raise NotImplementedError("the timeout parameter is not supported")
+        return self.task.get_loop().run_until_complete(self.task)
 
 
 class FutureResultCollection(Iterator[T], Sized, ABC):
