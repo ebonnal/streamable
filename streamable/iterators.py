@@ -48,7 +48,6 @@ from streamable.util.futuretools import (
     FDFOFutureResultCollection,
     FIFOFutureResultCollection,
     FutureResultCollection,
-    TaskToFuture,
 )
 
 with suppress(ImportError):
@@ -519,7 +518,7 @@ class _ConcurrentMapIterableMixin(
     @abstractmethod
     def _launch_task(
         self, elem: T
-    ) -> "Future[Union[U, _RaisingIterator.ExceptionContainer]]": ...
+    ) -> "Union[Future[Union[U, _RaisingIterator.ExceptionContainer]], asyncio.Task[Union[U, _RaisingIterator.ExceptionContainer]]]": ...
 
     def __iter__(self) -> Iterator[Union[U, _RaisingIterator.ExceptionContainer]]:
         with self._context_manager():
@@ -636,10 +635,8 @@ class _ConcurrentAMapIterable(_ConcurrentMapIterableMixin[T, U], CloseEventLoopM
 
     def _launch_task(
         self, elem: T
-    ) -> "Future[Union[U, _RaisingIterator.ExceptionContainer]]":
-        return TaskToFuture(
-            self.event_loop.create_task(self._safe_transformation(elem)),
-        )
+    ) -> "asyncio.Task[Union[U, _RaisingIterator.ExceptionContainer]]":
+        return self.event_loop.create_task(self._safe_transformation(elem))
 
 
 class ConcurrentAMapIterator(_RaisingIterator[U]):
