@@ -794,13 +794,9 @@ class _ConcurrentAFlattenIterable(
                         yield _RaisingIterator.ExceptionContainer(e)
                         continue
                 future = self.event_loop.create_task(
-                    awaitable_to_coroutine(
-                        cast(AsyncIterator, iterator_to_queue).__anext__()
-                    )
+                    awaitable_to_coroutine(iterator_to_queue.__anext__())
                 )
-                iterator_and_future_pairs.append(
-                    (cast(AsyncIterator, iterator_to_queue), future)
-                )
+                iterator_and_future_pairs.append((iterator_to_queue, future))
                 iterator_to_queue = None
             if element_to_yield:
                 yield element_to_yield.pop()
