@@ -1,6 +1,14 @@
+# Phony targets are not real files
 .PHONY: all help venv test type-check format format-check
 
 VENV_DIR := .venv
+
+# In CI, use the system python. Otherwise, use the venv's python.
+ifeq ($(CI),true)
+PYTHON := python
+else
+PYTHON := $(VENV_DIR)/bin/python
+endif
 
 all: venv test type-check format
 
@@ -18,15 +26,15 @@ venv:
 	$(VENV_DIR)/bin/pip install -r requirements-dev.txt
 
 test:
-	$(VENV_DIR)/bin/python -m coverage run -m unittest -v --failfast
-	$(VENV_DIR)/bin/coverage report -m
-	$(VENV_DIR)/bin/coverage html
+	$(PYTHON) -m coverage run -m unittest -v --failfast
+	$(PYTHON) -m coverage report -m
+	$(PYTHON) -m coverage html
 
 type-check:
-	$(VENV_DIR)/bin/python -m mypy --install-types --non-interactive streamable tests
+	$(PYTHON) -m mypy --install-types --non-interactive streamable tests
 
 format:
-	$(VENV_DIR)/bin/python -m ruff format streamable tests
+	$(PYTHON) -m ruff format streamable tests
 
 format-check:
-	$(VENV_DIR)/bin/python -m ruff format --check streamable tests
+	$(PYTHON) -m ruff format --check streamable tests
