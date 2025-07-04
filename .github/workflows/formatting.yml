@@ -5,16 +5,16 @@ on:
     paths:
       - 'streamable/**'
       - 'tests/**'
-      - '.github/workflows/lint.yml'
+      - '.github/workflows/formatting.yml'
 
 jobs:
   formatting:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v4
     - name: Set up Python 3.9
-      uses: actions/setup-python@v1
+      uses: actions/setup-python@v4
       with:
         python-version: 3.9
 
