@@ -27,7 +27,7 @@ from streamable import Stream
 
 ## 3. init
 
-Create a `Stream[T]` *decorating* an `Iterable[T]` (or an `AsyncIterable[T]`):
+Create a `Stream[T]` ***decorating*** an `Iterable[T]` (or an `AsyncIterable[T]`):
 
 ```python
 integers: Stream[int] = Stream(range(10))
@@ -47,7 +47,7 @@ inverses: Stream[float] = (
 
 ## 5. iterate
 
-Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`, elements are processed *on-the-fly*:
+Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`, elements are processed ***on-the-fly***:
 
 - `list(inverses)`
 - `set(inverses)`
