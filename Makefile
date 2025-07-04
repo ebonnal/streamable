@@ -1,3 +1,5 @@
+.PHONY: all help venv test type-check format format-check
+
 VENV_DIR := .venv
 
 all: venv test type-check format
