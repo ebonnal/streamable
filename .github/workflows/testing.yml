@@ -29,6 +29,8 @@ jobs:
             python-version: '3.12.1'
           - os: ubuntu-latest
             python-version: '3.13.1'
+          - os: ubuntu-latest
+            python-version: 'pypy-3.10'
           # Python 3.7.17 on an older Ubuntu runner
           - os: ubuntu-22.04
             python-version: '3.7.17'
