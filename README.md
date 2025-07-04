@@ -47,18 +47,18 @@ inverses: Stream[float] = (
 
 ## 5. iterate
 
-Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`, elements are processed ***on-the-fly***:
+Iterate over a `Stream[T]` just as you would over any other `Iterable[T]` (or `AsyncIterable[T]`), elements are processed ***on-the-fly***.
 
-- `list(inverses)`
-- `set(inverses)`
-- `[inverse for inverse in inverses]`
-- `functools.reduce(operator.mul, inverses)`
-- `next(iter(inverses))`
+- consume as an `Iterable[T]`:
+  - `list(inverses)`
+  - `set(inverses)`
+  - `[inverse for inverse in inverses]`
+  - `functools.reduce(operator.mul, inverses)`
+  - `next(iter(inverses))`
 
-or as an `AsyncIterable[T]` (when applying async operations like `.amap`):
-
-- `[inverse async for inverse in inverses]`
-- `anext(aiter(inverses))`
+- consume as an `AsyncIterable[T]` (makes sense when async operations like `.amap` are involved):
+  - `[inverse async for inverse in inverses]`
+  - `anext(aiter(inverses))`
 
 
 # ↔ Showcase: Extract-Transform-Load
