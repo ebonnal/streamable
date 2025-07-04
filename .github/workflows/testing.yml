@@ -14,8 +14,9 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ['3.7.17', '3.14.0-beta.1']
+        python-version: ['3.14.0-beta.1'] # Default to latest Python for all OS
         include:
+          # Specific Ubuntu Python versions
           - os: ubuntu-latest
             python-version: '3.8.18'
           - os: ubuntu-latest
@@ -28,6 +29,14 @@ jobs:
             python-version: '3.12.1'
           - os: ubuntu-latest
             python-version: '3.13.1'
+          # Python 3.7.17 on an older Ubuntu runner
+          - os: ubuntu-22.04
+            python-version: '3.7.17'
+          # First Python version for macOS and Windows
+          - os: macos-latest
+            python-version: '3.7.17'
+          - os: windows-latest
+            python-version: '3.7.17'
 
     steps:
       - uses: actions/checkout@v4
