@@ -47,70 +47,25 @@ inverses: Stream[float] = (
 
 ## 5. iterate
 
-Iterate over a `Stream[T]` just as you would over any other `Iterable[T]` (or `AsyncIterable[T]`), elements are processed *on-the-fly*:
+Iterate over a `Stream[T]` just as you would over any other `Iterable[T]`, elements are processed *on-the-fly*:
 
+- `list(inverses)`
+- `set(inverses)`
+- `[inverse for inverse in inverses]`
+- `functools.reduce(operator.mul, inverses)`
+- `next(iter(inverses))`
 
-### as an `Iterable[T]`
+or as an `AsyncIterable[T]` (when applying async operations like `.amap`):
 
-<details ><summary style="text-indent: 40px;">👀 show snippets</summary></br>
-
-- **into data structure**
-```python
->>> list(inverses)
-[1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
->>> set(inverses)
-{0.5, 1.0, 0.2, 0.33, 0.25, 0.17, 0.14, 0.12, 0.11}
-```
-
-- **`for`**
-```python
->>> [inverse for inverse in inverses]:
-[1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
-```
-
-- **`reduce`**
-```python
->>> sum(inverses)
-2.82
->>> from functools import reduce
->>> reduce(..., inverses)
-```
-
-- **`iter`/`next`**
-```python
->>> next(iter(inverses))
-1.0
-```
-
-</details>
-
-### as an `AsyncIterable[T]`
-
-<details ><summary style="text-indent: 40px;">👀 show snippets</summary></br>
-
-- **`async for`**
-```python
->>> async def main() -> List[float]:
->>>     return [inverse async for inverse in inverses]
-
->>> asyncio.run(main())
-[1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
-```
-
-- **`aiter`/`anext`**
-```python
->>> asyncio.run(anext(aiter(inverses)))  # before 3.10: inverses.__aiter__().__anext__()
-1.0
-```
-
-</details>
+- `[inverse async for inverse in inverses]`
+- `anext(aiter(inverses))`
 
 
 # ↔ Showcase: Extract-Transform-Load
 
-Let's take an example showcasing most of the `Stream`'s operations:
+Let's take an example showcasing most of the `Stream`'s operations.
 
-This script extracts the 67 quadruped Pokémons from the first three generations using [PokéAPI](https://pokeapi.co/) and loads them into a CSV:
+This script fetches Pokémons from [PokéAPI](https://pokeapi.co/) and writes the quadruped ones from the first three generations by batch into a CSV:
 
 ```python
 import csv
@@ -154,12 +109,14 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
         .catch(Exception, finally_raise=True)
     )
 
+    # Start a full iteration
     pipeline()
 ```
 
-## or the `async` way
+## ... or the `async` way
 
-Use the `.amap` operation and `await` the `Stream`:
+- instead of fetching Pokemons concurrently via threads using `requests` and the `.map` operation, let's **fetch them concurrently via coroutines** using `httpx` and the `.amap` operation
+- instead of calling `pipeline()` to iterate over it as an `Iterable`, let's `await pipeline` to iterate over it as an `AsyncIterable`
 
 ```python
 import asyncio
@@ -206,10 +163,95 @@ async def main() -> None:
                 .catch(Exception, finally_raise=True)
             )
 
+            # Start a full async iteration
             await pipeline
 
 asyncio.run(main())
 ```
+
+# 💡 Notes
+
+## Performances
+
+Creating a `Stream` is lazy and fast,
+
+```python
+stream: Stream[int] = (
+    Stream(range(1_000_000))
+    .map(str)
+    .map(int)
+    .filter(lambda i: i > 1_000)
+)
+```
+
+and there is **zero overhead during iteration compared to builtins** because `iter(stream)` visits the operations lineage and simply returns:
+
+```python
+filter(lambda i: i > 1_000, map(int, map(str, range(1_000_000))))
+```
+
+## Exceptions are not terminating the iteration
+
+> [!TIP]
+> If any of the operations raises an exception, you can resume the iteration after handling it:
+
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
+
+```python
+from contextlib import suppress
+
+casted_ints: Iterator[int] = iter(
+    Stream("0123_56789")
+    .map(int)
+    .group(3)
+    .flatten()
+)
+collected: List[int] = []
+
+with suppress(ValueError):
+    collected.extend(casted_ints)
+assert collected == [0, 1, 2, 3]
+
+collected.extend(casted_ints)
+assert collected == [0, 1, 2, 3, 5, 6, 7, 8, 9]
+```
+
+</details >
+
+## Visitor Pattern
+> [!TIP]
+> A `Stream` can be visited via its `.accept` method: implement a custom [***visitor***](https://en.wikipedia.org/wiki/Visitor_pattern) by extending the abstract class `streamable.visitors.Visitor`:
+
+<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
+
+```python
+from streamable.visitors import Visitor
+
+class DepthVisitor(Visitor[int]):
+    def visit_stream(self, stream: Stream) -> int:
+        if not stream.upstream:
+            return 1
+        return 1 + stream.upstream.accept(self)
+
+def depth(stream: Stream) -> int:
+    return stream.accept(DepthVisitor())
+
+assert depth(Stream(range(10)).map(str).foreach(print)) == 3
+```
+</details>
+
+## Contributing
+**Many thanks to our [contributors](https://github.com/ebonnal/streamable/graphs/contributors)!**
+
+Feel very welcome to help us improve `streamable` via issues and PRs, check [CONTRIBUTING.md](CONTRIBUTING.md).
+
+
+## 🙏 Community Highlights – Thank You!
+- [Tryolabs' Top 10 Python libraries of 2024](https://tryolabs.com/blog/top-python-libraries-2024#top-10---general-use) ([LinkedIn](https://www.linkedin.com/posts/tryolabs_top-python-libraries-2024-activity-7273052840984539137-bcGs?utm_source=share&utm_medium=member_desktop), [Reddit](https://www.reddit.com/r/Python/comments/1hbs4t8/the_handpicked_selection_of_the_best_python/))
+- [PyCoder’s Weekly](https://pycoders.com/issues/651) x [Real Python](https://realpython.com/)
+- [@PythonHub's tweet](https://x.com/PythonHub/status/1842886311369142713)
+- [Upvoters on our showcase Reddit post](https://www.reddit.com/r/Python/comments/1fp38jd/streamable_streamlike_manipulation_of_iterables/)
+
 
 # 📒 ***Operations***
 
@@ -793,86 +835,3 @@ import pandas as pd
 )
 ```
 </details>
-
-# 💡 Notes
-
-## Performances
-
-Creating a `Stream` is lazy and fast,
-
-```python
-stream: Stream[int] = (
-    Stream(range(1_000_000))
-    .map(str)
-    .map(int)
-    .filter(lambda i: i > 1_000)
-)
-```
-
-and there is no overhead during iteration compared to builtins, `iter(stream)` visits the operations lineage and returns:
-
-```python
-filter(lambda i: i > 1_000, map(int, map(str, range(1_000_000))))
-```
-
-## Exceptions are not terminating the iteration
-
-> [!TIP]
-> If any of the operations raises an exception, you can resume the iteration after handling it:
-
-<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
-
-```python
-from contextlib import suppress
-
-casted_ints: Iterator[int] = iter(
-    Stream("0123_56789")
-    .map(int)
-    .group(3)
-    .flatten()
-)
-collected: List[int] = []
-
-with suppress(ValueError):
-    collected.extend(casted_ints)
-assert collected == [0, 1, 2, 3]
-
-collected.extend(casted_ints)
-assert collected == [0, 1, 2, 3, 5, 6, 7, 8, 9]
-```
-
-</details >
-
-## Visitor Pattern
-> [!TIP]
-> A `Stream` can be visited via its `.accept` method: implement a custom [***visitor***](https://en.wikipedia.org/wiki/Visitor_pattern) by extending the abstract class `streamable.visitors.Visitor`:
-
-<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
-
-```python
-from streamable.visitors import Visitor
-
-class DepthVisitor(Visitor[int]):
-    def visit_stream(self, stream: Stream) -> int:
-        if not stream.upstream:
-            return 1
-        return 1 + stream.upstream.accept(self)
-
-def depth(stream: Stream) -> int:
-    return stream.accept(DepthVisitor())
-
-assert depth(Stream(range(10)).map(str).foreach(print)) == 3
-```
-</details>
-
-# Contributing
-**Many thanks to our [contributors](https://github.com/ebonnal/streamable/graphs/contributors)!**
-
-Feel very welcome to help us improve `streamable` via issues and PRs, check [CONTRIBUTING.md](CONTRIBUTING.md).
-
-
-# 🙏 Community Highlights – Thank You!
-- [Tryolabs' Top Python libraries of 2024](https://tryolabs.com/blog/top-python-libraries-2024#top-10---general-use) ([LinkedIn](https://www.linkedin.com/posts/tryolabs_top-python-libraries-2024-activity-7273052840984539137-bcGs?utm_source=share&utm_medium=member_desktop), [Reddit](https://www.reddit.com/r/Python/comments/1hbs4t8/the_handpicked_selection_of_the_best_python/))
-- [PyCoder’s Weekly](https://pycoders.com/issues/651) x [Real Python](https://realpython.com/)
-- [@PythonHub's tweet](https://x.com/PythonHub/status/1842886311369142713)
-- [Upvoters on our showcase Reddit post](https://www.reddit.com/r/Python/comments/1fp38jd/streamable_streamlike_manipulation_of_iterables/)
