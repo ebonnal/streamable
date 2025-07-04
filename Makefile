@@ -7,15 +7,16 @@ help:
 	@echo "  make all             - Run all tasks: venv, test, type-check, format"
 	@echo "  make venv            - Create a virtual environment and install dependencies"
 	@echo "  make test            - Run unittests and check coverage"
-	@echo "  make type-check      - Check typing with mypy"
-	@echo "  make format          - Format the codebase"
+	@echo "  make type-check      - Check typing via mypy"
+	@echo "  make format          - Format via ruff"
+	@echo "  make format-check    - Check the formatting via ruff"
 
 venv:
 	python3 -m venv $(VENV_DIR) --clear
 	$(VENV_DIR)/bin/pip install -r requirements-dev.txt
 
 test:
-	$(VENV_DIR)/bin/python -m coverage run -m unittest --failfast
+	$(VENV_DIR)/bin/python -m coverage run -m unittest -v --failfast
 	$(VENV_DIR)/bin/coverage report -m
 	$(VENV_DIR)/bin/coverage html
 
