@@ -2766,9 +2766,14 @@ class TestStream(unittest.TestCase):
 
         self.assertTupleEqual(
             stream.__slots__,
-            ("_upstream", "_when"),
+            ("_when",),
             msg="a stream should have __slots__",
         )
+        with self.assertRaises(
+            AttributeError,
+            msg="a stream should not have a __dict__",
+        ):
+            stream.__dict__
 
     def test_iter_loop_auto_closing(self) -> None:
         original_new_event_loop = asyncio.new_event_loop

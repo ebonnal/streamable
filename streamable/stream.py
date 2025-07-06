@@ -833,7 +833,7 @@ class DownStream(Stream[U], Generic[T, U]):
     Stream having an upstream.
     """
 
-    __slots__ = ("_upstream", "_errors", "_when", "_replacement", "_finally_raise")
+    __slots__ = ()
 
     def __init__(self, upstream: Stream[T]) -> None:
         self._upstream: Stream[T] = upstream
@@ -861,7 +861,7 @@ class DownStream(Stream[U], Generic[T, U]):
 
 
 class CatchStream(DownStream[T, T]):
-    __slots__ = ("_upstream", "_errors", "_when", "_replacement", "_finally_raise")
+    __slots__ = ("_errors", "_when", "_replacement", "_finally_raise")
 
     def __init__(
         self,
@@ -882,7 +882,7 @@ class CatchStream(DownStream[T, T]):
 
 
 class ACatchStream(DownStream[T, T]):
-    __slots__ = ("_upstream", "_errors", "_when", "_replacement", "_finally_raise")
+    __slots__ = ("_errors", "_when", "_replacement", "_finally_raise")
 
     def __init__(
         self,
@@ -903,7 +903,7 @@ class ACatchStream(DownStream[T, T]):
 
 
 class DistinctStream(DownStream[T, T]):
-    __slots__ = ("_upstream", "_key", "_consecutive_only")
+    __slots__ = ("_key", "_consecutive_only")
 
     def __init__(
         self,
@@ -920,7 +920,7 @@ class DistinctStream(DownStream[T, T]):
 
 
 class ADistinctStream(DownStream[T, T]):
-    __slots__ = ("_upstream", "_key", "_consecutive_only")
+    __slots__ = ("_key", "_consecutive_only")
 
     def __init__(
         self,
@@ -937,7 +937,7 @@ class ADistinctStream(DownStream[T, T]):
 
 
 class FilterStream(DownStream[T, T]):
-    __slots__ = ("_upstream", "_when")
+    __slots__ = ("_when",)
 
     def __init__(self, upstream: Stream[T], when: Callable[[T], Any]) -> None:
         super().__init__(upstream)
@@ -948,7 +948,7 @@ class FilterStream(DownStream[T, T]):
 
 
 class AFilterStream(DownStream[T, T]):
-    __slots__ = ("_upstream", "_when")
+    __slots__ = ("_when",)
 
     def __init__(
         self, upstream: Stream[T], when: Callable[[T], Coroutine[Any, Any, Any]]
@@ -961,7 +961,7 @@ class AFilterStream(DownStream[T, T]):
 
 
 class FlattenStream(DownStream[Iterable[T], T]):
-    __slots__ = ("_upstream", "_concurrency")
+    __slots__ = ("_concurrency",)
 
     def __init__(self, upstream: Stream[Iterable[T]], concurrency: int) -> None:
         super().__init__(upstream)
@@ -972,7 +972,7 @@ class FlattenStream(DownStream[Iterable[T], T]):
 
 
 class AFlattenStream(DownStream[AsyncIterable[T], T]):
-    __slots__ = ("_upstream", "_concurrency")
+    __slots__ = ("_concurrency",)
 
     def __init__(self, upstream: Stream[AsyncIterable[T]], concurrency: int) -> None:
         super().__init__(upstream)
@@ -983,7 +983,7 @@ class AFlattenStream(DownStream[AsyncIterable[T], T]):
 
 
 class ForeachStream(DownStream[T, T]):
-    __slots__ = ("_upstream", "_effect", "_concurrency", "_ordered", "_via")
+    __slots__ = ("_effect", "_concurrency", "_ordered", "_via")
 
     def __init__(
         self,
@@ -1004,7 +1004,7 @@ class ForeachStream(DownStream[T, T]):
 
 
 class AForeachStream(DownStream[T, T]):
-    __slots__ = ("_upstream", "_effect", "_concurrency", "_ordered")
+    __slots__ = ("_effect", "_concurrency", "_ordered")
 
     def __init__(
         self,
@@ -1023,7 +1023,7 @@ class AForeachStream(DownStream[T, T]):
 
 
 class GroupStream(DownStream[T, List[T]]):
-    __slots__ = ("_upstream", "_size", "_interval", "_by")
+    __slots__ = ("_size", "_interval", "_by")
 
     def __init__(
         self,
@@ -1042,7 +1042,7 @@ class GroupStream(DownStream[T, List[T]]):
 
 
 class AGroupStream(DownStream[T, List[T]]):
-    __slots__ = ("_upstream", "_size", "_interval", "_by")
+    __slots__ = ("_size", "_interval", "_by")
 
     def __init__(
         self,
@@ -1061,7 +1061,7 @@ class AGroupStream(DownStream[T, List[T]]):
 
 
 class GroupbyStream(DownStream[T, Tuple[U, List[T]]]):
-    __slots__ = ("_upstream", "_key", "_size", "_interval")
+    __slots__ = ("_key", "_size", "_interval")
 
     def __init__(
         self,
@@ -1080,7 +1080,7 @@ class GroupbyStream(DownStream[T, Tuple[U, List[T]]]):
 
 
 class AGroupbyStream(DownStream[T, Tuple[U, List[T]]]):
-    __slots__ = ("_upstream", "_key", "_size", "_interval")
+    __slots__ = ("_key", "_size", "_interval")
 
     def __init__(
         self,
@@ -1099,7 +1099,7 @@ class AGroupbyStream(DownStream[T, Tuple[U, List[T]]]):
 
 
 class MapStream(DownStream[T, U]):
-    __slots__ = ("_upstream", "_transformation", "_concurrency", "_ordered", "_via")
+    __slots__ = ("_transformation", "_concurrency", "_ordered", "_via")
 
     def __init__(
         self,
@@ -1120,7 +1120,7 @@ class MapStream(DownStream[T, U]):
 
 
 class AMapStream(DownStream[T, U]):
-    __slots__ = ("_upstream", "_transformation", "_concurrency", "_ordered")
+    __slots__ = ("_transformation", "_concurrency", "_ordered")
 
     def __init__(
         self,
@@ -1139,7 +1139,7 @@ class AMapStream(DownStream[T, U]):
 
 
 class ObserveStream(DownStream[T, T]):
-    __slots__ = ("_upstream", "_what")
+    __slots__ = ("_what",)
 
     def __init__(self, upstream: Stream[T], what: str) -> None:
         super().__init__(upstream)
@@ -1150,7 +1150,7 @@ class ObserveStream(DownStream[T, T]):
 
 
 class SkipStream(DownStream[T, T]):
-    __slots__ = ("_upstream", "_count", "_until")
+    __slots__ = ("_count", "_until")
 
     def __init__(
         self,
@@ -1167,7 +1167,7 @@ class SkipStream(DownStream[T, T]):
 
 
 class ASkipStream(DownStream[T, T]):
-    __slots__ = ("_upstream", "_count", "_until")
+    __slots__ = ("_count", "_until")
 
     def __init__(
         self,
@@ -1184,7 +1184,7 @@ class ASkipStream(DownStream[T, T]):
 
 
 class ThrottleStream(DownStream[T, T]):
-    __slots__ = ("_upstream", "_count", "_per")
+    __slots__ = ("_count", "_per")
 
     def __init__(
         self,
@@ -1201,7 +1201,7 @@ class ThrottleStream(DownStream[T, T]):
 
 
 class TruncateStream(DownStream[T, T]):
-    __slots__ = ("_upstream", "_count", "_when")
+    __slots__ = ("_count", "_when")
 
     def __init__(
         self,
@@ -1218,7 +1218,7 @@ class TruncateStream(DownStream[T, T]):
 
 
 class ATruncateStream(DownStream[T, T]):
-    __slots__ = ("_upstream", "_count", "_when")
+    __slots__ = ("_count", "_when")
 
     def __init__(
         self,
