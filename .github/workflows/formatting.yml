@@ -5,7 +5,7 @@ on:
     paths:
       - 'streamable/**'
       - 'tests/**'
-      - '.github/workflows/lint.yml'
+      - '.github/workflows/formatting.yml'
 
 jobs:
   formatting:
