@@ -9,14 +9,14 @@ on:
 
 jobs:
   coverage:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python 3.14
         uses: actions/setup-python@v4
         with:
-          python-version: '3.14.0-alpha.3'
+          python-version: '3.14.0-beta.1'
           
       - name: unittest
         run: |
