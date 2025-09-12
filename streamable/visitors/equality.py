@@ -33,7 +33,7 @@ class EqualityVisitor(Visitor[bool]):
         self.other: Any = other
 
     def type_eq(self, stream: Stream) -> bool:
-        return type(stream) == type(self.other)
+        return type(stream) is type(self.other)
 
     def catch_eq(self, stream: Union[CatchStream, ACatchStream]) -> bool:
         return (
