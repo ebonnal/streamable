@@ -30,3 +30,9 @@ format:
 
 format-check:
 	$(VENV_DIR)/bin/python -m ruff format --check streamable tests
+
+lint:
+	$(VENV_DIR)/bin/python -m ruff check streamable tests --fix
+
+lint-check:
+	$(VENV_DIR)/bin/python -m ruff check streamable tests
