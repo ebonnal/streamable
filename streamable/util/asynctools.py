@@ -10,7 +10,7 @@ async def awaitable_to_coroutine(aw: Awaitable[T]) -> T:
 
 async def empty_aiter() -> AsyncIterator:
     return
-    yield
+    yield  # pragma: no cover
 
 
 class CloseEventLoopMixin:
