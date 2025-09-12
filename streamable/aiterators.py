@@ -6,7 +6,7 @@ import time
 from abc import ABC, abstractmethod
 from collections import defaultdict, deque
 from concurrent.futures import Executor, Future, ProcessPoolExecutor, ThreadPoolExecutor
-from contextlib import contextmanager, suppress
+from contextlib import suppress
 from math import ceil
 from typing import (
     Any,
@@ -36,9 +36,6 @@ from streamable.util.asynctools import awaitable_to_coroutine, empty_aiter
 from streamable.util.contextmanagertools import noop_context_manager
 from streamable.util.loggertools import get_logger
 
-T = TypeVar("T")
-U = TypeVar("U")
-
 from streamable.util.constants import NO_REPLACEMENT
 from streamable.util.futuretools import (
     FDFOAsyncFutureResultCollection,
@@ -50,6 +47,9 @@ from streamable.util.futuretools import (
 
 with suppress(ImportError):
     from typing import Literal
+
+T = TypeVar("T")
+U = TypeVar("U")
 
 
 class ACatchAsyncIterator(AsyncIterator[T]):

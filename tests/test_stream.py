@@ -381,12 +381,10 @@ class TestStream(unittest.TestCase):
         if sys.version_info.minor < 9:
             return
 
-        lambda_identity = lambda x: x * 10
-
         def local_identity(x):
             return x
 
-        for f in [lambda_identity, local_identity]:
+        for f in [lambda x: x, local_identity]:
             with self.assertRaisesRegex(
                 (AttributeError, PickleError),
                 "<locals>",
@@ -746,17 +744,17 @@ class TestStream(unittest.TestCase):
         )
 
     def test_flatten_typing(self) -> None:
-        flattened_iterator_stream: Stream[str] = Stream("abc").map(iter).flatten()
-        flattened_list_stream: Stream[str] = Stream("abc").map(list).flatten()
-        flattened_set_stream: Stream[str] = Stream("abc").map(set).flatten()
-        flattened_map_stream: Stream[str] = (
+        flattened_iterator_stream: Stream[str] = Stream("abc").map(iter).flatten()  # noqa: F841
+        flattened_list_stream: Stream[str] = Stream("abc").map(list).flatten()  # noqa: F841
+        flattened_set_stream: Stream[str] = Stream("abc").map(set).flatten()  # noqa: F841
+        flattened_map_stream: Stream[str] = (  # noqa: F841
             Stream("abc").map(lambda char: map(lambda x: x, char)).flatten()
         )
-        flattened_filter_stream: Stream[str] = (
+        flattened_filter_stream: Stream[str] = (  # noqa: F841
             Stream("abc").map(lambda char: filter(lambda _: True, char)).flatten()
         )
 
-        flattened_asynciter_stream: Stream[str] = (
+        flattened_asynciter_stream: Stream[str] = (  # noqa: F841
             Stream("abc").map(iter).map(sync_to_async_iter).aflatten()
         )
 
@@ -2472,11 +2470,11 @@ class TestStream(unittest.TestCase):
         self.assertIsInstance(Stream(src), AsyncIterable)
 
     def test_count(self) -> None:
-        l: List[int] = []
+        acc: List[int] = []
 
         def effect(x: int) -> None:
-            nonlocal l
-            l.append(x)
+            nonlocal acc
+            acc.append(x)
 
         stream = Stream(lambda: map(effect, src))
         self.assertEqual(
@@ -2485,15 +2483,15 @@ class TestStream(unittest.TestCase):
             msg="`count` should return the count of elements.",
         )
         self.assertListEqual(
-            l, list(src), msg="`count` should iterate over the entire stream."
+            acc, list(src), msg="`count` should iterate over the entire stream."
         )
 
     def test_acount(self) -> None:
-        l: List[int] = []
+        acc: List[int] = []
 
         def effect(x: int) -> None:
-            nonlocal l
-            l.append(x)
+            nonlocal acc
+            acc.append(x)
 
         stream = Stream(lambda: map(effect, src))
         self.assertEqual(
@@ -2502,33 +2500,33 @@ class TestStream(unittest.TestCase):
             msg="`count` should return the count of elements.",
         )
         self.assertListEqual(
-            l, list(src), msg="`count` should iterate over the entire stream."
+            acc, list(src), msg="`count` should iterate over the entire stream."
         )
 
     def test_call(self) -> None:
-        l: List[int] = []
-        stream = Stream(src).map(l.append)
+        acc: List[int] = []
+        stream = Stream(src).map(acc.append)
         self.assertIs(
             stream(),
             stream,
             msg="`__call__` should return the stream.",
         )
         self.assertListEqual(
-            l,
+            acc,
             list(src),
             msg="`__call__` should exhaust the stream.",
         )
 
     def test_await(self) -> None:
-        l: List[int] = []
-        stream = Stream(src).map(l.append)
+        acc: List[int] = []
+        stream = Stream(src).map(acc.append)
         self.assertIs(
             asyncio.run(awaitable_to_coroutine(stream)),
             stream,
             msg="`__call__` should return the stream.",
         )
         self.assertListEqual(
-            l,
+            acc,
             list(src),
             msg="`__call__` should exhaust the stream.",
         )
@@ -2717,7 +2715,7 @@ class TestStream(unittest.TestCase):
                 # check if it is captured in its own traceback
                 and frame is cast(TracebackType, val.__traceback__).tb_frame
             ],
-            msg=f"the exception's traceback should not contain an exception captured in its own traceback",
+            msg="the exception's traceback should not contain an exception captured in its own traceback",
         )
 
     def test_on_queue_in_thread(self) -> None:
