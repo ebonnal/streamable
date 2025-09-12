@@ -211,4 +211,5 @@ def range_raising_at_exhaustion(
     raise exception
 
 
-src_raising_at_exhaustion = lambda: range_raising_at_exhaustion(0, N, 1, TestError())
+def src_raising_at_exhaustion() -> Iterator[int]:
+    return range_raising_at_exhaustion(0, N, 1, TestError())

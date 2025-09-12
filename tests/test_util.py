@@ -5,7 +5,9 @@ from streamable.util.functiontools import sidify, star
 
 class TestUtil(unittest.TestCase):
     def test_sidify(self) -> None:
-        f = lambda x: x**2
+        def f(x: int) -> int:
+            return x**2
+
         self.assertEqual(f(2), 4)
         self.assertEqual(sidify(f)(2), 2)
 
