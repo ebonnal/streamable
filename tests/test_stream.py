@@ -450,37 +450,51 @@ class TestStream(unittest.TestCase):
     ) -> None:
         self.assertListEqual(
             to_list(
-                Stream(range(10))
+                Stream([0, 1, 0, 2, 0])
                 .map(lambda n: 1 / n)
                 .map(identity, concurrency=2)
                 .catch(ZeroDivisionError),
                 itype=itype,
             ),
-            list(map(lambda n: 1 / n, range(1, 10))),
+            list(map(lambda n: 1 / n, [1, 2])),
             msg="a concurrent map/foreach must not stop iteration when upstream errors",
         )
         self.assertListEqual(
             to_list(
-                Stream(range(10))
+                Stream([0, 1, 0, 2, 0])
                 .map(lambda n: 1 / n)
                 .amap(async_identity, concurrency=2)
                 .catch(ZeroDivisionError),
                 itype=itype,
             ),
-            list(map(lambda n: 1 / n, range(1, 10))),
+            list(map(lambda n: 1 / n, [1, 2])),
             msg="a concurrent amap/aforeach must not stop iteration when upstream errors",
         )
         self.assertListEqual(
             to_list(
-                Stream(range(10))
+                Stream([0, 1, 0, 2, 0])
                 .map(lambda n: 1 / n)
                 .group(1)
                 .flatten(concurrency=2)
                 .catch(ZeroDivisionError),
                 itype=itype,
             ),
-            list(map(lambda n: 1 / n, range(1, 10))),
+            list(map(lambda n: 1 / n, [1, 2])),
             msg="a concurrent flatten must not stop iteration when upstream errors",
+        )
+        self.assertListEqual(
+            to_list(
+                Stream([0, 1, 0, 2, 0])
+                .map(lambda n: 1 / n)
+                .group(1)
+                .map(Stream)
+                .map(Stream.__aiter__)
+                .aflatten(concurrency=2)
+                .catch(ZeroDivisionError),
+                itype=itype,
+            ),
+            list(map(lambda n: 1 / n, [1, 2])),
+            msg="a concurrent aflatten must not stop iteration when upstream errors",
         )
 
     @parameterized.expand(
