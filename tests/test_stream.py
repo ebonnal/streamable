@@ -443,6 +443,46 @@ class TestStream(unittest.TestCase):
             msg="`map` method should act correctly when concurrency > number of elements.",
         )
 
+    @parameterized.expand([(itype,) for itype in ITERABLE_TYPES])
+    def test_catched_error_upstream_of_concurrent_operation(
+        self,
+        itype,
+    ) -> None:
+        self.assertListEqual(
+            to_list(
+                Stream(range(10))
+                .map(lambda n: 1 / n)
+                .map(identity, concurrency=2)
+                .catch(ZeroDivisionError),
+                itype=itype,
+            ),
+            list(map(lambda n: 1 / n, range(1, 10))),
+            msg="a concurrent map/foreach must not stop iteration when upstream errors",
+        )
+        self.assertListEqual(
+            to_list(
+                Stream(range(10))
+                .map(lambda n: 1 / n)
+                .amap(async_identity, concurrency=2)
+                .catch(ZeroDivisionError),
+                itype=itype,
+            ),
+            list(map(lambda n: 1 / n, range(1, 10))),
+            msg="a concurrent amap/aforeach must not stop iteration when upstream errors",
+        )
+        self.assertListEqual(
+            to_list(
+                Stream(range(10))
+                .map(lambda n: 1 / n)
+                .group(1)
+                .flatten(concurrency=2)
+                .catch(ZeroDivisionError),
+                itype=itype,
+            ),
+            list(map(lambda n: 1 / n, range(1, 10))),
+            msg="a concurrent flatten must not stop iteration when upstream errors",
+        )
+
     @parameterized.expand(
         [
             [ordered, order_mutation, expected_duration, operation, func, itype]

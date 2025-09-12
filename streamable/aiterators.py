@@ -567,18 +567,32 @@ class _ConcurrentMapAsyncIterableMixin(
             future_results = self._future_result_collection()
 
             # queue tasks up to buffersize
-            with suppress(StopAsyncIteration):
-                while len(future_results) < self.buffersize:
-                    future_results.add_future(
-                        self._launch_task(await self.iterator.__anext__())
-                    )
+            while len(future_results) < self.buffersize:
+                try:
+                    elem = await self.iterator.__anext__()
+                except StopAsyncIteration:
+                    # no more input, will not fill the buffer
+                    break
+                except Exception as e:
+                    yield _RaisingAsyncIterator.ExceptionContainer(e)
+                    continue
+                future_results.add_future(self._launch_task(elem))
 
             # queue, wait, yield
             while future_results:
-                with suppress(StopAsyncIteration):
-                    future_results.add_future(
-                        self._launch_task(await self.iterator.__anext__())
-                    )
+                try:
+                    elem = await self.iterator.__anext__()
+                except StopAsyncIteration:
+                    # no more input to queue
+                    break
+                except Exception as e:
+                    yield _RaisingAsyncIterator.ExceptionContainer(e)
+                    continue
+                future_results.add_future(self._launch_task(elem))
+                yield await future_results.__anext__()
+
+            # finish yielding the results of buffered tasks
+            while future_results:
                 yield await future_results.__anext__()
 
 
@@ -755,6 +769,9 @@ class _ConcurrentFlattenAsyncIterable(
                             iterable = await self.iterables_iterator.__anext__()
                         except StopAsyncIteration:
                             break
+                        except Exception as e:
+                            yield _RaisingAsyncIterator.ExceptionContainer(e)
+                            continue
                         try:
                             iterator_to_queue = iterable.__iter__()
                         except Exception as e:
@@ -828,6 +845,9 @@ class _ConcurrentAFlattenAsyncIterable(
                         iterable = await self.iterables_iterator.__anext__()
                     except StopAsyncIteration:
                         break
+                    except Exception as e:
+                        yield _RaisingAsyncIterator.ExceptionContainer(e)
+                        continue
                     try:
                         iterator_to_queue = iterable.__aiter__()
                     except Exception as e:
