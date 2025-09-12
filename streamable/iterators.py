@@ -527,18 +527,32 @@ class _ConcurrentMapIterableMixin(
             future_results = self._future_result_collection()
 
             # queue tasks up to buffersize
-            with suppress(StopIteration):
-                while len(future_results) < self.buffersize:
-                    future_results.add_future(
-                        self._launch_task(self.iterator.__next__())
-                    )
+            while len(future_results) < self.buffersize:
+                try:
+                    elem = self.iterator.__next__()
+                except StopIteration:
+                    # no more input, will not fill the buffer
+                    break
+                except Exception as e:
+                    yield _RaisingIterator.ExceptionContainer(e)
+                    continue
+                future_results.add_future(self._launch_task(elem))
 
             # queue, wait, yield
             while future_results:
-                with suppress(StopIteration):
-                    future_results.add_future(
-                        self._launch_task(self.iterator.__next__())
-                    )
+                try:
+                    elem = self.iterator.__next__()
+                except StopIteration:
+                    # no more input to queue
+                    break
+                except Exception as e:
+                    yield _RaisingIterator.ExceptionContainer(e)
+                    continue
+                future_results.add_future(self._launch_task(elem))
+                yield future_results.__next__()
+
+            # finish yielding the results of buffered tasks
+            while future_results:
                 yield future_results.__next__()
 
 
@@ -715,6 +729,10 @@ class _ConcurrentFlattenIterable(
                             iterable = self.iterables_iterator.__next__()
                         except StopIteration:
                             break
+                        except Exception as e:
+                            yield _RaisingIterator.ExceptionContainer(e)
+                            continue
+
                         try:
                             iterator_to_queue = iterable.__iter__()
                         except Exception as e:
@@ -788,6 +806,10 @@ class _ConcurrentAFlattenIterable(
                         iterable = self.iterables_iterator.__next__()
                     except StopIteration:
                         break
+                    except Exception as e:
+                        yield _RaisingIterator.ExceptionContainer(e)
+                        continue
+
                     try:
                         iterator_to_queue = iterable.__aiter__()
                     except Exception as e:
