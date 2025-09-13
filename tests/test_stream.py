@@ -410,7 +410,7 @@ class TestStream(unittest.TestCase):
         self.assertListEqual(
             state,
             [""] * len(sleeps),
-            msg="... and must not mutate main thread-bound structures.",
+            msg="... and should not mutate main thread-bound structures.",
         )
         # test partial iteration:
         self.assertEqual(
@@ -457,7 +457,7 @@ class TestStream(unittest.TestCase):
                 itype=itype,
             ),
             list(map(lambda n: 1 / n, [1, 2])),
-            msg="a concurrent map/foreach must not stop iteration when upstream errors",
+            msg="a concurrent map/foreach should not stop iteration when upstream errors",
         )
         self.assertListEqual(
             to_list(
@@ -468,7 +468,7 @@ class TestStream(unittest.TestCase):
                 itype=itype,
             ),
             list(map(lambda n: 1 / n, [1, 2])),
-            msg="a concurrent amap/aforeach must not stop iteration when upstream errors",
+            msg="a concurrent amap/aforeach should not stop iteration when upstream errors",
         )
         self.assertListEqual(
             to_list(
@@ -480,7 +480,7 @@ class TestStream(unittest.TestCase):
                 itype=itype,
             ),
             list(map(lambda n: 1 / n, [1, 2])),
-            msg="a concurrent flatten must not stop iteration when upstream errors",
+            msg="a concurrent flatten should not stop iteration when upstream errors",
         )
         self.assertListEqual(
             to_list(
@@ -494,7 +494,7 @@ class TestStream(unittest.TestCase):
                 itype=itype,
             ),
             list(map(lambda n: 1 / n, [1, 2])),
-            msg="a concurrent aflatten must not stop iteration when upstream errors",
+            msg="a concurrent aflatten should not stop iteration when upstream errors",
         )
 
     @parameterized.expand(
@@ -633,7 +633,7 @@ class TestStream(unittest.TestCase):
                 itype=itype,
             ),
             list(even_src),
-            msg="At any concurrency, `map` and `foreach` and `amap` must not stop after one exception occured.",
+            msg="At any concurrency, `map` and `foreach` and `amap` should not stop after one exception occured.",
         )
 
     @parameterized.expand(
@@ -1064,7 +1064,7 @@ class TestStream(unittest.TestCase):
                     itype=itype,
                 ),
                 list(filter(lambda i: i % 2 == 0, src))[count:],
-                msg="`skip` must not count exceptions as skipped elements",
+                msg="`skip` should not count exceptions as skipped elements",
             )
 
             self.assertListEqual(
@@ -1090,7 +1090,7 @@ class TestStream(unittest.TestCase):
         self.assertListEqual(
             to_list(Stream(src).skip(until=lambda n: False), itype=itype),
             [],
-            msg="`skip` must not yield any element if `until` is never satisfied",
+            msg="`skip` should not yield any element if `until` is never satisfied",
         )
 
     @parameterized.expand(ITERABLE_TYPES)
@@ -1129,7 +1129,7 @@ class TestStream(unittest.TestCase):
                     itype=itype,
                 ),
                 list(filter(lambda i: i % 2 == 0, src))[count:],
-                msg="`askip` must not count exceptions as skipped elements",
+                msg="`askip` should not count exceptions as skipped elements",
             )
 
             self.assertListEqual(
@@ -1161,7 +1161,7 @@ class TestStream(unittest.TestCase):
         self.assertListEqual(
             to_list(Stream(src).askip(until=asyncify(lambda n: False)), itype=itype),
             [],
-            msg="`askip` must not yield any element if `until` is never satisfied",
+            msg="`askip` should not yield any element if `until` is never satisfied",
         )
 
     @parameterized.expand(ITERABLE_TYPES)
@@ -1221,7 +1221,7 @@ class TestStream(unittest.TestCase):
 
         with self.assertRaises(
             ZeroDivisionError,
-            msg="`truncate` must not stop iteration when encountering exceptions and raise them without counting them...",
+            msg="`truncate` should not stop iteration when encountering exceptions and raise them without counting them...",
         ):
             anext_or_next(raising_stream_iterator)
 
@@ -1324,7 +1324,7 @@ class TestStream(unittest.TestCase):
 
         with self.assertRaises(
             ZeroDivisionError,
-            msg="`atruncate` must not stop iteration when encountering exceptions and raise them without counting them...",
+            msg="`atruncate` should not stop iteration when encountering exceptions and raise them without counting them...",
         ):
             anext_or_next(raising_stream_iterator)
 
