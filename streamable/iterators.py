@@ -31,7 +31,6 @@ from typing import (
     Union,
     cast,
 )
-
 from streamable.util.asynctools import (
     CloseEventLoopMixin,
     awaitable_to_coroutine,
@@ -46,6 +45,7 @@ from streamable.util.futuretools import (
     FDFOOSFutureResultCollection,
     FIFOAsyncFutureResultCollection,
     FIFOOSFutureResultCollection,
+    FutureResult,
     FutureResultCollection,
 )
 
@@ -54,6 +54,10 @@ U = TypeVar("U")
 
 with suppress(ImportError):
     from typing import Literal
+
+#########
+# catch #
+#########
 
 
 class CatchIterator(Iterator[T]):
@@ -93,6 +97,11 @@ class CatchIterator(Iterator[T]):
                 raise
 
 
+############
+# distinct #
+############
+
+
 class DistinctIterator(Iterator[T]):
     def __init__(
         self, iterator: Iterator[T], key: Optional[Callable[[T], Any]]
@@ -129,6 +138,11 @@ class ConsecutiveDistinctIterator(Iterator[T]):
         return elem
 
 
+###########
+# flatten #
+###########
+
+
 class FlattenIterator(Iterator[U]):
     def __init__(self, iterator: Iterator[Iterable[U]]) -> None:
         self.iterator = iterator
@@ -161,6 +175,11 @@ class AFlattenIterator(Iterator[U], CloseEventLoopMixin):
                 )
             except StopAsyncIteration:
                 self._current_iterator_elem = self.iterator.__next__().__aiter__()
+
+
+#########
+# group #
+#########
 
 
 class _GroupIteratorMixin(Generic[T]):
@@ -297,6 +316,11 @@ class GroupbyIterator(_GroupIteratorMixin[T], Iterator[Tuple[U, List[T]]]):
             return self.__next__()
 
 
+########
+# skip #
+########
+
+
 class CountSkipIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], count: int) -> None:
         self.iterator = iterator
@@ -350,6 +374,11 @@ class CountAndPredicateSkipIterator(Iterator[T]):
         return elem
 
 
+############
+# truncate #
+############
+
+
 class CountTruncateIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], count: int) -> None:
         self.iterator = iterator
@@ -378,6 +407,11 @@ class PredicateTruncateIterator(Iterator[T]):
             self._satisfied = True
             raise StopIteration()
         return elem
+
+
+###########
+# observe #
+###########
 
 
 class ObserveIterator(Iterator[T]):
@@ -421,6 +455,11 @@ class ObserveIterator(Iterator[T]):
         finally:
             if self._n_nexts >= self._next_threshold:
                 self._log()
+
+
+############
+# throttle #
+############
 
 
 class YieldsPerPeriodThrottleIterator(Iterator[T]):
@@ -488,16 +527,14 @@ class _RaisingIterator(Iterator[T]):
         return elem
 
 
-class _ConcurrentMapIterableMixin(
+##################
+# concurrent map #
+##################
+
+
+class _BaseConcurrentMapIterable(
     Generic[T, U], ABC, Iterable[Union[U, _RaisingIterator.ExceptionContainer]]
 ):
-    """
-    Template Method Pattern:
-    This abstract class's `__iter__` is a skeleton for a queue-based concurrent mapping algorithm
-    that relies on abstract helper methods (`_context_manager`, `_create_future`, `_future_result_collection`)
-    that must be implemented by concrete subclasses.
-    """
-
     def __init__(
         self,
         iterator: Iterator[T],
@@ -522,41 +559,37 @@ class _ConcurrentMapIterableMixin(
         self,
     ) -> FutureResultCollection[Union[U, _RaisingIterator.ExceptionContainer]]: ...
 
+    def _next_future(
+        self,
+    ) -> Optional["Future[Union[U, _RaisingIterator.ExceptionContainer]]"]:
+        try:
+            return self._launch_task(self.iterator.__next__())
+        except StopIteration:
+            return None
+        except Exception as e:
+            return FutureResult(_RaisingIterator.ExceptionContainer(e))
+
     def __iter__(self) -> Iterator[Union[U, _RaisingIterator.ExceptionContainer]]:
         with self._context_manager():
             future_results = self._future_result_collection()
 
             # queue tasks up to buffersize
             while len(future_results) < self.buffersize:
-                try:
-                    elem = self.iterator.__next__()
-                except StopIteration:
-                    # no more input, will not fill the buffer
+                future = self._next_future()
+                if not future:
+                    # no more tasks to queue
                     break
-                except Exception as e:
-                    yield _RaisingIterator.ExceptionContainer(e)
-                    continue
-                future_results.add_future(self._launch_task(elem))
+                future_results.add_future(future)
 
             # queue, wait, yield
             while future_results:
-                try:
-                    elem = self.iterator.__next__()
-                except StopIteration:
-                    # no more input to queue
-                    break
-                except Exception as e:
-                    yield _RaisingIterator.ExceptionContainer(e)
-                    continue
-                future_results.add_future(self._launch_task(elem))
-                yield future_results.__next__()
-
-            # finish yielding the results of buffered tasks
-            while future_results:
+                future = self._next_future()
+                if future:
+                    future_results.add_future(future)
                 yield future_results.__next__()
 
 
-class _ConcurrentMapIterable(_ConcurrentMapIterableMixin[T, U]):
+class _ConcurrentMapIterable(_BaseConcurrentMapIterable[T, U]):
     def __init__(
         self,
         iterator: Iterator[T],
@@ -575,7 +608,7 @@ class _ConcurrentMapIterable(_ConcurrentMapIterableMixin[T, U]):
     def _context_manager(self) -> ContextManager:
         if self.via == "thread":
             self.executor = ThreadPoolExecutor(max_workers=self.concurrency)
-        if self.via == "process":
+        elif self.via == "process":
             self.executor = ProcessPoolExecutor(
                 max_workers=self.concurrency,
                 mp_context=multiprocessing.get_context("spawn"),
@@ -631,7 +664,7 @@ class ConcurrentMapIterator(_RaisingIterator[U]):
         )
 
 
-class _ConcurrentAMapIterable(_ConcurrentMapIterableMixin[T, U], CloseEventLoopMixin):
+class _ConcurrentAMapIterable(_BaseConcurrentMapIterable[T, U], CloseEventLoopMixin):
     def __init__(
         self,
         event_loop: asyncio.AbstractEventLoop,
@@ -687,6 +720,11 @@ class ConcurrentAMapIterator(_RaisingIterator[U]):
                 ordered,
             ).__iter__()
         )
+
+
+######################
+# concurrent flatten #
+######################
 
 
 class _ConcurrentFlattenIterable(

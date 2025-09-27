@@ -3,13 +3,33 @@ from abc import ABC, abstractmethod
 from collections import deque
 from concurrent.futures import Future
 from contextlib import suppress
-from typing import AsyncIterator, Awaitable, Deque, Iterator, Sized, Type, TypeVar, cast
+from typing import (
+    AsyncIterator,
+    Awaitable,
+    Deque,
+    Generator,
+    Iterator,
+    Sized,
+    Type,
+    TypeVar,
+    cast,
+)
 
 
 with suppress(ImportError):
     from streamable.util.protocols import Queue
 
 T = TypeVar("T")
+
+
+class FutureResult(Future[T], Awaitable[T]):
+    def __init__(self, result: T):
+        super().__init__()
+        self.set_result(result)
+
+    def __await__(self) -> Generator[None, None, T]:
+        yield
+        return self.result()
 
 
 class FutureResultCollection(Iterator[T], AsyncIterator[T], Sized, ABC):
