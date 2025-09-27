@@ -1,14 +1,6 @@
 name: PyPI
 
-on:
-  push:
-    branches:
-      - main
-      - alpha
-      - beta
-      - rc
-    paths:
-      - 'version.py'
+on: workflow_dispatch
 
 jobs:
   pypi:
