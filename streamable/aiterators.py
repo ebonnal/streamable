@@ -792,7 +792,7 @@ class _ConcurrentFlattenAsyncIterable(
         self,
     ) -> AsyncIterator[Union[T, _RaisingAsyncIterator.ExceptionContainer]]:
         with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
-            iterator_and_future_pairs: Deque[Tuple[Iterator[T], Future]] = deque()
+            iterator_and_future_pairs: Deque[Tuple[Optional[Iterator[T]], Future]] = deque()
             element_to_yield: Deque[
                 Union[T, _RaisingAsyncIterator.ExceptionContainer]
             ] = deque(maxlen=1)
@@ -825,7 +825,9 @@ class _ConcurrentFlattenAsyncIterable(
                         try:
                             iterator_to_queue = iterable.__iter__()
                         except Exception as e:
-                            yield _RaisingAsyncIterator.ExceptionContainer(e)
+                            iterator_to_queue = None
+                            future = FutureResult(_RaisingAsyncIterator.ExceptionContainer(e))
+                            iterator_and_future_pairs.append((iterator_to_queue, future))
                             continue
                     future = executor.submit(next, iterator_to_queue)
                     iterator_and_future_pairs.append((iterator_to_queue, future))
@@ -868,7 +870,7 @@ class _ConcurrentAFlattenAsyncIterable(
     async def __aiter__(
         self,
     ) -> AsyncIterator[Union[T, _RaisingAsyncIterator.ExceptionContainer]]:
-        iterator_and_future_pairs: Deque[Tuple[AsyncIterator[T], Awaitable[T]]] = (
+        iterator_and_future_pairs: Deque[Tuple[Optional[AsyncIterator[T]], Awaitable[T]]] = (
             deque()
         )
         element_to_yield: Deque[Union[T, _RaisingAsyncIterator.ExceptionContainer]] = (
@@ -901,7 +903,9 @@ class _ConcurrentAFlattenAsyncIterable(
                     try:
                         iterator_to_queue = iterable.__aiter__()
                     except Exception as e:
-                        yield _RaisingAsyncIterator.ExceptionContainer(e)
+                        iterator_to_queue = None
+                        future = FutureResult(_RaisingAsyncIterator.ExceptionContainer(e))
+                        iterator_and_future_pairs.append((iterator_to_queue, future))
                         continue
                 future = asyncio.get_running_loop().create_task(
                     awaitable_to_coroutine(iterator_to_queue.__anext__())

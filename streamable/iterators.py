@@ -742,7 +742,7 @@ class _ConcurrentFlattenIterable(
 
     def __iter__(self) -> Iterator[Union[T, _RaisingIterator.ExceptionContainer]]:
         with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
-            iterator_and_future_pairs: Deque[Tuple[Iterator[T], Future]] = deque()
+            iterator_and_future_pairs: Deque[Tuple[Optional[Iterator[T]], Future]] = deque()
             element_to_yield: Deque[Union[T, _RaisingIterator.ExceptionContainer]] = (
                 deque(maxlen=1)
             )
@@ -774,7 +774,9 @@ class _ConcurrentFlattenIterable(
                         try:
                             iterator_to_queue = iterable.__iter__()
                         except Exception as e:
-                            yield _RaisingIterator.ExceptionContainer(e)
+                            iterator_to_queue = None
+                            future = FutureResult(_RaisingIterator.ExceptionContainer(e))
+                            iterator_and_future_pairs.append((iterator_to_queue, future))
                             continue
                     future = executor.submit(next, iterator_to_queue)
                     iterator_and_future_pairs.append((iterator_to_queue, future))
@@ -817,7 +819,7 @@ class _ConcurrentAFlattenIterable(
         self.event_loop = event_loop
 
     def __iter__(self) -> Iterator[Union[T, _RaisingIterator.ExceptionContainer]]:
-        iterator_and_future_pairs: Deque[Tuple[AsyncIterator[T], Awaitable[T]]] = (
+        iterator_and_future_pairs: Deque[Tuple[Optional[AsyncIterator[T]], Awaitable[T]]] = (
             deque()
         )
         element_to_yield: Deque[Union[T, _RaisingIterator.ExceptionContainer]] = deque(
@@ -851,7 +853,9 @@ class _ConcurrentAFlattenIterable(
                     try:
                         iterator_to_queue = iterable.__aiter__()
                     except Exception as e:
-                        yield _RaisingIterator.ExceptionContainer(e)
+                        iterator_to_queue = None
+                        future = FutureResult(_RaisingIterator.ExceptionContainer(e))
+                        iterator_and_future_pairs.append((iterator_to_queue, future))
                         continue
                 future = self.event_loop.create_task(
                     awaitable_to_coroutine(iterator_to_queue.__anext__())
