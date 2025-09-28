@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from collections import deque
 from concurrent.futures import Future
 from contextlib import suppress
+import sys
 from typing import (
     AsyncIterator,
     Awaitable,
@@ -15,11 +16,17 @@ from typing import (
     cast,
 )
 
+from streamable.util.typetools import make_generic
+
 
 with suppress(ImportError):
     from streamable.util.protocols import Queue
 
 T = TypeVar("T")
+
+
+if sys.version_info < (3, 8):
+    make_generic(Future)
 
 
 class FutureResult(Future[T], Awaitable[T]):
