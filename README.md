@@ -7,14 +7,14 @@
 ### *concurrent & fluent interface for (async) iterables*
 
 - 🔗 chain ***lazy*** operations
-- 🔀 ***concurrent*** via threads / processes / coroutines
+- 🔀 ***concurrent*** via threads / processes / coroutines (`async`)
 - 🇹 ***typed***, `Stream[T]` is an `Iterable[T]` and an `AsyncIterable[T]`
 - 🛡️ ***battle-tested*** for prod, extensively tested with CPython 3.7 to 3.15 and compatible with [PyPy](https://github.com/pypy/pypy).
 
 
 ## 1. install
 
-(No dependencies)
+(zero dependencies)
 ```
 pip install streamable
 ```
@@ -27,7 +27,7 @@ from streamable import Stream
 
 ## 3. init
 
-Create a `Stream[T]` ***decorating*** an `Iterable[T]` (or an `AsyncIterable[T]`):
+Create a `Stream[T]` ***decorating*** an `Iterable[T]`/`AsyncIterable[T]`:
 
 ```python
 integers: Stream[int] = Stream(range(10))
@@ -47,25 +47,15 @@ inverses: Stream[float] = (
 
 ## 5. iterate
 
-Iterate over a `Stream[T]` just as you would over any other `Iterable[T]` (or `AsyncIterable[T]`), elements are processed ***on-the-fly***.
+Iterate over a `Stream[T]` like any `Iterable[T]`/`AsyncIterable[T]`.
 
-- consume as an `Iterable[T]`:
-  - `list(inverses)`
-  - `set(inverses)`
-  - `[inverse for inverse in inverses]`
-  - `functools.reduce(operator.mul, inverses)`
-  - `next(iter(inverses))`
+Elements are processed ***on-the-fly*** as the iteration advances.
 
-- consume as an `AsyncIterable[T]` (makes sense when async operations like `.amap` are involved):
-  - `[inverse async for inverse in inverses]`
-  - `anext(aiter(inverses))`
+# ↔ showcase: ETL
 
+Let's illustrate the `Stream`'s capabilities with a simple Extract-Transform-Load script:
 
-# ↔ Showcase: Extract-Transform-Load
-
-Let's take an example showcasing most of the `Stream`'s operations.
-
-This script fetches Pokémons from [PokéAPI](https://pokeapi.co/) and writes the quadruped ones from the first three generations by batch into a CSV:
+This script concurrently gets Pokémons from [PokéAPI](https://pokeapi.co/), and writes the quadrupeds from the first three generations into a CSV file, in 5-seconds batches:
 
 ```python
 import csv
@@ -113,10 +103,11 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
     pipeline()
 ```
 
-## ... or the `async` way
+## ... or the `async` way!
 
-- instead of fetching Pokemons concurrently via threads using `requests` and the `.map` operation, let's **fetch them concurrently via coroutines** using `httpx` and the `.amap` operation
-- instead of calling `pipeline()` to iterate over it as an `Iterable`, let's `await pipeline` to iterate over it as an `AsyncIterable`
+Let's adapt the snippet to build an `async` alternative:
+- use `httpx.AsyncCLient` together with the `.amap` operation (the `async` counterpart of `.map`).
+- instead of calling `pipeline()` to iterate over it as an `Iterable`, `await pipeline` to iterate over it as an `AsyncIterable`.
 
 ```python
 import asyncio
@@ -132,7 +123,7 @@ async def main() -> None:
         writer = csv.DictWriter(file, fields, extrasaction='ignore')
         writer.writeheader()
 
-        async with httpx.AsyncClient() as http_async_client:
+        async with httpx.AsyncClient() as http:
             pipeline: Stream = (
                 # Infinite Stream[int] of Pokemon ids starting from Pokémon #1: Bulbasaur
                 Stream(itertools.count(1))
@@ -140,7 +131,7 @@ async def main() -> None:
                 .throttle(16, per=timedelta(seconds=1))
                 # GET pokemons via 8 concurrent coroutines
                 .map(lambda poke_id: f"https://pokeapi.co/api/v2/pokemon-species/{poke_id}")
-                .amap(http_async_client.get, concurrency=8)
+                .amap(http.get, concurrency=8)
                 .foreach(httpx.Response.raise_for_status)
                 .map(httpx.Response.json)
                 # Stop the iteration when reaching the 1st pokemon of the 4th generation
@@ -259,7 +250,8 @@ Feel very welcome to help us improve `streamable` via issues and PRs, check [CON
 > A `Stream` exposes a minimalist interface to manipulate elements, creating its source or consuming it is not its responsability (combine it with dedicated libraries like `functools`, `csv`, `json`, `pyarrow`, `psycopg2`, `boto3`, `requests`, ...).
 
 > [!NOTE]
-> **`async` twin operations:** For each operation that takes a function (e.g. `.map`) there is also a version that accepts an `async` function (e.g. `.amap`). You can mix both types of operations on the same `Stream`, which can then be used as either an `Iterable` or an `AsyncIterable`.
+> **`async` counterparts:** For each operation that takes a function (such as `.map`), there is an equivalent that accepts an async function (such as `.amap`).
+You can freely mix synchronous and asynchronous operations within the same `Stream`. The result can then be consumed either as an `Iterable` or as an `AsyncIterable`.
 
 ## 🟡 `.map`/`.amap`
 
@@ -322,37 +314,20 @@ if __name__ == "__main__":
 
 <details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
-- consumed as an `Iterable[T]`:
-
-```python
-import httpx
-
-pokemon_names: Stream[str] = (
-    Stream(range(1, 4))
-    .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
-    .amap(httpx.AsyncClient().get, concurrency=3)
-    .map(httpx.Response.json)
-    .map(lambda poke: poke["name"])
-)
-
-assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
-```
-
-- consumed as an `AsyncIterable[T]`:
-
 ```python
 import asyncio
 import httpx
 
 async def main() -> None:
-    async with httpx.AsyncClient() as http_async_client:
+    async with httpx.AsyncClient() as http:
         pokemon_names: Stream[str] = (
             Stream(range(1, 4))
             .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
-            .amap(http_async_client.get, concurrency=3)
+            .amap(http.get, concurrency=3)
             .map(httpx.Response.json)
             .map(lambda poke: poke["name"])
         )
+        # consume as an AsyncIterable[str]
         assert [name async for name in pokemon_names] == ['bulbasaur', 'ivysaur', 'venusaur']
 
 asyncio.run(main())

@@ -86,11 +86,11 @@ class TestReadme(unittest.TestCase):
         import httpx
 
         async def main() -> None:
-            async with httpx.AsyncClient() as http_async_client:
+            async with httpx.AsyncClient() as http:
                 pokemon_names: Stream[str] = (
                     Stream(range(1, 4))
                     .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
-                    .amap(http_async_client.get, concurrency=3)
+                    .amap(http.get, concurrency=3)
                     .map(httpx.Response.json)
                     .map(lambda poke: poke["name"])
                 )
@@ -336,7 +336,7 @@ class TestReadme(unittest.TestCase):
                     writer = csv.DictWriter(file, fields, extrasaction='ignore')
                     writer.writeheader()
 
-                    async with httpx.AsyncClient() as http_async_client:
+                    async with httpx.AsyncClient() as http:
                         pipeline: Stream = (
                             # Infinite Stream[int] of Pokemon ids starting from Pokémon #1: Bulbasaur
                             Stream(itertools.count(1))
@@ -344,7 +344,7 @@ class TestReadme(unittest.TestCase):
                             .throttle(16, per=timedelta(seconds=1))
                             # GET pokemons via 8 concurrent coroutines
                             .map(lambda poke_id: f"https://pokeapi.co/api/v2/pokemon-species/{poke_id}")
-                            .amap(http_async_client.get, concurrency=8)
+                            .amap(http.get, concurrency=8)
                             .foreach(httpx.Response.raise_for_status)
                             .map(httpx.Response.json)
                             # Stop the iteration when reaching the 1st pokemon of the 4th generation
