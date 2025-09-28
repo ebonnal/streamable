@@ -70,7 +70,6 @@ from tests.utils import (
     throw_func,
     timestream,
     to_list,
-    to_set,
 )
 
 
@@ -745,7 +744,7 @@ class TestStream(unittest.TestCase):
                 ).catch(ZeroDivisionError, replacement=-1),
                 itype=itype,
             ),
-            [4, 3, 2, -1, 1, 0] if concurrency == 1 else [-1, 4, 1, 3, 0, 2],
+            [4, 3, 2, -1, 1, 0] if concurrency == 1 else [4, -1, 3, 1, 2, 0],
             msg="At any concurrency the `flatten` method should continue pulling upstream iterables even if upstream raises an exception.",
         )
 
@@ -756,7 +755,7 @@ class TestStream(unittest.TestCase):
                         [
                             sync_to_bi_iterable([4, 3, 2]),
                             cast(list[int], None),
-                            sync_to_bi_iterable([1, 0])
+                            sync_to_bi_iterable([1, 0]),
                         ]
                     ),
                     concurrency=concurrency,

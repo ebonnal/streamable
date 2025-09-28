@@ -42,6 +42,6 @@ class TestUtil(unittest.TestCase):
             pass
 
         with self.assertRaises(TypeError):
-            Foo[T]
+            Foo[T]  # type: ignore
         make_generic(Foo)
-        Foo[T]
+        Foo[T]  # type: ignore
