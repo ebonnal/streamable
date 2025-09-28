@@ -442,7 +442,6 @@ class TestStream(unittest.TestCase):
             msg="`map` method should act correctly when concurrency > number of elements.",
         )
 
-    # split only if diff oredered/non-ordered
     @parameterized.expand(
         [
             (itype, concurrency, ordered, expected)
