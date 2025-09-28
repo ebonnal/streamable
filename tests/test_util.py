@@ -1,8 +1,6 @@
-from typing import TypeVar
 import unittest
 
 from streamable.util.functiontools import sidify, star
-from streamable.util.typetools import make_generic
 
 
 class TestUtil(unittest.TestCase):
@@ -34,14 +32,3 @@ class TestUtil(unittest.TestCase):
             list(map(mul, enumerate(range(10)))),
             list(map(lambda x: x**2, range(10))),
         )
-
-    def test_make_generic(self) -> None:
-        T = TypeVar("T")
-
-        class Foo:
-            pass
-
-        with self.assertRaises(TypeError):
-            Foo[T]  # type: ignore
-        make_generic(Foo)
-        Foo[T]  # type: ignore

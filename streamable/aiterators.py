@@ -2,7 +2,6 @@ import asyncio
 import datetime
 import multiprocessing
 import queue
-import sys
 import time
 from abc import ABC, abstractmethod
 from collections import defaultdict, deque
@@ -46,13 +45,9 @@ from streamable.util.futuretools import (
     FutureResult,
     FutureResultCollection,
 )
-from streamable.util.typetools import make_generic
 
 with suppress(ImportError):
     from typing import Literal
-
-if sys.version_info < (3, 8):
-    make_generic(Future)
 
 T = TypeVar("T")
 U = TypeVar("U")
@@ -800,7 +795,7 @@ class _ConcurrentFlattenAsyncIterable(
             iterator_and_future_pairs: Deque[
                 Tuple[
                     Optional[Iterator[T]],
-                    Future[Union[T, _RaisingAsyncIterator.ExceptionContainer]],
+                    "Future[Union[T, _RaisingAsyncIterator.ExceptionContainer]]",
                 ]
             ] = deque()
             element_to_yield: Deque[

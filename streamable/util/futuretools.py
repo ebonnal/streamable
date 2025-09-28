@@ -3,7 +3,6 @@ from abc import ABC, abstractmethod
 from collections import deque
 from concurrent.futures import Future
 from contextlib import suppress
-import sys
 from typing import (
     AsyncIterator,
     Awaitable,
@@ -16,20 +15,14 @@ from typing import (
     cast,
 )
 
-from streamable.util.typetools import make_generic
-
 
 with suppress(ImportError):
-    from streamable.util.protocols import Queue
+    from streamable.util import protocols
 
 T = TypeVar("T")
 
 
-if sys.version_info < (3, 8):
-    make_generic(Future)
-
-
-class FutureResult(Future[T], Awaitable[T]):
+class FutureResult(Future, Awaitable[T]):
     def __init__(self, result: T):
         super().__init__()
         self.set_result(result)
@@ -91,9 +84,9 @@ class FDFOOSFutureResultCollection(CallbackFutureResultCollection[T]):
     First Done First Out
     """
 
-    def __init__(self, queue_type: Type["Queue"]) -> None:
+    def __init__(self, queue_type: Type["protocols.Queue"]) -> None:
         super().__init__()
-        self._results: "Queue[T]" = queue_type()
+        self._results: "protocols.Queue[T]" = queue_type()
 
     def _done_callback(self, future: "Future[T]") -> None:
         self._results.put_nowait(future.result())
