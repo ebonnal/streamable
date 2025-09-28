@@ -729,7 +729,7 @@ class TestStream(unittest.TestCase):
         self.assertListEqual(
             to_list(
                 flatten(
-                    Stream([[4, 3, 2], [1, 0, -1]]).map(
+                    Stream([[4, 3, 2, 0], [1, 0, -1], [0, -2, -3]]).map(
                         lambda iterable: sync_to_bi_iterable(
                             map(lambda n: 1 / n, iterable)
                         )
@@ -738,9 +738,31 @@ class TestStream(unittest.TestCase):
                 ).catch(ZeroDivisionError, replacement=float("inf")),
                 itype=itype,
             ),
-            [0.25, 1 / 3, 0.5, 1, float("inf"), -1]
+            [
+                0.25,
+                1 / 3,
+                0.5,
+                float("inf"),
+                1,
+                float("inf"),
+                -1,
+                float("inf"),
+                -0.5,
+                -1 / 3,
+            ]
             if concurrency == 1
-            else [0.25, 1, 1 / 3, float("inf"), 0.5, -1],
+            else [
+                0.25,
+                1,
+                1 / 3,
+                float("inf"),
+                0.5,
+                -1,
+                float("inf"),
+                float("inf"),
+                -0.5,
+                -1 / 3,
+            ],
             msg="At any concurrency the `flatten` method should continue flattening even if an iterable' __next__ raises an exception.",
         )
 
