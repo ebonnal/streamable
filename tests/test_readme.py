@@ -1,4 +1,5 @@
 import asyncio
+import os
 import time
 import unittest
 from datetime import timedelta
@@ -319,8 +320,7 @@ class TestReadme(unittest.TestCase):
         assert collected_casted_ints == [0, 1, 2, 3, 5, 6, 7, 8, 9]
 
     def test_async_etl_example(self) -> None: # pragma: no cover
-        # for mypy typing check only
-        if not self:
+        if os.environ.get("ETL"):
             import asyncio
             import csv
             import itertools
@@ -372,8 +372,7 @@ class TestReadme(unittest.TestCase):
             asyncio.run(main())
 
     def test_etl_example(self) -> None: # pragma: no cover
-        # for mypy typing check only
-        if not self:
+        if os.environ.get("ETL"):
             import csv
             import itertools
             from datetime import timedelta
