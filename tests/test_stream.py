@@ -710,11 +710,22 @@ class TestStream(unittest.TestCase):
             [sync_to_bi_iterable(double_it)]
             + [sync_to_bi_iterable(it) for _ in range(n_iterables)]
         ).map(slow_identity)
-        self.assertCountEqual(
-            to_list(flatten(iterables_stream, concurrency=concurrency), itype=itype),
-            list(it) * n_iterables + double_it,
-            msg="At any concurrency the `flatten` method should yield all the upstream iterables' elements.",
-        )
+        if concurrency == 1:
+            self.assertListEqual(
+                to_list(
+                    flatten(iterables_stream, concurrency=concurrency), itype=itype
+                ),
+                [elem for iterable in iterables_stream for elem in iterable],
+                msg="At concurrency == 1, `flatten` method should yield all the upstream iterables' elements in the order of a nested for loop.",
+            )
+        else:
+            self.assertCountEqual(
+                to_list(
+                    flatten(iterables_stream, concurrency=concurrency), itype=itype
+                ),
+                list(it) * n_iterables + double_it,
+                msg="At concurrency > 1, the `flatten` method should yield all the upstream iterables' elements.",
+            )
 
         self.assertListEqual(
             to_list(
