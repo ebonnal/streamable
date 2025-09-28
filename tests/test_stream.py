@@ -769,7 +769,7 @@ class TestStream(unittest.TestCase):
         self.assertListEqual(
             to_list(
                 flatten(
-                    Stream([[4, 3, 2], cast(list[int], []), [1, 0]])
+                    Stream([[4, 3, 2], cast(List[int], []), [1, 0]])
                     .foreach(lambda ints: 1 / len(ints))
                     .map(sync_to_bi_iterable),
                     concurrency=concurrency,
@@ -786,7 +786,7 @@ class TestStream(unittest.TestCase):
                     Stream(
                         [
                             sync_to_bi_iterable([4, 3, 2]),
-                            cast(list[int], None),
+                            cast(List[int], None),
                             sync_to_bi_iterable([1, 0]),
                         ]
                     ),
