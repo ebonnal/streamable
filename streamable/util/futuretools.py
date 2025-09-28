@@ -17,7 +17,7 @@ from typing import (
 
 
 with suppress(ImportError):
-    from streamable.util import protocols
+    from streamable.util.protocols import Queue
 
 T = TypeVar("T")
 
@@ -84,9 +84,9 @@ class FDFOOSFutureResultCollection(CallbackFutureResultCollection[T]):
     First Done First Out
     """
 
-    def __init__(self, queue_type: Type["protocols.Queue"]) -> None:
+    def __init__(self, queue_type: Type["Queue"]) -> None:
         super().__init__()
-        self._results: "protocols.Queue[T]" = queue_type()
+        self._results: "Queue[T]" = queue_type()
 
     def _done_callback(self, future: "Future[T]") -> None:
         self._results.put_nowait(future.result())
