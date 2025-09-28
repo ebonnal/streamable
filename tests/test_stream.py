@@ -70,7 +70,6 @@ from tests.utils import (
     throw_func,
     timestream,
     to_list,
-    to_set,
 )
 
 
@@ -443,58 +442,46 @@ class TestStream(unittest.TestCase):
             msg="`map` method should act correctly when concurrency > number of elements.",
         )
 
-    @parameterized.expand([(itype,) for itype in ITERABLE_TYPES])
-    def test_catched_error_upstream_of_concurrent_operation(
+    @parameterized.expand(
+        [
+            (itype, concurrency, ordered, expected)
+            for itype in ITERABLE_TYPES
+            for concurrency in (1, 2)
+            for ordered, expected in (
+                (True, [float("inf"), 1.0, float("inf"), 0.5, float("inf")]),
+                (False, [float("inf"), float("inf"), float("inf"), 0.5, 1.0]),
+            )
+            if concurrency > 1 or ordered
+        ]
+    )
+    def test_catched_error_upstream_of_map(
         self,
         itype,
+        concurrency,
+        ordered,
+        expected,
     ) -> None:
         self.assertListEqual(
             to_list(
                 Stream([0, 1, 0, 2, 0])
                 .map(lambda n: 1 / n)
-                .map(identity, concurrency=2)
-                .catch(ZeroDivisionError),
+                .map(identity_sleep, concurrency=concurrency, ordered=ordered)
+                .catch(ZeroDivisionError, replacement=float("inf")),
                 itype=itype,
             ),
-            list(map(lambda n: 1 / n, [1, 2])),
-            msg="a concurrent map/foreach should not stop iteration when upstream errors",
+            expected,
+            msg="at any concurrency, map/foreach should not stop iteration when upstream raises",
         )
         self.assertListEqual(
             to_list(
                 Stream([0, 1, 0, 2, 0])
                 .map(lambda n: 1 / n)
-                .amap(async_identity, concurrency=2)
-                .catch(ZeroDivisionError),
+                .amap(async_identity_sleep, concurrency=concurrency, ordered=ordered)
+                .catch(ZeroDivisionError, replacement=float("inf")),
                 itype=itype,
             ),
-            list(map(lambda n: 1 / n, [1, 2])),
-            msg="a concurrent amap/aforeach should not stop iteration when upstream errors",
-        )
-        self.assertListEqual(
-            to_list(
-                Stream([0, 1, 0, 2, 0])
-                .map(lambda n: 1 / n)
-                .group(1)
-                .flatten(concurrency=2)
-                .catch(ZeroDivisionError),
-                itype=itype,
-            ),
-            list(map(lambda n: 1 / n, [1, 2])),
-            msg="a concurrent flatten should not stop iteration when upstream errors",
-        )
-        self.assertListEqual(
-            to_list(
-                Stream([0, 1, 0, 2, 0])
-                .map(lambda n: 1 / n)
-                .group(1)
-                .map(Stream)
-                .map(Stream.__aiter__)
-                .aflatten(concurrency=2)
-                .catch(ZeroDivisionError),
-                itype=itype,
-            ),
-            list(map(lambda n: 1 / n, [1, 2])),
-            msg="a concurrent aflatten should not stop iteration when upstream errors",
+            expected,
+            msg="at any concurrency, amap/aforeach should not stop iteration when upstream raises",
         )
 
     @parameterized.expand(
@@ -722,11 +709,95 @@ class TestStream(unittest.TestCase):
             [sync_to_bi_iterable(double_it)]
             + [sync_to_bi_iterable(it) for _ in range(n_iterables)]
         ).map(slow_identity)
-        self.assertCountEqual(
-            to_list(flatten(iterables_stream, concurrency=concurrency), itype=itype),
-            list(it) * n_iterables + double_it,
-            msg="At any concurrency the `flatten` method should yield all the upstream iterables' elements.",
+        if concurrency == 1:
+            self.assertListEqual(
+                to_list(
+                    flatten(iterables_stream, concurrency=concurrency), itype=itype
+                ),
+                [elem for iterable in iterables_stream for elem in iterable],
+                msg="At concurrency == 1, `flatten` method should yield all the upstream iterables' elements in the order of a nested for loop.",
+            )
+        else:
+            self.assertCountEqual(
+                to_list(
+                    flatten(iterables_stream, concurrency=concurrency), itype=itype
+                ),
+                list(it) * n_iterables + double_it,
+                msg="At concurrency > 1, the `flatten` method should yield all the upstream iterables' elements.",
+            )
+
+        self.assertListEqual(
+            to_list(
+                flatten(
+                    Stream([[4, 3, 2, 0], [1, 0, -1], [0, -2, -3]]).map(
+                        lambda iterable: sync_to_bi_iterable(
+                            map(lambda n: 1 / n, iterable)
+                        )
+                    ),
+                    concurrency=concurrency,
+                ).catch(ZeroDivisionError, replacement=float("inf")),
+                itype=itype,
+            ),
+            [
+                0.25,
+                1 / 3,
+                0.5,
+                float("inf"),
+                1,
+                float("inf"),
+                -1,
+                float("inf"),
+                -0.5,
+                -1 / 3,
+            ]
+            if concurrency == 1
+            else [
+                0.25,
+                1,
+                1 / 3,
+                float("inf"),
+                0.5,
+                -1,
+                float("inf"),
+                float("inf"),
+                -0.5,
+                -1 / 3,
+            ],
+            msg="At any concurrency the `flatten` method should continue flattening even if an iterable' __next__ raises an exception.",
         )
+
+        self.assertListEqual(
+            to_list(
+                flatten(
+                    Stream([[4, 3, 2], cast(List[int], []), [1, 0]])
+                    .foreach(lambda ints: 1 / len(ints))
+                    .map(sync_to_bi_iterable),
+                    concurrency=concurrency,
+                ).catch(ZeroDivisionError, replacement=-1),
+                itype=itype,
+            ),
+            [4, 3, 2, -1, 1, 0] if concurrency == 1 else [4, -1, 3, 1, 2, 0],
+            msg="At any concurrency the `flatten` method should continue pulling upstream iterables even if upstream raises an exception.",
+        )
+
+        self.assertListEqual(
+            to_list(
+                flatten(
+                    Stream(
+                        [
+                            sync_to_bi_iterable([4, 3, 2]),
+                            cast(List[int], None),
+                            sync_to_bi_iterable([1, 0]),
+                        ]
+                    ),
+                    concurrency=concurrency,
+                ).catch(AttributeError, replacement=-1),
+                itype=itype,
+            ),
+            [4, 3, 2, -1, 1, 0] if concurrency == 1 else [4, -1, 3, 1, 2, 0],
+            msg="At any concurrency the `flatten` method should continue pulling upstream iterables even if upstream's __iter__ raises an exception.",
+        )
+
         self.assertListEqual(
             to_list(
                 flatten(
@@ -810,94 +881,6 @@ class TestStream(unittest.TestCase):
 
         flattened_asynciter_stream: Stream[str] = (  # noqa: F841
             Stream("abc").map(iter).map(sync_to_async_iter).aflatten()
-        )
-
-    @parameterized.expand(
-        [
-            [concurrency, itype, flatten]
-            for concurrency in [1, 2]
-            for itype in ITERABLE_TYPES
-            for flatten in (Stream.flatten, Stream.aflatten)
-        ]
-    )
-    def test_flatten_with_exception_in_iter(
-        self,
-        concurrency: int,
-        itype: IterableType,
-        flatten: Callable,
-    ) -> None:
-        n_iterables = 5
-
-        class IterableRaisingInIter(Iterable[int]):
-            def __iter__(self) -> Iterator[int]:
-                raise TestError
-
-        res: Set[int] = to_set(
-            flatten(
-                Stream(
-                    map(
-                        lambda i: sync_to_bi_iterable(
-                            IterableRaisingInIter() if i % 2 else range(i, i + 1)
-                        ),
-                        range(n_iterables),
-                    )
-                ),
-                concurrency=concurrency,
-            ).catch(TestError),
-            itype=itype,
-        )
-        self.assertSetEqual(
-            res,
-            set(range(0, n_iterables, 2)),
-            msg="At any concurrency the `flatten` method should be resilient to exceptions thrown by iterators, especially it should wrap Stop(Async)Iteration.",
-        )
-
-    @parameterized.expand(
-        [
-            [concurrency, itype, flatten]
-            for concurrency in [1, 2]
-            for itype in ITERABLE_TYPES
-            for flatten in (Stream.flatten, Stream.aflatten)
-        ]
-    )
-    def test_flatten_with_exception_in_next(
-        self,
-        concurrency: int,
-        itype: IterableType,
-        flatten: Callable,
-    ) -> None:
-        n_iterables = 5
-
-        class IteratorRaisingInNext(Iterator[int]):
-            def __init__(self) -> None:
-                self.first_next = True
-
-            def __next__(self) -> int:
-                if not self.first_next:
-                    raise StopIteration()
-                self.first_next = False
-                raise TestError
-
-        res = to_set(
-            flatten(
-                Stream(
-                    map(
-                        lambda i: (
-                            sync_to_bi_iterable(
-                                IteratorRaisingInNext() if i % 2 else range(i, i + 1)
-                            )
-                        ),
-                        range(n_iterables),
-                    )
-                ),
-                concurrency=concurrency,
-            ).catch(TestError),
-            itype=itype,
-        )
-        self.assertSetEqual(
-            res,
-            set(range(0, n_iterables, 2)),
-            msg="At any concurrency the `flatten` method should be resilient to exceptions thrown by iterators, especially it should wrap Stop(Async)Iteration.",
         )
 
     @parameterized.expand(
