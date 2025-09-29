@@ -1,8 +1,8 @@
-.PHONY: all help venv test type-check format format-check
+.PHONY: all help venv test type-check format format-check lint lint-check
 
 VENV_DIR := .venv
 
-all: venv test type-check format
+all: venv test type-check format lint
 
 help:
 	@echo "Available commands:"

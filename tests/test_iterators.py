@@ -33,6 +33,4 @@ class TestIterators(unittest.TestCase):
             aiterator: AsyncIterator[int] = _RaisingAsyncIterator(
                 concurrent_amap_async_iterable.__aiter__()
             )
-            print(
-                asyncio.run(awaitable_to_coroutine(aiterator.__aiter__().__anext__()))
-            )
+            asyncio.run(awaitable_to_coroutine(aiterator.__aiter__().__anext__()))

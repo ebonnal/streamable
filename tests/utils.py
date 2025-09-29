@@ -11,7 +11,6 @@ from typing import (
     Iterable,
     Iterator,
     List,
-    Set,
     Tuple,
     Type,
     TypeVar,
@@ -37,14 +36,6 @@ def aiterable_to_list(aiterable: AsyncIterable[T]) -> List[T]:
     return asyncio.run(_aiter_to_list(aiterable))
 
 
-async def _aiter_to_set(aiterable: AsyncIterable[T]) -> Set[T]:
-    return {elem async for elem in aiterable}
-
-
-def aiterable_to_set(aiterable: AsyncIterable[T]) -> Set[T]:
-    return asyncio.run(_aiter_to_set(aiterable))
-
-
 def stopiteration_for_iter_type(itype: IterableType) -> Type[Exception]:
     if issubclass(itype, AsyncIterable):
         return StopAsyncIteration
@@ -57,14 +48,6 @@ def to_list(stream: Stream[T], itype: IterableType) -> List[T]:
         return aiterable_to_list(stream)
     else:
         return list(stream)
-
-
-def to_set(stream: Stream[T], itype: IterableType) -> Set[T]:
-    assert isinstance(stream, Stream)
-    if itype is AsyncIterable:
-        return aiterable_to_set(stream)
-    else:
-        return set(stream)
 
 
 def bi_iterable_to_iter(
