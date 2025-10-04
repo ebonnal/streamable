@@ -85,11 +85,6 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
         # Keep only quadruped Pokemons
         .filter(lambda poke: poke["shape"]["name"] == "quadruped")
         .observe("quadruped pokemons")
-        # Catch errors due to None "generation" or "shape"
-        .catch(
-            TypeError,
-            when=lambda error: str(error) == "'NoneType' object is not subscriptable"
-        )
         # Write a batch of pokemons every 5 seconds to the CSV file
         .group(interval=timedelta(seconds=5))
         .foreach(writer.writerows)
@@ -140,11 +135,6 @@ async def main() -> None:
                 # Keep only quadruped Pokemons
                 .filter(lambda poke: poke["shape"]["name"] == "quadruped")
                 .observe("quadruped pokemons")
-                # Catch errors due to None "generation" or "shape"
-                .catch(
-                    TypeError,
-                    when=lambda error: str(error) == "'NoneType' object is not subscriptable"
-                )
                 # Write a batch of pokemons every 5 seconds to the CSV file
                 .group(interval=timedelta(seconds=5))
                 .foreach(writer.writerows)
