@@ -183,7 +183,7 @@ class AFlattenIterator(Iterator[U], CloseEventLoopMixin):
 #########
 
 
-class _GroupIteratorMixin(Generic[T]):
+class _BaseGroupIterator(Generic[T]):
     def __init__(
         self,
         iterator: Iterator[T],
@@ -213,7 +213,7 @@ class _GroupIteratorMixin(Generic[T]):
             self._last_group_yielded_at = time.perf_counter()
 
 
-class GroupIterator(_GroupIteratorMixin[T], Iterator[List[T]]):
+class GroupIterator(_BaseGroupIterator[T], Iterator[List[T]]):
     def __init__(
         self,
         iterator: Iterator[T],
@@ -245,7 +245,7 @@ class GroupIterator(_GroupIteratorMixin[T], Iterator[List[T]]):
         return group
 
 
-class GroupbyIterator(_GroupIteratorMixin[T], Iterator[Tuple[U, List[T]]]):
+class GroupbyIterator(_BaseGroupIterator[T], Iterator[Tuple[U, List[T]]]):
     def __init__(
         self,
         iterator: Iterator[T],

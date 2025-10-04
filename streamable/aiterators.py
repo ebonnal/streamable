@@ -180,7 +180,7 @@ class AFlattenAsyncIterator(AsyncIterator[U]):
 #########
 
 
-class _GroupAsyncIteratorMixin(Generic[T]):
+class _BaseGroupAsyncIterator(Generic[T]):
     def __init__(
         self,
         iterator: AsyncIterator[T],
@@ -210,7 +210,7 @@ class _GroupAsyncIteratorMixin(Generic[T]):
             self._last_group_yielded_at = time.perf_counter()
 
 
-class GroupAsyncIterator(_GroupAsyncIteratorMixin[T], AsyncIterator[List[T]]):
+class GroupAsyncIterator(_BaseGroupAsyncIterator[T], AsyncIterator[List[T]]):
     def __init__(
         self,
         iterator: AsyncIterator[T],
@@ -243,7 +243,7 @@ class GroupAsyncIterator(_GroupAsyncIteratorMixin[T], AsyncIterator[List[T]]):
 
 
 class AGroupbyAsyncIterator(
-    _GroupAsyncIteratorMixin[T], AsyncIterator[Tuple[U, List[T]]]
+    _BaseGroupAsyncIterator[T], AsyncIterator[Tuple[U, List[T]]]
 ):
     def __init__(
         self,
