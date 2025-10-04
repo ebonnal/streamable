@@ -33,6 +33,7 @@ from streamable.iterators import (
     FlattenIterator,
     GroupbyIterator,
     GroupIterator,
+    IntervalDistinctIterator,
     ObserveIterator,
     PredicateSkipIterator,
     PredicateTruncateIterator,
@@ -94,9 +95,12 @@ def distinct(
     key: Optional[Callable[[T], Any]] = None,
     *,
     consecutive_only: bool = False,
+    interval: Optional[datetime.timedelta] = None,
 ) -> Iterator[T]:
     if consecutive_only:
         return ConsecutiveDistinctIterator(iterator, key)
+    elif interval is not None:
+        return IntervalDistinctIterator(iterator, key, interval)
     return DistinctIterator(iterator, key)
 
 
@@ -106,11 +110,13 @@ def adistinct(
     key: Optional[Callable[[T], Any]] = None,
     *,
     consecutive_only: bool = False,
+    interval: Optional[datetime.timedelta] = None,
 ) -> Iterator[T]:
     return distinct(
         iterator,
         syncify(event_loop, key) if key else None,
         consecutive_only=consecutive_only,
+        interval=interval,
     )
 
 

@@ -4,7 +4,7 @@ import multiprocessing
 import queue
 import time
 from abc import ABC, abstractmethod
-from collections import defaultdict, deque
+from collections import OrderedDict, defaultdict, deque
 from concurrent.futures import Executor, Future, ProcessPoolExecutor, ThreadPoolExecutor
 from contextlib import suppress
 from math import ceil
@@ -138,6 +138,50 @@ class ConsecutiveADistinctAsyncIterator(AsyncIterator[T]):
                 break
         self._last_key = key
         return elem
+
+
+class IntervalADistinctAsyncIterator(AsyncIterator[T]):
+    def __init__(
+        self,
+        iterator: AsyncIterator[T],
+        key: Optional[Callable[[T], Coroutine[Any, Any, Any]]],
+        interval: datetime.timedelta,
+    ) -> None:
+        self.iterator = iterator
+        self.key = key
+        self.interval = interval
+        # Use ordered dict to keep insertion order for efficient cleanup
+        self._seen_keys_with_time: OrderedDict[Any, float] = OrderedDict()
+
+    async def __anext__(self) -> T:
+        while True:
+            elem = await self.iterator.__anext__()
+            key = await self.key(elem) if self.key else elem
+            current_time = time.time()
+            
+            # Check if this key is in our memory and still fresh
+            if key in self._seen_keys_with_time:
+                last_seen_time = self._seen_keys_with_time[key]
+                if current_time - last_seen_time <= self.interval.total_seconds():
+                    # Still within window, update timestamp and skip this element
+                    self._seen_keys_with_time[key] = current_time
+                    continue
+                else:
+                    # Outside window, remove old entry
+                    del self._seen_keys_with_time[key]
+            
+            # Clean up expired entries from the beginning of ordered dict
+            interval_seconds = self.interval.total_seconds()
+            while self._seen_keys_with_time:
+                oldest_key, oldest_time = next(iter(self._seen_keys_with_time.items()))
+                if current_time - oldest_time > interval_seconds:
+                    del self._seen_keys_with_time[oldest_key]
+                else:
+                    break
+            
+            # Add new entry and return
+            self._seen_keys_with_time[key] = current_time
+            return elem
 
 
 ###########

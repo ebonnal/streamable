@@ -34,6 +34,7 @@ from streamable.aiterators import (
     CountTruncateAsyncIterator,
     FlattenAsyncIterator,
     GroupAsyncIterator,
+    IntervalADistinctAsyncIterator,
     ObserveAsyncIterator,
     PredicateASkipAsyncIterator,
     PredicateATruncateAsyncIterator,
@@ -96,11 +97,13 @@ def distinct(
     key: Optional[Callable[[T], Any]] = None,
     *,
     consecutive_only: bool = False,
+    interval: Optional[datetime.timedelta] = None,
 ) -> AsyncIterator[T]:
     return adistinct(
         aiterator,
         asyncify(key) if key else None,
         consecutive_only=consecutive_only,
+        interval=interval,
     )
 
 
@@ -109,9 +112,12 @@ def adistinct(
     key: Optional[Callable[[T], Coroutine[Any, Any, Any]]] = None,
     *,
     consecutive_only: bool = False,
+    interval: Optional[datetime.timedelta] = None,
 ) -> AsyncIterator[T]:
     if consecutive_only:
         return ConsecutiveADistinctAsyncIterator(aiterator, key)
+    elif interval is not None:
+        return IntervalADistinctAsyncIterator(aiterator, key, interval)
     return ADistinctAsyncIterator(aiterator, key)
 
 

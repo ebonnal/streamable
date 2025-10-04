@@ -2011,6 +2011,41 @@ class TestStream(unittest.TestCase):
         ):
             to_list(Stream([[1]]).distinct(), itype=itype)
 
+    def test_distinct_with_interval(self) -> None:
+        # Test that distinct with interval only deduplicates within the time window
+        import time
+        from datetime import timedelta
+        
+        # Test with very short window - should deduplicate within window  
+        def quick_generator():
+            for elem in ['a', 'a', 'b', 'b']:
+                time.sleep(0.01)  # 10ms between elements
+                yield elem
+        
+        result = list(Stream(quick_generator()).distinct(interval=timedelta(milliseconds=50)))
+        self.assertListEqual(result, ['a', 'b'])  # Duplicates within window should be removed
+        
+        # Test with long interval that should preserve longer gaps
+        def spaced_generator():
+            yield 'a'
+            time.sleep(0.1)  # 100ms gap
+            yield 'a'  # Should be deduplicated if window > 100ms
+        
+        result = list(Stream(spaced_generator()).distinct(interval=timedelta(milliseconds=50)))
+        self.assertListEqual(result, ['a', 'a'])  # Should allow second 'a' since gap > window
+        
+        result = list(Stream(spaced_generator()).distinct(interval=timedelta(milliseconds=150)))
+        self.assertListEqual(result, ['a'])  # Should deduplicate since gap < window
+        
+        # Test with key function and interval
+        def key_generator():
+            yield {'id': 1}
+            time.sleep(0.05)  # 50ms gap
+            yield {'id': 1}  # Same key
+                
+        result = list(Stream(key_generator()).distinct(key=lambda x: x['id'], interval=timedelta(milliseconds=30)))
+        self.assertEqual(len(result), 2)  # Should allow both since gap > interval
+
     @parameterized.expand(ITERABLE_TYPES)
     def test_adistinct(self, itype: IterableType) -> None:
         self.assertListEqual(

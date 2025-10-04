@@ -298,6 +298,7 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         key: Optional[Callable[[T], Any]] = None,
         *,
         consecutive_only: bool = False,
+        interval: Optional[datetime.timedelta] = None,
     ) -> "Stream[T]":
         """
         Filters the stream to yield only distinct elements.
@@ -309,21 +310,24 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Warning:
             During iteration, the distinct elements yielded are retained in memory to perform deduplication.
             Alternatively, remove only consecutive duplicates without memory footprint by setting `consecutive_only=True`.
+            For time-windowed deduplication, use the `interval` parameter.
 
         Args:
             key (Callable[[T], Any], optional): Elements are deduplicated based on `key(elem)`. (default: the deduplication is performed on the elements themselves)
             consecutive_only (bool, optional): Whether to deduplicate only consecutive duplicates, or globally. (default: the deduplication is global)
+            interval (datetime.timedelta, optional): If specified, only deduplicates elements within this time window. Elements seen more than `interval` ago are forgotten.
 
         Returns:
             Stream: A stream containing only unique upstream elements.
         """
-        return DistinctStream(self, key, consecutive_only)
+        return DistinctStream(self, key, consecutive_only, interval)
 
     def adistinct(
         self,
         key: Optional[Callable[[T], Coroutine[Any, Any, Any]]] = None,
         *,
         consecutive_only: bool = False,
+        interval: Optional[datetime.timedelta] = None,
     ) -> "Stream[T]":
         """
         Filters the stream to yield only distinct elements.
@@ -335,15 +339,17 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Warning:
             During iteration, the distinct elements yielded are retained in memory to perform deduplication.
             Alternatively, remove only consecutive duplicates without memory footprint by setting `consecutive_only=True`.
+            For time-windowed deduplication, use the `interval` parameter.
 
         Args:
             key (Callable[[T], Coroutine[Any, Any, Any]], optional): Elements are deduplicated based on `key(elem)`. (default: the deduplication is performed on the elements themselves)
             consecutive_only (bool, optional): Whether to deduplicate only consecutive duplicates, or globally. (default: the deduplication is global)
+            interval (datetime.timedelta, optional): If specified, only deduplicates elements within this time window. Elements seen more than `interval` ago are forgotten.
 
         Returns:
             Stream: A stream containing only unique upstream elements.
         """
-        return ADistinctStream(self, key, consecutive_only)
+        return ADistinctStream(self, key, consecutive_only, interval)
 
     def filter(self, when: Callable[[T], Any] = bool) -> "Stream[T]":
         """
@@ -903,34 +909,38 @@ class ACatchStream(DownStream[T, T]):
 
 
 class DistinctStream(DownStream[T, T]):
-    __slots__ = ("_key", "_consecutive_only")
+    __slots__ = ("_key", "_consecutive_only", "_interval")
 
     def __init__(
         self,
         upstream: Stream[T],
         key: Optional[Callable[[T], Any]],
         consecutive_only: bool,
+        interval: Optional[datetime.timedelta],
     ) -> None:
         super().__init__(upstream)
         self._key = key
         self._consecutive_only = consecutive_only
+        self._interval = interval
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_distinct_stream(self)
 
 
 class ADistinctStream(DownStream[T, T]):
-    __slots__ = ("_key", "_consecutive_only")
+    __slots__ = ("_key", "_consecutive_only", "_interval")
 
     def __init__(
         self,
         upstream: Stream[T],
         key: Optional[Callable[[T], Coroutine[Any, Any, Any]]],
         consecutive_only: bool,
+        interval: Optional[datetime.timedelta],
     ) -> None:
         super().__init__(upstream)
         self._key = key
         self._consecutive_only = consecutive_only
+        self._interval = interval
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_adistinct_stream(self)
