@@ -518,22 +518,19 @@ class YieldsPerPeriodThrottleAsyncIterator(AsyncIterator[T]):
         self.iterator = iterator
         self.max_yields = max_yields
         self._period_seconds = period.total_seconds()
-
         self._period_index: int = -1
         self._yields_in_period = 0
-
         self._offset: Optional[float] = None
 
-    async def safe_next(self) -> Tuple[Optional[T], Optional[Exception]]:
+    async def __anext__(self) -> T:
+        elem: Optional[T] = None
+        caught_error: Optional[Exception] = None
         try:
-            return await self.iterator.__anext__(), None
+            elem = await self.iterator.__anext__()
         except StopAsyncIteration:
             raise
         except Exception as e:
-            return None, e
-
-    async def __anext__(self) -> T:
-        elem, caught_error = await self.safe_next()
+            caught_error = e
 
         now = time.perf_counter()
         if not self._offset:
@@ -554,7 +551,10 @@ class YieldsPerPeriodThrottleAsyncIterator(AsyncIterator[T]):
         self._yields_in_period += 1
 
         if caught_error:
-            raise caught_error
+            try:
+                raise caught_error
+            finally:
+                caught_error = None
         return cast(T, elem)
 
 
