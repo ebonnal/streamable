@@ -22,6 +22,7 @@ from typing import (
     Iterable,
     Iterator,
     List,
+    NamedTuple,
     Optional,
     Set,
     Tuple,
@@ -29,6 +30,7 @@ from typing import (
     Union,
     cast,
 )
+from unittest.mock import patch
 
 from parameterized import parameterized  # type: ignore
 
@@ -2480,27 +2482,78 @@ class TestStream(unittest.TestCase):
 
     @parameterized.expand(ITERABLE_TYPES)
     def test_observe(self, itype: IterableType) -> None:
-        value_error_rainsing_stream: Stream[List[int]] = (
-            Stream("123--678")
-            .throttle(10, per=datetime.timedelta(seconds=1))
-            .observe("chars")
-            .map(int)
-            .observe("ints")
-            .group(2)
-            .observe("int pairs")
-        )
+        def inverse(chars: str) -> Stream[float]:
+            return (
+                Stream(chars)
+                .map(int)
+                .map(lambda n: 1 / n)
+                .observe("inverses")
+                .catch(ValueError)
+            )
 
         self.assertListEqual(
-            to_list(value_error_rainsing_stream.catch(ValueError), itype=itype),
-            [[1, 2], [3], [6, 7], [8]],
-            msg="This can break due to `group`/`map`/`catch`, check other breaking tests to determine quickly if it's an issue with `observe`.",
+            to_list(inverse("12---3456----7"), itype=itype),
+            list(map(lambda n: 1 / n, range(1, 8))),
+            msg="`observe` should yield upstream elements",
         )
 
-        with self.assertRaises(
-            ValueError,
-            msg="`observe` should forward-raise exceptions",
+        class Log(NamedTuple):
+            errors: int
+            yields: int
+
+        logs: List[Log] = []
+        with patch(
+            "logging.Logger.info",
+            lambda self, msg, dur, errors, yields: logs.append(Log(errors, yields)),
         ):
-            to_list(value_error_rainsing_stream, itype=itype)
+            with self.assertRaises(ZeroDivisionError, msg="`observe` should reraise"):
+                to_list(inverse("12---3456----07"), itype=itype)
+            self.assertListEqual(
+                logs,
+                [
+                    Log(errors=0, yields=1),
+                    Log(errors=0, yields=2),
+                    Log(errors=1, yields=2),
+                    Log(errors=2, yields=2),
+                    Log(errors=3, yields=4),
+                    Log(errors=4, yields=6),
+                    Log(errors=8, yields=6),
+                ],
+                msg="`observe` errors and yields independently",
+            )
+
+            logs.clear()
+            to_list(inverse("12---3456----07").catch(ZeroDivisionError), itype=itype)
+            self.assertListEqual(
+                logs,
+                [
+                    Log(errors=0, yields=1),
+                    Log(errors=0, yields=2),
+                    Log(errors=1, yields=2),
+                    Log(errors=2, yields=2),
+                    Log(errors=3, yields=4),
+                    Log(errors=4, yields=6),
+                    Log(errors=8, yields=6),
+                    Log(errors=8, yields=7),
+                ],
+                msg="`observe` should produce one last log on StopIteration",
+            )
+
+            logs.clear()
+            to_list(inverse("12---3456----0").catch(ZeroDivisionError), itype=itype)
+            self.assertListEqual(
+                logs,
+                [
+                    Log(errors=0, yields=1),
+                    Log(errors=0, yields=2),
+                    Log(errors=1, yields=2),
+                    Log(errors=2, yields=2),
+                    Log(errors=3, yields=4),
+                    Log(errors=4, yields=6),
+                    Log(errors=8, yields=6),
+                ],
+                msg="`observe` should skip redundant last log on StopIteration",
+            )
 
     def test_is_iterable(self) -> None:
         self.assertIsInstance(Stream(src), Iterable)
