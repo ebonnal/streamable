@@ -524,7 +524,10 @@ class _RaisingIterator(Iterator[T]):
     def __next__(self) -> T:
         elem = self.iterator.__next__()
         if isinstance(elem, self.ExceptionContainer):
-            raise elem.exception
+            try:
+                raise elem.exception
+            finally:
+                del elem
         return elem
 
 
