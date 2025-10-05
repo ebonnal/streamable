@@ -465,42 +465,42 @@ class ObserveAsyncIterator(AsyncIterator[T]):
         self.iterator = iterator
         self.what = what
         self.base = base
-
-        self._n_yields = 0
-        self._n_errors = 0
-        self._n_nexts = 0
-        self._logged_n_nexts = 0
-        self._next_threshold = 0
-
-        self._start_time = time.perf_counter()
+        self._yields = 0
+        self._errors = 0
+        self._nexts_logged = 0
+        self._yields_logged = 0
+        self._errors_logged = 0
+        self._started_time: Optional[datetime.datetime] = None
+        self._logger = get_logger()
+        self._format = f"[duration=%s errors=%s] %s {what} yielded"
 
     def _log(self) -> None:
-        get_logger().info(
-            "[%s %s] %s",
-            f"duration={datetime.datetime.fromtimestamp(time.perf_counter()) - datetime.datetime.fromtimestamp(self._start_time)}",
-            f"errors={self._n_errors}",
-            f"{self._n_yields} {self.what} yielded",
-        )
-        self._logged_n_nexts = self._n_nexts
-        self._next_threshold = self.base * self._logged_n_nexts
+        now = datetime.datetime.fromtimestamp(time.perf_counter())
+        duration = now - cast(datetime.datetime, self._started_time)
+        self._logger.info(self._format, duration, self._errors, self._yields)
 
     async def __anext__(self) -> T:
+        if not self._started_time:
+            self._started_time = datetime.datetime.fromtimestamp(time.perf_counter())
         try:
             elem = await self.iterator.__anext__()
-            self._n_nexts += 1
-            self._n_yields += 1
+            self._yields += 1
+            if self._yields >= self.base * self._yields_logged:
+                self._log()
+                self._yields_logged = self._yields
+                self._nexts_logged = self._yields + self._errors
             return elem
         except StopAsyncIteration:
-            if self._n_nexts != self._logged_n_nexts:
+            if self._yields + self._errors > self._nexts_logged:
                 self._log()
             raise
         except Exception:
-            self._n_nexts += 1
-            self._n_errors += 1
-            raise
-        finally:
-            if self._n_nexts >= self._next_threshold:
+            self._errors += 1
+            if self._errors >= self.base * self._errors_logged:
                 self._log()
+                self._errors_logged = self._errors
+                self._nexts_logged = self._yields + self._errors
+            raise
 
 
 ############
