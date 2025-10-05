@@ -571,7 +571,10 @@ class _RaisingAsyncIterator(AsyncIterator[T]):
     async def __anext__(self) -> T:
         elem = await self.iterator.__anext__()
         if isinstance(elem, self.ExceptionContainer):
-            raise elem.exception
+            try:
+                raise elem.exception
+            finally:
+                del elem
         return elem
 
 
