@@ -41,13 +41,18 @@ Chain ***lazy*** operations (only evaluated during iteration), each returning a 
 inverses: Stream[float] = (
     integers
     .map(lambda n: round(1 / n, 2))
-    .catch(ZeroDivisionError)
+    .catch(ZeroDivisionError, replacement=float("inf"))
 )
 ```
 
 ## 5. iterate
 
-Iterate over a `Stream[T]` like any `Iterable[T]`/`AsyncIterable[T]`.
+Iterate over a `Stream[T]` like any `Iterable[T]`/`AsyncIterable[T]`:
+
+```python
+>>> list(inverses)
+[inf, 1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
+```
 
 Elements are processed ***on-the-fly*** as the iteration advances.
 
