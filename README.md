@@ -6,9 +6,9 @@
 
 ### *concurrent & fluent interface for (async) iterables*
 
+- 🇹 `Stream[T]` is a ***decorator*** for `Iterable[T]` / `AsyncIterable[T]`
 - 🔗 chain ***lazy*** operations
 - 🔀 ***concurrent*** via threads / processes / coroutines (`async`)
-- 🇹 ***typed***, `Stream[T]` is an `Iterable[T]` and an `AsyncIterable[T]`
 - 🛡️ ***battle-tested*** for prod, extensively tested with CPython 3.7 to 3.15 and compatible with [PyPy](https://github.com/pypy/pypy).
 
 
@@ -232,7 +232,7 @@ assert depth(Stream(range(10)).map(str).foreach(print)) == 3
 Feel very welcome to help us improve `streamable` via issues and PRs, check [CONTRIBUTING.md](CONTRIBUTING.md).
 
 
-## 🙏 Community Highlights – Thank You!
+## Highlights from the community 🙏
 - [Tryolabs' Top 10 Python libraries of 2024](https://tryolabs.com/blog/top-python-libraries-2024#top-10---general-use) ([LinkedIn](https://www.linkedin.com/posts/tryolabs_top-python-libraries-2024-activity-7273052840984539137-bcGs?utm_source=share&utm_medium=member_desktop), [Reddit](https://www.reddit.com/r/Python/comments/1hbs4t8/the_handpicked_selection_of_the_best_python/))
 - [PyCoder’s Weekly](https://pycoders.com/issues/651) x [Real Python](https://realpython.com/)
 - [@PythonHub's tweet](https://x.com/PythonHub/status/1842886311369142713)
@@ -242,11 +242,11 @@ Feel very welcome to help us improve `streamable` via issues and PRs, check [CON
 # 📒 ***Operations***
 
 > [!IMPORTANT]
-> A `Stream` exposes a minimalist interface to manipulate elements, creating its source or consuming it is not its responsability (combine it with dedicated libraries like `functools`, `csv`, `json`, `pyarrow`, `psycopg2`, `boto3`, `requests`, ...).
+> A `Stream` exposes a minimalist yet expressive set of operations to manipulate its elements, but creating its source or consuming it is not its responsability, it's meant to be combined with specialized libraries (`csv`, `json`, `pyarrow`, `psycopg2`, `boto3`, `requests`, `httpx`, ...).
 
 > [!NOTE]
 > **`async` counterparts:** For each operation that takes a function (such as `.map`), there is an equivalent that accepts an async function (such as `.amap`).
-You can freely mix synchronous and asynchronous operations within the same `Stream`. The result can then be consumed either as an `Iterable` or as an `AsyncIterable`.
+You can freely mix synchronous and asynchronous operations within the same `Stream`. The result can then be consumed either as an `Iterable` or as an `AsyncIterable`. When a stream involving `async` operations is consumed as an `Iterable`, a temporary `asyncio` event loop is attached to it.
 
 ## 🟡 `.map`/`.amap`
 
@@ -719,7 +719,7 @@ assert list(integers + integers) == [0, 1, 2, 3 ,4, 5, 6, 7, 8, 9, 0, 1, 2, 3 ,4
 
 ##  🟡 `zip`
 
-> Use the standard `zip` function:
+> Use the builtins' `zip` function:
 
 <details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
