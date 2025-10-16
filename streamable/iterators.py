@@ -585,12 +585,13 @@ class _BaseConcurrentMapIterable(
                     break
                 future_results.add_future(future)
 
-            # queue, wait, yield
+            # wait, queue, yield
             while future_results:
+                result = future_results.__next__()
                 future = self._next_future()
                 if future:
                     future_results.add_future(future)
-                yield future_results.__next__()
+                yield result
 
 
 class _ConcurrentMapIterable(_BaseConcurrentMapIterable[T, U]):
