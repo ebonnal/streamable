@@ -7,9 +7,9 @@
 ### *concurrent & fluent interface for (async) iterables*
 
 - 🇹 `Stream[T]` is a ***decorator*** for `Iterable[T]` / `AsyncIterable[T]`
-- 🔗 chain ***lazy*** operations
+- 🔗 ***lazy*** operations chaining
 - 🔀 ***concurrent*** via threads / processes / coroutines (`async`)
-- 🛡️ ***battle-tested*** for prod, extensively tested with CPython 3.7 to 3.15 and compatible with [PyPy](https://github.com/pypy/pypy).
+- 🛡️ ***battle-tested*** with Python 3.7 to 3.15 (compatible with [PyPy](https://github.com/pypy/pypy))
 
 
 ## 1. install
@@ -58,9 +58,9 @@ Elements are processed ***on-the-fly*** as the iteration advances.
 
 # ↔ showcase: ETL
 
-Let's illustrate the `Stream`'s capabilities with a simple Extract-Transform-Load script:
+Let's walk through the `Stream`'s features with an Extract-Transform-Load script:
 
-This script concurrently gets Pokémons from [PokéAPI](https://pokeapi.co/), and writes the quadrupeds from the first three generations into a CSV file, in 5-seconds batches:
+This toy script gets Pokémons concurrently from [PokéAPI](https://pokeapi.co/), and writes the quadrupeds from the first three generations into a CSV file, in 5-seconds batches:
 
 ```python
 import csv
@@ -105,9 +105,9 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
 
 ## ... or the `async` way!
 
-Let's adapt the snippet to build an `async` alternative:
-- use `httpx.AsyncCLient` together with the `.amap` operation (the `async` counterpart of `.map`).
-- instead of calling `pipeline()` to iterate over it as an `Iterable`, `await pipeline` to iterate over it as an `AsyncIterable`.
+Let's write an `async` version of this script:
+- using `httpx.AsyncCLient` together with the `.amap` operation (the `async` counterpart of `.map`).
+- instead of calling `pipeline()` to iterate over it as an `Iterable`, let's `await pipeline` to iterate over it as an `AsyncIterable`.
 
 ```python
 import asyncio
@@ -155,31 +155,18 @@ async def main() -> None:
 asyncio.run(main())
 ```
 
+# 🙏 Highlights from the community
+- [Tryolabs' Top 10 Python libraries of 2024](https://tryolabs.com/blog/top-python-libraries-2024#top-10---general-use) ([LinkedIn](https://www.linkedin.com/posts/tryolabs_top-python-libraries-2024-activity-7273052840984539137-bcGs?utm_source=share&utm_medium=member_desktop), [Reddit](https://www.reddit.com/r/Python/comments/1hbs4t8/the_handpicked_selection_of_the_best_python/))
+- [PyCoder’s Weekly](https://pycoders.com/issues/651) x [Real Python](https://realpython.com/)
+- [@PythonHub's tweet](https://x.com/PythonHub/status/1842886311369142713)
+- [Upvoters on our showcase Reddit post](https://www.reddit.com/r/Python/comments/1fp38jd/streamable_streamlike_manipulation_of_iterables/)
+
+
 # 💡 Notes
-
-## Performances
-
-Creating a `Stream` is lazy and fast,
-
-```python
-stream: Stream[int] = (
-    Stream(range(1_000_000))
-    .map(str)
-    .map(int)
-    .filter(lambda i: i > 1_000)
-)
-```
-
-and there is **zero overhead during iteration compared to builtins** because `iter(stream)` visits the operations lineage and simply returns:
-
-```python
-filter(lambda i: i > 1_000, map(int, map(str, range(1_000_000))))
-```
-
 ## Exceptions are not terminating the iteration
 
 > [!TIP]
-> If any of the operations raises an exception, you can resume the iteration after handling it:
+> If an operation raises an exception while processing an element, you can handle it and continue the iteration:
 
 <details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
@@ -204,42 +191,39 @@ assert collected == [0, 1, 2, 3, 5, 6, 7, 8, 9]
 
 </details >
 
-## Visitor Pattern
-> [!TIP]
-> A `Stream` can be visited via its `.accept` method: implement a custom [***visitor***](https://en.wikipedia.org/wiki/Visitor_pattern) by extending the abstract class `streamable.visitors.Visitor`:
 
-<details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
+## Performances
+
+Declaring a `Stream` is lazy,
 
 ```python
-from streamable.visitors import Visitor
-
-class DepthVisitor(Visitor[int]):
-    def visit_stream(self, stream: Stream) -> int:
-        if not stream.upstream:
-            return 1
-        return 1 + stream.upstream.accept(self)
-
-def depth(stream: Stream) -> int:
-    return stream.accept(DepthVisitor())
-
-assert depth(Stream(range(10)).map(str).foreach(print)) == 3
+odd_int_strings = Stream(range(1_000_000)).filter(lambda n: n % 2).map(str)
 ```
-</details>
 
-## Contributing
-**Many thanks to our [contributors](https://github.com/ebonnal/streamable/graphs/contributors)!**
+and there is *zero overhead during iteration compared to builtins*, `iter(odd_int_strings)` visits the operations lineage and returns exactly this iterator:
 
-Feel very welcome to help us improve `streamable` via issues and PRs, check [CONTRIBUTING.md](CONTRIBUTING.md).
+```python
+map(str, filter(lambda n: n % 2, range(1_000_000)))
+```
 
-
-## Highlights from the community 🙏
-- [Tryolabs' Top 10 Python libraries of 2024](https://tryolabs.com/blog/top-python-libraries-2024#top-10---general-use) ([LinkedIn](https://www.linkedin.com/posts/tryolabs_top-python-libraries-2024-activity-7273052840984539137-bcGs?utm_source=share&utm_medium=member_desktop), [Reddit](https://www.reddit.com/r/Python/comments/1hbs4t8/the_handpicked_selection_of_the_best_python/))
-- [PyCoder’s Weekly](https://pycoders.com/issues/651) x [Real Python](https://realpython.com/)
-- [@PythonHub's tweet](https://x.com/PythonHub/status/1842886311369142713)
-- [Upvoters on our showcase Reddit post](https://www.reddit.com/r/Python/comments/1fp38jd/streamable_streamlike_manipulation_of_iterables/)
-
+Operations have been [implemented](https://github.com/ebonnal/streamable/blob/main/streamable/iterators.py) with speed in mind. If you have any ideas for improvement, whether performance-related or not, an issue, PR, or discussion would be very much appreciated! 🙏 ([CONTRIBUTING.md](CONTRIBUTING.md))
 
 # 📒 ***Operations***
+
+|||
+|--|--|
+[`.map`](#-map--amap)|transform elements|
+[`.foreach`](#-foreach--aforeach)|call a side effect function on elements|
+[`.group`](#-group--agroup) / [`.groupby`](#-groupby--agroupby)|batch a certain number of elements, by a given key, over a time interval|
+[`.flatten`](#-flatten--aflatten)|explode iterable elements|
+[`.filter`](#-filter--afilter)|remove elements|
+[`.distinct`](#-distinct--adistinct)|remove duplicates|
+[`.truncate`](#-truncate--atruncate)|cut the stream|
+[`.skip`](#-skip--askip)|ignore head elements|
+[`.catch`](#-catch--acatch)|handle exceptions|
+[`.throttle`](#-throttle)|control the rate of iteration|
+[`.observe`](#-observe)|log elements/errors counters|
+
 
 > [!IMPORTANT]
 > A `Stream` exposes a minimalist yet expressive set of operations to manipulate its elements, but creating its source or consuming it is not its responsability, it's meant to be combined with specialized libraries (`csv`, `json`, `pyarrow`, `psycopg2`, `boto3`, `requests`, `httpx`, ...).
@@ -248,7 +232,7 @@ Feel very welcome to help us improve `streamable` via issues and PRs, check [CON
 > **`async` counterparts:** For each operation that takes a function (such as `.map`), there is an equivalent that accepts an async function (such as `.amap`).
 You can freely mix synchronous and asynchronous operations within the same `Stream`. The result can then be consumed either as an `Iterable` or as an `AsyncIterable`. When a stream involving `async` operations is consumed as an `Iterable`, a temporary `asyncio` event loop is attached to it.
 
-## 🟡 `.map`/`.amap`
+## 🟡 `.map` / `.amap`
 
 > Applies a transformation on elements:
 
