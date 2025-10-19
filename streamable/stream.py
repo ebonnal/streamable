@@ -240,7 +240,7 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         """
         Catches the upstream exceptions if they are instances of `errors` type and they satisfy the `when` predicate.
         Optionally yields a `replacement` value.
-        If any exception was caught during the iteration and `finally_raise=True`, the first caught exception will be raised when the iteration finishes.
+        If any exception was caught during the iteration and `finally_raise=True`, the first exception caught will be raised when the iteration finishes.
 
         Args:
             errors (Optional[Type[Exception]], Iterable[Optional[Type[Exception]]], optional): The exception type to catch, or an iterable of exception types to catch (default: catches all `Exception`s)
@@ -273,7 +273,7 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         """
         Catches the upstream exceptions if they are instances of `errors` type and they satisfy the `when` predicate.
         Optionally yields a `replacement` value.
-        If any exception was caught during the iteration and `finally_raise=True`, the first caught exception will be raised when the iteration finishes.
+        If any exception was caught during the iteration and `finally_raise=True`, the first exception caught will be raised when the iteration finishes.
 
         Args:
             errors (Optional[Type[Exception]], Iterable[Optional[Type[Exception]]], optional): The exception type to catch, or an iterable of exception types to catch (default: catches all `Exception`s)

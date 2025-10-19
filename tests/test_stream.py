@@ -2086,7 +2086,7 @@ class TestStream(unittest.TestCase):
 
         with self.assertRaises(
             ZeroDivisionError,
-            msg="If a non caught exception type occurs, then it should be raised.",
+            msg="If a non-caught exception type occurs, then it should be raised.",
         ):
             to_list(stream.catch(TestError), itype=itype)
 
