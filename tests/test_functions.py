@@ -1,22 +1,13 @@
 import datetime
 import unittest
-from typing import Callable, Iterator, List, TypeVar, cast
+from typing import Callable, Iterator, List, cast
 
 from streamable.functions import catch, flatten, group, map, observe, throttle, truncate
-
-T = TypeVar("T")
-
-
-# size of the test collections
-N = 256
-
-
-src = range(N)
 
 
 class TestFunctions(unittest.TestCase):
     def test_signatures(self) -> None:
-        iterator = iter(src)
+        iterator = iter((0,))
         transformation = cast(Callable[[int], int], ...)
         mapped_it_1: Iterator[int] = map(transformation, iterator)  # noqa: F841
         mapped_it_2: Iterator[int] = map(transformation, iterator, concurrency=1)  # noqa: F841
