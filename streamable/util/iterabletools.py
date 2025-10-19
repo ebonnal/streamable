@@ -7,8 +7,9 @@ from typing import (
     Iterator,
     TypeVar,
 )
+import weakref
 
-from streamable.util.asynctools import CloseEventLoopMixin
+from streamable.util.asynctools import close_event_loop
 
 T = TypeVar("T")
 
@@ -49,7 +50,7 @@ class SyncToAsyncIterator(AsyncIterator[T]):
 sync_to_async_iter: Callable[[Iterator[T]], AsyncIterator[T]] = SyncToAsyncIterator
 
 
-class AsyncToSyncIterator(Iterator[T], CloseEventLoopMixin):
+class AsyncToSyncIterator(Iterator[T]):
     def __init__(
         self,
         event_loop: asyncio.AbstractEventLoop,
@@ -57,6 +58,7 @@ class AsyncToSyncIterator(Iterator[T], CloseEventLoopMixin):
     ):
         self.aiterator = aiterator
         self.event_loop = event_loop
+        weakref.finalize(self, close_event_loop, self.event_loop)
 
     def __next__(self) -> T:
         try:

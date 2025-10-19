@@ -13,9 +13,13 @@ async def empty_aiter() -> AsyncIterator:
     yield  # pragma: no cover
 
 
+def close_event_loop(event_loop: asyncio.AbstractEventLoop) -> None:
+    if not event_loop.is_closed():
+        event_loop.close()
+
+
 class CloseEventLoopMixin:
     event_loop: asyncio.AbstractEventLoop  # pragma: no cover
 
-    def __del__(self) -> None:
-        if not self.event_loop.is_closed():
-            self.event_loop.close()
+    def close_event_loop_on_gc(self) -> None:
+        close_event_loop(self.event_loop)

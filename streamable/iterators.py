@@ -31,9 +31,10 @@ from typing import (
     Union,
     cast,
 )
+import weakref
 from streamable.util.asynctools import (
-    CloseEventLoopMixin,
     awaitable_to_coroutine,
+    close_event_loop,
     empty_aiter,
 )
 from streamable.util.contextmanagertools import noop_context_manager
@@ -157,7 +158,7 @@ class FlattenIterator(Iterator[U]):
                 self._current_iterator_elem = self.iterator.__next__().__iter__()
 
 
-class AFlattenIterator(Iterator[U], CloseEventLoopMixin):
+class AFlattenIterator(Iterator[U]):
     def __init__(
         self,
         event_loop: asyncio.AbstractEventLoop,
@@ -165,6 +166,7 @@ class AFlattenIterator(Iterator[U], CloseEventLoopMixin):
     ) -> None:
         self.iterator = iterator
         self.event_loop = event_loop
+        weakref.finalize(self, close_event_loop, self.event_loop)
 
         self._current_iterator_elem: AsyncIterator[U] = empty_aiter()
 
@@ -668,7 +670,7 @@ class ConcurrentMapIterator(_RaisingIterator[U]):
         )
 
 
-class _ConcurrentAMapIterable(_BaseConcurrentMapIterable[T, U], CloseEventLoopMixin):
+class _ConcurrentAMapIterable(_BaseConcurrentMapIterable[T, U]):
     def __init__(
         self,
         event_loop: asyncio.AbstractEventLoop,
@@ -680,6 +682,7 @@ class _ConcurrentAMapIterable(_BaseConcurrentMapIterable[T, U], CloseEventLoopMi
         super().__init__(iterator, buffersize, ordered)
         self.transformation = transformation
         self.event_loop = event_loop
+        weakref.finalize(self, close_event_loop, self.event_loop)
 
     async def _safe_transformation(
         self, elem: T
@@ -813,7 +816,7 @@ class ConcurrentFlattenIterator(_RaisingIterator[T]):
 
 
 class _ConcurrentAFlattenIterable(
-    Iterable[Union[T, _RaisingIterator.ExceptionContainer]], CloseEventLoopMixin
+    Iterable[Union[T, _RaisingIterator.ExceptionContainer]]
 ):
     def __init__(
         self,
@@ -826,6 +829,7 @@ class _ConcurrentAFlattenIterable(
         self.concurrency = concurrency
         self.buffersize = buffersize
         self.event_loop = event_loop
+        weakref.finalize(self, close_event_loop, self.event_loop)
 
     def __iter__(self) -> Iterator[Union[T, _RaisingIterator.ExceptionContainer]]:
         iterator_and_future_pairs: Deque[
