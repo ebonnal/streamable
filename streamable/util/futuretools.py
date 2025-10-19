@@ -132,11 +132,9 @@ class FDFOAsyncFutureResultCollection(CallbackFutureResultCollection[T]):
     def __next__(self) -> T:
         result = self.event_loop.run_until_complete(self._results.get())
         self._n_futures -= 1
-        self._waiter = self.event_loop.create_future()
         return result
 
     async def __anext__(self) -> T:
         result = await self._results.get()
         self._n_futures -= 1
-        self._waiter = self.event_loop.create_future()
         return result
