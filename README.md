@@ -1,16 +1,15 @@
-[![coverage](https://codecov.io/gh/ebonnal/streamable/graph/badge.svg?token=S62T0JQK9N)](https://codecov.io/gh/ebonnal/streamable)
-[![PyPI](https://github.com/ebonnal/streamable/actions/workflows/pypi.yml/badge.svg?branch=main)](https://pypi.org/project/streamable)
-[![Anaconda-Server Badge](https://anaconda.org/conda-forge/streamable/badges/version.svg?)](https://anaconda.org/conda-forge/streamable)
 
 # ༄ `streamable`
 
-### *concurrent & fluent interface for (async) iterables*
+> *concurrent & fluent interface for (async) iterables*
 
-- 🇹 `Stream[T]` is a ***decorator*** for `Iterable[T]` / `AsyncIterable[T]`
-- 🔗 ***lazy*** operations chaining
-- 🔀 ***concurrent*** via threads / processes / coroutines (`async`)
-- 🛡️ ***battle-tested*** with Python 3.7 to 3.15 (compatible with [PyPy](https://github.com/pypy/pypy))
+`Stream[T]` is a **decorator** for `Iterable[T]` or `AsyncIterable[T]` that allows chaining **lazy** operations, with seamless **concurrency** via threads, processes, or async coroutines.
 
+Battle-tested on Python 3.7 to 3.15 and compatible with PyPy.
+
+[![coverage](https://codecov.io/gh/ebonnal/streamable/graph/badge.svg?token=S62T0JQK9N)](https://codecov.io/gh/ebonnal/streamable)
+[![PyPI](https://github.com/ebonnal/streamable/actions/workflows/pypi.yml/badge.svg?branch=main)](https://pypi.org/project/streamable)
+[![Anaconda-Server Badge](https://anaconda.org/conda-forge/streamable/badges/version.svg?)](https://anaconda.org/conda-forge/streamable)
 
 ## 1. install
 
