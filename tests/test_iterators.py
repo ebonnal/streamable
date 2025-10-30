@@ -22,6 +22,7 @@ class TestIterators(unittest.TestCase):
                 _ConcurrentAMapAsyncIterable(
                     sync_to_async_iter(iter(src)),
                     async_identity,
+                    concurrency=2,
                     buffersize=2,
                     ordered=True,
                 )

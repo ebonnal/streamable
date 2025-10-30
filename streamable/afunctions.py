@@ -235,6 +235,7 @@ def amap(
     return ConcurrentAMapAsyncIterator(
         aiterator,
         transformation,
+        concurrency=concurrency,
         buffersize=concurrency,
         ordered=ordered,
     )

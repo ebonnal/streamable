@@ -667,16 +667,26 @@ class _ConcurrentAMapIterable(_BaseConcurrentMapIterable[T, U], CloseEventLoopMi
         event_loop: asyncio.AbstractEventLoop,
         iterator: Iterator[T],
         transformation: Callable[[T], Coroutine[Any, Any, U]],
+        concurrency: int,
         buffersize: int,
         ordered: bool,
     ) -> None:
         super().__init__(iterator, buffersize, ordered)
         self.transformation = transformation
         self.event_loop = event_loop
+        self.concurrency = concurrency
+        self._semaphore: Optional[asyncio.Semaphore] = None
+
+    @property
+    def semaphore(self) -> asyncio.Semaphore:
+        if not self._semaphore:
+            self._semaphore = asyncio.Semaphore(self.concurrency)
+        return self._semaphore
 
     async def _safe_transformation(self, elem: T) -> Union[U, ExceptionContainer]:
         try:
-            return await self.transformation(elem)
+            async with self.semaphore:
+                return await self.transformation(elem)
         except Exception as e:
             return ExceptionContainer(e)
 
@@ -701,6 +711,7 @@ class ConcurrentAMapIterator(_RaisingIterator[U]):
         event_loop: asyncio.AbstractEventLoop,
         iterator: Iterator[T],
         transformation: Callable[[T], Coroutine[Any, Any, U]],
+        concurrency: int,
         buffersize: int,
         ordered: bool,
     ) -> None:
@@ -709,6 +720,7 @@ class ConcurrentAMapIterator(_RaisingIterator[U]):
                 event_loop,
                 iterator,
                 transformation,
+                concurrency,
                 buffersize,
                 ordered,
             ).__iter__()

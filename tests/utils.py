@@ -156,7 +156,7 @@ class TestError(Exception):
     pass
 
 
-DELTA_RATE = 0.4
+DELTA_RATE = 0.1
 # size of the test collections
 N = 256
 
