@@ -717,15 +717,25 @@ class _ConcurrentAMapAsyncIterable(_BaseConcurrentMapAsyncIterable[T, U]):
         self,
         iterator: AsyncIterator[T],
         transformation: Callable[[T], Coroutine[Any, Any, U]],
+        concurrency: int,
         buffersize: int,
         ordered: bool,
     ) -> None:
         super().__init__(iterator, buffersize, ordered)
         self.transformation = transformation
+        self.concurrency = concurrency
+        self._semaphore: Optional[asyncio.Semaphore] = None
+
+    @property
+    def semaphore(self) -> asyncio.Semaphore:
+        if not self._semaphore:
+            self._semaphore = asyncio.Semaphore(self.concurrency)
+        return self._semaphore
 
     async def _safe_transformation(self, elem: T) -> Union[U, ExceptionContainer]:
         try:
-            return await self.transformation(elem)
+            async with self.semaphore:
+                return await self.transformation(elem)
         except Exception as e:
             return ExceptionContainer(e)
 
@@ -749,6 +759,7 @@ class ConcurrentAMapAsyncIterator(_RaisingAsyncIterator[U]):
         self,
         iterator: AsyncIterator[T],
         transformation: Callable[[T], Coroutine[Any, Any, U]],
+        concurrency: int,
         buffersize: int,
         ordered: bool,
     ) -> None:
@@ -756,6 +767,7 @@ class ConcurrentAMapAsyncIterator(_RaisingAsyncIterator[U]):
             _ConcurrentAMapAsyncIterable(
                 iterator,
                 transformation,
+                concurrency,
                 buffersize,
                 ordered,
             ).__aiter__()

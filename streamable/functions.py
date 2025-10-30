@@ -231,6 +231,7 @@ def amap(
         event_loop,
         iterator,
         transformation,
+        concurrency=concurrency,
         buffersize=concurrency,
         ordered=ordered,
     )
