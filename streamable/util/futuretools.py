@@ -9,6 +9,7 @@ from typing import (
     Deque,
     Generator,
     Iterator,
+    Optional,
     Sized,
     Type,
     TypeVar,
@@ -123,18 +124,33 @@ class FDFOAsyncFutureResultCollection(CallbackFutureResultCollection[T]):
     def __init__(self, event_loop: asyncio.AbstractEventLoop) -> None:
         super().__init__()
         self.event_loop = event_loop
-        asyncio.set_event_loop(event_loop)
-        self._results: "asyncio.Queue[T]" = asyncio.Queue()
+        self.__results: "Optional[asyncio.Queue[T]]" = None
+        self._eager_results: Deque[T] = deque()
+
+    @property
+    def _results(self) -> "asyncio.Queue[T]":
+        if not self.__results:
+            self.__results = asyncio.Queue()
+        return self.__results
 
     def _done_callback(self, future: "Future[T]") -> None:
-        self._results.put_nowait(future.result())
+        if self.__results:
+            self.__results.put_nowait(future.result())
+        else:
+            self._eager_results.append(future.result())
+
+    async def _get_result(self) -> T:
+        if self._eager_results:
+            return self._eager_results.popleft()
+        # makes sure we instantiate the __results queue from async context
+        return await self._results.get()
 
     def __next__(self) -> T:
-        result = self.event_loop.run_until_complete(self._results.get())
+        result = self.event_loop.run_until_complete(self._get_result())
         self._n_futures -= 1
         return result
 
     async def __anext__(self) -> T:
-        result = await self._results.get()
+        result = await self._get_result()
         self._n_futures -= 1
         return result
