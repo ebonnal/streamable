@@ -743,6 +743,7 @@ class _ConcurrentFlattenIterable(Iterable[Union[T, ExceptionContainer]]):
         self.iterables_iterator = iterables_iterator
         self.concurrency = concurrency
         self.buffersize = buffersize
+        self._next = ExceptionContainer.wrap(next)
 
     def __iter__(self) -> Iterator[Union[T, ExceptionContainer]]:
         with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
@@ -758,13 +759,11 @@ class _ConcurrentFlattenIterable(Iterable[Union[T, ExceptionContainer]]):
             while True:
                 if iterator_and_future_pairs:
                     iterator, future = iterator_and_future_pairs.popleft()
-                    try:
-                        to_yield.append(future.result())
-                        iterator_to_queue = iterator
-                    except StopIteration:
-                        pass
-                    except Exception as e:
-                        to_yield.append(ExceptionContainer(e))
+                    elem = future.result()
+                    if not isinstance(elem, ExceptionContainer) or not isinstance(
+                        elem.exception, StopIteration
+                    ):
+                        to_yield.append(elem)
                         iterator_to_queue = iterator
 
                 # queue tasks up to buffersize
@@ -783,7 +782,7 @@ class _ConcurrentFlattenIterable(Iterable[Union[T, ExceptionContainer]]):
                                 (iterator_to_queue, future)
                             )
                             continue
-                    future = executor.submit(next, iterator_to_queue)
+                    future = executor.submit(self._next, iterator_to_queue)
                     iterator_and_future_pairs.append((iterator_to_queue, future))
                     iterator_to_queue = None
                 if to_yield:
