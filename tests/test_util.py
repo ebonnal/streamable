@@ -1,6 +1,8 @@
+import asyncio
 import unittest
 
 from streamable.util.functiontools import sidify, star
+from streamable.util.futuretools import FIFOOSFutureResultCollection, FutureResult
 
 
 class TestUtil(unittest.TestCase):
@@ -31,4 +33,13 @@ class TestUtil(unittest.TestCase):
         self.assertListEqual(
             list(map(mul, enumerate(range(10)))),
             list(map(lambda x: x**2, range(10))),
+        )
+
+    def test_os_future_result_collection_anext(self):
+        result = object()
+        future_results = FIFOOSFutureResultCollection()
+        future_results.add_future(FutureResult(result))
+        self.assertEqual(
+            asyncio.run(future_results.__anext__()),
+            result,
         )
