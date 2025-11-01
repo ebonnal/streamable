@@ -562,11 +562,12 @@ class _BaseConcurrentMapIterable(
         self,
     ) -> Optional["Future[Union[U, ExceptionContainer]]"]:
         try:
-            return self._launch_task(self.iterator.__next__())
+            elem = self.iterator.__next__()
         except StopIteration:
             return None
         except Exception as e:
             return FutureResult(ExceptionContainer(e))
+        return self._launch_task(elem)
 
     def __iter__(self) -> Iterator[Union[U, ExceptionContainer]]:
         with self._context_manager():
