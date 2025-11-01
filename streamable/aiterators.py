@@ -611,11 +611,12 @@ class _BaseConcurrentMapAsyncIterable(
         self,
     ) -> Optional["Future[Union[U, ExceptionContainer]]"]:
         try:
-            return self._launch_task(await self.iterator.__anext__())
+            elem = await self.iterator.__anext__()
         except StopAsyncIteration:
             return None
         except Exception as e:
             return FutureResult(ExceptionContainer(e))
+        return self._launch_task(elem)
 
     async def __aiter__(
         self,
