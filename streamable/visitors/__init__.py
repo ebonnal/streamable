@@ -1,3 +1,3 @@
-from streamable.visitors.base import Visitor
+from streamable.visitors._base import Visitor
 
 __all__ = ["Visitor"]

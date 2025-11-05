@@ -26,8 +26,8 @@ from streamable.stream import (
     ThrottleStream,
     TruncateStream,
 )
-from streamable.util.constants import NO_REPLACEMENT
-from streamable.util.functiontools import _Star
+from streamable._util._constants import NO_REPLACEMENT
+from streamable._util._functiontools import _Star
 from streamable.visitors import Visitor
 
 

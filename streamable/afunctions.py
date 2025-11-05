@@ -17,7 +17,7 @@ from typing import (
     Union,
 )
 
-from streamable.aiterators import (
+from streamable._aiterators import (
     ACatchAsyncIterator,
     ADistinctAsyncIterator,
     AFilterAsyncIterator,
@@ -39,8 +39,8 @@ from streamable.aiterators import (
     PredicateATruncateAsyncIterator,
     YieldsPerPeriodThrottleAsyncIterator,
 )
-from streamable.util.constants import NO_REPLACEMENT
-from streamable.util.functiontools import asyncify
+from streamable._util._constants import NO_REPLACEMENT
+from streamable._util._functiontools import asyncify
 
 with suppress(ImportError):
     from typing import Literal

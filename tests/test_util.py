@@ -1,8 +1,8 @@
 import asyncio
 import unittest
 
-from streamable.util.functiontools import sidify, star
-from streamable.util.futuretools import FIFOOSFutureResultCollection, FutureResult
+from streamable._util._functiontools import sidify, star
+from streamable._util._futuretools import FIFOOSFutureResultCollection, FutureResult
 
 
 class TestUtil(unittest.TestCase):

@@ -26,8 +26,8 @@ from streamable.stream import (
     ThrottleStream,
     TruncateStream,
 )
-from streamable.util.functiontools import async_sidify, sidify
-from streamable.util.iterabletools import sync_to_async_iter
+from streamable._util._functiontools import async_sidify, sidify
+from streamable._util._iterabletools import sync_to_async_iter
 from streamable.visitors import Visitor
 
 T = TypeVar("T")
