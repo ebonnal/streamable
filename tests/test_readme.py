@@ -314,11 +314,9 @@ class TestReadme(unittest.TestCase):
     def test_async_etl_example(self) -> None: # pragma: no cover
         import asyncio
         import csv
-        import itertools
         from datetime import timedelta
-
+        from itertools import count
         import httpx
-
         from streamable import Stream
 
         async def main() -> None:
@@ -327,15 +325,15 @@ class TestReadme(unittest.TestCase):
                 writer = csv.DictWriter(file, fields, extrasaction='ignore')
                 writer.writeheader()
 
-                async with httpx.AsyncClient() as http:
-                    pipeline: Stream = (
+                async with httpx.AsyncClient() as http_client:
+                    pipeline = (
                         # Infinite Stream[int] of Pokemon ids starting from Pokémon #1: Bulbasaur
-                        Stream(itertools.count(1))
+                        Stream(count(1))
                         # Limit to 16 requests per second to be friendly to our fellow PokéAPI devs
                         .throttle(16, per=timedelta(microseconds=1))
                         # GET pokemons via 8 concurrent coroutines
                         .map(lambda poke_id: f"https://pokeapi.co/api/v2/pokemon-species/{poke_id}")
-                        .amap(http.get, concurrency=8)
+                        .amap(http_client.get, concurrency=8)
                         .foreach(httpx.Response.raise_for_status)
                         .map(httpx.Response.json)
                         # Stop the iteration when reaching the 1st pokemon of the 4th generation
@@ -343,58 +341,57 @@ class TestReadme(unittest.TestCase):
                         .observe("pokemons")
                         # Keep only quadruped Pokemons
                         .filter(lambda poke: poke["shape"]["name"] == "quadruped")
-                        .observe("quadruped pokemons")
                         # Write a batch of pokemons every 5 seconds to the CSV file
                         .group(interval=timedelta(seconds=5))
                         .foreach(writer.writerows)
                         .flatten()
                         .observe("written pokemons")
                         # Catch exceptions and raises the 1st one at the end of the iteration
-                        # .catch(Exception, finally_raise=True)
+                        .catch(Exception, finally_raise=True)
                     )
 
+                    # Start a full async iteration
                     await pipeline
 
         asyncio.run(main())
 
-    @patch("requests.get", mocks.get_poke)
+    @patch("httpx.Client.get", lambda self, url: mocks.get_poke(url))
     def test_etl_example(self) -> None: # pragma: no cover
         import csv
-        import itertools
         from datetime import timedelta
-
-        import requests
-
+        from itertools import count
+        import httpx
         from streamable import Stream
 
         with open("./quadruped_pokemons.csv", mode="w") as file:
             fields = ["id", "name", "is_legendary", "base_happiness", "capture_rate"]
             writer = csv.DictWriter(file, fields, extrasaction='ignore')
             writer.writeheader()
-            pipeline = (
-                # Infinite Stream[int] of Pokemon ids starting from Pokémon #1: Bulbasaur
-                Stream(itertools.count(1))
-                # Limit to 16 requests per second to be friendly to our fellow PokéAPI devs
-                .throttle(16, per=timedelta(microseconds=1))
-                # GET pokemons concurrently using a pool of 8 threads
-                .map(lambda poke_id: f"https://pokeapi.co/api/v2/pokemon-species/{poke_id}")
-                .map(requests.get, concurrency=8)
-                .foreach(requests.Response.raise_for_status)
-                .map(requests.Response.json)
-                # Stop the iteration when reaching the 1st pokemon of the 4th generation
-                .truncate(when=lambda poke: poke["generation"]["name"] == "generation-iv")
-                .observe("pokemons")
-                # Keep only quadruped Pokemons
-                .filter(lambda poke: poke["shape"]["name"] == "quadruped")
-                .observe("quadruped pokemons")
-                # Write a batch of pokemons every 5 seconds to the CSV file
-                .group(interval=timedelta(seconds=5))
-                .foreach(writer.writerows)
-                .flatten()
-                .observe("written pokemons")
-                # Catch exceptions and raises the 1st one at the end of the iteration
-                # .catch(Exception, finally_raise=True)
-            )
+            with httpx.Client() as http_client:
+                pipeline = (
+                    # Infinite Stream[int] of Pokemon ids starting from Pokémon #1: Bulbasaur
+                    Stream(count(1))
+                    # Limit to 16 requests per second to be friendly to our fellow PokéAPI devs
+                    .throttle(16, per=timedelta(microseconds=1))
+                    # GET pokemons concurrently using a pool of 8 threads
+                    .map(lambda poke_id: f"https://pokeapi.co/api/v2/pokemon-species/{poke_id}")
+                    .map(http_client.get, concurrency=8)
+                    .foreach(httpx.Response.raise_for_status)
+                    .map(httpx.Response.json)
+                    # Stop the iteration when reaching the 1st pokemon of the 4th generation
+                    .truncate(when=lambda poke: poke["generation"]["name"] == "generation-iv")
+                    .observe("pokemons")
+                    # Keep only quadruped Pokemons
+                    .filter(lambda poke: poke["shape"]["name"] == "quadruped")
+                    # Write a batch of pokemons every 5 seconds to the CSV file
+                    .group(interval=timedelta(seconds=5))
+                    .foreach(writer.writerows)
+                    .flatten()
+                    .observe("written pokemons")
+                    # Catch exceptions and raises the 1st one at the end of the iteration
+                    .catch(Exception, finally_raise=True)
+                )
 
-            pipeline()
+                # Start a full iteration
+                pipeline()
 # fmt: on
