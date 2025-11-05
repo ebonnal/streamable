@@ -11,7 +11,7 @@ make lint
 
 ## run a specific test
 ```bash
-python -m unittest tests.test_stream.TestStream.test_distinct
+pytest -s -k test_etl_example
 ```
 
 ## changelog
