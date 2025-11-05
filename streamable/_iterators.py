@@ -30,17 +30,17 @@ from typing import (
     Union,
     cast,
 )
-from streamable.util.asynctools import (
+from streamable._util._asynctools import (
     CloseEventLoopMixin,
     awaitable_to_coroutine,
     empty_aiter,
 )
-from streamable.util.contextmanagertools import noop_context_manager
-from streamable.util.errortools import ExceptionContainer
-from streamable.util.loggertools import get_logger
+from streamable._util._contextmanagertools import noop_context_manager
+from streamable._util._errortools import ExceptionContainer
+from streamable._util._loggertools import get_logger
 
-from streamable.util.constants import NO_REPLACEMENT
-from streamable.util.futuretools import (
+from streamable._util._constants import NO_REPLACEMENT
+from streamable._util._futuretools import (
     FDFOAsyncFutureResultCollection,
     FDFOOSFutureResultCollection,
     FIFOAsyncFutureResultCollection,

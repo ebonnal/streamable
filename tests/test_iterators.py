@@ -2,12 +2,12 @@ import asyncio
 import unittest
 from typing import AsyncIterator
 
-from streamable.aiterators import (
+from streamable._aiterators import (
     _ConcurrentAMapAsyncIterable,
     _RaisingAsyncIterator,
 )
-from streamable.util.asynctools import awaitable_to_coroutine
-from streamable.util.iterabletools import sync_to_async_iter
+from streamable._util._asynctools import awaitable_to_coroutine
+from streamable._util._iterabletools import sync_to_async_iter
 from tests.utils import async_identity, identity, src
 
 

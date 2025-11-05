@@ -18,7 +18,7 @@ from typing import (
     Union,
 )
 
-from streamable.iterators import (
+from streamable._iterators import (
     AFlattenIterator,
     CatchIterator,
     ConcurrentAFlattenIterator,
@@ -38,8 +38,8 @@ from streamable.iterators import (
     PredicateTruncateIterator,
     YieldsPerPeriodThrottleIterator,
 )
-from streamable.util.constants import NO_REPLACEMENT
-from streamable.util.functiontools import syncify
+from streamable._util._constants import NO_REPLACEMENT
+from streamable._util._functiontools import syncify
 
 with suppress(ImportError):
     from typing import Literal

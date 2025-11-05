@@ -35,9 +35,9 @@ from unittest.mock import patch
 from parameterized import parameterized  # type: ignore
 
 from streamable import Stream
-from streamable.util.asynctools import awaitable_to_coroutine
-from streamable.util.functiontools import anostop, asyncify, nostop, star
-from streamable.util.iterabletools import (
+from streamable._util._asynctools import awaitable_to_coroutine
+from streamable._util._functiontools import anostop, asyncify, nostop, star
+from streamable._util._iterabletools import (
     sync_to_async_iter,
     sync_to_bi_iterable,
 )

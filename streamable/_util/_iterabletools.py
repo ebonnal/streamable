@@ -8,7 +8,7 @@ from typing import (
     TypeVar,
 )
 
-from streamable.util.asynctools import CloseEventLoopMixin
+from streamable._util._asynctools import CloseEventLoopMixin
 
 T = TypeVar("T")
 

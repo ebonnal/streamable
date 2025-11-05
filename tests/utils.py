@@ -18,8 +18,8 @@ from typing import (
 )
 
 from streamable.stream import Stream
-from streamable.util.asynctools import awaitable_to_coroutine
-from streamable.util.iterabletools import BiIterable
+from streamable._util._asynctools import awaitable_to_coroutine
+from streamable._util._iterabletools import BiIterable
 
 T = TypeVar("T")
 R = TypeVar("R")

@@ -27,12 +27,12 @@ from streamable.stream import (
     ThrottleStream,
     TruncateStream,
 )
-from streamable.util.functiontools import (
+from streamable._util._functiontools import (
     async_sidify,
     sidify,
     syncify,
 )
-from streamable.util.iterabletools import async_to_sync_iter
+from streamable._util._iterabletools import async_to_sync_iter
 from streamable.visitors import Visitor
 
 T = TypeVar("T")
