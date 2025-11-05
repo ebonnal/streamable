@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from collections import deque
 from concurrent.futures import Future
 from contextlib import suppress
+import sys
 from typing import (
     AsyncIterator,
     Awaitable,
@@ -123,8 +124,11 @@ class FDFOAsyncFutureResultCollection(CallbackFutureResultCollection[T]):
     def __init__(self, event_loop: asyncio.AbstractEventLoop) -> None:
         super().__init__()
         self.event_loop = event_loop
-        asyncio.set_event_loop(event_loop)
-        self._results: "asyncio.Queue[T]" = asyncio.Queue()
+        self._results: "asyncio.Queue[T]"
+        if sys.version_info >= (3, 10):
+            self._results = asyncio.Queue()
+        else:  # pragma: no cover
+            self._results = asyncio.Queue(loop=event_loop)  # type: ignore
 
     def _done_callback(self, future: "Future[T]") -> None:
         self._results.put_nowait(future.result())
