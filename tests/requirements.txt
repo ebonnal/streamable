@@ -1,3 +1,5 @@
 parameterized==0.9.0
-requests
+pytest==7.4.4
+pytest-asyncio==0.21.2
 httpx
+requests
