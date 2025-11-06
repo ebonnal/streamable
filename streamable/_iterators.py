@@ -579,13 +579,13 @@ class _BaseConcurrentMapIterable(
                 if not future:
                     # no more tasks to queue
                     break
-                future_results.add_future(future)
+                future_results.add(future)
 
             # queue, wait, yield
             while future_results:
                 future = self._next_future()
                 if future:
-                    future_results.add_future(future)
+                    future_results.add(future)
                 yield future_results.__next__()
 
 
