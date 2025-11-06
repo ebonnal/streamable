@@ -34,5 +34,5 @@ def test_star() -> None:
 def test_os_future_result_collection_anext():
     result = object()
     future_results = FIFOOSFutureResultCollection()
-    future_results.add_future(FutureResult(result))
+    future_results.add(FutureResult(result))
     assert asyncio.run(future_results.__anext__()) == result
