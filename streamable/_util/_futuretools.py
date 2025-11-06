@@ -13,6 +13,7 @@ from typing import (
     Sized,
     Type,
     TypeVar,
+    Union,
     cast,
 )
 
@@ -59,12 +60,13 @@ class DequeFutureResultCollection(FutureResultCollection[T]):
 class CallbackFutureResultCollection(FutureResultCollection[T]):
     def __init__(self) -> None:
         self._n_futures = 0
+        self._results: "Union[Queue[T], asyncio.Queue[T]]"
 
     def __len__(self) -> int:
         return self._n_futures
 
-    @abstractmethod
-    def _done_callback(self, future: "Future[T]") -> None: ...
+    def _done_callback(self, future: "Future[T]") -> None:
+        self._results.put_nowait(future.result())
 
     def add(self, future: "Future[T]") -> None:
         future.add_done_callback(self._done_callback)
@@ -88,9 +90,6 @@ class FDFOOSFutureResultCollection(CallbackFutureResultCollection[T]):
     def __init__(self, queue_type: Type["Queue"]) -> None:
         super().__init__()
         self._results: "Queue[T]" = queue_type()
-
-    def _done_callback(self, future: "Future[T]") -> None:
-        self._results.put_nowait(future.result())
 
     def __next__(self) -> T:
         result = self._results.get()
@@ -129,9 +128,6 @@ class FDFOAsyncFutureResultCollection(CallbackFutureResultCollection[T]):
             self._results = asyncio.Queue()
         else:  # pragma: no cover
             self._results = asyncio.Queue(loop=event_loop)  # type: ignore
-
-    def _done_callback(self, future: "Future[T]") -> None:
-        self._results.put_nowait(future.result())
 
     def __next__(self) -> T:
         result = self.event_loop.run_until_complete(self._results.get())
