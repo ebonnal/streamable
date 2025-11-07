@@ -41,10 +41,10 @@ from streamable._util._loggertools import get_logger
 
 from streamable._util._constants import NO_REPLACEMENT
 from streamable._util._futuretools import (
-    FDFOAsyncFutureResultCollection,
-    FDFOOSFutureResultCollection,
-    FIFOAsyncFutureResultCollection,
-    FIFOOSFutureResultCollection,
+    AsyncFDFOFutureResultCollection,
+    ExecutorFDFOFutureResultCollection,
+    AsyncFIFOFutureResultCollection,
+    ExecutorFIFOFutureResultCollection,
     FutureResult,
     FutureResultCollection,
 )
@@ -634,8 +634,8 @@ class _ConcurrentMapIterable(_BaseConcurrentMapIterable[T, U]):
         self,
     ) -> FutureResultCollection[Union[U, ExceptionContainer]]:
         if self.ordered:
-            return FIFOOSFutureResultCollection()
-        return FDFOOSFutureResultCollection(
+            return ExecutorFIFOFutureResultCollection()
+        return ExecutorFDFOFutureResultCollection(
             multiprocessing.Queue if self.via == "process" else queue.Queue
         )
 
@@ -701,9 +701,9 @@ class _ConcurrentAMapIterable(_BaseConcurrentMapIterable[T, U], CloseEventLoopMi
         self,
     ) -> FutureResultCollection[Union[U, ExceptionContainer]]:
         if self.ordered:
-            return FIFOAsyncFutureResultCollection(self.event_loop)
+            return AsyncFIFOFutureResultCollection(self.event_loop)
         else:
-            return FDFOAsyncFutureResultCollection(self.event_loop)
+            return AsyncFDFOFutureResultCollection(self.event_loop)
 
 
 class ConcurrentAMapIterator(_RaisingIterator[U]):

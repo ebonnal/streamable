@@ -46,7 +46,7 @@ class FutureResultCollection(Iterator[T], AsyncIterator[T], Sized, ABC):
         return self.__next__()
 
 
-class DequeFutureResultCollection(FutureResultCollection[T]):
+class FIFOFutureResultCollection(FutureResultCollection[T]):
     def __init__(self) -> None:
         self._futures: Deque["Future[T]"] = deque()
 
@@ -57,7 +57,7 @@ class DequeFutureResultCollection(FutureResultCollection[T]):
         return self._futures.append(future)
 
 
-class CallbackFutureResultCollection(FutureResultCollection[T]):
+class FDFObackFutureResultCollection(FutureResultCollection[T]):
     def __init__(self) -> None:
         self._n_futures = 0
         self._results: "Union[Queue[T], asyncio.Queue[T]]"
@@ -73,7 +73,7 @@ class CallbackFutureResultCollection(FutureResultCollection[T]):
         self._n_futures += 1
 
 
-class FIFOOSFutureResultCollection(DequeFutureResultCollection[T]):
+class ExecutorFIFOFutureResultCollection(FIFOFutureResultCollection[T]):
     """
     First In First Out
     """
@@ -82,7 +82,7 @@ class FIFOOSFutureResultCollection(DequeFutureResultCollection[T]):
         return self._futures.popleft().result()
 
 
-class FDFOOSFutureResultCollection(CallbackFutureResultCollection[T]):
+class ExecutorFDFOFutureResultCollection(FDFObackFutureResultCollection[T]):
     """
     First Done First Out
     """
@@ -97,7 +97,7 @@ class FDFOOSFutureResultCollection(CallbackFutureResultCollection[T]):
         return result
 
 
-class FIFOAsyncFutureResultCollection(DequeFutureResultCollection[T]):
+class AsyncFIFOFutureResultCollection(FIFOFutureResultCollection[T]):
     """
     First In First Out
     """
@@ -115,7 +115,7 @@ class FIFOAsyncFutureResultCollection(DequeFutureResultCollection[T]):
         return await cast(Awaitable[T], self._futures.popleft())
 
 
-class FDFOAsyncFutureResultCollection(CallbackFutureResultCollection[T]):
+class AsyncFDFOFutureResultCollection(FDFObackFutureResultCollection[T]):
     """
     First Done First Out
     """

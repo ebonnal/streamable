@@ -37,8 +37,8 @@ from streamable._util._loggertools import get_logger
 
 from streamable._util._constants import NO_REPLACEMENT
 from streamable._util._futuretools import (
-    FDFOAsyncFutureResultCollection,
-    FIFOAsyncFutureResultCollection,
+    AsyncFDFOFutureResultCollection,
+    AsyncFIFOFutureResultCollection,
     FutureResult,
     FutureResultCollection,
 )
@@ -602,9 +602,9 @@ class _BaseConcurrentMapAsyncIterable(
         self,
     ) -> FutureResultCollection[Union[U, ExceptionContainer]]:
         if self.ordered:
-            return FIFOAsyncFutureResultCollection(asyncio.get_running_loop())
+            return AsyncFIFOFutureResultCollection(asyncio.get_running_loop())
         else:
-            return FDFOAsyncFutureResultCollection(asyncio.get_running_loop())
+            return AsyncFDFOFutureResultCollection(asyncio.get_running_loop())
 
     async def _next_future(
         self,
