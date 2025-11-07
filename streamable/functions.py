@@ -117,12 +117,11 @@ def adistinct(
 def flatten(iterator: Iterator[Iterable[T]], *, concurrency: int = 1) -> Iterator[T]:
     if concurrency == 1:
         return FlattenIterator(iterator)
-    else:
-        return ConcurrentFlattenIterator(
-            iterator,
-            concurrency=concurrency,
-            buffersize=concurrency,
-        )
+    return ConcurrentFlattenIterator(
+        iterator,
+        concurrency=concurrency,
+        buffersize=concurrency,
+    )
 
 
 def aflatten(
@@ -133,13 +132,12 @@ def aflatten(
 ) -> Iterator[T]:
     if concurrency == 1:
         return AFlattenIterator(event_loop, iterator)
-    else:
-        return ConcurrentAFlattenIterator(
-            event_loop,
-            iterator,
-            concurrency=concurrency,
-            buffersize=concurrency,
-        )
+    return ConcurrentAFlattenIterator(
+        event_loop,
+        iterator,
+        concurrency=concurrency,
+        buffersize=concurrency,
+    )
 
 
 def group(
@@ -206,15 +204,14 @@ def map(
 ) -> Iterator[U]:
     if concurrency == 1:
         return builtins.map(transformation, iterator)
-    else:
-        return ConcurrentMapIterator(
-            iterator,
-            transformation,
-            concurrency=concurrency,
-            buffersize=concurrency,
-            ordered=ordered,
-            via=via,
-        )
+    return ConcurrentMapIterator(
+        iterator,
+        transformation,
+        concurrency=concurrency,
+        buffersize=concurrency,
+        ordered=ordered,
+        via=via,
+    )
 
 
 def amap(

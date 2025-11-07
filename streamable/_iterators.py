@@ -702,8 +702,7 @@ class _ConcurrentAMapIterable(_BaseConcurrentMapIterable[T, U], CloseEventLoopMi
     ) -> FutureResultCollection[Union[U, ExceptionContainer]]:
         if self.ordered:
             return AsyncFIFOFutureResultCollection(self.event_loop)
-        else:
-            return AsyncFDFOFutureResultCollection(self.event_loop)
+        return AsyncFDFOFutureResultCollection(self.event_loop)
 
 
 class ConcurrentAMapIterator(_RaisingIterator[U]):

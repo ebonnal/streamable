@@ -134,12 +134,11 @@ def flatten(
 ) -> AsyncIterator[T]:
     if concurrency == 1:
         return FlattenAsyncIterator(aiterator)
-    else:
-        return ConcurrentFlattenAsyncIterator(
-            aiterator,
-            concurrency=concurrency,
-            buffersize=concurrency,
-        )
+    return ConcurrentFlattenAsyncIterator(
+        aiterator,
+        concurrency=concurrency,
+        buffersize=concurrency,
+    )
 
 
 def aflatten(
@@ -147,12 +146,11 @@ def aflatten(
 ) -> AsyncIterator[T]:
     if concurrency == 1:
         return AFlattenAsyncIterator(aiterator)
-    else:
-        return ConcurrentAFlattenAsyncIterator(
-            aiterator,
-            concurrency=concurrency,
-            buffersize=concurrency,
-        )
+    return ConcurrentAFlattenAsyncIterator(
+        aiterator,
+        concurrency=concurrency,
+        buffersize=concurrency,
+    )
 
 
 def group(
@@ -212,15 +210,14 @@ def map(
 ) -> AsyncIterator[U]:
     if concurrency == 1:
         return amap(asyncify(transformation), aiterator)
-    else:
-        return ConcurrentMapAsyncIterator(
-            aiterator,
-            transformation,
-            concurrency=concurrency,
-            buffersize=concurrency,
-            ordered=ordered,
-            via=via,
-        )
+    return ConcurrentMapAsyncIterator(
+        aiterator,
+        transformation,
+        concurrency=concurrency,
+        buffersize=concurrency,
+        ordered=ordered,
+        via=via,
+    )
 
 
 def amap(

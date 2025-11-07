@@ -46,8 +46,7 @@ def to_list(stream: Stream[T], itype: IterableType) -> List[T]:
     assert isinstance(stream, Stream)
     if itype is AsyncIterable:
         return aiterable_to_list(stream)
-    else:
-        return list(stream)
+    return list(stream)
 
 
 def bi_iterable_to_iter(
@@ -55,22 +54,19 @@ def bi_iterable_to_iter(
 ) -> Union[Iterator[T], AsyncIterator[T]]:
     if itype is AsyncIterable:
         return iterable.__aiter__()
-    else:
-        return iter(iterable)
+    return iter(iterable)
 
 
 def anext_or_next(it: Union[Iterator[T], AsyncIterator[T]]) -> T:
     if isinstance(it, AsyncIterator):
         return asyncio.run(awaitable_to_coroutine(it.__anext__()))
-    else:
-        return next(it)
+    return next(it)
 
 
 def alist_or_list(iterable: Union[Iterable[T], AsyncIterable[T]]) -> List[T]:
     if isinstance(iterable, AsyncIterable):
         return aiterable_to_list(iterable)
-    else:
-        return list(iterable)
+    return list(iterable)
 
 
 def timestream(

@@ -603,8 +603,7 @@ class _BaseConcurrentMapAsyncIterable(
     ) -> FutureResultCollection[Union[U, ExceptionContainer]]:
         if self.ordered:
             return AsyncFIFOFutureResultCollection(asyncio.get_running_loop())
-        else:
-            return AsyncFDFOFutureResultCollection(asyncio.get_running_loop())
+        return AsyncFDFOFutureResultCollection(asyncio.get_running_loop())
 
     async def _next_future(
         self,
