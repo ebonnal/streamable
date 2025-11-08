@@ -175,11 +175,11 @@ def test_flatten_example() -> None:
 
     assert list(even_then_odd_integers) == [0, 2, 4, 6, 8, 1, 3, 5, 7, 9]
 
-    mixed_ones_and_zeros: Stream[int] = (
-        Stream([[0] * 4, [1] * 4])
+    round_robined_integers: Stream[int] = (
+        Stream([[0, 0], [1, 1, 1, 1], [2, 2]])
         .flatten(concurrency=2)
     )
-    assert list(mixed_ones_and_zeros) == [0, 1, 0, 1, 0, 1, 0, 1]
+    assert list(round_robined_integers) == [0, 1, 0, 1, 1, 2, 1, 2]
 
 def test_catch_example() -> None:
     inverses: Stream[float] = (
