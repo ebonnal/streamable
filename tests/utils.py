@@ -28,6 +28,20 @@ IterableType = Union[Type[Iterable], Type[AsyncIterable]]
 ITERABLE_TYPES: Tuple[IterableType, ...] = (Iterable, AsyncIterable)
 
 
+class TestError(Exception):
+    pass
+
+
+DELTA = 0.1
+
+# size of the test collections
+N = 256
+
+src = range(N)
+
+even_src = range(0, N, 2)
+
+
 async def _aiter_to_list(aiterable: AsyncIterable[T]) -> List[T]:
     return [elem async for elem in aiterable]
 
@@ -81,6 +95,16 @@ def timestream(
     return timeit.timeit(iterate, number=times) / times, res
 
 
+async def timecoro(
+    afn: Callable[[], Union[Coroutine[None, None, T], "asyncio.Future[T]"]],
+    times: int = 1,
+) -> Tuple[float, T]:
+    start = time.perf_counter()
+    for _ in range(times):
+        res = await afn()
+    return (time.perf_counter() - start) / times, res
+
+
 def identity_sleep(seconds: float) -> float:
     time.sleep(seconds)
     return seconds
@@ -91,7 +115,6 @@ async def async_identity_sleep(seconds: float) -> float:
     return seconds
 
 
-# simulates an I/0 bound function
 slow_identity_duration = 0.05
 
 
@@ -146,19 +169,6 @@ def async_throw_for_odd_func(exc):
         return throw(exc) if i % 2 == 1 else i
 
     return f
-
-
-class TestError(Exception):
-    pass
-
-
-DELTA_RATE = 0.1
-# size of the test collections
-N = 256
-
-src = range(N)
-
-even_src = range(0, N, 2)
 
 
 def randomly_slowed(

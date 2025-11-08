@@ -33,6 +33,7 @@ from typing import (
 from unittest.mock import patch
 
 from parameterized import parameterized  # type: ignore
+import pytest
 
 from streamable import Stream
 from streamable._util._asynctools import awaitable_to_coroutine
@@ -42,7 +43,7 @@ from streamable._util._iterabletools import (
     sync_to_bi_iterable,
 )
 from tests.utils import (
-    DELTA_RATE,
+    DELTA,
     ITERABLE_TYPES,
     IterableType,
     N,
@@ -70,6 +71,7 @@ from tests.utils import (
     throw,
     throw_for_odd_func,
     throw_func,
+    timecoro,
     timestream,
     to_list,
 )
@@ -647,7 +649,7 @@ class TestStream(unittest.TestCase):
         self.assertAlmostEqual(
             duration,
             expected_iteration_duration,
-            delta=expected_iteration_duration * DELTA_RATE,
+            delta=expected_iteration_duration * DELTA,
             msg="Increasing the concurrency of mapping should decrease proportionnally the iteration's duration.",
         )
 
@@ -866,7 +868,7 @@ class TestStream(unittest.TestCase):
         self.assertAlmostEqual(
             runtime,
             expected_runtime,
-            delta=DELTA_RATE * expected_runtime,
+            delta=DELTA * expected_runtime,
             msg="`flatten` should process 'a's and 'b's concurrently and then 'c's without concurrency",
         )
 
@@ -2905,3 +2907,29 @@ class TestStream(unittest.TestCase):
         )
 
         asyncio.new_event_loop = original_new_event_loop
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "stream",
+    (
+        Stream(range(N)).map(slow_identity, concurrency=N // 8),
+        (
+            Stream(range(N))
+            .map(lambda i: map(slow_identity, (i,)))
+            .flatten(concurrency=N // 8)
+        ),
+    ),
+)
+async def test_run_in_executor(stream: Stream) -> None:
+    """
+    Tests that executor-based concurrent mapping/flattening are wrapped
+    in non-loop-blocking run_in_executor-based async tasks.
+    """
+    concurrency = N // 8
+    res: tuple[int, int]
+    duration, res = await timecoro(
+        lambda: asyncio.gather(stream.acount(), stream.acount()), times=10
+    )
+    assert tuple(res) == (N, N)
+    assert duration == pytest.approx(N * slow_identity_duration / concurrency, rel=0.25)
