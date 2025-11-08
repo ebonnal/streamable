@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "streamable"
+dynamic = ["version"]
+description = "concurrent & fluent interface for (async) iterables"
+readme = { file = "README.md", content-type = "text/markdown" }
+license = { text = "Apache 2." }
+authors = [{ name = "ebonnal", email = "bonnal.enzo.dev@gmail.com" }]
+urls = { Homepage = "https://github.com/ebonnal/streamable" }
+requires-python = ">=3.7"
+dependencies = []
+
+[tool.setuptools.dynamic]
+version = { attr = "version.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["streamable*"]
+exclude = ["tests*"]
+
+[tool.setuptools.package-data]
+streamable = ["py.typed"]
