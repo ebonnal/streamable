@@ -243,8 +243,9 @@ assert list(integer_strings) == ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9
 ```
 </details>
 
-### thread-based concurrency
+### concurrency
 
+#### via threads
 > Applies the transformation via `concurrency` threads.
 
 <details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
@@ -269,7 +270,7 @@ assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
 > [!NOTE]
 > **Ordering**: it yields results in the upstream order (FIFO), set `ordered=False` to yield results as they become available (*First Done, First Out*).
 
-### process-based concurrency
+#### via processes
 
 > Set `via="process"`:
 
@@ -285,7 +286,7 @@ if __name__ == "__main__":
 ```
 </details>
 
-### coroutine-based concurrency: `.amap`
+#### via `async` coroutines
 
 > `.amap` can apply an `async` function concurrently.
 
@@ -311,7 +312,7 @@ asyncio.run(main())
 ```
 </details>
 
-### "starmap"
+### starmap
 
 > The `star` function decorator transforms a function that takes several positional arguments into a function that takes a tuple:
 
