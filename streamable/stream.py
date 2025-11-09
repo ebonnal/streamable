@@ -739,7 +739,7 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         count: Optional[int] = None,
         *,
         per: Optional[datetime.timedelta] = None,
-        **deprecated_kwargs,
+        **_,
     ) -> "Stream[T]":
         """
         Limits the speed of iteration to `count` elements (or exceptions) `per` time interval.
@@ -763,32 +763,9 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         """
         validate_optional_positive_count(count)
         validate_optional_positive_interval(per, name="per")
-        if not deprecated_kwargs:
+        if not _:
             return ThrottleStream(self, count, per)
-        # backward compatibility with deprecated kwargs per_second/per_minute/per_hour/interval
-        downstream = self
-        if count and per:
-            downstream = ThrottleStream(self, count, per)
-        for kwarg, value in deprecated_kwargs.items():
-            if kwarg == "per_second":
-                downstream = ThrottleStream(
-                    downstream, value, datetime.timedelta(seconds=1)
-                )
-            elif kwarg == "per_minute":
-                downstream = ThrottleStream(
-                    downstream, value, datetime.timedelta(minutes=1)
-                )
-            elif kwarg == "per_hour":
-                downstream = ThrottleStream(
-                    downstream, value, datetime.timedelta(hours=1)
-                )
-            elif kwarg == "interval":
-                downstream = ThrottleStream(downstream, 1, value)
-            else:
-                raise TypeError(
-                    f"Stream.throttle() got an unexpected keyword argument '{kwarg}'"
-                )
-        return downstream
+        return ThrottleStream._from_deprecated_kwargs(**_)
 
     def truncate(
         self, count: Optional[int] = None, *, when: Optional[Callable[[T], Any]] = None
@@ -1198,6 +1175,32 @@ class ThrottleStream(DownStream[T, T]):
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_throttle_stream(self)
+
+    def _from_deprecated_kwargs(stream: Stream[T], **_) -> "ThrottleStream[T]":
+        """
+        Backward compatibility with deprecated kwargs per_second/per_minute/per_hour/interval
+        """
+        downstream = stream
+        for kwarg, value in _.items():
+            if kwarg == "per_second":
+                downstream = ThrottleStream(
+                    downstream, value, datetime.timedelta(seconds=1)
+                )
+            elif kwarg == "per_minute":
+                downstream = ThrottleStream(
+                    downstream, value, datetime.timedelta(minutes=1)
+                )
+            elif kwarg == "per_hour":
+                downstream = ThrottleStream(
+                    downstream, value, datetime.timedelta(hours=1)
+                )
+            elif kwarg == "interval":
+                downstream = ThrottleStream(downstream, 1, value)
+            else:
+                raise TypeError(
+                    f"Stream.throttle() got an unexpected keyword argument '{kwarg}'"
+                )
+        return downstream
 
 
 class TruncateStream(DownStream[T, T]):
