@@ -32,9 +32,6 @@ class TestError(Exception):
     pass
 
 
-DELTA = 0.1
-
-# size of the test collections
 N = 256
 
 src = range(N)
