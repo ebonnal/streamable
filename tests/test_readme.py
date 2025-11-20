@@ -6,7 +6,7 @@ from typing import Iterator, List, Tuple, TypeVar
 
 import pytest
 
-from streamable.stream import Stream
+from streamable._stream import Stream
 
 integers: Stream[int] = Stream(range(10))
 

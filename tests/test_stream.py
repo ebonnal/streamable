@@ -34,9 +34,9 @@ from unittest.mock import patch
 import pytest
 
 from streamable import Stream
-from streamable._util._asynctools import awaitable_to_coroutine
-from streamable._util._functiontools import anostop, asyncify, nostop, star
-from streamable._util._iterabletools import (
+from streamable._utils._async import awaitable_to_coroutine
+from streamable._utils._func import anostop, asyncify, nostop, star
+from streamable._utils._iter import (
     sync_to_async_iter,
     sync_to_bi_iterable,
 )
@@ -162,7 +162,7 @@ def test_iter(itype: IterableType) -> None:
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_add(itype: IterableType) -> None:
-    from streamable.stream import FlattenStream
+    from streamable._stream import FlattenStream
 
     stream = Stream(src)
     # stream addition must return a FlattenStream.

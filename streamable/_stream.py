@@ -27,10 +27,10 @@ from typing import (
     overload,
 )
 
-from streamable._util._constants import NO_REPLACEMENT
-from streamable._util._functiontools import asyncify
-from streamable._util._loggertools import get_logger
-from streamable._util._validationtools import (
+from streamable._utils._const import NO_REPLACEMENT
+from streamable._utils._func import asyncify
+from streamable._utils._logging import get_logger
+from streamable._utils._validation import (
     validate_concurrency,
     validate_errors,
     validate_group_size,
@@ -110,12 +110,12 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         return self._source
 
     def __iter__(self) -> Iterator[T]:
-        from streamable.visitors._iterator import IteratorVisitor
+        from streamable.visitors._iter import IteratorVisitor
 
         return self.accept(IteratorVisitor[T]())
 
     def __aiter__(self) -> AsyncIterator[T]:
-        from streamable.visitors._aiterator import AsyncIteratorVisitor
+        from streamable.visitors._aiter import AsyncIteratorVisitor
 
         return self.accept(AsyncIteratorVisitor[T]())
 
@@ -126,17 +126,17 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Returns:
             bool: True if this stream is equal to `other`.
         """
-        from streamable.visitors._equality import EqualityVisitor
+        from streamable.visitors._eq import EqualityVisitor
 
         return self.accept(EqualityVisitor(other))
 
     def __repr__(self) -> str:
-        from streamable.visitors._representation import ReprVisitor
+        from streamable.visitors._repr import ReprVisitor
 
         return self.accept(ReprVisitor())
 
     def __str__(self) -> str:
-        from streamable.visitors._representation import StrVisitor
+        from streamable.visitors._repr import StrVisitor
 
         return self.accept(StrVisitor())
 

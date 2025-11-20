@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, Iterable, List
 
-from streamable.stream import (
+from streamable._stream import (
     ACatchStream,
     ADistinctStream,
     AFilterStream,
@@ -26,8 +26,8 @@ from streamable.stream import (
     ThrottleStream,
     TruncateStream,
 )
-from streamable._util._constants import NO_REPLACEMENT
-from streamable._util._functiontools import _Star
+from streamable._utils._const import NO_REPLACEMENT
+from streamable._utils._func import _Star
 from streamable.visitors import Visitor
 
 

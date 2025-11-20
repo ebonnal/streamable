@@ -1,7 +1,7 @@
 import asyncio
 
-from streamable._util._functiontools import sidify, star
-from streamable._util._futuretools import (
+from streamable._utils._func import sidify, star
+from streamable._utils._future import (
     ExecutorFIFOFutureResultCollection,
     FutureResult,
 )

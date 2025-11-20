@@ -19,7 +19,7 @@ from typing import (
 
 
 with suppress(ImportError):
-    from streamable._util._protocols import Queue
+    from streamable._utils._queue import Queue
 
 T = TypeVar("T")
 

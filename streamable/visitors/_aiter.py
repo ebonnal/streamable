@@ -1,7 +1,7 @@
 from typing import AsyncIterable, AsyncIterator, Iterable, TypeVar, cast
 
 from streamable import afunctions
-from streamable.stream import (
+from streamable._stream import (
     ACatchStream,
     ADistinctStream,
     AFilterStream,
@@ -26,8 +26,8 @@ from streamable.stream import (
     ThrottleStream,
     TruncateStream,
 )
-from streamable._util._functiontools import async_sidify, sidify
-from streamable._util._iterabletools import sync_to_async_iter
+from streamable._utils._func import async_sidify, sidify
+from streamable._utils._iter import sync_to_async_iter
 from streamable.visitors import Visitor
 
 T = TypeVar("T")
