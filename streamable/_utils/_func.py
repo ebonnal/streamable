@@ -10,7 +10,7 @@ from typing import (
     overload,
 )
 
-from streamable._util._asynctools import CloseEventLoopMixin
+from streamable._utils._async import CloseEventLoopMixin
 
 T = TypeVar("T")
 R = TypeVar("R")

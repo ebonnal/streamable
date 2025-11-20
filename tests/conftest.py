@@ -7,8 +7,8 @@ import pytest
 import respx
 
 from streamable import Stream
-from streamable._util._functiontools import star
-from streamable._util._iterabletools import (
+from streamable._utils._func import star
+from streamable._utils._iter import (
     sync_to_async_iter,
 )
 from tests.utils import (

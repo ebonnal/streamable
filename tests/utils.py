@@ -17,9 +17,9 @@ from typing import (
     Union,
 )
 
-from streamable.stream import Stream
-from streamable._util._asynctools import awaitable_to_coroutine
-from streamable._util._iterabletools import BiIterable
+from streamable._stream import Stream
+from streamable._utils._async import awaitable_to_coroutine
+from streamable._utils._iter import BiIterable
 
 T = TypeVar("T")
 R = TypeVar("R")

@@ -1,6 +1,6 @@
 from typing import Any, Union
 
-from streamable.stream import (
+from streamable._stream import (
     ACatchStream,
     ADistinctStream,
     AFilterStream,

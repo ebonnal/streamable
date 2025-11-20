@@ -39,8 +39,8 @@ from streamable._aiterators import (
     PredicateATruncateAsyncIterator,
     YieldsPerPeriodThrottleAsyncIterator,
 )
-from streamable._util._constants import NO_REPLACEMENT
-from streamable._util._functiontools import asyncify
+from streamable._utils._const import NO_REPLACEMENT
+from streamable._utils._func import asyncify
 
 with suppress(ImportError):
     from typing import Literal

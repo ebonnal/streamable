@@ -38,8 +38,8 @@ from streamable._iterators import (
     PredicateTruncateIterator,
     YieldsPerPeriodThrottleIterator,
 )
-from streamable._util._constants import NO_REPLACEMENT
-from streamable._util._functiontools import syncify
+from streamable._utils._const import NO_REPLACEMENT
+from streamable._utils._func import syncify
 
 with suppress(ImportError):
     from typing import Literal

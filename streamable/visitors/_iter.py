@@ -2,7 +2,7 @@ import asyncio
 from typing import AsyncIterable, Iterable, Iterator, Optional, TypeVar, cast
 
 from streamable import functions
-from streamable.stream import (
+from streamable._stream import (
     ACatchStream,
     ADistinctStream,
     AFilterStream,
@@ -27,12 +27,12 @@ from streamable.stream import (
     ThrottleStream,
     TruncateStream,
 )
-from streamable._util._functiontools import (
+from streamable._utils._func import (
     async_sidify,
     sidify,
     syncify,
 )
-from streamable._util._iterabletools import async_to_sync_iter
+from streamable._utils._iter import async_to_sync_iter
 from streamable.visitors import Visitor
 
 T = TypeVar("T")

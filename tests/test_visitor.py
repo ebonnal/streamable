@@ -1,6 +1,6 @@
 from typing import cast
 
-from streamable.stream import (
+from streamable._stream import (
     ACatchStream,
     ADistinctStream,
     AFilterStream,
