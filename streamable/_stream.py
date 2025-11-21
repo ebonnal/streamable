@@ -81,10 +81,10 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         ],
     ) -> None:
         """
-        A `Stream[T]` decorates an `Iterable[T]` with a **fluent interface** enabling the chaining of lazy operations.
+        A `Stream[T]` decorates an `Iterable[T]` or `AsyncIterable[T]` with a **fluent interface** enabling the chaining of lazy operations.
 
         Args:
-            source (Union[Iterable[T], Callable[[], Iterable[T]]]): The iterable to decorate. Can be specified via a function that will be called each time an iteration is started over the stream.
+            source (Union[Iterable[T], Callable[[], Iterable[T]], AsyncIterable[T], Callable[[], AsyncIterable[T]]]): The iterable to decorate. Can be specified via a function that will be called each time an iteration is started over the stream (i.e. for each call to `iter(stream)`/`aiter(stream)`).
         """
         self._source = source
         self._upstream: "Optional[Stream]" = None
