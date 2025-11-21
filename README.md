@@ -258,13 +258,13 @@ assert list(integer_strings) == ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9
 <details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
-import requests
+import httpx
 
 pokemon_names: Stream[str] = (
     Stream(range(1, 4))
     .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
-    .map(requests.get, concurrency=3)
-    .map(requests.Response.json)
+    .map(httpx.get, concurrency=3)
+    .map(httpx.Response.json)
     .map(lambda poke: poke["name"])
 )
 assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
@@ -601,13 +601,12 @@ assert list(inverses) == [float("inf"), 1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0
 <details ><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
-import requests
-from requests.exceptions import ConnectionError
+import httpx
 
 status_codes_ignoring_resolution_errors: Stream[int] = (
     Stream(["https://github.com", "https://foo.bar", "https://github.com/foo/bar"])
-    .map(requests.get, concurrency=2)
-    .catch(ConnectionError, when=lambda error: "Max retries exceeded with url" in str(error))
+    .map(httpx.get, concurrency=2)
+    .catch(httpx.ConnectError, when=lambda exception: "not known" in str(exception))
     .map(lambda response: response.status_code)
 )
 
