@@ -1,6 +1,10 @@
 import datetime
+import json
+from typing import Any, Dict, List
 
+import httpx
 import pytest
+import respx
 
 from streamable import Stream
 from streamable._util._functiontools import star
@@ -105,3 +109,22 @@ def complex_stream_str() -> str:
     .catch(TypeError, when=None, replacement=1, finally_raise=True)
     .acatch(TypeError, when=None, replacement=1, finally_raise=True)
 )"""
+
+
+@pytest.fixture(autouse=True)
+def mock_httpx():
+    with open("tests/pokemons.json") as pokemon_sample:
+        POKEMONS: List[Dict[str, Any]] = json.loads(pokemon_sample.read())
+    with respx.mock:
+        for i, pokemon in enumerate(POKEMONS):
+            respx.get(f"https://pokeapi.co/api/v2/pokemon-species/{i + 1}").mock(
+                return_value=httpx.Response(200, json=pokemon)
+            )
+        respx.get("https://github.com/foo/bar").mock(return_value=httpx.Response(404))
+        respx.get("https://github.com").mock(return_value=httpx.Response(200))
+        respx.get("https://foo.bar").mock(
+            side_effect=httpx.ConnectError(
+                "[Errno 8] nodename nor servname provided, or not known"
+            )
+        )
+        yield

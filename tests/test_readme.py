@@ -3,12 +3,10 @@ from pathlib import Path
 import time
 from datetime import timedelta
 from typing import Iterator, List, Tuple, TypeVar
-from unittest.mock import patch
 
 import pytest
 
 from streamable.stream import Stream
-from tests import mocks
 
 integers: Stream[int] = Stream(range(10))
 
@@ -43,15 +41,14 @@ def test_map_example() -> None:
 
     assert list(integer_strings) == ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
 
-@patch("requests.get", mocks.get_poke)
 def test_thread_concurrent_map_example() -> None:
-    import requests
+    import httpx
 
     pokemon_names: Stream[str] = (
         Stream(range(1, 4))
         .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
-        .map(requests.get, concurrency=3)
-        .map(requests.Response.json)
+        .map(httpx.get, concurrency=3)
+        .map(httpx.Response.json)
         .map(lambda poke: poke["name"])
     )
     assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
@@ -63,7 +60,6 @@ def test_process_concurrent_map_example() -> None:
     # but the `state` of the main process is not mutated
     assert state == []
 
-@patch("httpx.AsyncClient.get", lambda self, url: mocks.async_get_poke(url))
 def test_async_amap_example() -> None:
     import asyncio
 
@@ -190,13 +186,12 @@ def test_catch_example() -> None:
 
     assert list(inverses) == [float("inf"), 1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
 
-    import requests
-    from requests.exceptions import ConnectionError
+    import httpx
 
     status_codes_ignoring_resolution_errors: Stream[int] = (
         Stream(["https://github.com", "https://foo.bar", "https://github.com/foo/bar"])
-        .map(requests.get, concurrency=2)
-        .catch(ConnectionError, when=lambda exception: "Max retries exceeded with url" in str(exception))
+        .map(httpx.get, concurrency=2)
+        .catch(httpx.ConnectError, when=lambda exception: "not known" in str(exception))
         .map(lambda response: response.status_code)
     )
 
@@ -303,7 +298,6 @@ def test_non_stopping_exceptions_example() -> None:
     collected_casted_ints.extend(casted_ints)
     assert collected_casted_ints == [0, 1, 2, 3, 5, 6, 7, 8, 9]
 
-@patch("httpx.AsyncClient.get", lambda self, url: mocks.async_get_poke(url))
 def test_async_etl_example(tmp_path: Path) -> None: # pragma: no cover
     import asyncio
     import csv
@@ -348,7 +342,6 @@ def test_async_etl_example(tmp_path: Path) -> None: # pragma: no cover
 
     asyncio.run(main())
 
-@patch("httpx.Client.get", lambda self, url: mocks.get_poke(url))
 def test_etl_example(tmp_path: Path) -> None: # pragma: no cover
     import csv
     from datetime import timedelta

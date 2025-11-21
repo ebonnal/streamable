@@ -4,6 +4,6 @@ mypy==1.7.1
 mypy-extensions==1.0.0
 pytest==7.4.4
 pytest-asyncio==0.21.2
-requests==2.32.5
+respx==0.22.0
 ruff==0.9.10
 typing-extensions==4.12.2
