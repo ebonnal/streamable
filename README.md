@@ -7,9 +7,13 @@
 
 Battle-tested on Python 3.7 to 3.15 and compatible with PyPy.
 
+
 [![coverage](https://codecov.io/gh/ebonnal/streamable/graph/badge.svg?token=S62T0JQK9N)](https://codecov.io/gh/ebonnal/streamable)
 [![PyPI](https://github.com/ebonnal/streamable/actions/workflows/pypi.yml/badge.svg?branch=main)](https://pypi.org/project/streamable)
 [![Anaconda-Server Badge](https://anaconda.org/conda-forge/streamable/badges/version.svg?)](https://anaconda.org/conda-forge/streamable)
+[![readthedocs](https://app.readthedocs.org/projects/streamable/badge/?version=latest&style=social)](https://streamable.readthedocs.io/en/latest/api.html)
+
+Visit the [*documentation*](https://streamable.readthedocs.io/en/latest/api.html)
 
 ## 1. install
 
@@ -221,7 +225,7 @@ for event in throttle(events, 10, per=timedelta(seconds=1)):
 
 </details>
 
-# 📒 ***Operations***
+# 📒 ***Operations*** [![readthedocs](https://app.readthedocs.org/projects/streamable/badge/?version=latest&style=social)](https://streamable.readthedocs.io/en/latest/api.html)
 
 |||
 |--|--|

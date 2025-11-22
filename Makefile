@@ -1,8 +1,8 @@
-.PHONY: all help venv test type-check format format-check lint lint-check
+.PHONY: all help venv test type-check format format-check lint lint-check docs
 
 VENV_DIR := .venv
 
-all: venv test type-check format lint
+all: venv test type-check format lint docs
 
 help:
 	@echo "Available commands:"
@@ -12,10 +12,13 @@ help:
 	@echo "  make type-check      - Check typing via mypy"
 	@echo "  make format          - Format via ruff"
 	@echo "  make format-check    - Check the formatting via ruff"
+	@echo "  make docs            - Build the docs via sphinx
 
 venv:
 	python3 -m venv $(VENV_DIR) --clear
 	$(VENV_DIR)/bin/pip install -r requirements-dev.txt
+	$(VENV_DIR)/bin/pip install -U pip setuptools wheel
+	$(VENV_DIR)/bin/pip install -e .
 
 test:
 	$(VENV_DIR)/bin/python -m coverage run -m pytest -sx
@@ -36,3 +39,6 @@ lint:
 
 lint-check:
 	$(VENV_DIR)/bin/python -m ruff check streamable tests
+
+docs:
+	sphinx-build -b html docs docs/_build/html
