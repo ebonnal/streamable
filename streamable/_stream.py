@@ -105,7 +105,7 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
     ]:
         """
         Returns:
-            Callable[[], Iterable]: Function called at iteration time (i.e. by `__iter__`) to get a fresh source iterable.
+            Union[Iterable, Callable[[], Iterable], AsyncIterable, Callable[[], AsyncIterable]]: The source of the stream's elements.
         """
         return self._source
 
