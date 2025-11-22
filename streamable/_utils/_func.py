@@ -115,15 +115,15 @@ def star(func: Callable[..., R]) -> Callable[[Tuple], R]:
     """
     Transforms a function that takes several positional arguments into a function that takes a tuple.
 
-    ```
-    @star
-    def add(a: int, b: int) -> int:
-        return a + b
+    .. code-block:: python
 
-    assert add((2, 5)) == 7
+        @star
+        def add(a: int, b: int) -> int:
+            return a + b
 
-    assert star(lambda a, b: a + b)((2, 5)) == 7
-    ```
+        assert add((2, 5)) == 7
+
+        assert star(lambda a, b: a + b)((2, 5)) == 7
     """
     return _Star(func)
 

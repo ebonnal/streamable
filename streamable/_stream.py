@@ -744,15 +744,15 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         """
         Limits the speed of iteration to `count` elements (or exceptions) `per` time interval.
 
-        ```python
-        # limits the number of requests made to 50 per minute:
-        from datetime import timedelta
-        (
-            Stream(["https://foo.bar", ...])
-            .map(requests.get, concurrency=4)
-            .throttle(50, per=timedelta(minutes=1))
-        )
-        ```
+        .. code-block:: python
+
+            # limits the number of requests made to 50 per minute:
+            from datetime import timedelta
+            (
+                Stream(["https://foo.bar", ...])
+                .map(requests.get, concurrency=4)
+                .throttle(50, per=timedelta(minutes=1))
+            )
 
         Args:
             count (int, optional): Maximum number of elements (or exceptions) that must be yielded within the given time interval. (default: no throttling)

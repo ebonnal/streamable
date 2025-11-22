@@ -11,3 +11,4 @@ streamable.egg-info
 .coverage
 htmlcov
 .ipynb_checkpoints
+docs
