@@ -17,7 +17,7 @@ Visit the [*documentation*](https://streamable.readthedocs.io/en/latest/api.html
 
 ## 1. install
 
-(zero dependencies)
+no dependencies
 ```
 pip install streamable
 ```
