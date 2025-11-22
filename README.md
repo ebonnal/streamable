@@ -13,22 +13,21 @@ Battle-tested on Python 3.7 to 3.15 and compatible with PyPy.
 [![Anaconda-Server Badge](https://anaconda.org/conda-forge/streamable/badges/version.svg?)](https://anaconda.org/conda-forge/streamable)
 [![readthedocs](https://app.readthedocs.org/projects/streamable/badge/?version=latest&style=social)](https://streamable.readthedocs.io/en/latest/api.html)
 
-Visit the [*documentation*](https://streamable.readthedocs.io/en/latest/api.html)
 
-## 1. install
+# 1. install
 
 no dependencies
 ```
 pip install streamable
 ```
 
-## 2. import
+# 2. import
 
 ```python
 from streamable import Stream
 ```
 
-## 3. init
+# 3. init
 
 Create a `Stream[T]` ***decorating*** an `Iterable[T]`/`AsyncIterable[T]`:
 
@@ -36,7 +35,7 @@ Create a `Stream[T]` ***decorating*** an `Iterable[T]`/`AsyncIterable[T]`:
 integers: Stream[int] = Stream(range(10))
 ```
 
-## 4. operate
+# 4. operate
 
 Chain ***lazy*** operations (only evaluated during iteration), each returning a new ***immutable*** `Stream`:
 
@@ -48,7 +47,10 @@ inverses: Stream[float] = (
 )
 ```
 
-## 5. iterate
+Visit the [*API Reference*](https://streamable.readthedocs.io/en/latest/api.html).
+
+
+# 5. iterate
 
 Iterate over a `Stream[T]` like any `Iterable[T]`/`AsyncIterable[T]`:
 
@@ -157,14 +159,15 @@ async def main() -> None:
 asyncio.run(main())
 ```
 
-# 🙏 Highlights from the community
+
+# 💡 Notes
+
+## Highlights from the community
 - [Tryolabs' Top 10 Python libraries of 2024](https://tryolabs.com/blog/top-python-libraries-2024#top-10---general-use) ([LinkedIn](https://www.linkedin.com/posts/tryolabs_top-python-libraries-2024-activity-7273052840984539137-bcGs?utm_source=share&utm_medium=member_desktop), [Reddit](https://www.reddit.com/r/Python/comments/1hbs4t8/the_handpicked_selection_of_the_best_python/))
 - [PyCoder’s Weekly](https://pycoders.com/issues/651) x [Real Python](https://realpython.com/)
 - [@PythonHub's tweet](https://x.com/PythonHub/status/1842886311369142713)
 - [Upvoters on our showcase Reddit post](https://www.reddit.com/r/Python/comments/1fp38jd/streamable_streamlike_manipulation_of_iterables/)
 
-
-# 💡 Notes
 ## Exceptions are not terminating the iteration
 
 > [!TIP]
@@ -208,11 +211,11 @@ and there is *zero overhead during iteration compared to builtins*, `iter(odd_in
 map(str, filter(lambda n: n % 2, range(1_000_000)))
 ```
 
-Operations have been [implemented](https://github.com/ebonnal/streamable/blob/main/streamable/iterators.py) with speed in mind. If you have any ideas for improvement, whether performance-related or not, an issue, PR, or discussion would be very much appreciated! 🙏 ([CONTRIBUTING.md](CONTRIBUTING.md))
+Operations have been [implemented](https://github.com/ebonnal/streamable/blob/main/streamable/iterators.py) with speed in mind. If you have any ideas for improvement, whether performance-related or not, an issue, PR, or discussion would be very much appreciated! ([CONTRIBUTING.md](CONTRIBUTING.md))
 
 ## `streamable.functions`
 
-The `Stream`'s methods are also exposed as functions in `streamable.functions`:
+The `Stream`'s methods are also exposed as functions in `streamable.functions`/`afunctions`:
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
@@ -225,7 +228,10 @@ for event in throttle(events, 10, per=timedelta(seconds=1)):
 
 </details>
 
-# 📒 ***Operations*** [![readthedocs](https://app.readthedocs.org/projects/streamable/badge/?version=latest&style=social)](https://streamable.readthedocs.io/en/latest/api.html)
+# 📒 ***Operations***
+[![readthedocs](https://app.readthedocs.org/projects/streamable/badge/?version=latest&style=social)](https://streamable.readthedocs.io/en/latest/api.html)
+
+Visit the [*API Reference*](https://streamable.readthedocs.io/en/latest/api.html).
 
 |||
 |--|--|
