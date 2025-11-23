@@ -1,6 +1,5 @@
 import copy
 import datetime
-import logging
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -29,7 +28,6 @@ from typing import (
 
 from streamable._utils._const import NO_REPLACEMENT
 from streamable._utils._func import asyncify
-from streamable._utils._logging import get_logger
 from streamable._utils._validation import (
     validate_concurrency,
     validate_errors,
@@ -172,19 +170,6 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Entry point to visit this stream (en.wikipedia.org/wiki/Visitor_pattern).
         """
         return visitor.visit_stream(self)
-
-    def display(self, level: int = logging.INFO) -> "Stream[T]":
-        """
-        Logs (INFO level) a representation of the stream.
-
-        Args:
-            level (int, optional): The level of the log. (default: INFO)
-
-        Returns:
-            Stream[T]: This stream.
-        """
-        get_logger().log(level, str(self))
-        return self
 
     def count(self) -> int:
         """

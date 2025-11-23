@@ -112,7 +112,6 @@ def test_async_src(itype) -> None:
 
 
 def test_repr(complex_stream: Stream, complex_stream_str: str) -> None:
-    assert Stream([]).display()
     assert (
         repr(Stream([]).map(star(print)))
         == "Stream([]).map(star(<built-in function print>), concurrency=1, ordered=True)"
