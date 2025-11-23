@@ -60,15 +60,15 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
     def visit_distinct_stream(self, stream: DistinctStream[T]) -> AsyncIterator[T]:
         return afunctions.distinct(
             stream.upstream.accept(self),
-            stream._key,
-            consecutive_only=stream._consecutive_only,
+            stream._by,
+            consecutive=stream._consecutive,
         )
 
     def visit_adistinct_stream(self, stream: ADistinctStream[T]) -> AsyncIterator[T]:
         return afunctions.adistinct(
             stream.upstream.accept(self),
-            stream._key,
-            consecutive_only=stream._consecutive_only,
+            stream._by,
+            consecutive=stream._consecutive,
         )
 
     def visit_filter_stream(self, stream: FilterStream[T]) -> AsyncIterator[T]:

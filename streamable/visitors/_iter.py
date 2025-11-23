@@ -71,16 +71,16 @@ class IteratorVisitor(Visitor[Iterator[T]]):
     def visit_distinct_stream(self, stream: DistinctStream[T]) -> Iterator[T]:
         return functions.distinct(
             stream.upstream.accept(self),
-            stream._key,
-            consecutive_only=stream._consecutive_only,
+            stream._by,
+            consecutive=stream._consecutive,
         )
 
     def visit_adistinct_stream(self, stream: ADistinctStream[T]) -> Iterator[T]:
         return functions.adistinct(
             self._get_event_loop(),
             stream.upstream.accept(self),
-            stream._key,
-            consecutive_only=stream._consecutive_only,
+            stream._by,
+            consecutive=stream._consecutive,
         )
 
     def visit_filter_stream(self, stream: FilterStream[T]) -> Iterator[T]:

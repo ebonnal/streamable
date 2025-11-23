@@ -83,26 +83,26 @@ def acatch(
 
 def distinct(
     aiterator: AsyncIterator[T],
-    key: Optional[Callable[[T], Any]] = None,
+    by: Optional[Callable[[T], Any]] = None,
     *,
-    consecutive_only: bool = False,
+    consecutive: bool = False,
 ) -> AsyncIterator[T]:
     return adistinct(
         aiterator,
-        asyncify(key) if key else None,
-        consecutive_only=consecutive_only,
+        asyncify(by) if by else None,
+        consecutive=consecutive,
     )
 
 
 def adistinct(
     aiterator: AsyncIterator[T],
-    key: Optional[Callable[[T], Coroutine[Any, Any, Any]]] = None,
+    by: Optional[Callable[[T], Coroutine[Any, Any, Any]]] = None,
     *,
-    consecutive_only: bool = False,
+    consecutive: bool = False,
 ) -> AsyncIterator[T]:
-    if consecutive_only:
-        return ConsecutiveADistinctAsyncIterator(aiterator, key)
-    return ADistinctAsyncIterator(aiterator, key)
+    if consecutive:
+        return ConsecutiveADistinctAsyncIterator(aiterator, by)
+    return ADistinctAsyncIterator(aiterator, by)
 
 
 def filter(

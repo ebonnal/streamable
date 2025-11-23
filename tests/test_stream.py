@@ -1131,27 +1131,22 @@ def test_throttle(itype: IterableType) -> None:
 def test_distinct(itype: IterableType, distinct, adapt) -> None:
     # `distinct` should yield distinct elements
     assert to_list(distinct(Stream("abbcaabcccddd")), itype=itype) == list("abcd")
-    # `distinct` should only remove the duplicates that are consecutive if `consecutive_only=True`
+    # `distinct` should only remove the duplicates that are consecutive if `consecutive=True`
     assert to_list(
-        distinct(Stream("aabbcccaabbcccc"), consecutive_only=True), itype=itype
+        distinct(Stream("aabbcccaabbcccc"), consecutive=True), itype=itype
     ) == list("abcabc")
-    for consecutive_only in [True, False]:
+    for consecutive in [True, False]:
         # `distinct` should yield the first encountered elem among duplicates
         assert to_list(
             distinct(
                 Stream(["foo", "bar", "a", "b"]),
                 adapt(len),
-                consecutive_only=consecutive_only,
+                consecutive=consecutive,
             ),
             itype=itype,
         ) == ["foo", "a"]
         # `distinct` should yield zero elements on empty stream
-        assert (
-            to_list(
-                distinct(Stream([]), consecutive_only=consecutive_only), itype=itype
-            )
-            == []
-        )
+        assert to_list(distinct(Stream([]), consecutive=consecutive), itype=itype) == []
     # `distinct` should raise for non-hashable elements
     with pytest.raises(TypeError, match="unhashable type: 'list'"):
         to_list(distinct(Stream([[1]])), itype=itype)
@@ -1517,8 +1512,8 @@ def test_eq() -> None:
         .acatch(
             (TypeError, ValueError), replace=asyncify(lambda e: 2), when=async_identity
         )
-        .distinct(key=identity)
-        .adistinct(key=async_identity)
+        .distinct(identity)
+        .adistinct(async_identity)
         .filter(identity)
         .afilter(async_identity)
         .foreach(identity, concurrency=3)
@@ -1546,8 +1541,8 @@ def test_eq() -> None:
         .acatch(
             (TypeError, ValueError), replace=asyncify(lambda e: 2), when=async_identity
         )
-        .distinct(key=identity)
-        .adistinct(key=async_identity)
+        .distinct(identity)
+        .adistinct(async_identity)
         .filter(identity)
         .afilter(async_identity)
         .foreach(identity, concurrency=3)

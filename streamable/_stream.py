@@ -274,53 +274,53 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
 
     def distinct(
         self,
-        key: Optional[Callable[[T], Any]] = None,
+        by: Optional[Callable[[T], Any]] = None,
         *,
-        consecutive_only: bool = False,
+        consecutive: bool = False,
     ) -> "Stream[T]":
         """
         Filters the stream to yield only distinct elements.
-        If a deduplication ``key`` is specified, ``foo`` and ``bar`` are treated as duplicates when ``key(foo) == key(bar)``.
+        If a deduplication ``by`` is specified, ``foo`` and ``bar`` are treated as duplicates when ``by(foo) == by(bar)``.
 
         Among duplicates, the first encountered occurence in upstream order is yielded.
 
         Warning:
             During iteration, the distinct elements yielded are retained in memory to perform deduplication.
-            Alternatively, remove only consecutive duplicates without memory footprint by setting ``consecutive_only=True``.
+            Alternatively, remove only consecutive duplicates without memory footprint by setting ``consecutive=True``.
 
         Args:
-            key (Callable[[T], Any], optional): Elements are deduplicated based on ``key(elem)``. (default: the deduplication is performed on the elements themselves)
-            consecutive_only (bool, optional): Whether to deduplicate only consecutive duplicates, or globally. (default: the deduplication is global)
+            by (Callable[[T], Any], optional): Elements are deduplicated based on ``by(elem)``. (default: the deduplication is performed on the elements themselves)
+            consecutive (bool, optional): Removes only consecutive duplicates if ``True``, or deduplicates globally if ``False``. (default: global deduplication)
 
         Returns:
             Stream: A stream containing only unique upstream elements.
         """
-        return DistinctStream(self, key, consecutive_only)
+        return DistinctStream(self, by, consecutive)
 
     def adistinct(
         self,
-        key: Optional[Callable[[T], Coroutine[Any, Any, Any]]] = None,
+        by: Optional[Callable[[T], Coroutine[Any, Any, Any]]] = None,
         *,
-        consecutive_only: bool = False,
+        consecutive: bool = False,
     ) -> "Stream[T]":
         """
         Filters the stream to yield only distinct elements.
-        If a deduplication ``key`` is specified, ``foo`` and ``bar`` are treated as duplicates when ``await key(foo) == await key(bar)``.
+        If a deduplication ``by`` is specified, ``foo`` and ``bar`` are treated as duplicates when ``await by(foo) == await by(bar)``.
 
         Among duplicates, the first encountered occurence in upstream order is yielded.
 
         Warning:
             During iteration, the distinct elements yielded are retained in memory to perform deduplication.
-            Alternatively, remove only consecutive duplicates without memory footprint by setting ``consecutive_only=True``.
+            Alternatively, remove only consecutive duplicates without memory footprint by setting ``consecutive=True``.
 
         Args:
-            key (Callable[[T], Coroutine[Any, Any, Any]], optional): Elements are deduplicated based on ``await key(elem)``. (default: the deduplication is performed on the elements themselves)
-            consecutive_only (bool, optional): Whether to deduplicate only consecutive duplicates, or globally. (default: the deduplication is global)
+            by (Callable[[T], Coroutine[Any, Any, Any]], optional): Elements are deduplicated based on ``await by(elem)``. (default: the deduplication is performed on the elements themselves)
+            consecutive (bool, optional): Whether to deduplicate only consecutive duplicates, or globally. (default: the deduplication is global)
 
         Returns:
             Stream: A stream containing only unique upstream elements.
         """
-        return ADistinctStream(self, key, consecutive_only)
+        return ADistinctStream(self, by, consecutive)
 
     def filter(self, where: Callable[[T], Any]) -> "Stream[T]":
         """
@@ -848,34 +848,34 @@ class ACatchStream(DownStream[T, Union[T, U]]):
 
 
 class DistinctStream(DownStream[T, T]):
-    __slots__ = ("_key", "_consecutive_only")
+    __slots__ = ("_by", "_consecutive")
 
     def __init__(
         self,
         upstream: Stream[T],
-        key: Optional[Callable[[T], Any]],
-        consecutive_only: bool,
+        by: Optional[Callable[[T], Any]],
+        consecutive: bool,
     ) -> None:
         super().__init__(upstream)
-        self._key = key
-        self._consecutive_only = consecutive_only
+        self._by = by
+        self._consecutive = consecutive
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_distinct_stream(self)
 
 
 class ADistinctStream(DownStream[T, T]):
-    __slots__ = ("_key", "_consecutive_only")
+    __slots__ = ("_by", "_consecutive")
 
     def __init__(
         self,
         upstream: Stream[T],
-        key: Optional[Callable[[T], Coroutine[Any, Any, Any]]],
-        consecutive_only: bool,
+        by: Optional[Callable[[T], Coroutine[Any, Any, Any]]],
+        consecutive: bool,
     ) -> None:
         super().__init__(upstream)
-        self._key = key
-        self._consecutive_only = consecutive_only
+        self._by = by
+        self._consecutive = consecutive
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_adistinct_stream(self)

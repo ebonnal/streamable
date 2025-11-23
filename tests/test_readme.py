@@ -244,7 +244,7 @@ def test_distinct_example() -> None:
 
     consecutively_distinct_chars: Stream[str] = (
         Stream("foobarfooo")
-        .distinct(consecutive_only=True)
+        .distinct(consecutive=True)
     )
 
     assert list(consecutively_distinct_chars) == ["f", "o", "b", "a", "r", "f", "o"]

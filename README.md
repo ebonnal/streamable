@@ -539,14 +539,14 @@ assert list(strings_of_distinct_lengths) == ["a", "foo"]
 </details>
 
 > [!WARNING]
-> During iteration, all distinct elements that are yielded are retained in memory to perform deduplication. However, you can remove only consecutive duplicates without a memory footprint by setting `consecutive_only=True`:
+> During iteration, all distinct elements that are yielded are retained in memory to perform deduplication. However, you can remove only consecutive duplicates without a memory footprint by setting `consecutive=True`:
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 consecutively_distinct_chars: Stream[str] = (
     Stream("foobarfooo")
-    .distinct(consecutive_only=True)
+    .distinct(consecutive=True)
 )
 
 assert list(consecutively_distinct_chars) == ["f", "o", "b", "a", "r", "f", "o"]

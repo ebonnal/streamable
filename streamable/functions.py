@@ -84,26 +84,26 @@ def acatch(
 
 def distinct(
     iterator: Iterator[T],
-    key: Optional[Callable[[T], Any]] = None,
+    by: Optional[Callable[[T], Any]] = None,
     *,
-    consecutive_only: bool = False,
+    consecutive: bool = False,
 ) -> Iterator[T]:
-    if consecutive_only:
-        return ConsecutiveDistinctIterator(iterator, key)
-    return DistinctIterator(iterator, key)
+    if consecutive:
+        return ConsecutiveDistinctIterator(iterator, by)
+    return DistinctIterator(iterator, by)
 
 
 def adistinct(
     event_loop: asyncio.AbstractEventLoop,
     iterator: Iterator[T],
-    key: Optional[Callable[[T], Any]] = None,
+    by: Optional[Callable[[T], Any]] = None,
     *,
-    consecutive_only: bool = False,
+    consecutive: bool = False,
 ) -> Iterator[T]:
     return distinct(
         iterator,
-        syncify(event_loop, key) if key else None,
-        consecutive_only=consecutive_only,
+        syncify(event_loop, by) if by else None,
+        consecutive=consecutive,
     )
 
 
