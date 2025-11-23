@@ -699,8 +699,7 @@ INFO: [duration=0:00:04.003852 errors=0] 10 integers yielded
 ```
 </details>
 
-> [!NOTE]
-> To avoid flooding, logs are emitted only when the number of yielded elements (or errors) reaches powers of 2.
+> A new log is emitted when the number of yielded elements (or errors) reaches powers of 2.
 
 
 > [!TIP]
