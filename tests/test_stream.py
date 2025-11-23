@@ -89,7 +89,7 @@ def test_init() -> None:
         .amap(async_identity)
         .foreach(identity)
         .aforeach(async_identity)
-        .catch()
+        .catch(Exception)
         .observe()
         .throttle(1, per=datetime.timedelta(seconds=1))
         .source
@@ -706,6 +706,7 @@ def test_filter(itype: IterableType, filter, adapt) -> None:
         builtins.filter(None, src)
     )
 
+
 @pytest.mark.parametrize(
     "itype, skip, adapt",
     (
@@ -1221,11 +1222,13 @@ def test_distinct(itype: IterableType, distinct, adapt) -> None:
 )
 def test_catch(itype: IterableType, catch, adapt) -> None:
     # `catch` should yield elements in exception-less scenarios
-    assert to_list(catch(Stream(src), finally_raise=True), itype=itype) == list(src)
+    assert to_list(
+        catch(Stream(src), Exception, finally_raise=True), itype=itype
+    ) == list(src)
     # `catch` should raise TypeError when first argument is not None or Type[Exception], or Iterable[Optional[Type[Exception]]]
     with pytest.raises(
         TypeError,
-        match="`errors` must be None, or a subclass of `Exception`, or an iterable of optional subclasses of `Exception`, but got <class 'int'>",
+        match="`errors` must be an `Exception` subclass or a tuple of such classes but got 1",
     ):
         catch(Stream(src), 1)  # type: ignore
 
@@ -1239,8 +1242,6 @@ def test_catch(itype: IterableType, catch, adapt) -> None:
     assert to_list(catch(stream, ZeroDivisionError), itype=itype) == list(
         map(f, safe_src)
     )
-    # If the predicate is not specified, then all exceptions should be caught.
-    assert to_list(catch(stream), itype=itype) == list(map(f, safe_src))
     # If a non-caught exception type occurs, then it should be raised.
     with pytest.raises(ZeroDivisionError):
         to_list(catch(stream, TestError), itype=itype)
@@ -1260,8 +1261,8 @@ def test_catch(itype: IterableType, catch, adapt) -> None:
 
     erroring_stream: Stream[int] = Stream(lambda: map(lambda f: f(), functions))
     for caught_erroring_stream in [
-        catch(erroring_stream, finally_raise=True),
-        catch(erroring_stream, finally_raise=True),
+        catch(erroring_stream, Exception, finally_raise=True),
+        catch(erroring_stream, Exception, finally_raise=True),
     ]:
         erroring_stream_iterator = bi_iterable_to_iter(
             caught_erroring_stream, itype=itype
@@ -1316,6 +1317,7 @@ def test_catch(itype: IterableType, catch, adapt) -> None:
         to_list(
             catch(
                 Stream(map(throw, [ValueError, TypeError])),
+                Exception,
                 when=adapt(lambda exception: "ValueError" in repr(exception)),
             ),
             itype=itype,
@@ -1325,7 +1327,7 @@ def test_catch(itype: IterableType, catch, adapt) -> None:
         catch(
             Stream(map(lambda n: 1 / n, [0, 1, 2, 4])),
             ZeroDivisionError,
-            replace=lambda e: float("inf"),
+            replace=adapt(lambda e: float("inf")),
         ),
         itype=itype,
     ) == [float("inf"), 1, 0.5, 0.25]
@@ -1334,7 +1336,7 @@ def test_catch(itype: IterableType, catch, adapt) -> None:
         catch(
             Stream(map(lambda n: 1 / n, [0, 1, 2, 4])),
             ZeroDivisionError,
-            replace=lambda e: None,
+            replace=adapt(lambda e: None),
         ),
         itype=itype,
     ) == [None, 1, 0.5, 0.25]
@@ -1362,23 +1364,6 @@ def test_catch(itype: IterableType, catch, adapt) -> None:
     ) == list(map(lambda n: 1 / n, range(2, 10, 2)))
     # `catch` should accept multiple types
     assert errors_counter == {TestError: 5, ValueError: 3, ZeroDivisionError: 1}
-    # `catch` must catch all errors when no error type provided
-    assert to_list(
-        catch(Stream(map(int, "foo")), replace=lambda e: 0), itype=itype
-    ) == [0] * len("foo")
-    # `catch` must catch the provided non-None error types
-    assert to_list(
-        catch(
-            Stream(map(int, "foo")), (None, None, ValueError, None), replace=lambda e: 0
-        ),
-        itype=itype,
-    ) == [0] * len("foo")
-    # `catch` must be noop if error type is None
-    with pytest.raises(ValueError):
-        to_list(catch(Stream(map(int, "foo")), None), itype=itype)
-    # `catch` must be noop if error types are None
-    with pytest.raises(ValueError):
-        to_list(catch(Stream(map(int, "foo")), (None, None, None)), itype=itype)
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
@@ -1652,7 +1637,7 @@ def test_ref_cycles(itype: IterableType) -> None:
         .map(str)
         .group(1)
         .groupby(len)
-        .catch(finally_raise=True)
+        .catch(Exception, finally_raise=True)
     )
     exception: Exception
     try:

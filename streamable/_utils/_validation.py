@@ -1,8 +1,9 @@
 import datetime
 from contextlib import suppress
 from typing import (
-    Iterable,
+    Any,
     Optional,
+    Tuple,
     Type,
     TypeVar,
     Union,
@@ -58,12 +59,17 @@ def validate_optional_positive_count(count: Optional[int]):
         validate_positive_count(count)
 
 
+def _is_exception_subclass(error: Any) -> bool:
+    return type(error) is type and issubclass(error, Exception)
+
+
 def validate_errors(
-    errors: Union[Optional[Type[Exception]], Iterable[Optional[Type[Exception]]]],
+    errors: Union[Type[Exception], Tuple[Type[Exception], ...]],
 ) -> None:
-    if errors is not None:
-        if not (type(errors) is type and issubclass(errors, Exception)):
-            if not isinstance(errors, Iterable):
-                raise TypeError(
-                    f"`errors` must be None, or a subclass of `Exception`, or an iterable of optional subclasses of `Exception`, but got {type(errors)}"
-                )
+    if _is_exception_subclass(errors):
+        return
+    if isinstance(errors, tuple) and all(map(_is_exception_subclass, errors)):
+        return
+    raise TypeError(
+        f"`errors` must be an `Exception` subclass or a tuple of such classes but got {errors}"
+    )

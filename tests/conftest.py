@@ -102,17 +102,10 @@ def complex_stream_str() -> str:
     .observe('foos')
     .catch(Exception, when=identity, finally_raise=True)
     .acatch(Exception, when=async_identity, finally_raise=True)
-<<<<<<< HEAD
-    .catch((TypeError, ValueError, None, ZeroDivisionError), when=None, finally_raise=False)
-    .acatch((TypeError, ValueError, None, ZeroDivisionError), when=None, finally_raise=False)
-    .catch(TypeError, when=None, replace=<lambda>, finally_raise=True)
-    .acatch(TypeError, when=None, finally_raise=True)
-=======
     .catch((TypeError, ValueError, ZeroDivisionError), when=None, finally_raise=False)
     .acatch((TypeError, ValueError, ZeroDivisionError), when=None, finally_raise=False)
     .catch(TypeError, when=None, replace=identity, finally_raise=True)
     .acatch(TypeError, when=None, replace=async_identity, finally_raise=True)
->>>>>>> 0e37d46 (s catch replace)
 )"""
 
 

@@ -49,19 +49,15 @@ U = TypeVar("U")
 
 def catch(
     iterator: Iterator[T],
-    errors: Union[
-        Optional[Type[Exception]], Iterable[Optional[Type[Exception]]]
-    ] = Exception,
+    errors: Union[Type[Exception], Tuple[Type[Exception], ...]],
     *,
     when: Optional[Callable[[Exception], Any]] = None,
     replace: Optional[Callable[[Exception], U]] = None,
     finally_raise: bool = False,
 ) -> Iterator[Union[T, U]]:
-    if errors is None:
-        return iterator
     return CatchIterator(
         iterator,
-        tuple(filter(None, errors)) if isinstance(errors, Iterable) else errors,
+        errors,
         when=when,
         replace=replace,
         finally_raise=finally_raise,
@@ -71,9 +67,7 @@ def catch(
 def acatch(
     event_loop: asyncio.AbstractEventLoop,
     iterator: Iterator[T],
-    errors: Union[
-        Optional[Type[Exception]], Iterable[Optional[Type[Exception]]]
-    ] = Exception,
+    errors: Union[Type[Exception], Tuple[Type[Exception], ...]],
     *,
     when: Optional[Callable[[Exception], Coroutine[Any, Any, Any]]] = None,
     replace: Optional[Callable[[Exception], Coroutine[Any, Any, U]]] = None,

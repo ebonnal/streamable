@@ -43,7 +43,7 @@ class ToStringVisitor(Visitor[str], ABC):
         replace = ""
         if stream._replace:
             replace = f", replace={self.to_string(stream._replace)}"
-        if isinstance(stream._errors, Iterable):
+        if isinstance(stream._errors, tuple):
             errors = f"({', '.join(map(self.to_string, stream._errors))})"
         else:
             errors = self.to_string(stream._errors)

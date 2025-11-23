@@ -212,9 +212,7 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
 
     def catch(
         self,
-        errors: Union[
-            Optional[Type[Exception]], Iterable[Optional[Type[Exception]]]
-        ] = Exception,
+        errors: Union[Type[Exception], Tuple[Type[Exception], ...]],
         *,
         when: Optional[Callable[[Exception], Any]] = None,
         replace: Optional[Callable[[Exception], U]] = None,
@@ -226,7 +224,7 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         If any exception was caught during the iteration and ``finally_raise=True``, the first exception caught will be raised when the iteration finishes.
 
         Args:
-            errors (Optional[Type[Exception]], Iterable[Optional[Type[Exception]]], optional): The exception type to catch, or an iterable of exception types to catch (default: catches all ``Exception``s)
+            errors (Union[Type[Exception], Tuple[Type[Exception], ...]]): The exception types to catch.
             when (Optional[Callable[[Exception], Any]], optional): An additional condition that must be satisfied to catch the exception, i.e. ``when(exception)`` must be truthy. (default: no additional condition)
             replace (Optional[Callable[[Exception], U]], optional): ``replace(exception)`` will be yielded when an exception is caught. (default: do not yield any replacement value)
             finally_raise (bool, optional): If True the first exception caught is raised when upstream's iteration ends. (default: iteration ends without raising)
@@ -245,9 +243,7 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
 
     def acatch(
         self,
-        errors: Union[
-            Optional[Type[Exception]], Iterable[Optional[Type[Exception]]]
-        ] = Exception,
+        errors: Union[Type[Exception], Tuple[Type[Exception], ...]],
         *,
         when: Optional[Callable[[Exception], Coroutine[Any, Any, Any]]] = None,
         replace: Optional[Callable[[Exception], Coroutine[Any, Any, U]]] = None,
@@ -259,7 +255,7 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         If any exception was caught during the iteration and ``finally_raise=True``, the first exception caught will be raised when the iteration finishes.
 
         Args:
-            errors (Optional[Type[Exception]], Iterable[Optional[Type[Exception]]], optional): The exception type to catch, or an iterable of exception types to catch (default: catches all ``Exception``s)
+            errors (Union[Type[Exception], Tuple[Type[Exception], ...]]): The exception types to catch.
             when (Optional[Callable[[Exception], Coroutine[Any, Any, Any]]], optional): An additional condition that must be satisfied to catch the exception, i.e. ``await when(exception)`` must be truthy. (default: no additional condition)
             replace (Optional[Callable[[Exception], Coroutine[Any, Any, U]]], optional): ``await replace(exception)`` will be yielded when an exception is caught. (default: do not yield any replacement value)
             finally_raise (bool, optional): If True the first exception caught is raised when upstream's iteration ends. (default: iteration ends without raising)
@@ -841,7 +837,7 @@ class CatchStream(DownStream[T, Union[T, U]]):
     def __init__(
         self,
         upstream: Stream[T],
-        errors: Union[Optional[Type[Exception]], Iterable[Optional[Type[Exception]]]],
+        errors: Union[Type[Exception], Tuple[Type[Exception], ...]],
         when: Optional[Callable[[Exception], Any]],
         replace: Optional[Callable[[Exception], U]],
         finally_raise: bool,
@@ -862,7 +858,7 @@ class ACatchStream(DownStream[T, Union[T, U]]):
     def __init__(
         self,
         upstream: Stream[T],
-        errors: Union[Optional[Type[Exception]], Iterable[Optional[Type[Exception]]]],
+        errors: Union[Type[Exception], Tuple[Type[Exception], ...]],
         when: Optional[Callable[[Exception], Coroutine[Any, Any, Any]]],
         replace: Optional[Callable[[Exception], Coroutine[Any, Any, U]]],
         finally_raise: bool,

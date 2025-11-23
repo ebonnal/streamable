@@ -1,5 +1,5 @@
 import datetime
-from typing import Callable, Iterator, List, cast
+from typing import Callable, Iterator, List, Union, cast
 
 from streamable.functions import catch, flatten, group, map, observe, throttle, truncate
 
@@ -22,6 +22,7 @@ def test_signatures() -> None:
     flattened_grouped_it_3: Iterator[int] = flatten(grouped_it_1, concurrency=2)  # noqa: F841
     caught_it_1: Iterator[int] = catch(iterator, Exception)  # noqa: F841
     caught_it_2: Iterator[int] = catch(iterator, Exception, finally_raise=True)  # noqa: F841
+    caught_it_3: Iterator[Union[int, str]] = catch(iterator, Exception, replace=str)  # noqa: F841
     observed_it_1: Iterator[int] = observe(iterator, what="objects")  # noqa: F841
     throttleed_it_1: Iterator[int] = throttle(  # noqa: F841
         iterator,

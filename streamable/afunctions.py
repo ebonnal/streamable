@@ -1,4 +1,3 @@
-import builtins
 import datetime
 from contextlib import suppress
 from operator import itemgetter
@@ -50,9 +49,7 @@ U = TypeVar("U")
 
 def catch(
     aiterator: AsyncIterator[T],
-    errors: Union[
-        Optional[Type[Exception]], Iterable[Optional[Type[Exception]]]
-    ] = Exception,
+    errors: Union[Type[Exception], Tuple[Type[Exception], ...]],
     *,
     when: Optional[Callable[[Exception], Any]] = None,
     replace: Optional[Callable[[Exception], U]] = None,
@@ -69,21 +66,15 @@ def catch(
 
 def acatch(
     aiterator: AsyncIterator[T],
-    errors: Union[
-        Optional[Type[Exception]], Iterable[Optional[Type[Exception]]]
-    ] = Exception,
+    errors: Union[Type[Exception], Tuple[Type[Exception], ...]],
     *,
     when: Optional[Callable[[Exception], Coroutine[Any, Any, Any]]] = None,
     replace: Optional[Callable[[Exception], Coroutine[Any, Any, U]]] = None,
     finally_raise: bool = False,
 ) -> AsyncIterator[Union[T, U]]:
-    if errors is None:
-        return aiterator
     return ACatchAsyncIterator(
         aiterator,
-        tuple(builtins.filter(None, errors))
-        if isinstance(errors, Iterable)
-        else errors,
+        errors,
         when=when,
         replace=replace,
         finally_raise=finally_raise,
