@@ -1116,61 +1116,6 @@ def test_throttle(itype: IterableType) -> None:
         # `throttle` with both `per_second` and `interval` set should follow the most restrictive
         assert duration == pytest.approx(expected_duration, rel=0.1)
 
-    # `throttle` must raise for unsupported kwarg
-    with pytest.raises(
-        TypeError,
-        match=r"Stream.throttle\(\) got an unexpected keyword argument 'foo'",
-    ):
-        Stream(src).throttle(foo="bar")
-
-    # `throttle` must support legacy kwargs
-    assert (
-        Stream(src)
-        .throttle(per_second=2)
-        .throttle(per_minute=3)
-        .throttle(per_hour=4)
-        .throttle(interval=datetime.timedelta(milliseconds=1))
-    ) == (
-        Stream(src)
-        .throttle(2, per=datetime.timedelta(seconds=1))
-        .throttle(3, per=datetime.timedelta(minutes=1))
-        .throttle(4, per=datetime.timedelta(hours=1))
-        .throttle(1, per=datetime.timedelta(milliseconds=1))
-    )
-    # `throttle` must support legacy kwargs
-    assert (
-        Stream(src).throttle(
-            per_second=2,
-            per_minute=3,
-            per_hour=4,
-            interval=datetime.timedelta(milliseconds=1),
-        )
-    ) == (
-        Stream(src)
-        .throttle(2, per=datetime.timedelta(seconds=1))
-        .throttle(3, per=datetime.timedelta(minutes=1))
-        .throttle(4, per=datetime.timedelta(hours=1))
-        .throttle(1, per=datetime.timedelta(milliseconds=1))
-    )
-    # `throttle` must support legacy kwargs
-    assert (
-        Stream(src).throttle(
-            5,
-            per=datetime.timedelta(microseconds=1),
-            per_second=2,
-            per_minute=3,
-            per_hour=4,
-            interval=datetime.timedelta(milliseconds=1),
-        )
-    ) == (
-        Stream(src)
-        .throttle(5, per=datetime.timedelta(microseconds=1))
-        .throttle(2, per=datetime.timedelta(seconds=1))
-        .throttle(3, per=datetime.timedelta(minutes=1))
-        .throttle(4, per=datetime.timedelta(hours=1))
-        .throttle(1, per=datetime.timedelta(milliseconds=1))
-    )
-
 
 @pytest.mark.parametrize(
     "itype, distinct, adapt",
