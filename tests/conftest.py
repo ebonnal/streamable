@@ -58,12 +58,12 @@ def complex_stream() -> Stream[int]:
         .map(lambda _: 0)
         .throttle(64, per=datetime.timedelta(seconds=1))
         .observe("foos")
-        .catch(finally_raise=True, when=identity)
-        .acatch(finally_raise=True, when=async_identity)
-        .catch((TypeError, ValueError, None, ZeroDivisionError))
-        .acatch((TypeError, ValueError, None, ZeroDivisionError))
-        .catch(TypeError, replacement=1, finally_raise=True)
-        .acatch(TypeError, replacement=1, finally_raise=True)
+        .catch(Exception, finally_raise=True, when=identity)
+        .acatch(Exception, finally_raise=True, when=async_identity)
+        .catch((TypeError, ValueError, ZeroDivisionError))
+        .acatch((TypeError, ValueError, ZeroDivisionError))
+        .catch(TypeError, replace=identity, finally_raise=True)
+        .acatch(TypeError, replace=async_identity, finally_raise=True)
     )
 
 
@@ -102,10 +102,17 @@ def complex_stream_str() -> str:
     .observe('foos')
     .catch(Exception, when=identity, finally_raise=True)
     .acatch(Exception, when=async_identity, finally_raise=True)
+<<<<<<< HEAD
     .catch((TypeError, ValueError, None, ZeroDivisionError), when=None, finally_raise=False)
     .acatch((TypeError, ValueError, None, ZeroDivisionError), when=None, finally_raise=False)
-    .catch(TypeError, when=None, replacement=1, finally_raise=True)
-    .acatch(TypeError, when=None, replacement=1, finally_raise=True)
+    .catch(TypeError, when=None, replace=<lambda>, finally_raise=True)
+    .acatch(TypeError, when=None, finally_raise=True)
+=======
+    .catch((TypeError, ValueError, ZeroDivisionError), when=None, finally_raise=False)
+    .acatch((TypeError, ValueError, ZeroDivisionError), when=None, finally_raise=False)
+    .catch(TypeError, when=None, replace=identity, finally_raise=True)
+    .acatch(TypeError, when=None, replace=async_identity, finally_raise=True)
+>>>>>>> 0e37d46 (s catch replace)
 )"""
 
 

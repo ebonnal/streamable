@@ -39,7 +39,6 @@ from streamable._utils._contextmanager import noop_context_manager
 from streamable._utils._error import ExceptionContainer
 from streamable._utils._logging import get_logger
 
-from streamable._utils._const import NO_REPLACEMENT
 from streamable._utils._future import (
     AsyncFDFOFutureResultCollection,
     ExecutorFDFOFutureResultCollection,
@@ -61,23 +60,23 @@ U = TypeVar("U")
 #########
 
 
-class CatchIterator(Iterator[T]):
+class CatchIterator(Iterator[Union[T, U]]):
     def __init__(
         self,
         iterator: Iterator[T],
         errors: Union[Type[Exception], Tuple[Type[Exception], ...]],
         when: Optional[Callable[[Exception], Any]],
-        replacement: T,
+        replace: Optional[Callable[[Exception], U]],
         finally_raise: bool,
     ) -> None:
         self.iterator = iterator
         self.errors = errors
         self.when = when
-        self.replacement = replacement
+        self.replace = replace
         self.finally_raise = finally_raise
         self._to_be_finally_raised: Optional[Exception] = None
 
-    def __next__(self) -> T:
+    def __next__(self) -> Union[T, U]:
         while True:
             try:
                 return self.iterator.__next__()
@@ -92,8 +91,8 @@ class CatchIterator(Iterator[T]):
                 if not self.when or self.when(e):
                     if self.finally_raise and not self._to_be_finally_raised:
                         self._to_be_finally_raised = e
-                    if self.replacement is not NO_REPLACEMENT:
-                        return self.replacement
+                    if self.replace:
+                        return self.replace(e)
                     continue
                 raise
 

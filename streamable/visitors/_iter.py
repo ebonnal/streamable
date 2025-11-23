@@ -1,5 +1,5 @@
 import asyncio
-from typing import AsyncIterable, Iterable, Iterator, Optional, TypeVar, cast
+from typing import AsyncIterable, Iterable, Iterator, Optional, TypeVar, Union, cast
 
 from streamable import functions
 from streamable._stream import (
@@ -49,22 +49,22 @@ class IteratorVisitor(Visitor[Iterator[T]]):
             self.event_loop = asyncio.new_event_loop()
         return self.event_loop
 
-    def visit_catch_stream(self, stream: CatchStream[T]) -> Iterator[T]:
+    def visit_catch_stream(self, stream: CatchStream[T, U]) -> Iterator[Union[T, U]]:
         return functions.catch(
-            stream.upstream.accept(self),
+            stream.upstream.accept(cast(IteratorVisitor[Union[T, U]], self)),
             stream._errors,
             when=stream._when,
-            replacement=stream._replacement,
+            replace=stream._replace,
             finally_raise=stream._finally_raise,
         )
 
-    def visit_acatch_stream(self, stream: ACatchStream[T]) -> Iterator[T]:
+    def visit_acatch_stream(self, stream: ACatchStream[T, U]) -> Iterator[Union[T, U]]:
         return functions.acatch(
             self._get_event_loop(),
-            stream.upstream.accept(self),
+            stream.upstream.accept(cast(IteratorVisitor[Union[T, U]], self)),
             stream._errors,
             when=stream._when,
-            replacement=stream._replacement,
+            replace=stream._replace,
             finally_raise=stream._finally_raise,
         )
 

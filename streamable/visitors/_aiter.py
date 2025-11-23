@@ -1,4 +1,4 @@
-from typing import AsyncIterable, AsyncIterator, Iterable, TypeVar, cast
+from typing import AsyncIterable, AsyncIterator, Iterable, TypeVar, Union, cast
 
 from streamable import afunctions
 from streamable._stream import (
@@ -35,21 +35,25 @@ U = TypeVar("U")
 
 
 class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
-    def visit_catch_stream(self, stream: CatchStream[T]) -> AsyncIterator[T]:
+    def visit_catch_stream(
+        self, stream: CatchStream[T, U]
+    ) -> AsyncIterator[Union[T, U]]:
         return afunctions.catch(
-            stream.upstream.accept(self),
+            stream.upstream.accept(cast(AsyncIteratorVisitor[Union[T, U]], self)),
             stream._errors,
             when=stream._when,
-            replacement=stream._replacement,
+            replace=stream._replace,
             finally_raise=stream._finally_raise,
         )
 
-    def visit_acatch_stream(self, stream: ACatchStream[T]) -> AsyncIterator[T]:
+    def visit_acatch_stream(
+        self, stream: ACatchStream[T, U]
+    ) -> AsyncIterator[Union[T, U]]:
         return afunctions.acatch(
-            stream.upstream.accept(self),
+            stream.upstream.accept(cast(AsyncIteratorVisitor[Union[T, U]], self)),
             stream._errors,
             when=stream._when,
-            replacement=stream._replacement,
+            replace=stream._replace,
             finally_raise=stream._finally_raise,
         )
 

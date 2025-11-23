@@ -26,7 +26,6 @@ from streamable._stream import (
     ThrottleStream,
     TruncateStream,
 )
-from streamable._utils._const import NO_REPLACEMENT
 from streamable._utils._func import _Star
 from streamable.visitors import Visitor
 
@@ -41,28 +40,28 @@ class ToStringVisitor(Visitor[str], ABC):
     def to_string(o: object) -> str: ...
 
     def visit_catch_stream(self, stream: CatchStream) -> str:
-        replacement = ""
-        if stream._replacement is not NO_REPLACEMENT:
-            replacement = f", replacement={self.to_string(stream._replacement)}"
+        replace = ""
+        if stream._replace:
+            replace = f", replace={self.to_string(stream._replace)}"
         if isinstance(stream._errors, Iterable):
             errors = f"({', '.join(map(self.to_string, stream._errors))})"
         else:
             errors = self.to_string(stream._errors)
         self.methods_reprs.append(
-            f"catch({errors}, when={self.to_string(stream._when)}{replacement}, finally_raise={self.to_string(stream._finally_raise)})"
+            f"catch({errors}, when={self.to_string(stream._when)}{replace}, finally_raise={self.to_string(stream._finally_raise)})"
         )
         return stream.upstream.accept(self)
 
     def visit_acatch_stream(self, stream: ACatchStream) -> str:
-        replacement = ""
-        if stream._replacement is not NO_REPLACEMENT:
-            replacement = f", replacement={self.to_string(stream._replacement)}"
+        replace = ""
+        if stream._replace:
+            replace = f", replace={self.to_string(stream._replace)}"
         if isinstance(stream._errors, Iterable):
             errors = f"({', '.join(map(self.to_string, stream._errors))})"
         else:
             errors = self.to_string(stream._errors)
         self.methods_reprs.append(
-            f"acatch({errors}, when={self.to_string(stream._when)}{replacement}, finally_raise={self.to_string(stream._finally_raise)})"
+            f"acatch({errors}, when={self.to_string(stream._when)}{replace}, finally_raise={self.to_string(stream._finally_raise)})"
         )
         return stream.upstream.accept(self)
 

@@ -41,7 +41,7 @@ class EqualityVisitor(Visitor[bool]):
             and stream.upstream.accept(EqualityVisitor(self.other.upstream))
             and stream._errors == self.other._errors
             and stream._when == self.other._when
-            and stream._replacement == self.other._replacement
+            and stream._replace == self.other._replace
             and stream._finally_raise == self.other._finally_raise
         )
 

@@ -38,7 +38,6 @@ from streamable._iterators import (
     PredicateTruncateIterator,
     YieldsPerPeriodThrottleIterator,
 )
-from streamable._utils._const import NO_REPLACEMENT
 from streamable._utils._func import syncify
 
 with suppress(ImportError):
@@ -55,16 +54,16 @@ def catch(
     ] = Exception,
     *,
     when: Optional[Callable[[Exception], Any]] = None,
-    replacement: T = NO_REPLACEMENT,  # type: ignore
+    replace: Optional[Callable[[Exception], U]] = None,
     finally_raise: bool = False,
-) -> Iterator[T]:
+) -> Iterator[Union[T, U]]:
     if errors is None:
         return iterator
     return CatchIterator(
         iterator,
         tuple(filter(None, errors)) if isinstance(errors, Iterable) else errors,
         when=when,
-        replacement=replacement,
+        replace=replace,
         finally_raise=finally_raise,
     )
 
@@ -77,14 +76,14 @@ def acatch(
     ] = Exception,
     *,
     when: Optional[Callable[[Exception], Coroutine[Any, Any, Any]]] = None,
-    replacement: T = NO_REPLACEMENT,  # type: ignore
+    replace: Optional[Callable[[Exception], Coroutine[Any, Any, U]]] = None,
     finally_raise: bool = False,
-) -> Iterator[T]:
+) -> Iterator[Union[T, U]]:
     return catch(
         iterator,
         errors,
         when=syncify(event_loop, when) if when else None,
-        replacement=replacement,
+        replace=syncify(event_loop, replace) if replace else None,
         finally_raise=finally_raise,
     )
 

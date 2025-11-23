@@ -39,7 +39,6 @@ from streamable._aiterators import (
     PredicateATruncateAsyncIterator,
     YieldsPerPeriodThrottleAsyncIterator,
 )
-from streamable._utils._const import NO_REPLACEMENT
 from streamable._utils._func import asyncify
 
 with suppress(ImportError):
@@ -56,14 +55,14 @@ def catch(
     ] = Exception,
     *,
     when: Optional[Callable[[Exception], Any]] = None,
-    replacement: T = NO_REPLACEMENT,  # type: ignore
+    replace: Optional[Callable[[Exception], U]] = None,
     finally_raise: bool = False,
-) -> AsyncIterator[T]:
+) -> AsyncIterator[Union[T, U]]:
     return acatch(
         aiterator,
         errors,
         when=asyncify(when) if when else None,
-        replacement=replacement,
+        replace=asyncify(replace) if replace else None,
         finally_raise=finally_raise,
     )
 
@@ -75,9 +74,9 @@ def acatch(
     ] = Exception,
     *,
     when: Optional[Callable[[Exception], Coroutine[Any, Any, Any]]] = None,
-    replacement: T = NO_REPLACEMENT,  # type: ignore
+    replace: Optional[Callable[[Exception], Coroutine[Any, Any, U]]] = None,
     finally_raise: bool = False,
-) -> AsyncIterator[T]:
+) -> AsyncIterator[Union[T, U]]:
     if errors is None:
         return aiterator
     return ACatchAsyncIterator(
@@ -86,7 +85,7 @@ def acatch(
         if isinstance(errors, Iterable)
         else errors,
         when=when,
-        replacement=replacement,
+        replace=replace,
         finally_raise=finally_raise,
     )
 
@@ -117,16 +116,16 @@ def adistinct(
 
 def filter(
     aiterator: AsyncIterator[T],
-    when: Callable[[T], Any],
+    where: Callable[[T], Any],
 ) -> AsyncIterator[T]:
-    return afilter(aiterator, asyncify(when))
+    return afilter(aiterator, asyncify(where))
 
 
 def afilter(
     aiterator: AsyncIterator[T],
-    when: Callable[[T], Any],
+    where: Callable[[T], Any],
 ) -> AsyncIterator[T]:
-    return AFilterAsyncIterator(aiterator, when)
+    return AFilterAsyncIterator(aiterator, where)
 
 
 def flatten(

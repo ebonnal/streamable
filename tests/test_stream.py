@@ -271,7 +271,7 @@ def test_catched_error_upstream_of_map(itype, concurrency, ordered, expected) ->
             Stream([0, 1, 0, 2, 0])
             .map(lambda n: 1 / n)
             .map(identity_sleep, concurrency=concurrency, ordered=ordered)
-            .catch(ZeroDivisionError, replacement=float("inf")),
+            .catch(ZeroDivisionError, replace=lambda e: float("inf")),
             itype=itype,
         )
         == expected
@@ -282,7 +282,7 @@ def test_catched_error_upstream_of_map(itype, concurrency, ordered, expected) ->
             Stream([0, 1, 0, 2, 0])
             .map(lambda n: 1 / n)
             .amap(async_identity_sleep, concurrency=concurrency, ordered=ordered)
-            .catch(ZeroDivisionError, replacement=float("inf")),
+            .catch(ZeroDivisionError, replace=lambda e: float("inf")),
             itype=itype,
         )
         == expected
@@ -523,7 +523,7 @@ def test_flatten(concurrency, itype, flatten) -> None:
                 lambda iterable: sync_to_bi_iterable(map(lambda n: 1 / n, iterable))
             ),
             concurrency=concurrency,
-        ).catch(ZeroDivisionError, replacement=float("inf")),
+        ).catch(ZeroDivisionError, replace=lambda e: float("inf")),
         itype=itype,
     ) == (
         [
@@ -559,7 +559,7 @@ def test_flatten(concurrency, itype, flatten) -> None:
             .foreach(lambda ints: 1 / len(ints))
             .map(sync_to_bi_iterable),
             concurrency=concurrency,
-        ).catch(ZeroDivisionError, replacement=-1),
+        ).catch(ZeroDivisionError, replace=lambda e: -1),
         itype=itype,
     ) == ([4, 3, 2, -1, 1, 0] if concurrency == 1 else [4, -1, 3, 1, 2, 0])
     # At any concurrency the `flatten` method should continue pulling upstream iterables even if upstream's __iter__ raises an exception.
@@ -573,7 +573,7 @@ def test_flatten(concurrency, itype, flatten) -> None:
                 ]
             ),
             concurrency=concurrency,
-        ).catch(AttributeError, replacement=-1),
+        ).catch(AttributeError, replace=lambda e: -1),
         itype=itype,
     ) == ([4, 3, 2, -1, 1, 0] if concurrency == 1 else [4, -1, 3, 1, 2, 0])
     # `flatten` should not yield any element if upstream elements are empty iterables, and be resilient to recursion issue in case of successive empty upstream iterables.
@@ -1325,7 +1325,7 @@ def test_catch(itype: IterableType, catch, adapt) -> None:
         catch(
             Stream(map(lambda n: 1 / n, [0, 1, 2, 4])),
             ZeroDivisionError,
-            replacement=float("inf"),
+            replace=lambda e: float("inf"),
         ),
         itype=itype,
     ) == [float("inf"), 1, 0.5, 0.25]
@@ -1334,7 +1334,7 @@ def test_catch(itype: IterableType, catch, adapt) -> None:
         catch(
             Stream(map(lambda n: 1 / n, [0, 1, 2, 4])),
             ZeroDivisionError,
-            replacement=cast(float, None),
+            replace=lambda e: None,
         ),
         itype=itype,
     ) == [None, 1, 0.5, 0.25]
@@ -1363,12 +1363,14 @@ def test_catch(itype: IterableType, catch, adapt) -> None:
     # `catch` should accept multiple types
     assert errors_counter == {TestError: 5, ValueError: 3, ZeroDivisionError: 1}
     # `catch` must catch all errors when no error type provided
-    assert to_list(catch(Stream(map(int, "foo")), replacement=0), itype=itype) == [
-        0
-    ] * len("foo")
+    assert to_list(
+        catch(Stream(map(int, "foo")), replace=lambda e: 0), itype=itype
+    ) == [0] * len("foo")
     # `catch` must catch the provided non-None error types
     assert to_list(
-        catch(Stream(map(int, "foo")), (None, None, ValueError, None), replacement=0),
+        catch(
+            Stream(map(int, "foo")), (None, None, ValueError, None), replace=lambda e: 0
+        ),
         itype=itype,
     ) == [0] * len("foo")
     # `catch` must be noop if error type is None
@@ -1526,10 +1528,10 @@ def test_pipe(itype: IterableType) -> None:
 def test_eq() -> None:
     stream = (
         Stream(src)
-        .catch((TypeError, ValueError), replacement=2, when=identity)
-        .acatch((TypeError, ValueError), replacement=2, when=async_identity)
-        .distinct(key=identity)
-        .adistinct(key=async_identity)
+        .catch((TypeError, ValueError), replace=identity, when=identity)
+        .acatch((TypeError, ValueError), replace=async_identity, when=async_identity)
+        .distinct(identity)
+        .adistinct(async_identity)
         .filter(identity)
         .afilter(async_identity)
         .foreach(identity, concurrency=3)
@@ -1554,10 +1556,10 @@ def test_eq() -> None:
 
     assert stream == (
         Stream(src)
-        .catch((TypeError, ValueError), replacement=2, when=identity)
-        .acatch((TypeError, ValueError), replacement=2, when=async_identity)
-        .distinct(key=identity)
-        .adistinct(key=async_identity)
+        .catch((TypeError, ValueError), replace=identity, when=identity)
+        .acatch((TypeError, ValueError), replace=async_identity, when=async_identity)
+        .distinct(identity)
+        .adistinct(async_identity)
         .filter(identity)
         .afilter(async_identity)
         .foreach(identity, concurrency=3)
@@ -1581,8 +1583,10 @@ def test_eq() -> None:
     )
     assert stream != (
         Stream(list(src))  # not same source
-        .catch((TypeError, ValueError), replacement=2, when=identity)
-        .acatch((TypeError, ValueError), replacement=2, when=async_identity)
+        .catch((TypeError, ValueError), replace=lambda e: 2, when=identity)
+        .acatch(
+            (TypeError, ValueError), replace=asyncify(lambda e: 2), when=async_identity
+        )
         .distinct(key=identity)
         .adistinct(key=async_identity)
         .filter(identity)
@@ -1608,8 +1612,10 @@ def test_eq() -> None:
     )
     assert stream != (
         Stream(src)
-        .catch((TypeError, ValueError), replacement=2, when=identity)
-        .acatch((TypeError, ValueError), replacement=2, when=async_identity)
+        .catch((TypeError, ValueError), replace=lambda e: 2, when=identity)
+        .acatch(
+            (TypeError, ValueError), replace=asyncify(lambda e: 2), when=async_identity
+        )
         .distinct(key=identity)
         .adistinct(key=async_identity)
         .filter(identity)

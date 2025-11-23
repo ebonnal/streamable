@@ -43,7 +43,7 @@ Chain ***lazy*** operations (only evaluated during iteration), each returning a 
 inverses: Stream[float] = (
     integers
     .map(lambda n: round(1 / n, 2))
-    .catch(ZeroDivisionError, replacement=float("inf"))
+    .catch(ZeroDivisionError)
 )
 ```
 
@@ -56,7 +56,7 @@ Iterate over a `Stream[T]` like any `Iterable[T]`/`AsyncIterable[T]`:
 
 ```python
 >>> list(inverses)
-[inf, 1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
+[1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
 ```
 
 Elements are processed ***on-the-fly*** as the iteration advances.
@@ -607,7 +607,7 @@ assert list(integers_after_five) == [5, 6, 7, 8, 9]
 
 ## 🟡 `.catch` / `.acatch`
 
-> Catches a given type of exception, and optionally yields a `replacement` value:
+> Catches a given type of exception, and optionally `replace` it:
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
@@ -615,7 +615,7 @@ assert list(integers_after_five) == [5, 6, 7, 8, 9]
 inverses: Stream[float] = (
     integers
     .map(lambda n: round(1 / n, 2))
-    .catch(ZeroDivisionError, replacement=float("inf"))
+    .catch(ZeroDivisionError, replace=lambda e: float("inf"))
 )
 
 assert list(inverses) == [float("inf"), 1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]

@@ -181,7 +181,7 @@ def test_catch_example() -> None:
     inverses: Stream[float] = (
         integers
         .map(lambda n: round(1 / n, 2))
-        .catch(ZeroDivisionError, replacement=float("inf"))
+        .catch(ZeroDivisionError, replace=lambda e: float("inf"))
     )
 
     assert list(inverses) == [float("inf"), 1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]

@@ -35,7 +35,6 @@ from streamable._utils._contextmanager import noop_context_manager
 from streamable._utils._error import ExceptionContainer
 from streamable._utils._logging import get_logger
 
-from streamable._utils._const import NO_REPLACEMENT
 from streamable._utils._future import (
     AsyncFDFOFutureResultCollection,
     AsyncFIFOFutureResultCollection,
@@ -55,23 +54,23 @@ U = TypeVar("U")
 #########
 
 
-class ACatchAsyncIterator(AsyncIterator[T]):
+class ACatchAsyncIterator(AsyncIterator[Union[T, U]]):
     def __init__(
         self,
         iterator: AsyncIterator[T],
         errors: Union[Type[Exception], Tuple[Type[Exception], ...]],
         when: Optional[Callable[[Exception], Coroutine[Any, Any, Any]]],
-        replacement: T,
+        replace: Optional[Callable[[Exception], Coroutine[Any, Any, U]]],
         finally_raise: bool,
     ) -> None:
         self.iterator = iterator
         self.errors = errors
         self.when = when
-        self.replacement = replacement
+        self.replace = replace
         self.finally_raise = finally_raise
         self._to_be_finally_raised: Optional[Exception] = None
 
-    async def __anext__(self) -> T:
+    async def __anext__(self) -> Union[T, U]:
         while True:
             try:
                 return await self.iterator.__anext__()
@@ -86,8 +85,8 @@ class ACatchAsyncIterator(AsyncIterator[T]):
                 if not self.when or await self.when(e):
                     if self.finally_raise and not self._to_be_finally_raised:
                         self._to_be_finally_raised = e
-                    if self.replacement is not NO_REPLACEMENT:
-                        return self.replacement
+                    if self.replace:
+                        return await self.replace(e)
                     continue
                 raise
 
