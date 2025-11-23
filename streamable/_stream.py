@@ -27,7 +27,6 @@ from typing import (
 )
 
 from streamable._utils._const import NO_REPLACEMENT
-from streamable._utils._func import asyncify
 from streamable._utils._validation import (
     validate_concurrency,
     validate_errors,
@@ -328,35 +327,29 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         """
         return ADistinctStream(self, key, consecutive_only)
 
-    def filter(self, when: Callable[[T], Any] = bool) -> "Stream[T]":
+    def filter(self, where: Callable[[T], Any] = bool) -> "Stream[T]":
         """
-        Filters the stream to yield only elements satisfying the ``when`` predicate.
+        Filters the stream to yield only elements satisfying the ``where`` predicate.
 
         Args:
-            when (Callable[[T], Any], optional): An element is kept if ``when(elem)`` is truthy. (default: keeps truthy elements)
+            where (Callable[[T], Any], optional): An element is kept if ``where(elem)`` is truthy. (default: keeps truthy elements)
 
         Returns:
-            Stream[T]: A stream of upstream elements satisfying the `when` predicate.
+            Stream[T]: A stream of upstream elements satisfying the `where` predicate.
         """
-        # Unofficially accept ``stream.filter(None)``, behaving as builtin ``filter(None, iter)``
-        return FilterStream(self, cast(Optional[Callable[[T], Any]], when) or bool)
+        return FilterStream(self, where)
 
-    def afilter(self, when: Callable[[T], Coroutine[Any, Any, Any]]) -> "Stream[T]":
+    def afilter(self, where: Callable[[T], Coroutine[Any, Any, Any]]) -> "Stream[T]":
         """
-        Filters the stream to yield only elements satisfying the ``when`` predicate.
+        Filters the stream to yield only elements satisfying the ``where`` predicate.
 
         Args:
-            when (Callable[[T], Coroutine[Any, Any, Any]], optional): An element is kept if ``when(elem)`` is truthy. (default: keeps truthy elements)
+            where (Callable[[T], Coroutine[Any, Any, Any]], optional): An element is kept if ``where(elem)`` is truthy. (default: keeps truthy elements)
 
         Returns:
-            Stream[T]: A stream of upstream elements satisfying the `when` predicate.
+            Stream[T]: A stream of upstream elements satisfying the `where` predicate.
         """
-        # Unofficially accept ``stream.afilter(None)``, behaving as builtin ``filter(None, iter)``
-        return AFilterStream(
-            self,
-            cast(Optional[Callable[[T], Coroutine[Any, Any, Any]]], when)
-            or asyncify(bool),
-        )
+        return AFilterStream(self, where)
 
     # fmt: off
     @overload
@@ -920,24 +913,24 @@ class ADistinctStream(DownStream[T, T]):
 
 
 class FilterStream(DownStream[T, T]):
-    __slots__ = ("_when",)
+    __slots__ = ("_where",)
 
-    def __init__(self, upstream: Stream[T], when: Callable[[T], Any]) -> None:
+    def __init__(self, upstream: Stream[T], where: Callable[[T], Any]) -> None:
         super().__init__(upstream)
-        self._when = when
+        self._where = where
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_filter_stream(self)
 
 
 class AFilterStream(DownStream[T, T]):
-    __slots__ = ("_when",)
+    __slots__ = ("_where",)
 
     def __init__(
-        self, upstream: Stream[T], when: Callable[[T], Coroutine[Any, Any, Any]]
+        self, upstream: Stream[T], where: Callable[[T], Coroutine[Any, Any, Any]]
     ) -> None:
         super().__init__(upstream)
-        self._when = when
+        self._where = where
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_afilter_stream(self)

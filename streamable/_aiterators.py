@@ -440,15 +440,15 @@ class AFilterAsyncIterator(AsyncIterator[T]):
     def __init__(
         self,
         iterator: AsyncIterator[T],
-        when: Callable[[T], Coroutine[Any, Any, Any]],
+        where: Callable[[T], Coroutine[Any, Any, Any]],
     ) -> None:
         self.iterator = iterator
-        self.when = when
+        self.where = where
 
     async def __anext__(self) -> T:
         while True:
             elem = await self.iterator.__anext__()
-            if await self.when(elem):
+            if await self.where(elem):
                 return elem
 
 

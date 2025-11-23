@@ -85,13 +85,13 @@ class IteratorVisitor(Visitor[Iterator[T]]):
 
     def visit_filter_stream(self, stream: FilterStream[T]) -> Iterator[T]:
         return filter(
-            stream._when,
+            stream._where,
             cast(Iterable[T], stream.upstream.accept(self)),
         )
 
     def visit_afilter_stream(self, stream: AFilterStream[T]) -> Iterator[T]:
         return filter(
-            syncify(self._get_event_loop(), stream._when),
+            syncify(self._get_event_loop(), stream._where),
             cast(Iterable[T], stream.upstream.accept(self)),
         )
 

@@ -69,7 +69,7 @@ class EqualityVisitor(Visitor[bool]):
         return (
             self.type_eq(stream)
             and stream.upstream.accept(EqualityVisitor(self.other.upstream))
-            and stream._when == self.other._when
+            and stream._where == self.other._where
         )
 
     def visit_filter_stream(self, stream: FilterStream) -> bool:

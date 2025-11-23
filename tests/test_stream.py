@@ -1712,7 +1712,7 @@ def test_slots() -> None:
     with pytest.raises(AttributeError):
         Stream(src).__dict__
     # a stream should have __slots__
-    assert stream.__slots__ == ("_when",)
+    assert stream.__slots__ == ("_where",)
     # a stream should not have a __dict__
     with pytest.raises(AttributeError):
         stream.__dict__

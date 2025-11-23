@@ -68,10 +68,10 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
         )
 
     def visit_filter_stream(self, stream: FilterStream[T]) -> AsyncIterator[T]:
-        return afunctions.filter(stream.upstream.accept(self), stream._when)
+        return afunctions.filter(stream.upstream.accept(self), stream._where)
 
     def visit_afilter_stream(self, stream: AFilterStream[T]) -> AsyncIterator[T]:
-        return afunctions.afilter(stream.upstream.accept(self), stream._when)
+        return afunctions.afilter(stream.upstream.accept(self), stream._where)
 
     def visit_flatten_stream(self, stream: FlattenStream[T]) -> AsyncIterator[T]:
         return afunctions.flatten(
