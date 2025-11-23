@@ -305,7 +305,7 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
     ) -> "Stream[T]":
         """
         Filters the stream to yield only distinct elements.
-        If a deduplication ``key`` is specified, ``foo`` and ``bar`` are treated as duplicates when ``key(foo) == key(bar)``.
+        If a deduplication ``key`` is specified, ``foo`` and ``bar`` are treated as duplicates when ``await key(foo) == await key(bar)``.
 
         Among duplicates, the first encountered occurence in upstream order is yielded.
 
@@ -314,7 +314,7 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
             Alternatively, remove only consecutive duplicates without memory footprint by setting ``consecutive_only=True``.
 
         Args:
-            key (Callable[[T], Coroutine[Any, Any, Any]], optional): Elements are deduplicated based on ``key(elem)``. (default: the deduplication is performed on the elements themselves)
+            key (Callable[[T], Coroutine[Any, Any, Any]], optional): Elements are deduplicated based on ``await key(elem)``. (default: the deduplication is performed on the elements themselves)
             consecutive_only (bool, optional): Whether to deduplicate only consecutive duplicates, or globally. (default: the deduplication is global)
 
         Returns:
@@ -339,7 +339,7 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Filters the stream to yield only elements satisfying the ``where`` predicate.
 
         Args:
-            where (Callable[[T], Coroutine[Any, Any, Any]], optional): An element is kept if ``where(elem)`` is truthy. (default: keeps truthy elements)
+            where (Callable[[T], Coroutine[Any, Any, Any]], optional): An element is kept if ``await where(elem)`` is truthy. (default: keeps truthy elements)
 
         Returns:
             Stream[T]: A stream of upstream elements satisfying the `where` predicate.
@@ -493,7 +493,7 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
     ) -> "Stream[T]":
         """
         For each upstream element, yields it after having called the asynchronous ``do`` on it.
-        If the ``do(elem)`` coroutine throws an exception then it will be thrown and ``elem`` will not be yielded.
+        If the ``await do(elem)`` coroutine throws an exception then it will be thrown and ``elem`` will not be yielded.
 
         Args:
             do (Callable[[T], Coroutine[Any, Any, Any]]): The asynchronous function to be applied to each element as a side effect.
@@ -548,12 +548,12 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         - ``interval`` seconds have passed since the last group was yielded.
         - The upstream source is exhausted.
 
-        If ``by`` is specified, groups will only contain elements sharing the same ``by(elem)`` value (see ``.agroupby`` for ``(key, elements)`` pairs).
+        If ``by`` is specified, groups will only contain elements sharing the same ``await by(elem)`` value (see ``.agroupby`` for ``(key, elements)`` pairs).
 
         Args:
             size (Optional[int], optional): The maximum number of elements per group. (default: no size limit)
             interval (float, optional): Yields a group if ``interval`` seconds have passed since the last group was yielded. (default: no interval limit)
-            by (Optional[Callable[[T], Coroutine[Any, Any, Any]]], optional): If specified, groups will only contain elements sharing the same ``by(elem)`` value. (default: does not co-group elements)
+            by (Optional[Callable[[T], Coroutine[Any, Any, Any]]], optional): If specified, groups will only contain elements sharing the same ``await by(elem)`` value. (default: does not co-group elements)
         Returns:
             Stream[List[T]]: A stream of upstream elements grouped into lists.
         """
@@ -692,12 +692,12 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         until: Optional[Callable[[T], Coroutine[Any, Any, Any]]] = None,
     ) -> "Stream[T]":
         """
-        Skips elements until ``until(elem)`` is truthy, or ``count`` elements have been skipped.
+        Skips elements until ``await until(elem)`` is truthy, or ``count`` elements have been skipped.
         If both ``count`` and ``until`` are set, skipping stops as soon as either condition is met.
 
         Args:
             count (Optional[int], optional): The maximum number of elements to skip. (default: no count-based skipping)
-            until (Optional[Callable[[T], Coroutine[Any, Any, Any]]], optional): Elements are skipped until the first one for which ``until(elem)`` is truthy. This element and all the subsequent ones will be yielded. (default: no predicate-based skipping)
+            until (Optional[Callable[[T], Coroutine[Any, Any, Any]]], optional): Elements are skipped until the first one for which ``await until(elem)`` is truthy. This element and all the subsequent ones will be yielded. (default: no predicate-based skipping)
 
         Returns:
             Stream: A stream of the upstream elements remaining after skipping.
@@ -785,12 +785,12 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         when: Optional[Callable[[T], Coroutine[Any, Any, Any]]] = None,
     ) -> "Stream[T]":
         """
-        Stops an iteration as soon as ``when(elem)`` is truthy, or ``count`` elements have been yielded.
+        Stops an iteration as soon as ``await when(elem)`` is truthy, or ``count`` elements have been yielded.
         If both ``count`` and ``when`` are set, truncation occurs as soon as either condition is met.
 
         Args:
             count (int, optional): The maximum number of elements to yield. (default: no count-based truncation)
-            when (Optional[Callable[[T], Coroutine[Any, Any, Any]]], optional): An async predicate function that determines when to stop the iteration. Iteration stops immediately after encountering the first element for which ``when(elem)`` is truthy, and that element will not be yielded. (default: no predicate-based truncation)
+            when (Optional[Callable[[T], Coroutine[Any, Any, Any]]], optional): An async predicate function that determines when to stop the iteration. Iteration stops immediately after encountering the first element for which ``await when(elem)`` is truthy, and that element will not be yielded. (default: no predicate-based truncation)
 
         Returns:
             Stream[T]: A stream of at most `count` upstream elements not satisfying the `when` predicate.
