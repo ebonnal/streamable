@@ -488,7 +488,7 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
             effect (Callable[[T], Any]): The function to be applied to each element as a side effect.
             concurrency (int, optional): Represents both the number of threads used to concurrently apply the ``effect`` and the size of the buffer containing not-yet-yielded elements. If the buffer is full, the iteration over the upstream is paused until an element is yielded from the buffer. (default: no concurrency)
             ordered (bool, optional): If ``concurrency`` > 1, whether to preserve the order of upstream elements or to yield them as soon as they are processed. (default: preserves upstream order)
-            via ("thread" or "process", optional): If ``concurrency`` > 1, whether to apply ``transformation`` using processes or threads. (default: via threads)
+            via ("thread" or "process", optional): If ``concurrency`` > 1, whether to apply ``to`` using processes or threads. (default: via threads)
         Returns:
             Stream[T]: A stream of upstream elements, unchanged.
         """
@@ -625,46 +625,46 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
 
     def map(
         self,
-        transformation: Callable[[T], U],
+        to: Callable[[T], U],
         *,
         concurrency: int = 1,
         ordered: bool = True,
         via: "Literal['thread', 'process']" = "thread",
     ) -> "Stream[U]":
         """
-        Applies ``transformation`` on upstream elements and yields the results.
+        Applies ``to`` on upstream elements and yields the results.
 
         Args:
-            transformation (Callable[[T], R]): The function to be applied to each element.
-            concurrency (int, optional): Represents both the number of threads used to concurrently apply ``transformation`` and the size of the buffer containing not-yet-yielded results. If the buffer is full, the iteration over the upstream is paused until a result is yielded from the buffer. (default: no concurrency)
+            to (Callable[[T], R]): The async transformation to be applied to each element.
+            concurrency (int, optional): Represents both the number of threads used to concurrently apply ``to`` and the size of the buffer containing not-yet-yielded results. If the buffer is full, the iteration over the upstream is paused until a result is yielded from the buffer. (default: no concurrency)
             ordered (bool, optional): If ``concurrency`` > 1, whether to preserve the order of upstream elements or to yield them as soon as they are processed. (default: preserves upstream order)
-            via ("thread" or "process", optional): If ``concurrency`` > 1, whether to apply ``transformation`` using processes or threads. (default: via threads)
+            via ("thread" or "process", optional): If ``concurrency`` > 1, whether to apply ``to`` using processes or threads. (default: via threads)
         Returns:
             Stream[R]: A stream of transformed elements.
         """
         validate_concurrency(concurrency)
         validate_via(via)
-        return MapStream(self, transformation, concurrency, ordered, via)
+        return MapStream(self, to, concurrency, ordered, via)
 
     def amap(
         self,
-        transformation: Callable[[T], Coroutine[Any, Any, U]],
+        to: Callable[[T], Coroutine[Any, Any, U]],
         *,
         concurrency: int = 1,
         ordered: bool = True,
     ) -> "Stream[U]":
         """
-        Applies the asynchrounous ``transformation`` on upstream elements and yields the results.
+        Applies the async ``to`` on upstream elements and yields the results.
 
         Args:
-            transformation (Callable[[T], Coroutine[Any, Any, U]]): The asynchronous function to be applied to each element.
-            concurrency (int, optional): Represents both the number of async tasks concurrently applying ``transformation`` and the size of the buffer containing not-yet-yielded results. If the buffer is full, the iteration over the upstream is paused until a result is yielded from the buffer. (default: no concurrency)
+            to (Callable[[T], Coroutine[Any, Any, U]]): The async transformation to be applied to each element.
+            concurrency (int, optional): Represents both the number of async tasks concurrently applying ``to`` and the size of the buffer containing not-yet-yielded results. If the buffer is full, the iteration over the upstream is paused until a result is yielded from the buffer. (default: no concurrency)
             ordered (bool, optional): If ``concurrency`` > 1, whether to preserve the order of upstream elements or to yield them as soon as they are processed. (default: preserves upstream order)
         Returns:
             Stream[R]: A stream of transformed elements.
         """
         validate_concurrency(concurrency)
-        return AMapStream(self, transformation, concurrency, ordered)
+        return AMapStream(self, to, concurrency, ordered)
 
     def observe(self, what: str = "elements") -> "Stream[T]":
         """
@@ -1082,18 +1082,18 @@ class AGroupbyStream(DownStream[T, Tuple[U, List[T]]]):
 
 
 class MapStream(DownStream[T, U]):
-    __slots__ = ("_transformation", "_concurrency", "_ordered", "_via")
+    __slots__ = ("_to", "_concurrency", "_ordered", "_via")
 
     def __init__(
         self,
         upstream: Stream[T],
-        transformation: Callable[[T], U],
+        to: Callable[[T], U],
         concurrency: int,
         ordered: bool,
         via: "Literal['thread', 'process']",
     ) -> None:
         super().__init__(upstream)
-        self._transformation = transformation
+        self._to = to
         self._concurrency = concurrency
         self._ordered = ordered
         self._via = via
@@ -1103,17 +1103,17 @@ class MapStream(DownStream[T, U]):
 
 
 class AMapStream(DownStream[T, U]):
-    __slots__ = ("_transformation", "_concurrency", "_ordered")
+    __slots__ = ("_to", "_concurrency", "_ordered")
 
     def __init__(
         self,
         upstream: Stream[T],
-        transformation: Callable[[T], Coroutine[Any, Any, U]],
+        to: Callable[[T], Coroutine[Any, Any, U]],
         concurrency: int,
         ordered: bool,
     ) -> None:
         super().__init__(upstream)
-        self._transformation = transformation
+        self._to = to
         self._concurrency = concurrency
         self._ordered = ordered
 

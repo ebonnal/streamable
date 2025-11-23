@@ -195,7 +195,7 @@ def agroupby(
 
 
 def map(
-    transformation: Callable[[T], U],
+    to: Callable[[T], U],
     iterator: Iterator[T],
     *,
     concurrency: int = 1,
@@ -203,10 +203,10 @@ def map(
     via: "Literal['thread', 'process']" = "thread",
 ) -> Iterator[U]:
     if concurrency == 1:
-        return builtins.map(transformation, iterator)
+        return builtins.map(to, iterator)
     return ConcurrentMapIterator(
         iterator,
-        transformation,
+        to,
         concurrency=concurrency,
         buffersize=concurrency,
         ordered=ordered,
@@ -216,18 +216,18 @@ def map(
 
 def amap(
     event_loop: asyncio.AbstractEventLoop,
-    transformation: Callable[[T], Coroutine[Any, Any, U]],
+    to: Callable[[T], Coroutine[Any, Any, U]],
     iterator: Iterator[T],
     *,
     concurrency: int = 1,
     ordered: bool = True,
 ) -> Iterator[U]:
     if concurrency == 1:
-        return map(syncify(event_loop, transformation), iterator)
+        return map(syncify(event_loop, to), iterator)
     return ConcurrentAMapIterator(
         event_loop,
         iterator,
-        transformation,
+        to,
         concurrency=concurrency,
         buffersize=concurrency,
         ordered=ordered,

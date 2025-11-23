@@ -141,7 +141,7 @@ class EqualityVisitor(Visitor[bool]):
             self.type_eq(stream)
             and stream.upstream.accept(EqualityVisitor(self.other.upstream))
             and stream._concurrency == self.other._concurrency
-            and stream._transformation == self.other._transformation
+            and stream._to == self.other._to
             and stream._ordered == self.other._ordered
         )
 

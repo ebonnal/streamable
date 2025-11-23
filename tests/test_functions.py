@@ -6,10 +6,10 @@ from streamable.functions import catch, flatten, group, map, observe, throttle, 
 
 def test_signatures() -> None:
     iterator = iter((0,))
-    transformation = cast(Callable[[int], int], ...)
-    mapped_it_1: Iterator[int] = map(transformation, iterator)  # noqa: F841
-    mapped_it_2: Iterator[int] = map(transformation, iterator, concurrency=1)  # noqa: F841
-    mapped_it_3: Iterator[int] = map(transformation, iterator, concurrency=2)  # noqa: F841
+    to = cast(Callable[[int], int], ...)
+    mapped_it_1: Iterator[int] = map(to, iterator)  # noqa: F841
+    mapped_it_2: Iterator[int] = map(to, iterator, concurrency=1)  # noqa: F841
+    mapped_it_3: Iterator[int] = map(to, iterator, concurrency=2)  # noqa: F841
     grouped_it_1: Iterator[List[int]] = group(iterator, size=1)
     grouped_it_2: Iterator[List[int]] = group(  # noqa: F841
         iterator, size=1, interval=datetime.timedelta(seconds=0.1)

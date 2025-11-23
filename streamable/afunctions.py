@@ -201,7 +201,7 @@ def agroupby(
 
 
 def map(
-    transformation: Callable[[T], U],
+    to: Callable[[T], U],
     aiterator: AsyncIterator[T],
     *,
     concurrency: int = 1,
@@ -209,10 +209,10 @@ def map(
     via: "Literal['thread', 'process']" = "thread",
 ) -> AsyncIterator[U]:
     if concurrency == 1:
-        return amap(asyncify(transformation), aiterator)
+        return amap(asyncify(to), aiterator)
     return ConcurrentMapAsyncIterator(
         aiterator,
-        transformation,
+        to,
         concurrency=concurrency,
         buffersize=concurrency,
         ordered=ordered,
@@ -221,17 +221,17 @@ def map(
 
 
 def amap(
-    transformation: Callable[[T], Coroutine[Any, Any, U]],
+    to: Callable[[T], Coroutine[Any, Any, U]],
     aiterator: AsyncIterator[T],
     *,
     concurrency: int = 1,
     ordered: bool = True,
 ) -> AsyncIterator[U]:
     if concurrency == 1:
-        return AMapAsyncIterator(aiterator, transformation)
+        return AMapAsyncIterator(aiterator, to)
     return ConcurrentAMapAsyncIterator(
         aiterator,
-        transformation,
+        to,
         concurrency=concurrency,
         buffersize=concurrency,
         ordered=ordered,

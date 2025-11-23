@@ -138,13 +138,13 @@ class ToStringVisitor(Visitor[str], ABC):
     def visit_map_stream(self, stream: MapStream) -> str:
         via = f", via={self.to_string(stream._via)}" if stream._concurrency > 1 else ""
         self.methods_reprs.append(
-            f"map({self.to_string(stream._transformation)}, concurrency={self.to_string(stream._concurrency)}, ordered={self.to_string(stream._ordered)}{via})"
+            f"map({self.to_string(stream._to)}, concurrency={self.to_string(stream._concurrency)}, ordered={self.to_string(stream._ordered)}{via})"
         )
         return stream.upstream.accept(self)
 
     def visit_amap_stream(self, stream: AMapStream) -> str:
         self.methods_reprs.append(
-            f"amap({self.to_string(stream._transformation)}, concurrency={self.to_string(stream._concurrency)}, ordered={self.to_string(stream._ordered)})"
+            f"amap({self.to_string(stream._to)}, concurrency={self.to_string(stream._concurrency)}, ordered={self.to_string(stream._ordered)})"
         )
         return stream.upstream.accept(self)
 

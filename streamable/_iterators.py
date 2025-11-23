@@ -593,14 +593,14 @@ class _ConcurrentMapIterable(_BaseConcurrentMapIterable[T, U]):
     def __init__(
         self,
         iterator: Iterator[T],
-        transformation: Callable[[T], U],
+        to: Callable[[T], U],
         concurrency: int,
         buffersize: int,
         ordered: bool,
         via: "Literal['thread', 'process']",
     ) -> None:
         super().__init__(iterator, buffersize, ordered)
-        self.transformation = transformation
+        self.to = to
         self.concurrency = concurrency
         self.executor: Executor
         self.via = via
@@ -617,18 +617,14 @@ class _ConcurrentMapIterable(_BaseConcurrentMapIterable[T, U]):
 
     # picklable
     @staticmethod
-    def _safe_transformation(
-        transformation: Callable[[T], U], elem: T
-    ) -> Union[U, ExceptionContainer]:
+    def _safe_to(to: Callable[[T], U], elem: T) -> Union[U, ExceptionContainer]:
         try:
-            return transformation(elem)
+            return to(elem)
         except Exception as e:
             return ExceptionContainer(e)
 
     def _launch_task(self, elem: T) -> "Future[Union[U, ExceptionContainer]]":
-        return self.executor.submit(
-            self._safe_transformation, self.transformation, elem
-        )
+        return self.executor.submit(self._safe_to, self.to, elem)
 
     def _future_result_collection(
         self,
@@ -644,7 +640,7 @@ class ConcurrentMapIterator(_RaisingIterator[U]):
     def __init__(
         self,
         iterator: Iterator[T],
-        transformation: Callable[[T], U],
+        to: Callable[[T], U],
         concurrency: int,
         buffersize: int,
         ordered: bool,
@@ -653,7 +649,7 @@ class ConcurrentMapIterator(_RaisingIterator[U]):
         super().__init__(
             _ConcurrentMapIterable(
                 iterator,
-                transformation,
+                to,
                 concurrency,
                 buffersize,
                 ordered,
@@ -667,13 +663,13 @@ class _ConcurrentAMapIterable(_BaseConcurrentMapIterable[T, U], CloseEventLoopMi
         self,
         event_loop: asyncio.AbstractEventLoop,
         iterator: Iterator[T],
-        transformation: Callable[[T], Coroutine[Any, Any, U]],
+        to: Callable[[T], Coroutine[Any, Any, U]],
         concurrency: int,
         buffersize: int,
         ordered: bool,
     ) -> None:
         super().__init__(iterator, buffersize, ordered)
-        self.transformation = transformation
+        self.to = to
         self.event_loop = event_loop
         self.concurrency = concurrency
         self._semaphore: Optional[asyncio.Semaphore] = None
@@ -684,17 +680,17 @@ class _ConcurrentAMapIterable(_BaseConcurrentMapIterable[T, U], CloseEventLoopMi
             self._semaphore = asyncio.Semaphore(self.concurrency)
         return self._semaphore
 
-    async def _safe_transformation(self, elem: T) -> Union[U, ExceptionContainer]:
+    async def _safe_to(self, elem: T) -> Union[U, ExceptionContainer]:
         try:
             async with self.semaphore:
-                return await self.transformation(elem)
+                return await self.to(elem)
         except Exception as e:
             return ExceptionContainer(e)
 
     def _launch_task(self, elem: T) -> "Future[Union[U, ExceptionContainer]]":
         return cast(
             "Future[Union[U, ExceptionContainer]]",
-            self.event_loop.create_task(self._safe_transformation(elem)),
+            self.event_loop.create_task(self._safe_to(elem)),
         )
 
     def _future_result_collection(
@@ -710,7 +706,7 @@ class ConcurrentAMapIterator(_RaisingIterator[U]):
         self,
         event_loop: asyncio.AbstractEventLoop,
         iterator: Iterator[T],
-        transformation: Callable[[T], Coroutine[Any, Any, U]],
+        to: Callable[[T], Coroutine[Any, Any, U]],
         concurrency: int,
         buffersize: int,
         ordered: bool,
@@ -719,7 +715,7 @@ class ConcurrentAMapIterator(_RaisingIterator[U]):
             _ConcurrentAMapIterable(
                 event_loop,
                 iterator,
-                transformation,
+                to,
                 concurrency,
                 buffersize,
                 ordered,

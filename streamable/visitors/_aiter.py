@@ -152,7 +152,7 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
 
     def visit_map_stream(self, stream: MapStream[U, T]) -> AsyncIterator[T]:
         return afunctions.map(
-            stream._transformation,
+            stream._to,
             stream.upstream.accept(cast(AsyncIteratorVisitor[U], self)),
             concurrency=stream._concurrency,
             ordered=stream._ordered,
@@ -161,7 +161,7 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
 
     def visit_amap_stream(self, stream: AMapStream[U, T]) -> AsyncIterator[T]:
         return afunctions.amap(
-            stream._transformation,
+            stream._to,
             stream.upstream.accept(cast(AsyncIteratorVisitor[U], self)),
             concurrency=stream._concurrency,
             ordered=stream._ordered,

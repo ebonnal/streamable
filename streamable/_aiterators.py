@@ -422,13 +422,13 @@ class AMapAsyncIterator(AsyncIterator[U]):
     def __init__(
         self,
         iterator: AsyncIterator[T],
-        transformation: Callable[[T], Coroutine[Any, Any, U]],
+        to: Callable[[T], Coroutine[Any, Any, U]],
     ) -> None:
         self.iterator = iterator
-        self.transformation = transformation
+        self.to = to
 
     async def __anext__(self) -> U:
-        return await self.transformation(await self.iterator.__anext__())
+        return await self.to(await self.iterator.__anext__())
 
 
 ##########
@@ -642,14 +642,14 @@ class _ConcurrentMapAsyncIterable(_BaseConcurrentMapAsyncIterable[T, U]):
     def __init__(
         self,
         iterator: AsyncIterator[T],
-        transformation: Callable[[T], U],
+        to: Callable[[T], U],
         concurrency: int,
         buffersize: int,
         ordered: bool,
         via: "Literal['thread', 'process']",
     ) -> None:
         super().__init__(iterator, buffersize, ordered)
-        self.transformation = transformation
+        self.to = to
         self.concurrency = concurrency
         self.executor: Executor
         self.via = via
@@ -666,11 +666,9 @@ class _ConcurrentMapAsyncIterable(_BaseConcurrentMapAsyncIterable[T, U]):
 
     # picklable
     @staticmethod
-    def _safe_transformation(
-        transformation: Callable[[T], U], elem: T
-    ) -> Union[U, ExceptionContainer]:
+    def _safe_to(to: Callable[[T], U], elem: T) -> Union[U, ExceptionContainer]:
         try:
-            return transformation(elem)
+            return to(elem)
         except Exception as e:
             return ExceptionContainer(e)
 
@@ -678,7 +676,7 @@ class _ConcurrentMapAsyncIterable(_BaseConcurrentMapAsyncIterable[T, U]):
         return cast(
             "Future[Union[U, ExceptionContainer]]",
             asyncio.get_running_loop().run_in_executor(
-                self.executor, self._safe_transformation, self.transformation, elem
+                self.executor, self._safe_to, self.to, elem
             ),
         )
 
@@ -687,7 +685,7 @@ class ConcurrentMapAsyncIterator(_RaisingAsyncIterator[U]):
     def __init__(
         self,
         iterator: AsyncIterator[T],
-        transformation: Callable[[T], U],
+        to: Callable[[T], U],
         concurrency: int,
         buffersize: int,
         ordered: bool,
@@ -696,7 +694,7 @@ class ConcurrentMapAsyncIterator(_RaisingAsyncIterator[U]):
         super().__init__(
             _ConcurrentMapAsyncIterable(
                 iterator,
-                transformation,
+                to,
                 concurrency,
                 buffersize,
                 ordered,
@@ -709,13 +707,13 @@ class _ConcurrentAMapAsyncIterable(_BaseConcurrentMapAsyncIterable[T, U]):
     def __init__(
         self,
         iterator: AsyncIterator[T],
-        transformation: Callable[[T], Coroutine[Any, Any, U]],
+        to: Callable[[T], Coroutine[Any, Any, U]],
         concurrency: int,
         buffersize: int,
         ordered: bool,
     ) -> None:
         super().__init__(iterator, buffersize, ordered)
-        self.transformation = transformation
+        self.to = to
         self.concurrency = concurrency
         self._semaphore: Optional[asyncio.Semaphore] = None
 
@@ -725,17 +723,17 @@ class _ConcurrentAMapAsyncIterable(_BaseConcurrentMapAsyncIterable[T, U]):
             self._semaphore = asyncio.Semaphore(self.concurrency)
         return self._semaphore
 
-    async def _safe_transformation(self, elem: T) -> Union[U, ExceptionContainer]:
+    async def _safe_to(self, elem: T) -> Union[U, ExceptionContainer]:
         try:
             async with self.semaphore:
-                return await self.transformation(elem)
+                return await self.to(elem)
         except Exception as e:
             return ExceptionContainer(e)
 
     def _launch_task(self, elem: T) -> "Future[Union[U, ExceptionContainer]]":
         return cast(
             "Future[Union[U, ExceptionContainer]]",
-            asyncio.get_running_loop().create_task(self._safe_transformation(elem)),
+            asyncio.get_running_loop().create_task(self._safe_to(elem)),
         )
 
 
@@ -743,7 +741,7 @@ class ConcurrentAMapAsyncIterator(_RaisingAsyncIterator[U]):
     def __init__(
         self,
         iterator: AsyncIterator[T],
-        transformation: Callable[[T], Coroutine[Any, Any, U]],
+        to: Callable[[T], Coroutine[Any, Any, U]],
         concurrency: int,
         buffersize: int,
         ordered: bool,
@@ -751,7 +749,7 @@ class ConcurrentAMapAsyncIterator(_RaisingAsyncIterator[U]):
         super().__init__(
             _ConcurrentAMapAsyncIterable(
                 iterator,
-                transformation,
+                to,
                 concurrency,
                 buffersize,
                 ordered,

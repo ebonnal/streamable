@@ -177,7 +177,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
 
     def visit_map_stream(self, stream: MapStream[U, T]) -> Iterator[T]:
         return functions.map(
-            stream._transformation,
+            stream._to,
             stream.upstream.accept(cast(IteratorVisitor[U], self)),
             concurrency=stream._concurrency,
             ordered=stream._ordered,
@@ -187,7 +187,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
     def visit_amap_stream(self, stream: AMapStream[U, T]) -> Iterator[T]:
         return functions.amap(
             self._get_event_loop(),
-            stream._transformation,
+            stream._to,
             stream.upstream.accept(cast(IteratorVisitor[U], self)),
             concurrency=stream._concurrency,
             ordered=stream._ordered,

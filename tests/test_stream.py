@@ -606,8 +606,8 @@ def test_flatten(concurrency, itype, flatten) -> None:
     [
         (flatten, itype, slow)
         for flatten, slow in (
-            (Stream.flatten, partial(Stream.map, transformation=slow_identity)),
-            (Stream.aflatten, partial(Stream.amap, transformation=async_slow_identity)),
+            (Stream.flatten, partial(Stream.map, to=slow_identity)),
+            (Stream.aflatten, partial(Stream.amap, to=async_slow_identity)),
         )
         for itype in ITERABLE_TYPES
     ],
