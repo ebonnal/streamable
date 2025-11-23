@@ -14,8 +14,8 @@ async def empty_aiter() -> AsyncIterator:
 
 
 class CloseEventLoopMixin:
-    event_loop: asyncio.AbstractEventLoop  # pragma: no cover
+    loop: asyncio.AbstractEventLoop  # pragma: no cover
 
     def __del__(self) -> None:
-        if not self.event_loop.is_closed():
-            self.event_loop.close()
+        if not self.loop.is_closed():
+            self.loop.close()

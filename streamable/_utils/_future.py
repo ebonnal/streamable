@@ -102,14 +102,12 @@ class AsyncFIFOFutureResultCollection(FIFOFutureResultCollection[T]):
     First In First Out
     """
 
-    def __init__(self, event_loop: asyncio.AbstractEventLoop) -> None:
+    def __init__(self, loop: asyncio.AbstractEventLoop) -> None:
         super().__init__()
-        self.event_loop = event_loop
+        self.loop = loop
 
     def __next__(self) -> T:
-        return self.event_loop.run_until_complete(
-            cast(Awaitable[T], self._futures.popleft())
-        )
+        return self.loop.run_until_complete(cast(Awaitable[T], self._futures.popleft()))
 
     async def __anext__(self) -> T:
         return await cast(Awaitable[T], self._futures.popleft())
@@ -120,17 +118,17 @@ class AsyncFDFOFutureResultCollection(FDFObackFutureResultCollection[T]):
     First Done First Out
     """
 
-    def __init__(self, event_loop: asyncio.AbstractEventLoop) -> None:
+    def __init__(self, loop: asyncio.AbstractEventLoop) -> None:
         super().__init__()
-        self.event_loop = event_loop
+        self.loop = loop
         self._results: "asyncio.Queue[T]"
         if sys.version_info >= (3, 10):
             self._results = asyncio.Queue()
         else:  # pragma: no cover
-            self._results = asyncio.Queue(loop=event_loop)  # type: ignore
+            self._results = asyncio.Queue(loop=loop)  # type: ignore
 
     def __next__(self) -> T:
-        result = self.event_loop.run_until_complete(self._results.get())
+        result = self.loop.run_until_complete(self._results.get())
         self._n_futures -= 1
         return result
 

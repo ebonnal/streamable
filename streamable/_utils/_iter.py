@@ -52,15 +52,15 @@ sync_to_async_iter: Callable[[Iterator[T]], AsyncIterator[T]] = SyncToAsyncItera
 class AsyncToSyncIterator(Iterator[T], CloseEventLoopMixin):
     def __init__(
         self,
-        event_loop: asyncio.AbstractEventLoop,
+        loop: asyncio.AbstractEventLoop,
         aiterator: AsyncIterator[T],
     ):
         self.aiterator = aiterator
-        self.event_loop = event_loop
+        self.loop = loop
 
     def __next__(self) -> T:
         try:
-            return self.event_loop.run_until_complete(self.aiterator.__anext__())
+            return self.loop.run_until_complete(self.aiterator.__anext__())
         except StopAsyncIteration as e:
             raise StopIteration() from e
 

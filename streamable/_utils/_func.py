@@ -131,21 +131,21 @@ def star(func: Callable[..., R]) -> Callable[[Tuple], R]:
 class _Syncify(Generic[T, R], CloseEventLoopMixin):
     def __init__(
         self,
-        event_loop: asyncio.AbstractEventLoop,
+        loop: asyncio.AbstractEventLoop,
         async_func: Callable[[T], Coroutine[Any, Any, R]],
     ) -> None:
         self.async_func = async_func
-        self.event_loop = event_loop
+        self.loop = loop
 
     def __call__(self, arg: T) -> R:
-        return self.event_loop.run_until_complete(self.async_func(arg))
+        return self.loop.run_until_complete(self.async_func(arg))
 
 
 def syncify(
-    event_loop: asyncio.AbstractEventLoop,
+    loop: asyncio.AbstractEventLoop,
     async_func: Callable[[T], Coroutine[Any, Any, R]],
 ) -> Callable[[T], R]:
-    return _Syncify(event_loop, async_func)
+    return _Syncify(loop, async_func)
 
 
 async def _async_call(func: Callable[[T], R], o: T) -> R:

@@ -1640,20 +1640,18 @@ def test_slots() -> None:
 
 def test_iter_loop_auto_closing() -> None:
     original_new_event_loop = asyncio.new_event_loop
-    created_event_loop: "queue.Queue[asyncio.AbstractEventLoop]" = queue.Queue(
-        maxsize=1
-    )
+    created_loop: "queue.Queue[asyncio.AbstractEventLoop]" = queue.Queue(maxsize=1)
 
     def tracking_new_event_loop():
         loop = original_new_event_loop()
-        created_event_loop.put_nowait(loop)
+        created_loop.put_nowait(loop)
         return loop
 
     asyncio.new_event_loop = tracking_new_event_loop
     iterator_a = iter(Stream(src).afilter(async_identity))
-    loop_a = created_event_loop.get_nowait()
+    loop_a = created_loop.get_nowait()
     iterator_b = iter(Stream(src).afilter(async_identity))
-    loop_b = created_event_loop.get_nowait()
+    loop_b = created_loop.get_nowait()
     # iterator_a is not deleted, its loop should not be closed
     assert not loop_a.is_closed()
     # iterator_b is not deleted, its loop should not be closed

@@ -41,13 +41,13 @@ U = TypeVar("U")
 
 class IteratorVisitor(Visitor[Iterator[T]]):
     def __init__(self) -> None:
-        # will only be set by `_get_event_loop` if an operation needs it
-        self.event_loop: Optional[asyncio.AbstractEventLoop] = None
+        # will only be set by `_get_loop` if an operation needs it
+        self.loop: Optional[asyncio.AbstractEventLoop] = None
 
-    def _get_event_loop(self) -> asyncio.AbstractEventLoop:
-        if not self.event_loop:
-            self.event_loop = asyncio.new_event_loop()
-        return self.event_loop
+    def _get_loop(self) -> asyncio.AbstractEventLoop:
+        if not self.loop:
+            self.loop = asyncio.new_event_loop()
+        return self.loop
 
     def visit_catch_stream(self, stream: CatchStream[T, U]) -> Iterator[Union[T, U]]:
         return functions.catch(
@@ -60,7 +60,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
 
     def visit_acatch_stream(self, stream: ACatchStream[T, U]) -> Iterator[Union[T, U]]:
         return functions.acatch(
-            self._get_event_loop(),
+            self._get_loop(),
             stream.upstream.accept(cast(IteratorVisitor[Union[T, U]], self)),
             stream._errors,
             when=stream._when,
@@ -77,7 +77,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
 
     def visit_adistinct_stream(self, stream: ADistinctStream[T]) -> Iterator[T]:
         return functions.adistinct(
-            self._get_event_loop(),
+            self._get_loop(),
             stream.upstream.accept(self),
             stream._by,
             consecutive=stream._consecutive,
@@ -91,7 +91,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
 
     def visit_afilter_stream(self, stream: AFilterStream[T]) -> Iterator[T]:
         return filter(
-            syncify(self._get_event_loop(), stream._where),
+            syncify(self._get_loop(), stream._where),
             cast(Iterable[T], stream.upstream.accept(self)),
         )
 
@@ -103,7 +103,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
 
     def visit_aflatten_stream(self, stream: AFlattenStream[T]) -> Iterator[T]:
         return functions.aflatten(
-            self._get_event_loop(),
+            self._get_loop(),
             stream.upstream.accept(cast(IteratorVisitor[AsyncIterable], self)),
             concurrency=stream._concurrency,
         )
@@ -144,7 +144,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         return cast(
             Iterator[T],
             functions.agroup(
-                self._get_event_loop(),
+                self._get_loop(),
                 stream.upstream.accept(cast(IteratorVisitor[U], self)),
                 stream._size,
                 interval=stream._interval,
@@ -167,7 +167,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         return cast(
             Iterator[T],
             functions.agroupby(
-                self._get_event_loop(),
+                self._get_loop(),
                 stream.upstream.accept(cast(IteratorVisitor[U], self)),
                 stream._key,
                 size=stream._size,
@@ -186,7 +186,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
 
     def visit_amap_stream(self, stream: AMapStream[U, T]) -> Iterator[T]:
         return functions.amap(
-            self._get_event_loop(),
+            self._get_loop(),
             stream._to,
             stream.upstream.accept(cast(IteratorVisitor[U], self)),
             concurrency=stream._concurrency,
@@ -208,7 +208,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
 
     def visit_askip_stream(self, stream: ASkipStream[T]) -> Iterator[T]:
         return functions.askip(
-            self._get_event_loop(),
+            self._get_loop(),
             stream.upstream.accept(self),
             stream._count,
             until=stream._until,
@@ -230,7 +230,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
 
     def visit_atruncate_stream(self, stream: ATruncateStream[T]) -> Iterator[T]:
         return functions.atruncate(
-            self._get_event_loop(),
+            self._get_loop(),
             stream.upstream.accept(self),
             stream._count,
             when=stream._when,
@@ -240,14 +240,14 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         if isinstance(stream.source, Iterable):
             return stream.source.__iter__()
         if isinstance(stream.source, AsyncIterable):
-            return async_to_sync_iter(self._get_event_loop(), stream.source.__aiter__())
+            return async_to_sync_iter(self._get_loop(), stream.source.__aiter__())
 
         if callable(stream.source):
             iterable = stream.source()
             if isinstance(iterable, Iterable):
                 return iterable.__iter__()
             if isinstance(iterable, AsyncIterable):
-                return async_to_sync_iter(self._get_event_loop(), iterable.__aiter__())
+                return async_to_sync_iter(self._get_loop(), iterable.__aiter__())
             raise TypeError(
                 f"`source` must be an Iterable/AsyncIterable or a Callable[[], Iterable/AsyncIterable] but got a Callable[[], {type(iterable)}]"
             )
