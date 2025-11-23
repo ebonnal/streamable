@@ -236,7 +236,7 @@ Visit the [*API Reference*](https://streamable.readthedocs.io/en/latest/api.html
 |||
 |--|--|
 [`.map`](#-map--amap)|transform elements|
-[`.foreach`](#-foreach--aforeach)|call a side effect function on elements|
+[`.foreach`](#-foreach--aforeach)|apply a side effect on elements|
 [`.group`](#-group--agroup) / [`.groupby`](#-groupby--agroupby)|batch a certain number of elements, by a given key, over a time interval|
 [`.flatten`](#-flatten--aflatten)|explode iterable elements|
 [`.filter`](#-filter--afilter)|remove elements|

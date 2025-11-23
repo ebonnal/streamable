@@ -1,6 +1,6 @@
 import datetime
 import json
-from typing import Any, Dict, List
+from typing import Any, Dict, Generator, List
 
 import httpx
 import pytest
@@ -112,7 +112,7 @@ def complex_stream_str() -> str:
 
 
 @pytest.fixture(autouse=True)
-def mock_httpx():
+def mock_httpx() -> Generator:
     with open("tests/pokemons.json") as pokemon_sample:
         POKEMONS: List[Dict[str, Any]] = json.loads(pokemon_sample.read())
     with respx.mock:

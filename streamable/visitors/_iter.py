@@ -112,7 +112,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         return self.visit_map_stream(
             MapStream(
                 stream.upstream,
-                sidify(stream._effect),
+                sidify(stream._do),
                 stream._concurrency,
                 stream._ordered,
                 stream._via,
@@ -123,7 +123,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         return self.visit_amap_stream(
             AMapStream(
                 stream.upstream,
-                async_sidify(stream._effect),
+                async_sidify(stream._do),
                 stream._concurrency,
                 stream._ordered,
             )

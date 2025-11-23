@@ -101,13 +101,13 @@ class ToStringVisitor(Visitor[str], ABC):
     def visit_foreach_stream(self, stream: ForeachStream) -> str:
         via = f", via={self.to_string(stream._via)}" if stream._concurrency > 1 else ""
         self.methods_reprs.append(
-            f"foreach({self.to_string(stream._effect)}, concurrency={self.to_string(stream._concurrency)}, ordered={self.to_string(stream._ordered)}{via})"
+            f"foreach({self.to_string(stream._do)}, concurrency={self.to_string(stream._concurrency)}, ordered={self.to_string(stream._ordered)}{via})"
         )
         return stream.upstream.accept(self)
 
     def visit_aforeach_stream(self, stream: AForeachStream) -> str:
         self.methods_reprs.append(
-            f"aforeach({self.to_string(stream._effect)}, concurrency={self.to_string(stream._concurrency)}, ordered={self.to_string(stream._ordered)})"
+            f"aforeach({self.to_string(stream._do)}, concurrency={self.to_string(stream._concurrency)}, ordered={self.to_string(stream._ordered)})"
         )
         return stream.upstream.accept(self)
 
