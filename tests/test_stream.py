@@ -87,7 +87,6 @@ def test_init() -> None:
         .flatten()
         .map(identity)
         .amap(async_identity)
-        .filter()
         .foreach(identity)
         .aforeach(async_identity)
         .catch()
@@ -706,16 +705,6 @@ def test_filter(itype: IterableType, filter, adapt) -> None:
     assert to_list(filter(Stream(src), adapt(bool)), itype=itype) == list(
         builtins.filter(None, src)
     )
-    # Unofficially accept `stream.filter(None)`, behaving as builtin `filter(None, iter)`
-    assert to_list(filter(Stream(src), None), itype=itype) == list(
-        builtins.filter(None, src)
-    )  # type: ignore
-    if filter == Stream.filter:
-        # `filter` without predicate must act like builtin filter with None predicate.
-        assert to_list(filter(Stream(src)), itype=itype) == list(
-            builtins.filter(None, src)
-        )
-
 
 @pytest.mark.parametrize(
     "itype, skip, adapt",
@@ -1707,7 +1696,7 @@ def test_deepcopy() -> None:
 
 
 def test_slots() -> None:
-    stream = Stream(src).filter()
+    stream = Stream(src).filter(bool)
     # a stream should not have a __dict__
     with pytest.raises(AttributeError):
         Stream(src).__dict__

@@ -327,12 +327,12 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         """
         return ADistinctStream(self, key, consecutive_only)
 
-    def filter(self, where: Callable[[T], Any] = bool) -> "Stream[T]":
+    def filter(self, where: Callable[[T], Any]) -> "Stream[T]":
         """
         Filters the stream to yield only elements satisfying the ``where`` predicate.
 
         Args:
-            where (Callable[[T], Any], optional): An element is kept if ``where(elem)`` is truthy. (default: keeps truthy elements)
+            where (Callable[[T], Any]): An element is kept if ``where(elem)`` is truthy.
 
         Returns:
             Stream[T]: A stream of upstream elements satisfying the `where` predicate.
