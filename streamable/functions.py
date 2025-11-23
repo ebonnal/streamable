@@ -26,7 +26,6 @@ from streamable._iterators import (
     ConcurrentFlattenIterator,
     ConcurrentMapIterator,
     ConsecutiveDistinctIterator,
-    CountAndPredicateSkipIterator,
     CountSkipIterator,
     CountTruncateIterator,
     DistinctIterator,
@@ -233,31 +232,21 @@ def observe(iterator: Iterator[T], what: str) -> Iterator[T]:
 
 def skip(
     iterator: Iterator[T],
-    count: Optional[int] = None,
-    *,
-    until: Optional[Callable[[T], Any]] = None,
+    until: Union[int, Callable[[T], Any]],
 ) -> Iterator[T]:
-    if until is not None:
-        if count is not None:
-            return CountAndPredicateSkipIterator(iterator, count, until)
-        return PredicateSkipIterator(iterator, until)
-    if count is not None:
-        return CountSkipIterator(iterator, count)
-    return iterator
+    if isinstance(until, int):
+        return CountSkipIterator(iterator, until)
+    return PredicateSkipIterator(iterator, until)
 
 
 def askip(
     loop: asyncio.AbstractEventLoop,
     iterator: Iterator[T],
-    count: Optional[int] = None,
-    *,
-    until: Optional[Callable[[T], Coroutine[Any, Any, Any]]] = None,
+    until: Union[int, Callable[[T], Coroutine[Any, Any, Any]]],
 ) -> Iterator[T]:
-    return skip(
-        iterator,
-        count,
-        until=syncify(loop, until) if until else None,
-    )
+    if isinstance(until, int):
+        return CountSkipIterator(iterator, until)
+    return PredicateSkipIterator(iterator, syncify(loop, until))
 
 
 def throttle(

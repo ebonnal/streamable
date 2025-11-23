@@ -28,7 +28,6 @@ from streamable._aiterators import (
     ConcurrentFlattenAsyncIterator,
     ConcurrentMapAsyncIterator,
     ConsecutiveADistinctAsyncIterator,
-    CountAndPredicateASkipAsyncIterator,
     CountSkipAsyncIterator,
     CountTruncateAsyncIterator,
     FlattenAsyncIterator,
@@ -234,30 +233,20 @@ def observe(aiterator: AsyncIterator[T], what: str) -> AsyncIterator[T]:
 
 def skip(
     aiterator: AsyncIterator[T],
-    count: Optional[int] = None,
-    *,
-    until: Optional[Callable[[T], Any]] = None,
+    until: Union[int, Callable[[T], Any]],
 ) -> AsyncIterator[T]:
-    return askip(
-        aiterator,
-        count,
-        until=asyncify(until) if until else None,
-    )
+    if isinstance(until, int):
+        return CountSkipAsyncIterator(aiterator, until)
+    return PredicateASkipAsyncIterator(aiterator, asyncify(until))
 
 
 def askip(
     aiterator: AsyncIterator[T],
-    count: Optional[int] = None,
-    *,
-    until: Optional[Callable[[T], Coroutine[Any, Any, Any]]] = None,
+    until: Union[int, Callable[[T], Coroutine[Any, Any, Any]]],
 ) -> AsyncIterator[T]:
-    if until is not None:
-        if count is not None:
-            return CountAndPredicateASkipAsyncIterator(aiterator, count, until)
-        return PredicateASkipAsyncIterator(aiterator, until)
-    if count is not None:
-        return CountSkipAsyncIterator(aiterator, count)
-    return aiterator
+    if isinstance(until, int):
+        return CountSkipAsyncIterator(aiterator, until)
+    return PredicateASkipAsyncIterator(aiterator, until)
 
 
 def throttle(

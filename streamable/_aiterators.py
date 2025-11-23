@@ -351,30 +351,6 @@ class PredicateASkipAsyncIterator(AsyncIterator[T]):
         return elem
 
 
-class CountAndPredicateASkipAsyncIterator(AsyncIterator[T]):
-    def __init__(
-        self,
-        iterator: AsyncIterator[T],
-        count: int,
-        until: Callable[[T], Coroutine[Any, Any, Any]],
-    ) -> None:
-        self.iterator = iterator
-        self.count = count
-        self.until = until
-        self._n_skipped = 0
-        self._done_skipping = False
-
-    async def __anext__(self) -> T:
-        elem = await self.iterator.__anext__()
-        if not self._done_skipping:
-            while self._n_skipped < self.count and not await self.until(elem):
-                elem = await self.iterator.__anext__()
-                # do not count exceptions as skipped elements
-                self._n_skipped += 1
-            self._done_skipping = True
-        return elem
-
-
 ############
 # truncate #
 ############

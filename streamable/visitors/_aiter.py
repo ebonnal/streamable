@@ -180,14 +180,12 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
     def visit_skip_stream(self, stream: SkipStream[T]) -> AsyncIterator[T]:
         return afunctions.skip(
             stream.upstream.accept(self),
-            stream._count,
             until=stream._until,
         )
 
     def visit_askip_stream(self, stream: ASkipStream[T]) -> AsyncIterator[T]:
         return afunctions.askip(
             stream.upstream.accept(self),
-            stream._count,
             until=stream._until,
         )
 

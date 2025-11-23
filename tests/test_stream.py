@@ -122,20 +122,21 @@ def test_repr(complex_stream: Stream, complex_stream_str: str) -> None:
     # `repr` should work as expected on a stream without operation
     assert str(Stream(src)) == "Stream(range(0, 256))"
     # `repr` should return a one-liner for a stream with 1 operations
-    assert str(Stream(src).skip(10)) == "Stream(range(0, 256)).skip(10, until=None)"
+    assert str(Stream(src).skip(10)) == "Stream(range(0, 256)).skip(until=10)"
     # `repr` should return a one-liner for a stream with 2 operations
     assert (
         str(Stream(src).skip(10).skip(10))
-        == "Stream(range(0, 256)).skip(10, until=None).skip(10, until=None)"
+        == "Stream(range(0, 256)).skip(until=10).skip(until=10)"
     )
-    # `repr` should go to line for a stream with 3 operations
+    # `repr` should go to line if it exceeds than 80 chars
     assert (
-        str(Stream(src).skip(10).skip(10).skip(10))
+        str(Stream(src).skip(10).skip(10).skip(10).skip(10))
         == """(
     Stream(range(0, 256))
-    .skip(10, until=None)
-    .skip(10, until=None)
-    .skip(10, until=None)
+    .skip(until=10)
+    .skip(until=10)
+    .skip(until=10)
+    .skip(until=10)
 )"""
     )
 
@@ -716,15 +717,16 @@ def test_filter(itype: IterableType, filter, adapt) -> None:
     ),
 )
 def test_skip(itype: IterableType, skip, adapt) -> None:
-    # `skip` must raise ValueError if `count` is negative
-    with pytest.raises(ValueError, match="`count` must be >= 0 but got -1"):
+    # `skip` must raise ValueError if `until` is negative
+    with pytest.raises(ValueError, match="`until` must be >= 0 but got -1"):
         skip(Stream(src), -1)
-    # `skip` must be no-op if both `count` and `until` are None
-    assert to_list(skip(Stream(src)), itype=itype) == list(src)
-    # `skip` must be no-op if both `count` and `until` are None
-    assert to_list(skip(Stream(src), None), itype=itype) == list(src)
+    with pytest.raises(
+        TypeError,
+        match="`until` must be an int or a callable, but got ",
+    ):
+        skip(Stream(src), "")
     for count in [0, 1, 3]:
-        # `skip` must skip `count` elements
+        # `skip` must skip `until` elements
         assert to_list(skip(Stream(src), count), itype=itype) == list(src)[count:]
         # `skip` should not count exceptions as skipped elements
         assert (
@@ -741,21 +743,6 @@ def test_skip(itype: IterableType, skip, adapt) -> None:
             to_list(skip(Stream(src), until=adapt(lambda n: n >= count)), itype=itype)
             == list(src)[count:]
         )
-        # `skip` must ignore `count` elements if `until` is never satisfied
-        assert (
-            to_list(skip(Stream(src), count, until=adapt(lambda n: False)), itype=itype)
-            == list(src)[count:]
-        )
-        # `skip` must ignore less than `count` elements if `until` is satisfied first
-        assert (
-            to_list(
-                skip(Stream(src), count * 2, until=adapt(lambda n: n >= count)),
-                itype=itype,
-            )
-            == list(src)[count:]
-        )
-    # `skip` should not yield any element if `until` is never satisfied
-    assert to_list(skip(Stream(src), until=adapt(lambda n: False)), itype=itype) == []
 
 
 @pytest.mark.parametrize(

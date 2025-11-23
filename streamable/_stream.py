@@ -668,42 +668,37 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         """
         return ObserveStream(self, what)
 
-    def skip(
-        self, count: Optional[int] = None, *, until: Optional[Callable[[T], Any]] = None
-    ) -> "Stream[T]":
+    def skip(self, until: Union[int, Callable[[T], Any]]) -> "Stream[T]":
         """
-        Skips elements until ``until(elem)`` is truthy, or ``count`` elements have been skipped.
-        If both ``count`` and ``until`` are set, skipping stops as soon as either condition is met.
+        Skips ``until`` elements (if ``int``) or skips until ``until(elem)`` becomes truthy.
 
         Args:
-            count (Optional[int], optional): The maximum number of elements to skip. (default: no count-based skipping)
-            until (Optional[Callable[[T], Any]], optional): Elements are skipped until the first one for which ``until(elem)`` is truthy. This element and all the subsequent ones will be yielded. (default: no predicate-based skipping)
-
+            until (Union[int, Callable[[T], Any]]):
+                - ``int``: The number of elements to skip.
+                - ``Callable[[T], Any]``: Skips elements until encountering one for which ``until(elem)`` is truthy (this element and all the subsequent ones will be yielded).
         Returns:
             Stream: A stream of the upstream elements remaining after skipping.
         """
-        validate_optional_count(count)
-        return SkipStream(self, count, until)
+        if isinstance(until, int):
+            validate_optional_count(until)
+        return SkipStream(self, until)
 
     def askip(
-        self,
-        count: Optional[int] = None,
-        *,
-        until: Optional[Callable[[T], Coroutine[Any, Any, Any]]] = None,
+        self, until: Union[int, Callable[[T], Coroutine[Any, Any, Any]]]
     ) -> "Stream[T]":
         """
-        Skips elements until ``await until(elem)`` is truthy, or ``count`` elements have been skipped.
-        If both ``count`` and ``until`` are set, skipping stops as soon as either condition is met.
+        Skips ``until`` elements (if ``int``) or skips until ``await until(elem)`` becomes truthy.
 
         Args:
-            count (Optional[int], optional): The maximum number of elements to skip. (default: no count-based skipping)
-            until (Optional[Callable[[T], Coroutine[Any, Any, Any]]], optional): Elements are skipped until the first one for which ``await until(elem)`` is truthy. This element and all the subsequent ones will be yielded. (default: no predicate-based skipping)
-
+            until (Union[int, Callable[[T], Coroutine[Any, Any, Any]]]):
+                - ``int``: The number of elements to skip.
+                - ``Callable[[T], Any]``: Skips elements until encountering one for which ``await until(elem)`` is truthy (this element and all the subsequent ones will be yielded).
         Returns:
             Stream: A stream of the upstream elements remaining after skipping.
         """
-        validate_optional_count(count)
-        return ASkipStream(self, count, until)
+        if isinstance(until, int):
+            validate_optional_count(until)
+        return ASkipStream(self, until)
 
     def throttle(
         self,
@@ -1095,16 +1090,14 @@ class ObserveStream(DownStream[T, T]):
 
 
 class SkipStream(DownStream[T, T]):
-    __slots__ = ("_count", "_until")
+    __slots__ = "_until"
 
     def __init__(
         self,
         upstream: Stream[T],
-        count: Optional[int],
-        until: Optional[Callable[[T], Any]],
+        until: Union[int, Callable[[T], Any]],
     ) -> None:
         super().__init__(upstream)
-        self._count = count
         self._until = until
 
     def accept(self, visitor: "Visitor[V]") -> V:
@@ -1112,16 +1105,14 @@ class SkipStream(DownStream[T, T]):
 
 
 class ASkipStream(DownStream[T, T]):
-    __slots__ = ("_count", "_until")
+    __slots__ = "_until"
 
     def __init__(
         self,
         upstream: Stream[T],
-        count: Optional[int],
-        until: Optional[Callable[[T], Coroutine[Any, Any, Any]]],
+        until: Union[int, Callable[[T], Coroutine[Any, Any, Any]]],
     ) -> None:
         super().__init__(upstream)
-        self._count = count
         self._until = until
 
     def accept(self, visitor: "Visitor[V]") -> V:

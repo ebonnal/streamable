@@ -162,7 +162,6 @@ class EqualityVisitor(Visitor[bool]):
         return (
             self.type_eq(stream)
             and stream.upstream.accept(EqualityVisitor(self.other.upstream))
-            and stream._count == self.other._count
             and stream._until == self.other._until
         )
 

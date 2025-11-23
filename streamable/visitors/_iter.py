@@ -202,7 +202,6 @@ class IteratorVisitor(Visitor[Iterator[T]]):
     def visit_skip_stream(self, stream: SkipStream[T]) -> Iterator[T]:
         return functions.skip(
             stream.upstream.accept(self),
-            stream._count,
             until=stream._until,
         )
 
@@ -210,7 +209,6 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         return functions.askip(
             self._get_loop(),
             stream.upstream.accept(self),
-            stream._count,
             until=stream._until,
         )
 
