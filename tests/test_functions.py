@@ -29,4 +29,4 @@ def test_signatures() -> None:
         1,
         per=datetime.timedelta(seconds=1),
     )
-    truncated_it_1: Iterator[int] = truncate(iterator, count=1)  # noqa: F841
+    truncated_it_1: Iterator[int] = truncate(iterator, when=1)  # noqa: F841

@@ -2,6 +2,7 @@ import datetime
 from contextlib import suppress
 from typing import (
     Any,
+    Callable,
     Optional,
     Tuple,
     Type,
@@ -39,24 +40,36 @@ def validate_optional_positive_interval(
         )
 
 
-def validate_count(count: int):
+def validate_int_or_callable(_: Union[int, Callable], *, name: str) -> None:
+    if not isinstance(_, int) and not callable(_):
+        raise TypeError(f"`{name}` must be an int or a callable, but got {_}")
+    if isinstance(_, int) and _ < 0:
+        raise ValueError(f"`{name}` must be >= 0 but got {_}")
+
+
+def validate_count(count: int, *, name: str) -> None:
     if count < 0:
-        raise ValueError(f"`count` must be >= 0 but got {count}")
+        raise ValueError(f"`{name}` must be >= 0 but got {count}")
 
 
-def validate_positive_count(count: int):
+def validate_callable(func: int, *, name: str) -> None:
+    if not callable(func):
+        raise ValueError(f"`{name}` must be >= 0 but got {func}")
+
+
+def validate_positive_count(count: int, *, name: str) -> None:
     if count < 1:
-        raise ValueError(f"`count` must be >= 1 but got {count}")
+        raise ValueError(f"`{name}` must be >= 1 but got {count}")
 
 
-def validate_optional_count(count: Optional[int]):
+def validate_optional_count(count: Optional[int], *, name: str) -> None:
     if count is not None:
-        validate_count(count)
+        validate_count(count, name=name)
 
 
-def validate_optional_positive_count(count: Optional[int]):
+def validate_optional_positive_count(count: Optional[int], *, name: str) -> None:
     if count is not None:
-        validate_positive_count(count)
+        validate_positive_count(count, name=name)
 
 
 def _is_exception_subclass(error: Any) -> bool:

@@ -262,26 +262,18 @@ def throttle(
 
 def truncate(
     iterator: Iterator[T],
-    count: Optional[int] = None,
-    *,
-    when: Optional[Callable[[T], Any]] = None,
+    when: Union[int, Callable[[T], Any]],
 ) -> Iterator[T]:
-    if count is not None:
-        iterator = CountTruncateIterator(iterator, count)
-    if when is not None:
-        iterator = PredicateTruncateIterator(iterator, when)
-    return iterator
+    if isinstance(when, int):
+        return CountTruncateIterator(iterator, when)
+    return PredicateTruncateIterator(iterator, when)
 
 
 def atruncate(
     loop: asyncio.AbstractEventLoop,
     iterator: Iterator[T],
-    count: Optional[int] = None,
-    *,
-    when: Optional[Callable[[T], Coroutine[Any, Any, Any]]] = None,
+    when: Union[int, Callable[[T], Coroutine[Any, Any, Any]]],
 ) -> Iterator[T]:
-    return truncate(
-        iterator,
-        count,
-        when=syncify(loop, when) if when else None,
-    )
+    if isinstance(when, int):
+        return CountTruncateIterator(iterator, when)
+    return PredicateTruncateIterator(iterator, syncify(loop, when))

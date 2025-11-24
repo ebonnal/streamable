@@ -30,7 +30,7 @@ from streamable._utils._validation import (
     validate_concurrency,
     validate_errors,
     validate_group_size,
-    validate_optional_count,
+    validate_int_or_callable,
     validate_optional_positive_count,
     validate_optional_positive_interval,
     validate_via,
@@ -530,7 +530,7 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
             Stream[List[T]]: A stream of upstream elements grouped into lists.
         """
         validate_group_size(size)
-        validate_optional_positive_interval(interval)
+        validate_optional_positive_interval(interval, name="interval")
         return GroupStream(self, size, interval, by)
 
     def agroup(
@@ -558,7 +558,7 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
             Stream[List[T]]: A stream of upstream elements grouped into lists.
         """
         validate_group_size(size)
-        validate_optional_positive_interval(interval)
+        validate_optional_positive_interval(interval, name="interval")
         return AGroupStream(self, size, interval, by)
 
     def groupby(
@@ -679,8 +679,7 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Returns:
             Stream: A stream of the upstream elements remaining after skipping.
         """
-        if isinstance(until, int):
-            validate_optional_count(until)
+        validate_int_or_callable(until, name="until")
         return SkipStream(self, until)
 
     def askip(
@@ -696,8 +695,7 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Returns:
             Stream: A stream of the upstream elements remaining after skipping.
         """
-        if isinstance(until, int):
-            validate_optional_count(until)
+        validate_int_or_callable(until, name="until")
         return ASkipStream(self, until)
 
     def throttle(
@@ -726,46 +724,41 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Returns:
             Stream[T]: A stream yielding maximum ``count`` upstream elements (or exceptions) ``per`` time interval.
         """
-        validate_optional_positive_count(count)
+        validate_optional_positive_count(count, name="count")
         validate_optional_positive_interval(per, name="per")
         return ThrottleStream(self, count, per)
 
-    def truncate(
-        self, count: Optional[int] = None, *, when: Optional[Callable[[T], Any]] = None
-    ) -> "Stream[T]":
+    def truncate(self, when: Union[int, Callable[[T], Any]]) -> "Stream[T]":
         """
-        Stops an iteration as soon as ``when(elem)`` is truthy, or ``count`` elements have been yielded.
-        If both ``count`` and ``when`` are set, truncation occurs as soon as either condition is met.
+        Stops iterations over this stream when ``when`` elements have been yielded (if ``int``) or when ``when(elem)`` becomes truthy.
 
         Args:
-            count (int, optional): The maximum number of elements to yield. (default: no count-based truncation)
-            when (Optional[Callable[[T], Any]], optional): A predicate function that determines when to stop the iteration. Iteration stops immediately after encountering the first element for which ``when(elem)`` is truthy, and that element will not be yielded. (default: no predicate-based truncation)
+            until (Union[int, Callable[[T], Any]]):
+                - ``int``: Stops the iteration after ``when`` elements have been yielded.
+                - ``Callable[[T], Any]``: Stops the iteration when the first element for which ``when(elem)`` is truthy is encountered, that element will not be yielded.
 
         Returns:
-            Stream[T]: A stream of at most `count` upstream elements not satisfying the `when` predicate.
+            Stream[T]: A stream whose iteration will stop ``when`` condition is met.
         """
-        validate_optional_count(count)
-        return TruncateStream(self, count, when)
+        validate_int_or_callable(when, name="when")
+        return TruncateStream(self, when)
 
     def atruncate(
-        self,
-        count: Optional[int] = None,
-        *,
-        when: Optional[Callable[[T], Coroutine[Any, Any, Any]]] = None,
+        self, when: Union[int, Callable[[T], Coroutine[Any, Any, Any]]]
     ) -> "Stream[T]":
         """
-        Stops an iteration as soon as ``await when(elem)`` is truthy, or ``count`` elements have been yielded.
-        If both ``count`` and ``when`` are set, truncation occurs as soon as either condition is met.
+        Stops iterations over this stream when ``when`` elements have been yielded (if ``int``) or when ``await when(elem)`` becomes truthy.
 
         Args:
-            count (int, optional): The maximum number of elements to yield. (default: no count-based truncation)
-            when (Optional[Callable[[T], Coroutine[Any, Any, Any]]], optional): An async predicate function that determines when to stop the iteration. Iteration stops immediately after encountering the first element for which ``await when(elem)`` is truthy, and that element will not be yielded. (default: no predicate-based truncation)
+            until (Union[int, Callable[[T], Any]]):
+                - ``int``: Stops the iteration after ``when`` elements have been yielded.
+                - ``Callable[[T], Coroutine[Any, Any, Any]]``: Stops the iteration when the first element for which ``await when(elem)`` is truthy is encountered, that element will not be yielded.
 
         Returns:
-            Stream[T]: A stream of at most `count` upstream elements not satisfying the `when` predicate.
+            Stream[T]: A stream whose iteration will stop ``when`` condition is met.
         """
-        validate_optional_count(count)
-        return ATruncateStream(self, count, when)
+        validate_int_or_callable(when, name="when")
+        return ATruncateStream(self, when)
 
 
 class DownStream(Stream[U], Generic[T, U]):
@@ -1137,16 +1130,14 @@ class ThrottleStream(DownStream[T, T]):
 
 
 class TruncateStream(DownStream[T, T]):
-    __slots__ = ("_count", "_when")
+    __slots__ = "_when"
 
     def __init__(
         self,
         upstream: Stream[T],
-        count: Optional[int] = None,
-        when: Optional[Callable[[T], Any]] = None,
+        when: Union[int, Callable[[T], Any]],
     ) -> None:
         super().__init__(upstream)
-        self._count = count
         self._when = when
 
     def accept(self, visitor: "Visitor[V]") -> V:
@@ -1154,16 +1145,14 @@ class TruncateStream(DownStream[T, T]):
 
 
 class ATruncateStream(DownStream[T, T]):
-    __slots__ = ("_count", "_when")
+    __slots__ = "_when"
 
     def __init__(
         self,
         upstream: Stream[T],
-        count: Optional[int] = None,
-        when: Optional[Callable[[T], Coroutine[Any, Any, Any]]] = None,
+        when: Union[int, Callable[[T], Coroutine[Any, Any, Any]]],
     ) -> None:
         super().__init__(upstream)
-        self._count = count
         self._when = when
 
     def accept(self, visitor: "Visitor[V]") -> V:

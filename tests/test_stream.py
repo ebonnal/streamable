@@ -757,29 +757,23 @@ def test_skip(itype: IterableType, skip, adapt) -> None:
     ),
 )
 def test_truncate(itype: IterableType, truncate, adapt) -> None:
-    # `truncate` must be ok with count >= stream length
+    # `truncate` must be ok with `when` >= stream length
     assert to_list(truncate(Stream(src), N * 2), itype=itype) == list(src)
-    # `truncate must be no-op if both `count` and `when` are None
-    assert to_list(truncate(Stream(src)), itype=itype) == list(src)
-    # `truncate must be no-op if both `count` and `when` are None
-    assert to_list(truncate(Stream(src), None), itype=itype) == list(src)
-    # `truncate` must be ok with count >= 1
+    # `truncate` must be ok with `when` >= 1
     assert to_list(truncate(Stream(src), 2), itype=itype) == [0, 1]
-    # `truncate` must be ok with count == 1
+    # `truncate` must be ok with `when` == 1
     assert to_list(truncate(Stream(src), 1), itype=itype) == [0]
-    # `truncate` must be ok with count == 0
+    # `truncate` must be ok with `when` == 0
     assert to_list(truncate(Stream(src), 0), itype=itype) == []
-    # `truncate` must raise ValueError if `count` is negative
+    # `truncate` must raise ValueError if `when` is negative
     with pytest.raises(
         ValueError,
-        match="`count` must be >= 0 but got -1",
+        match="`when` must be >= 0 but got -1",
     ):
         truncate(Stream(src), -1)
 
-    # `truncate` must be no-op if `count` is inf
-    assert to_list(truncate(Stream(src), cast(int, float("inf"))), itype=itype) == list(
-        src
-    )
+    # `truncate` must be no-op if `when` greater than source's size
+    assert to_list(truncate(Stream(src), sys.maxsize), itype=itype) == list(src)
     count = N // 2
     raising_stream_iterator = bi_iterable_to_iter(
         truncate(Stream(lambda: map(lambda x: round((1 / x) * x**2), src)), count),
@@ -796,7 +790,7 @@ def test_truncate(itype: IterableType, truncate, adapt) -> None:
     iter_truncated_on_predicate = bi_iterable_to_iter(
         truncate(Stream(src), when=adapt(lambda n: n == 5)), itype=itype
     )
-    # `when` n == 5 must be equivalent to `count` = 5
+    # `when` n == 5 must be equivalent to `when` = 5
     assert alist_or_list(iter_truncated_on_predicate) == to_list(
         truncate(Stream(src), 5), itype=itype
     )
@@ -806,14 +800,6 @@ def test_truncate(itype: IterableType, truncate, adapt) -> None:
     # an exception raised by `when` must be raised
     with pytest.raises(ZeroDivisionError):
         to_list(truncate(Stream(src), when=adapt(lambda _: 1 / 0)), itype=itype)
-    # `when` and `count` argument can be set at the same time, and the truncation should happen as soon as one or the other is satisfied.
-    assert to_list(
-        truncate(Stream(src), 6, when=adapt(lambda n: n == 5)), itype=itype
-    ) == list(range(5))
-    # `when` and `count` argument can be set at the same time, and the truncation should happen as soon as one or the other is satisfied.
-    assert to_list(
-        truncate(Stream(src), 5, when=adapt(lambda n: n == 6)), itype=itype
-    ) == list(range(5))
 
 
 @pytest.mark.parametrize(

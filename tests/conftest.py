@@ -29,8 +29,10 @@ class CustomCallable:
 def complex_stream() -> Stream[int]:
     return (
         Stream(src)
-        .truncate(1024, when=lambda _: False)
-        .atruncate(1024, when=async_identity)
+        .truncate(1024)
+        .atruncate(1024)
+        .truncate(when=lambda _: False)
+        .atruncate(when=async_identity)
         .skip(10)
         .askip(10)
         .skip(until=lambda _: True)
@@ -71,8 +73,10 @@ def complex_stream() -> Stream[int]:
 def complex_stream_str() -> str:
     return """(
     Stream(range(0, 256))
-    .truncate(count=1024, when=<lambda>)
-    .atruncate(count=1024, when=async_identity)
+    .truncate(when=1024)
+    .atruncate(when=1024)
+    .truncate(when=<lambda>)
+    .atruncate(when=async_identity)
     .skip(until=10)
     .askip(until=10)
     .skip(until=<lambda>)

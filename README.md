@@ -555,7 +555,7 @@ assert list(consecutively_distinct_chars) == ["f", "o", "b", "a", "r", "f", "o"]
 
 ## 🟡 `.truncate` / `.atruncate`
 
-> Ends iteration once a given number of elements have been yielded:
+> Ends iteration when a given number of elements have been yielded:
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 

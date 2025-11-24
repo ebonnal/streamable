@@ -199,14 +199,12 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
     def visit_truncate_stream(self, stream: TruncateStream[T]) -> AsyncIterator[T]:
         return afunctions.truncate(
             stream.upstream.accept(self),
-            stream._count,
             when=stream._when,
         )
 
     def visit_atruncate_stream(self, stream: ATruncateStream[T]) -> AsyncIterator[T]:
         return afunctions.atruncate(
             stream.upstream.accept(self),
-            stream._count,
             when=stream._when,
         )
 

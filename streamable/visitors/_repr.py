@@ -166,15 +166,11 @@ class ToStringVisitor(Visitor[str], ABC):
         return stream.upstream.accept(self)
 
     def visit_truncate_stream(self, stream: TruncateStream) -> str:
-        self.methods_reprs.append(
-            f"truncate(count={self.to_string(stream._count)}, when={self.to_string(stream._when)})"
-        )
+        self.methods_reprs.append(f"truncate(when={self.to_string(stream._when)})")
         return stream.upstream.accept(self)
 
     def visit_atruncate_stream(self, stream: ATruncateStream) -> str:
-        self.methods_reprs.append(
-            f"atruncate(count={self.to_string(stream._count)}, when={self.to_string(stream._when)})"
-        )
+        self.methods_reprs.append(f"atruncate(when={self.to_string(stream._when)})")
         return stream.upstream.accept(self)
 
     def visit_stream(self, stream: Stream) -> str:

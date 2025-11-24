@@ -222,7 +222,6 @@ class IteratorVisitor(Visitor[Iterator[T]]):
     def visit_truncate_stream(self, stream: TruncateStream[T]) -> Iterator[T]:
         return functions.truncate(
             stream.upstream.accept(self),
-            stream._count,
             when=stream._when,
         )
 
@@ -230,7 +229,6 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         return functions.atruncate(
             self._get_loop(),
             stream.upstream.accept(self),
-            stream._count,
             when=stream._when,
         )
 
