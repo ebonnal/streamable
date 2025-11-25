@@ -1,7 +1,7 @@
 
 # ༄ `streamable`
 
-> *concurrent & fluent interface for (async) iterables*
+> *concurrent fluent interface for iterables (sync & async)*
 
 `Stream[T]` is a **decorator** for `Iterable[T]` or `AsyncIterable[T]` that allows chaining **lazy** operations, with seamless **concurrency** via threads, processes, or async coroutines.
 
