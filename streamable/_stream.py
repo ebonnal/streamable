@@ -30,10 +30,11 @@ from streamable._utils._validation import (
     validate_concurrency,
     validate_errors,
     validate_group_size,
-    validate_int_or_callable,
-    validate_optional_positive_count,
+    validate_count_or_callable,
     validate_optional_positive_interval,
+    validate_positive_interval,
     validate_via,
+    validate_positive_count,
 )
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -679,7 +680,7 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Returns:
             Stream: A stream of the upstream elements remaining after skipping.
         """
-        validate_int_or_callable(until, name="until")
+        validate_count_or_callable(until, name="until")
         return SkipStream(self, until)
 
     def askip(
@@ -695,38 +696,38 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Returns:
             Stream: A stream of the upstream elements remaining after skipping.
         """
-        validate_int_or_callable(until, name="until")
+        validate_count_or_callable(until, name="until")
         return ASkipStream(self, until)
 
     def throttle(
         self,
-        count: Optional[int] = None,
+        up_to: int,
         *,
-        per: Optional[datetime.timedelta] = None,
+        per: datetime.timedelta,
     ) -> "Stream[T]":
         """
-        Limits the speed of iteration to ``count`` elements (or exceptions) ``per`` time interval.
+        Limits the speed of iteration to yield at most ``up_to`` elements (or exceptions) ``per`` time interval.
 
         .. code-block:: python
 
             # limits the number of requests made to 50 per minute:
             from datetime import timedelta
             (
-                Stream(["https://foo.bar", ...])
-                .map(requests.get, concurrency=4)
+                Stream(urls)
                 .throttle(50, per=timedelta(minutes=1))
+                .map(requests.get, concurrency=4)
             )
 
         Args:
-            count (int, optional): Maximum number of elements (or exceptions) that must be yielded within the given time interval. (default: no throttling)
-            per (datetime.timedelta, optional): The time interval during which maximum ``count`` elements (or exceptions) must be yielded. (default: no throttling)
+            up_to (int, optional): Maximum number of elements (or exceptions) that must be yielded within the given time interval.
+            per (datetime.timedelta, optional): The time interval during which maximum ``up_to`` elements (or exceptions) will be yielded.
 
         Returns:
-            Stream[T]: A stream yielding maximum ``count`` upstream elements (or exceptions) ``per`` time interval.
+            Stream[T]: A stream yielding at most ``up_to`` upstream elements (or exceptions) ``per`` time interval.
         """
-        validate_optional_positive_count(count, name="count")
-        validate_optional_positive_interval(per, name="per")
-        return ThrottleStream(self, count, per)
+        validate_positive_count(up_to, name="up_to")
+        validate_positive_interval(per, name="per")
+        return ThrottleStream(self, up_to, per)
 
     def truncate(self, when: Union[int, Callable[[T], Any]]) -> "Stream[T]":
         """
@@ -740,7 +741,7 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Returns:
             Stream[T]: A stream whose iteration will stop ``when`` condition is met.
         """
-        validate_int_or_callable(when, name="when")
+        validate_count_or_callable(when, name="when")
         return TruncateStream(self, when)
 
     def atruncate(
@@ -757,7 +758,7 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Returns:
             Stream[T]: A stream whose iteration will stop ``when`` condition is met.
         """
-        validate_int_or_callable(when, name="when")
+        validate_count_or_callable(when, name="when")
         return ATruncateStream(self, when)
 
 
@@ -1113,16 +1114,16 @@ class ASkipStream(DownStream[T, T]):
 
 
 class ThrottleStream(DownStream[T, T]):
-    __slots__ = ("_count", "_per")
+    __slots__ = ("_up_to", "_per")
 
     def __init__(
         self,
         upstream: Stream[T],
-        count: Optional[int],
+        up_to: Optional[int],
         per: Optional[datetime.timedelta],
     ) -> None:
         super().__init__(upstream)
-        self._count = count
+        self._up_to = up_to
         self._per = per
 
     def accept(self, visitor: "Visitor[V]") -> V:

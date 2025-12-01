@@ -192,7 +192,7 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
     def visit_throttle_stream(self, stream: ThrottleStream[T]) -> AsyncIterator[T]:
         return afunctions.throttle(
             stream.upstream.accept(self),
-            stream._count,
+            stream._up_to,
             per=stream._per,
         )
 

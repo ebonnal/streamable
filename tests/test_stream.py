@@ -986,14 +986,14 @@ def test_throttle(itype: IterableType) -> None:
     # `throttle` should raise error when called with negative `per`.
     with pytest.raises(
         ValueError,
-        match=r"`per` must be None or a positive timedelta but got datetime\.timedelta\(0\)",
+        match=r"`per` must be a positive timedelta but got datetime\.timedelta\(0\)",
     ):
         to_list(
             Stream([1]).throttle(1, per=datetime.timedelta(microseconds=0)),
             itype=itype,
         )
         # `throttle` should raise error when called with `count` < 1.
-    with pytest.raises(ValueError, match="`count` must be >= 1 but got 0"):
+    with pytest.raises(ValueError, match="`up_to` must be >= 1 but got 0"):
         to_list(Stream([1]).throttle(0, per=datetime.timedelta(seconds=1)), itype=itype)
 
     # test interval

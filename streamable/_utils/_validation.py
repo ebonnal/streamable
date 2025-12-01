@@ -31,20 +31,25 @@ def validate_group_size(size: Optional[int]) -> None:
         raise ValueError(f"`size` must be None or >= 1 but got {size}")
 
 
-def validate_optional_positive_interval(
-    interval: Optional[datetime.timedelta], *, name: str = "interval"
-) -> None:
-    if interval is not None and interval <= datetime.timedelta(0):
+def validate_positive_interval(interval: datetime.timedelta, *, name: str) -> None:
+    if interval <= datetime.timedelta(0):
         raise ValueError(
-            f"`{name}` must be None or a positive timedelta but got {repr(interval)}"
+            f"`{name}` must be a positive timedelta but got {repr(interval)}"
         )
 
 
-def validate_int_or_callable(_: Union[int, Callable], *, name: str) -> None:
+def validate_optional_positive_interval(
+    interval: Optional[datetime.timedelta], *, name: str
+) -> None:
+    if interval is not None:
+        validate_positive_interval(interval, name=name)
+
+
+def validate_count_or_callable(_: Union[int, Callable], *, name: str) -> None:
     if not isinstance(_, int) and not callable(_):
         raise TypeError(f"`{name}` must be an int or a callable, but got {_}")
-    if isinstance(_, int) and _ < 0:
-        raise ValueError(f"`{name}` must be >= 0 but got {_}")
+    if isinstance(_, int):
+        validate_count(_, name=name)
 
 
 def validate_count(count: int, *, name: str) -> None:

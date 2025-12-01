@@ -161,7 +161,7 @@ class ToStringVisitor(Visitor[str], ABC):
 
     def visit_throttle_stream(self, stream: ThrottleStream) -> str:
         self.methods_reprs.append(
-            f"throttle({self.to_string(stream._count)}, per={self.to_string(stream._per)})"
+            f"throttle({self.to_string(stream._up_to)}, per={self.to_string(stream._per)})"
         )
         return stream.upstream.accept(self)
 
