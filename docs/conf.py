@@ -2,7 +2,7 @@
 import importlib.metadata
 from datetime import datetime
 
-project = "streamable"
+project = "༄ <code>streamable</code>"
 author = "ebonnal"
 copyright = f"{datetime.now():%Y}, {author}"
 
@@ -17,7 +17,13 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",
     "sphinx_autodoc_typehints",
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.viewcode",
+    "sphinx.ext.todo",
+    "sphinx.ext.githubpages",
+    "sphinx_copybutton",
 ]
+
 
 autosummary_generate = True
 
@@ -39,5 +45,28 @@ exclude_patterns = [
 
 html_theme = "furo"
 
+html_theme_options = {
+    "light_css_variables": {
+        "color-brand-primary": "#4f46e5",   # Indigo-ish
+        "color-brand-content": "#1f2933",
+        "color-background-primary": "#ffffff",
+    },
+    "dark_css_variables": {
+        "color-brand-primary": "#a5b4fc",
+        "color-brand-content": "#e5e7eb",
+        "color-background-primary": "#020617",
+    },
+}
+
 # Better links to headings when using MyST Markdown
 myst_heading_anchors = 3
+
+todo_include_todos = True
+
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/3", {}),
+}
+
+# Type hints in the signature and/or in the description:
+typehints_fully_qualified = False
+typehints_use_signature = True   # or False if you prefer them in the body

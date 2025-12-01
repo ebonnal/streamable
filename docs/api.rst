@@ -1,7 +1,5 @@
-API Reference
+༄ ``streamable`` API Reference
 =============
-
-The `Stream[T]`
 -------
 
 .. automodule:: streamable
@@ -9,13 +7,3 @@ The `Stream[T]`
    :undoc-members:
    :inherited-members:
    :show-inheritance:
-
-Submodules
-----------
-
-.. autosummary::
-   :toctree: _autosummary
-
-   streamable.functions
-   streamable.afunctions
-   streamable.visitors

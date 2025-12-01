@@ -1,4 +1,4 @@
-Streamable Documentation
+༄ ``streamable`` docs
 ========================
 
 .. toctree::

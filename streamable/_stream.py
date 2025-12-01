@@ -55,6 +55,13 @@ V = TypeVar("V")
 
 
 class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
+    """
+    A ``Stream[T]`` decorates an ``Iterable[T]`` or ``AsyncIterable[T]`` with a **fluent interface** enabling the chaining of lazy operations.
+
+    Args:
+        source (``Iterable[T] | Callable[[], Iterable[T]] | AsyncIterable[T] | Callable[[], AsyncIterable[T]]``): The iterable to decorate. Can be specified via a function that will be called each time an iteration is started over the stream (i.e. for each call to ``iter(stream)``/``aiter(stream)``).
+    """
+
     __slots__ = ("_source", "_upstream")
 
     # fmt: off
@@ -77,12 +84,6 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
             Callable[[], AsyncIterable[T]],
         ],
     ) -> None:
-        """
-        A ``Stream[T]`` decorates an ``Iterable[T]`` or ``AsyncIterable[T]`` with a **fluent interface** enabling the chaining of lazy operations.
-
-        Args:
-            source (Union[Iterable[T], Callable[[], Iterable[T]], AsyncIterable[T], Callable[[], AsyncIterable[T]]]): The iterable to decorate. Can be specified via a function that will be called each time an iteration is started over the stream (i.e. for each call to ``iter(stream)``/``aiter(stream)``).
-        """
         self._source = source
         self._upstream: "Optional[Stream]" = None
 
@@ -90,7 +91,7 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
     def upstream(self) -> "Optional[Stream]":
         """
         Returns:
-            Optional[Stream]: Parent stream if any.
+            ``Stream | None``: Parent stream if any.
         """
         return self._upstream
 
@@ -102,7 +103,7 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
     ]:
         """
         Returns:
-            Union[Iterable, Callable[[], Iterable], AsyncIterable, Callable[[], AsyncIterable]]: The source of the stream's elements.
+            ``Iterable | Callable[[], Iterable] | AsyncIterable | Callable[[], AsyncIterable]``: The source of the stream's elements.
         """
         return self._source
 
@@ -121,7 +122,7 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Checks if this stream is equal to ``other``, meaning they apply the same operations to the same source.
 
         Returns:
-            bool: True if this stream is equal to ``other``.
+            ``bool``: True if this stream is equal to ``other``.
         """
         from streamable.visitors._eq import EqualityVisitor
 
@@ -142,7 +143,7 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Iterates over this stream until exhaustion.
 
         Returns:
-            Stream[T]: self.
+            ``Stream[T]``: self.
         """
         for _ in self:
             pass
@@ -153,7 +154,7 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Iterates over this stream until exhaustion.
 
         Returns:
-            Stream[T]: self.
+            ``Stream[T]``: self.
         """
         yield from (self.acount().__await__())
         return self
@@ -175,7 +176,7 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Iterates over this stream until exhaustion and returns the count of elements.
 
         Returns:
-            int: Number of elements yielded during an entire iteration over this stream.
+            ``int``: Number of elements yielded during an entire iteration over this stream.
         """
 
         return sum(1 for _ in self)
@@ -185,7 +186,7 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Iterates over this stream until exhaustion and returns the count of elements.
 
         Returns:
-            int: Number of elements yielded during an entire iteration over this stream.
+            ``int``: Number of elements yielded during an entire iteration over this stream.
         """
         count = 0
         async for _ in self:
@@ -202,12 +203,12 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Calls ``func``, with this stream as the first positional argument, optionally followed by ``*args`` and ``**kwargs``.
 
         Args:
-            func (Callable[Concatenate[Stream[T], P], U]): The function to apply.
+            func (``Callable[Concatenate[Stream[T], P], U]``): The function to apply.
             *args (optional): Passed to ``func``.
             **kwargs (optional): Passed to ``func``.
 
         Returns:
-            U: Result of ``func(self, *args, **kwargs)``.
+            ``U``: Result of ``func(self, *args, **kwargs)``.
         """
         return func(self, *args, **kwargs)
 
@@ -225,13 +226,13 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         If any exception was caught during the iteration and ``finally_raise=True``, the first exception caught will be raised when the iteration finishes.
 
         Args:
-            errors (Union[Type[Exception], Tuple[Type[Exception], ...]]): The exception types to catch.
-            when (Optional[Callable[[Exception], Any]], optional): An additional condition that must be satisfied to catch the exception, i.e. ``when(exception)`` must be truthy. (default: no additional condition)
-            replace (Optional[Callable[[Exception], U]], optional): ``replace(exception)`` will be yielded when an exception is caught. (default: do not yield any replacement value)
-            finally_raise (bool, optional): If True the first exception caught is raised when upstream's iteration ends. (default: iteration ends without raising)
+            errors (``Type[Exception] | Tuple[Type[Exception], ...]``): The exception types to catch.
+            when (``Callable[[Exception], Any] | None``, optional): An additional condition that must be satisfied to catch the exception, i.e. ``when(exception)`` must be truthy. (default: no additional condition)
+            replace (``Callable[[Exception], U] | None``, optional): ``replace(exception)`` will be yielded when an exception is caught. (default: do not yield any replacement value)
+            finally_raise (``bool``, optional): If True the first exception caught is raised when upstream's iteration ends. (default: iteration ends without raising)
 
         Returns:
-            Stream[Union[T, U]]: A stream of upstream elements catching the eligible exceptions.
+            ``Stream[T | U]``: A stream of upstream elements catching the eligible exceptions.
         """
         validate_errors(errors)
         return CatchStream(
@@ -256,13 +257,13 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         If any exception was caught during the iteration and ``finally_raise=True``, the first exception caught will be raised when the iteration finishes.
 
         Args:
-            errors (Union[Type[Exception], Tuple[Type[Exception], ...]]): The exception types to catch.
-            when (Optional[Callable[[Exception], Coroutine[Any, Any, Any]]], optional): An additional condition that must be satisfied to catch the exception, i.e. ``await when(exception)`` must be truthy. (default: no additional condition)
-            replace (Optional[Callable[[Exception], Coroutine[Any, Any, U]]], optional): ``await replace(exception)`` will be yielded when an exception is caught. (default: do not yield any replacement value)
-            finally_raise (bool, optional): If True the first exception caught is raised when upstream's iteration ends. (default: iteration ends without raising)
+            errors (``Type[Exception] | Tuple[Type[Exception], ...]``): The exception types to catch.
+            when (``Callable[[Exception], Coroutine[Any, Any, Any]] | None``, optional): An additional condition that must be satisfied to catch the exception, i.e. ``await when(exception)`` must be truthy. (default: no additional condition)
+            replace (``Callable[[Exception], Coroutine[Any, Any, U]] | None``, optional): ``await replace(exception)`` will be yielded when an exception is caught. (default: do not yield any replacement value)
+            finally_raise (``bool``, optional): If True the first exception caught is raised when upstream's iteration ends. (default: iteration ends without raising)
 
         Returns:
-            Stream[Union[T, U]]: A stream of upstream elements catching the eligible exceptions.
+            ``Stream[T | U]``: A stream of upstream elements catching the eligible exceptions.
         """
         validate_errors(errors)
         return ACatchStream(
@@ -290,11 +291,11 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
             Alternatively, remove only consecutive duplicates without memory footprint by setting ``consecutive=True``.
 
         Args:
-            by (Callable[[T], Any], optional): Elements are deduplicated based on ``by(elem)``. (default: the deduplication is performed on the elements themselves)
-            consecutive (bool, optional): Removes only consecutive duplicates if ``True``, or deduplicates globally if ``False``. (default: global deduplication)
+            by (``Callable[[T], Any]``, optional): Elements are deduplicated based on ``by(elem)``. (default: the deduplication is performed on the elements themselves)
+            consecutive (``bool``, optional): Removes only consecutive duplicates if ``True``, or deduplicates globally if ``False``. (default: global deduplication)
 
         Returns:
-            Stream: A stream containing only unique upstream elements.
+            ``Stream[T]``: A stream containing only unique upstream elements.
         """
         return DistinctStream(self, by, consecutive)
 
@@ -315,11 +316,11 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
             Alternatively, remove only consecutive duplicates without memory footprint by setting ``consecutive=True``.
 
         Args:
-            by (Callable[[T], Coroutine[Any, Any, Any]], optional): Elements are deduplicated based on ``await by(elem)``. (default: the deduplication is performed on the elements themselves)
-            consecutive (bool, optional): Whether to deduplicate only consecutive duplicates, or globally. (default: the deduplication is global)
+            by (``Callable[[T], Coroutine[Any, Any, Any]]``, optional): Elements are deduplicated based on ``await by(elem)``. (default: the deduplication is performed on the elements themselves)
+            consecutive (``bool``, optional): Whether to deduplicate only consecutive duplicates, or globally. (default: the deduplication is global)
 
         Returns:
-            Stream: A stream containing only unique upstream elements.
+            ``Stream[T]``: A stream containing only unique upstream elements.
         """
         return ADistinctStream(self, by, consecutive)
 
@@ -328,10 +329,10 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Filters the stream to yield only elements satisfying the ``where`` predicate.
 
         Args:
-            where (Callable[[T], Any]): An element is kept if ``where(elem)`` is truthy.
+            where (``Callable[[T], Any]``): An element is kept if ``where(elem)`` is truthy.
 
         Returns:
-            Stream[T]: A stream of upstream elements satisfying the `where` predicate.
+            ``Stream[T]``: A stream of upstream elements satisfying the `where` predicate.
         """
         return FilterStream(self, where)
 
@@ -340,10 +341,10 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Filters the stream to yield only elements satisfying the ``where`` predicate.
 
         Args:
-            where (Callable[[T], Coroutine[Any, Any, Any]], optional): An element is kept if ``await where(elem)`` is truthy. (default: keeps truthy elements)
+            where (``Callable[[T], Coroutine[Any, Any, Any]]``, optional): An element is kept if ``await where(elem)`` is truthy. (default: keeps truthy elements)
 
         Returns:
-            Stream[T]: A stream of upstream elements satisfying the `where` predicate.
+            ``Stream[T]``: A stream of upstream elements satisfying the `where` predicate.
         """
         return AFilterStream(self, where)
 
@@ -424,9 +425,9 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Iterates over upstream elements assumed to be iterables, and individually yields their items.
 
         Args:
-            concurrency (int, optional): Number of upstream iterables concurrently flattened via threads. (default: no concurrency)
+            concurrency (``int``, optional): Number of upstream iterables concurrently flattened via threads. (default: no concurrency)
         Returns:
-            Stream[R]: A stream of flattened elements from upstream iterables.
+            ``Stream[R]``: A stream of flattened elements from upstream iterables.
         """
         validate_concurrency(concurrency)
         return FlattenStream(self, concurrency)
@@ -454,9 +455,9 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Iterates over upstream elements assumed to be async iterables, and individually yields their items.
 
         Args:
-            concurrency (int, optional): Number of upstream async iterables concurrently flattened. (default: no concurrency)
+            concurrency (``int``, optional): Number of upstream async iterables concurrently flattened. (default: no concurrency)
         Returns:
-            Stream[R]: A stream of flattened elements from upstream async iterables.
+            ``Stream[R]``: A stream of flattened elements from upstream async iterables.
         """
         validate_concurrency(concurrency)
         return AFlattenStream(self, concurrency)
@@ -474,12 +475,12 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         If ``do(elem)`` throws an exception then it will be thrown and ``elem`` will not be yielded.
 
         Args:
-            do (Callable[[T], Any]): The function to be applied to each element as a side effect.
-            concurrency (int, optional): Represents both the number of threads used to concurrently apply the ``do`` and the size of the buffer containing not-yet-yielded elements. If the buffer is full, the iteration over the upstream is paused until an element is yielded from the buffer. (default: no concurrency)
-            ordered (bool, optional): If ``concurrency`` > 1, whether to preserve the order of upstream elements or to yield them as soon as they are processed. (default: preserves upstream order)
+            do (``Callable[[T], Any]``): The function to be applied to each element as a side effect.
+            concurrency (``int``, optional): Represents both the number of threads used to concurrently apply the ``do`` and the size of the buffer containing not-yet-yielded elements. If the buffer is full, the iteration over the upstream is paused until an element is yielded from the buffer. (default: no concurrency)
+            ordered (``bool``, optional): If ``concurrency`` > 1, whether to preserve the order of upstream elements or to yield them as soon as they are processed. (default: preserves upstream order)
             via ("thread" or "process", optional): If ``concurrency`` > 1, whether to apply ``to`` using processes or threads. (default: via threads)
         Returns:
-            Stream[T]: A stream of upstream elements, unchanged.
+            ``Stream[T]``: A stream of upstream elements, unchanged.
         """
         validate_concurrency(concurrency)
         validate_via(via)
@@ -497,11 +498,11 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         If the ``await do(elem)`` coroutine throws an exception then it will be thrown and ``elem`` will not be yielded.
 
         Args:
-            do (Callable[[T], Coroutine[Any, Any, Any]]): The asynchronous function to be applied to each element as a side effect.
-            concurrency (int, optional): Represents both the number of async tasks concurrently applying the ``do`` and the size of the buffer containing not-yet-yielded elements. If the buffer is full, the iteration over the upstream is paused until an element is yielded from the buffer. (default: no concurrency)
-            ordered (bool, optional): If ``concurrency`` > 1, whether to preserve the order of upstream elements or to yield them as soon as they are processed. (default: preserves upstream order)
+            do (``Callable[[T], Coroutine[Any, Any, Any]]``): The asynchronous function to be applied to each element as a side effect.
+            concurrency (``int``, optional): Represents both the number of async tasks concurrently applying the ``do`` and the size of the buffer containing not-yet-yielded elements. If the buffer is full, the iteration over the upstream is paused until an element is yielded from the buffer. (default: no concurrency)
+            ordered (``bool``, optional): If ``concurrency`` > 1, whether to preserve the order of upstream elements or to yield them as soon as they are processed. (default: preserves upstream order)
         Returns:
-            Stream[T]: A stream of upstream elements, unchanged.
+            ``Stream[T]``: A stream of upstream elements, unchanged.
         """
         validate_concurrency(concurrency)
         return AForeachStream(self, do, concurrency, ordered)
@@ -517,6 +518,7 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Groups upstream elements into lists.
 
         A group is yielded when any of the following conditions is met:
+
         - The group reaches ``size`` elements.
         - ``interval`` seconds have passed since the last group was yielded.
         - The upstream source is exhausted.
@@ -524,11 +526,11 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         If ``by`` is specified, groups will only contain elements sharing the same ``by(elem)`` value (see ``.groupby`` for ``(key, elements)`` pairs).
 
         Args:
-            size (Optional[int], optional): The maximum number of elements per group. (default: no size limit)
-            interval (float, optional): Yields a group if ``interval`` seconds have passed since the last group was yielded. (default: no interval limit)
-            by (Optional[Callable[[T], Any]], optional): If specified, groups will only contain elements sharing the same ``by(elem)`` value. (default: does not co-group elements)
+            size (``int | None``, optional): The maximum number of elements per group. (default: no size limit)
+            interval (``float``, optional): Yields a group if ``interval`` seconds have passed since the last group was yielded. (default: no interval limit)
+            by (``Callable[[T], Any] | None``, optional): If specified, groups will only contain elements sharing the same ``by(elem)`` value. (default: does not co-group elements)
         Returns:
-            Stream[List[T]]: A stream of upstream elements grouped into lists.
+            ``Stream[List[T]]``: A stream of upstream elements grouped into lists.
         """
         validate_group_size(size)
         validate_optional_positive_interval(interval, name="interval")
@@ -545,6 +547,7 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Groups upstream elements into lists.
 
         A group is yielded when any of the following conditions is met:
+
         - The group reaches ``size`` elements.
         - ``interval`` seconds have passed since the last group was yielded.
         - The upstream source is exhausted.
@@ -552,11 +555,11 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         If ``by`` is specified, groups will only contain elements sharing the same ``await by(elem)`` value (see ``.agroupby`` for ``(key, elements)`` pairs).
 
         Args:
-            size (Optional[int], optional): The maximum number of elements per group. (default: no size limit)
-            interval (float, optional): Yields a group if ``interval`` seconds have passed since the last group was yielded. (default: no interval limit)
-            by (Optional[Callable[[T], Coroutine[Any, Any, Any]]], optional): If specified, groups will only contain elements sharing the same ``await by(elem)`` value. (default: does not co-group elements)
+            size (``int | None``, optional): The maximum number of elements per group. (default: no size limit)
+            interval (``float``, optional): Yields a group if ``interval`` seconds have passed since the last group was yielded. (default: no interval limit)
+            by (``Callable[[T], Coroutine[Any, Any, Any]] | None``, optional): If specified, groups will only contain elements sharing the same ``await by(elem)`` value. (default: does not co-group elements)
         Returns:
-            Stream[List[T]]: A stream of upstream elements grouped into lists.
+            ``Stream[List[T]]``: A stream of upstream elements grouped into lists.
         """
         validate_group_size(size)
         validate_optional_positive_interval(interval, name="interval")
@@ -573,17 +576,18 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Groups upstream elements into ``(key, elements)`` tuples.
 
         A group is yielded when any of the following conditions is met:
+
         - A group reaches ``size`` elements.
         - ``interval`` seconds have passed since the last group was yielded.
         - The upstream source is exhausted.
 
         Args:
-            key (Callable[[T], U]): A function that returns the group key for an element.
-            size (Optional[int], optional): The maximum number of elements per group. (default: no size limit)
-            interval (Optional[datetime.timedelta], optional): If specified, yields a group if ``interval`` seconds have passed since the last group was yielded. (default: no interval limit)
+            key (``Callable[[T], U]``): A function that returns the group key for an element.
+            size (``int | None``, optional): The maximum number of elements per group. (default: no size limit)
+            interval (``datetime.timedelta | None``, optional): If specified, yields a group if ``interval`` seconds have passed since the last group was yielded. (default: no interval limit)
 
         Returns:
-            Stream[Tuple[U, List[T]]]: A stream of upstream elements grouped by key, as ``(key, elements)`` tuples.
+            ``Stream[Tuple[U, List[T]]]``: A stream of upstream elements grouped by key, as ``(key, elements)`` tuples.
         """
         return GroupbyStream(self, key, size, interval)
 
@@ -598,17 +602,18 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Groups upstream elements into ``(key, elements)`` tuples.
 
         A group is yielded when any of the following conditions is met:
+
         - A group reaches ``size`` elements.
         - ``interval`` seconds have passed since the last group was yielded.
         - The upstream source is exhausted.
 
         Args:
-            key (Callable[[T], Coroutine[Any, Any, U]]): An async function that returns the group key for an element.
-            size (Optional[int], optional): The maximum number of elements per group. (default: no size limit)
-            interval (Optional[datetime.timedelta], optional): If specified, yields a group if ``interval`` seconds have passed since the last group was yielded. (default: no interval limit)
+            key (``Callable[[T], Coroutine[Any, Any, U]]``): An async function that returns the group key for an element.
+            size (``int | None``, optional): The maximum number of elements per group. (default: no size limit)
+            interval (``datetime.timedelta | None``, optional): If specified, yields a group if ``interval`` seconds have passed since the last group was yielded. (default: no interval limit)
 
         Returns:
-            Stream[Tuple[U, List[T]]]: A stream of upstream elements grouped by key, as ``(key, elements)`` tuples.
+            ``Stream[Tuple[U, List[T]]]``: A stream of upstream elements grouped by key, as ``(key, elements)`` tuples.
         """
         return AGroupbyStream(self, key, size, interval)
 
@@ -624,12 +629,12 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Applies ``to`` on upstream elements and yields the results.
 
         Args:
-            to (Callable[[T], R]): The async transformation to be applied to each element.
-            concurrency (int, optional): Represents both the number of threads used to concurrently apply ``to`` and the size of the buffer containing not-yet-yielded results. If the buffer is full, the iteration over the upstream is paused until a result is yielded from the buffer. (default: no concurrency)
-            ordered (bool, optional): If ``concurrency`` > 1, whether to preserve the order of upstream elements or to yield them as soon as they are processed. (default: preserves upstream order)
+            to (``Callable[[T], R]``): The async transformation to be applied to each element.
+            concurrency (``int``, optional): Represents both the number of threads used to concurrently apply ``to`` and the size of the buffer containing not-yet-yielded results. If the buffer is full, the iteration over the upstream is paused until a result is yielded from the buffer. (default: no concurrency)
+            ordered (``bool``, optional): If ``concurrency`` > 1, whether to preserve the order of upstream elements or to yield them as soon as they are processed. (default: preserves upstream order)
             via ("thread" or "process", optional): If ``concurrency`` > 1, whether to apply ``to`` using processes or threads. (default: via threads)
         Returns:
-            Stream[R]: A stream of transformed elements.
+            ``Stream[R]``: A stream of transformed elements.
         """
         validate_concurrency(concurrency)
         validate_via(via)
@@ -646,11 +651,11 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Applies the async ``to`` on upstream elements and yields the results.
 
         Args:
-            to (Callable[[T], Coroutine[Any, Any, U]]): The async transformation to be applied to each element.
-            concurrency (int, optional): Represents both the number of async tasks concurrently applying ``to`` and the size of the buffer containing not-yet-yielded results. If the buffer is full, the iteration over the upstream is paused until a result is yielded from the buffer. (default: no concurrency)
+            to (``Callable[[T], Coroutine[Any, Any, U]]``): The async transformation to be applied to each element.
+            concurrency (``int``, optional): Represents both the number of async tasks concurrently applying ``to`` and the size of the buffer containing not-yet-yielded results. If the buffer is full, the iteration over the upstream is paused until a result is yielded from the buffer. (default: no concurrency)
             ordered (bool, optional): If ``concurrency`` > 1, whether to preserve the order of upstream elements or to yield them as soon as they are processed. (default: preserves upstream order)
         Returns:
-            Stream[R]: A stream of transformed elements.
+            ``Stream[R]``: A stream of transformed elements.
         """
         validate_concurrency(concurrency)
         return AMapStream(self, to, concurrency, ordered)
@@ -662,10 +667,10 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         To avoid flooding, logs are emitted only when the number of yielded elements (or errors) reaches powers of 2.
 
         Args:
-            what (str): A plural noun describing the yielded objects (e.g., "cats", "dogs").
+            what (``str``): A plural noun describing the yielded objects (e.g., "cats", "dogs").
 
         Returns:
-            Stream[T]: A stream of upstream elements with progress logging during iteration.
+            ``Stream[T]``: A stream of upstream elements with progress logging during iteration.
         """
         return ObserveStream(self, what)
 
@@ -674,11 +679,13 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Skips ``until`` elements (if ``int``) or skips until ``until(elem)`` becomes truthy.
 
         Args:
-            until (Union[int, Callable[[T], Any]]):
+            until (``int | Callable[[T], Any]``):
+
                 - ``int``: The number of elements to skip.
                 - ``Callable[[T], Any]``: Skips elements until encountering one for which ``until(elem)`` is truthy (this element and all the subsequent ones will be yielded).
+
         Returns:
-            Stream: A stream of the upstream elements remaining after skipping.
+            ``Stream[T]``: A stream of the upstream elements remaining after skipping.
         """
         validate_count_or_callable(until, name="until")
         return SkipStream(self, until)
@@ -690,11 +697,13 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Skips ``until`` elements (if ``int``) or skips until ``await until(elem)`` becomes truthy.
 
         Args:
-            until (Union[int, Callable[[T], Coroutine[Any, Any, Any]]]):
+            until (``int | Callable[[T], Coroutine[Any, Any, Any]]``):
+
                 - ``int``: The number of elements to skip.
                 - ``Callable[[T], Any]``: Skips elements until encountering one for which ``await until(elem)`` is truthy (this element and all the subsequent ones will be yielded).
+
         Returns:
-            Stream: A stream of the upstream elements remaining after skipping.
+            ``Stream[T]``: A stream of the upstream elements remaining after skipping.
         """
         validate_count_or_callable(until, name="until")
         return ASkipStream(self, until)
@@ -719,11 +728,11 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
             )
 
         Args:
-            up_to (int, optional): Maximum number of elements (or exceptions) that must be yielded within the given time interval.
-            per (datetime.timedelta, optional): The time interval during which maximum ``up_to`` elements (or exceptions) will be yielded.
+            up_to (``int``, optional): Maximum number of elements (or exceptions) that must be yielded within the given time interval.
+            per (``datetime.timedelta``, optional): The time interval during which maximum ``up_to`` elements (or exceptions) will be yielded.
 
         Returns:
-            Stream[T]: A stream yielding at most ``up_to`` upstream elements (or exceptions) ``per`` time interval.
+            ``Stream[T]``: A stream yielding at most ``up_to`` upstream elements (or exceptions) ``per`` time interval.
         """
         validate_positive_count(up_to, name="up_to")
         validate_positive_interval(per, name="per")
@@ -734,12 +743,13 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Stops iterations over this stream when ``when`` elements have been yielded (if ``int``) or when ``when(elem)`` becomes truthy.
 
         Args:
-            until (Union[int, Callable[[T], Any]]):
+            until (``int | Callable[[T], Any]``):
+
                 - ``int``: Stops the iteration after ``when`` elements have been yielded.
                 - ``Callable[[T], Any]``: Stops the iteration when the first element for which ``when(elem)`` is truthy is encountered, that element will not be yielded.
 
         Returns:
-            Stream[T]: A stream whose iteration will stop ``when`` condition is met.
+            ``Stream[T]``: A stream whose iteration will stop ``when`` condition is met.
         """
         validate_count_or_callable(when, name="when")
         return TruncateStream(self, when)
@@ -751,12 +761,13 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Stops iterations over this stream when ``when`` elements have been yielded (if ``int``) or when ``await when(elem)`` becomes truthy.
 
         Args:
-            until (Union[int, Callable[[T], Any]]):
+            until (``int | Callable[[T], Any]``):
+
                 - ``int``: Stops the iteration after ``when`` elements have been yielded.
                 - ``Callable[[T], Coroutine[Any, Any, Any]]``: Stops the iteration when the first element for which ``await when(elem)`` is truthy is encountered, that element will not be yielded.
 
         Returns:
-            Stream[T]: A stream whose iteration will stop ``when`` condition is met.
+            ``Stream[T]``: A stream whose iteration will stop ``when`` condition is met.
         """
         validate_count_or_callable(when, name="when")
         return ATruncateStream(self, when)
@@ -789,7 +800,7 @@ class DownStream(Stream[U], Generic[T, U]):
     def upstream(self) -> Stream[T]:
         """
         Returns:
-            Stream: Parent stream.
+            ``Stream``: Parent stream.
         """
         return self._upstream
 

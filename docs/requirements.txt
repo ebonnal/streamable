@@ -3,3 +3,4 @@ sphinx>=7
 furo
 sphinx-autodoc-typehints>=1.23.0
 myst-parser>=2
+sphinx-copybutton

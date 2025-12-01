@@ -45,7 +45,7 @@ inverses: Stream[float] = (
 )
 ```
 
-Visit the [*API Reference*](https://streamable.readthedocs.io/en/latest/api.html).
+Visit the [`Stream[T]`'s docs](https://streamable.readthedocs.io/en/latest/api.html).
 
 
 # 5. iterate

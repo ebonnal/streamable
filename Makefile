@@ -41,4 +41,5 @@ lint-check:
 	$(VENV_DIR)/bin/python -m ruff check streamable tests
 
 docs:
+	$(VENV_DIR)/bin/pip install -r docs/requirements.txt
 	sphinx-build -b html docs docs/_build/html
