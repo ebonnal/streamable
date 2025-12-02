@@ -56,26 +56,9 @@ def validate_count(count: int, *, name: str) -> None:
     if count < 0:
         raise ValueError(f"`{name}` must be >= 0 but got {count}")
 
-
-def validate_callable(func: int, *, name: str) -> None:
-    if not callable(func):
-        raise ValueError(f"`{name}` must be >= 0 but got {func}")
-
-
 def validate_positive_count(count: int, *, name: str) -> None:
     if count < 1:
         raise ValueError(f"`{name}` must be >= 1 but got {count}")
-
-
-def validate_optional_count(count: Optional[int], *, name: str) -> None:
-    if count is not None:
-        validate_count(count, name=name)
-
-
-def validate_optional_positive_count(count: Optional[int], *, name: str) -> None:
-    if count is not None:
-        validate_positive_count(count, name=name)
-
 
 def _is_exception_subclass(error: Any) -> bool:
     return type(error) is type and issubclass(error, Exception)
