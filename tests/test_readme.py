@@ -1,4 +1,3 @@
-import asyncio
 from pathlib import Path
 import time
 from datetime import timedelta
@@ -60,24 +59,20 @@ def test_process_concurrent_map_example() -> None:
     # but the `state` of the main process is not mutated
     assert state == []
 
-def test_async_amap_example() -> None:
-    import asyncio
-
+@pytest.mark.asyncio
+async def test_async_amap_example() -> None:
     import httpx
 
-    async def main() -> None:
-        async with httpx.AsyncClient() as http:
-            pokemon_names: Stream[str] = (
-                Stream(range(1, 4))
-                .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
-                .amap(http.get, concurrency=3)
-                .map(httpx.Response.json)
-                .map(lambda poke: poke["name"])
-            )
-            # consume as an AsyncIterable[str]
-            assert [name async for name in pokemon_names] == ['bulbasaur', 'ivysaur', 'venusaur']
-
-    asyncio.run(main())
+    async with httpx.AsyncClient() as http:
+        pokemon_names: Stream[str] = (
+            Stream(range(1, 4))
+            .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
+            .amap(http.get, concurrency=3)
+            .map(httpx.Response.json)
+            .map(lambda poke: poke["name"])
+        )
+        # consume as an AsyncIterable[str]
+        assert [name async for name in pokemon_names] == ['bulbasaur', 'ivysaur', 'venusaur']
 
 def test_starmap_example() -> None:
     from streamable import star
@@ -268,8 +263,9 @@ def test_zip_example() -> None:
 def test_count_example() -> None:
     assert integers.count() == 10
 
-def test_acount_example() -> None:
-    assert asyncio.run(integers.acount()) == 10
+@pytest.mark.asyncio
+async def test_acount_example() -> None:
+    assert await integers.acount() == 10
 
 def test_call_example() -> None:
     state: List[int] = []
@@ -277,13 +273,12 @@ def test_call_example() -> None:
     assert appending_integers() is appending_integers
     assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
-def test_await_example() -> None:
-    async def test() -> None:
-        state: List[int] = []
-        appending_integers: Stream[int] = integers.foreach(state.append)
-        appending_integers is await appending_integers
-        assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-    asyncio.run(test())
+@pytest.mark.asyncio
+async def test_await_example() -> None:
+    state: List[int] = []
+    appending_integers: Stream[int] = integers.foreach(state.append)
+    assert appending_integers is await appending_integers
+    assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 def test_non_stopping_exceptions_example() -> None:
     from contextlib import suppress
@@ -298,49 +293,46 @@ def test_non_stopping_exceptions_example() -> None:
     collected_casted_ints.extend(casted_ints)
     assert collected_casted_ints == [0, 1, 2, 3, 5, 6, 7, 8, 9]
 
-def test_async_etl_example(tmp_path: Path) -> None: # pragma: no cover
-    import asyncio
+@pytest.mark.asyncio
+async def test_async_etl_example(tmp_path: Path) -> None: # pragma: no cover
     import csv
     from datetime import timedelta
     from itertools import count
     import httpx
     from streamable import Stream
 
-    async def main() -> None:
-        with (tmp_path / "quadruped_pokemons.csv").open("w") as file:
-            fields = ["id", "name", "is_legendary", "base_happiness", "capture_rate"]
-            writer = csv.DictWriter(file, fields, extrasaction='ignore')
-            writer.writeheader()
+    with (tmp_path / "quadruped_pokemons.csv").open("w") as file:
+        fields = ["id", "name", "is_legendary", "base_happiness", "capture_rate"]
+        writer = csv.DictWriter(file, fields, extrasaction='ignore')
+        writer.writeheader()
 
-            async with httpx.AsyncClient() as http_client:
-                pipeline = (
-                    # Infinite Stream[int] of Pokemon ids starting from Pokémon #1: Bulbasaur
-                    Stream(count(1))
-                    # Limit to 16 requests per second to be friendly to our fellow PokéAPI devs
-                    .throttle(16, per=timedelta(microseconds=1))
-                    # GET pokemons via 8 concurrent coroutines
-                    .map(lambda poke_id: f"https://pokeapi.co/api/v2/pokemon-species/{poke_id}")
-                    .amap(http_client.get, concurrency=8)
-                    .foreach(httpx.Response.raise_for_status)
-                    .map(httpx.Response.json)
-                    # Stop the iteration when reaching the 1st pokemon of the 4th generation
-                    .truncate(when=lambda poke: poke["generation"]["name"] == "generation-iv")
-                    .observe("pokemons")
-                    # Keep only quadruped Pokemons
-                    .filter(lambda poke: poke["shape"]["name"] == "quadruped")
-                    # Write a batch of pokemons every 5 seconds to the CSV file
-                    .group(interval=timedelta(seconds=5))
-                    .foreach(writer.writerows)
-                    .flatten()
-                    .observe("written pokemons")
-                    # Catch exceptions and raises the 1st one at the end of the iteration
-                    .catch(Exception, finally_raise=True)
-                )
+        async with httpx.AsyncClient() as http_client:
+            pipeline = (
+                # Infinite Stream[int] of Pokemon ids starting from Pokémon #1: Bulbasaur
+                Stream(count(1))
+                # Limit to 16 requests per second to be friendly to our fellow PokéAPI devs
+                .throttle(16, per=timedelta(microseconds=1))
+                # GET pokemons via 8 concurrent coroutines
+                .map(lambda poke_id: f"https://pokeapi.co/api/v2/pokemon-species/{poke_id}")
+                .amap(http_client.get, concurrency=8)
+                .foreach(httpx.Response.raise_for_status)
+                .map(httpx.Response.json)
+                # Stop the iteration when reaching the 1st pokemon of the 4th generation
+                .truncate(when=lambda poke: poke["generation"]["name"] == "generation-iv")
+                .observe("pokemons")
+                # Keep only quadruped Pokemons
+                .filter(lambda poke: poke["shape"]["name"] == "quadruped")
+                # Write a batch of pokemons every 5 seconds to the CSV file
+                .group(interval=timedelta(seconds=5))
+                .foreach(writer.writerows)
+                .flatten()
+                .observe("written pokemons")
+                # Catch exceptions and raises the 1st one at the end of the iteration
+                .catch(Exception, finally_raise=True)
+            )
 
-                # Start a full async iteration
-                await pipeline
-
-    asyncio.run(main())
+            # Start a full async iteration
+            await pipeline
 
 def test_etl_example(tmp_path: Path) -> None: # pragma: no cover
     import csv

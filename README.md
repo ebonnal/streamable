@@ -14,10 +14,10 @@
 
 # 1. install
 
-no dependencies
 ```
 pip install streamable
 ```
+no dependencies
 
 # 2. import
 
@@ -27,7 +27,7 @@ from streamable import Stream
 
 # 3. init
 
-Create a `Stream[T]` ***decorating*** an `Iterable[T]`/`AsyncIterable[T]`:
+Create a `Stream[T]` ***decorating*** an `Iterable[T]` or `AsyncIterable[T]`:
 
 ```python
 integers: Stream[int] = Stream(range(10))
@@ -45,15 +45,16 @@ inverses: Stream[float] = (
 )
 ```
 
-Visit the [`Stream[T]`'s docs](https://streamable.readthedocs.io/en/latest/api.html).
-
-
 # 5. iterate
 
-Iterate over a `Stream[T]` like any `Iterable[T]`/`AsyncIterable[T]`:
+A `Stream` is ***both*** `Iterable` and `AsyncIterable`:
 
 ```python
 >>> list(inverses)
+[1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
+>>> [i for i in inverses]
+[1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
+>>> [i async for i in inverses]
 [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
 ```
 
@@ -120,116 +121,43 @@ from itertools import count
 import httpx
 from streamable import Stream
 
-async def main() -> None:
-    with open("./quadruped_pokemons.csv", mode="w") as file:
-        fields = ["id", "name", "is_legendary", "base_happiness", "capture_rate"]
-        writer = csv.DictWriter(file, fields, extrasaction='ignore')
-        writer.writeheader()
+with open("./quadruped_pokemons.csv", mode="w") as file:
+    fields = ["id", "name", "is_legendary", "base_happiness", "capture_rate"]
+    writer = csv.DictWriter(file, fields, extrasaction='ignore')
+    writer.writeheader()
 
-        async with httpx.AsyncClient() as http_client:
-            pipeline = (
-                # Infinite Stream[int] of Pokemon ids starting from Pokémon #1: Bulbasaur
-                Stream(count(1))
-                # Limit to 16 requests per second to be friendly to our fellow PokéAPI devs
-                .throttle(16, per=timedelta(seconds=1))
-                # GET pokemons via 8 concurrent coroutines
-                .map(lambda poke_id: f"https://pokeapi.co/api/v2/pokemon-species/{poke_id}")
-                .amap(http_client.get, concurrency=8)
-                .foreach(httpx.Response.raise_for_status)
-                .map(httpx.Response.json)
-                # Stop the iteration when reaching the 1st pokemon of the 4th generation
-                .truncate(when=lambda poke: poke["generation"]["name"] == "generation-iv")
-                .observe("pokemons")
-                # Keep only quadruped Pokemons
-                .filter(lambda poke: poke["shape"]["name"] == "quadruped")
-                # Write a batch of pokemons every 5 seconds to the CSV file
-                .group(interval=timedelta(seconds=5))
-                .foreach(writer.writerows)
-                .flatten()
-                .observe("written pokemons")
-                # Catch exceptions and raises the 1st one at the end of the iteration
-                .catch(Exception, finally_raise=True)
-            )
+    async with httpx.AsyncClient() as http_client:
+        pipeline = (
+            # Infinite Stream[int] of Pokemon ids starting from Pokémon #1: Bulbasaur
+            Stream(count(1))
+            # Limit to 16 requests per second to be friendly to our fellow PokéAPI devs
+            .throttle(16, per=timedelta(seconds=1))
+            # GET pokemons via 8 concurrent coroutines
+            .map(lambda poke_id: f"https://pokeapi.co/api/v2/pokemon-species/{poke_id}")
+            .amap(http_client.get, concurrency=8)
+            .foreach(httpx.Response.raise_for_status)
+            .map(httpx.Response.json)
+            # Stop the iteration when reaching the 1st pokemon of the 4th generation
+            .truncate(when=lambda poke: poke["generation"]["name"] == "generation-iv")
+            .observe("pokemons")
+            # Keep only quadruped Pokemons
+            .filter(lambda poke: poke["shape"]["name"] == "quadruped")
+            # Write a batch of pokemons every 5 seconds to the CSV file
+            .group(interval=timedelta(seconds=5))
+            .foreach(writer.writerows)
+            .flatten()
+            .observe("written pokemons")
+            # Catch exceptions and raises the 1st one at the end of the iteration
+            .catch(Exception, finally_raise=True)
+        )
 
-            # Start a full async iteration
-            await pipeline
-
-asyncio.run(main())
+        # Start a full async iteration
+        await pipeline
 ```
-
-
-# 💡 Notes
-
-## Highlights from the community
-- [Tryolabs' Top 10 Python libraries of 2024](https://tryolabs.com/blog/top-python-libraries-2024#top-10---general-use) ([LinkedIn](https://www.linkedin.com/posts/tryolabs_top-python-libraries-2024-activity-7273052840984539137-bcGs?utm_source=share&utm_medium=member_desktop), [Reddit](https://www.reddit.com/r/Python/comments/1hbs4t8/the_handpicked_selection_of_the_best_python/))
-- [PyCoder’s Weekly](https://pycoders.com/issues/651) x [Real Python](https://realpython.com/)
-- [@PythonHub's tweet](https://x.com/PythonHub/status/1842886311369142713)
-- [Upvoters on our showcase Reddit post](https://www.reddit.com/r/Python/comments/1fp38jd/streamable_streamlike_manipulation_of_iterables/)
-
-## Exceptions are not terminating the iteration
-
-> [!TIP]
-> If an operation raises an exception while processing an element, you can handle it and continue the iteration:
-
-<details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
-
-```python
-from contextlib import suppress
-
-casted_ints: Iterator[int] = iter(
-    Stream("0123_56789")
-    .map(int)
-    .group(3)
-    .flatten()
-)
-collected: List[int] = []
-
-with suppress(ValueError):
-    collected.extend(casted_ints)
-assert collected == [0, 1, 2, 3]
-
-collected.extend(casted_ints)
-assert collected == [0, 1, 2, 3, 5, 6, 7, 8, 9]
-```
-
-</details >
-
-
-## Performances
-
-Declaring a `Stream` is lazy,
-
-```python
-odd_int_strings = Stream(range(1_000_000)).filter(lambda n: n % 2).map(str)
-```
-
-and there is *zero overhead during iteration compared to builtins*, `iter(odd_int_strings)` visits the operations lineage and returns exactly this iterator:
-
-```python
-map(str, filter(lambda n: n % 2, range(1_000_000)))
-```
-
-Operations have been [implemented](https://github.com/ebonnal/streamable/blob/main/streamable/iterators.py) with speed in mind. If you have any ideas for improvement, whether performance-related or not, an issue, PR, or discussion would be very much appreciated! ([CONTRIBUTING.md](CONTRIBUTING.md))
-
-## `streamable.functions`
-
-The `Stream`'s methods are also exposed as functions in `streamable.functions`/`afunctions`:
-<details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
-
-```python
-from streamable.functions import throttle
-
-events: Iterable[...] = ...
-for event in throttle(events, 10, per=timedelta(seconds=1)):
-    # process max 10 events per second
-```
-
-</details>
 
 # 📒 ***Operations***
-[![readthedocs](https://app.readthedocs.org/projects/streamable/badge/?version=latest&style=social)](https://streamable.readthedocs.io/en/latest/api.html)
 
-Visit the [*API Reference*](https://streamable.readthedocs.io/en/latest/api.html).
+Let's do a tour of the `Stream`'s operations, for more details visit the [***docs***](https://streamable.readthedocs.io/en/latest/api.html).
 
 |||
 |--|--|
@@ -320,22 +248,18 @@ if __name__ == "__main__":
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
-import asyncio
 import httpx
 
-async def main() -> None:
-    async with httpx.AsyncClient() as http:
-        pokemon_names: Stream[str] = (
-            Stream(range(1, 4))
-            .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
-            .amap(http.get, concurrency=3)
-            .map(httpx.Response.json)
-            .map(lambda poke: poke["name"])
-        )
-        # consume as an AsyncIterable[str]
-        assert [name async for name in pokemon_names] == ['bulbasaur', 'ivysaur', 'venusaur']
-
-asyncio.run(main())
+async with httpx.AsyncClient() as http:
+    pokemon_names: Stream[str] = (
+        Stream(range(1, 4))
+        .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
+        .amap(http.get, concurrency=3)
+        .map(httpx.Response.json)
+        .map(lambda poke: poke["name"])
+    )
+    # consume as an AsyncIterable[str]
+    assert [name async for name in pokemon_names] == ['bulbasaur', 'ivysaur', 'venusaur']
 ```
 </details>
 
@@ -764,7 +688,7 @@ assert integers.count() == 10
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
-assert asyncio.run(integers.acount()) == 10
+assert await integers.acount() == 10
 ```
 
 </details>
@@ -787,12 +711,10 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
-async def test_await() -> None:
-    state: List[int] = []
-    appending_integers: Stream[int] = integers.foreach(state.append)
-    appending_integers is await appending_integers
-    assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-asyncio.run(test_await())
+state: List[int] = []
+appending_integers: Stream[int] = integers.foreach(state.append)
+assert appending_integers is await appending_integers
+assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 </details>
 
@@ -813,3 +735,73 @@ import pandas as pd
 )
 ```
 </details>
+
+---
+
+# 💡 Notes
+
+## Exceptions are not terminating the iteration
+
+> [!TIP]
+> If an operation raises an exception while processing an element, you can handle it and continue the iteration:
+
+<details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
+
+```python
+from contextlib import suppress
+
+casted_ints: Iterator[int] = iter(
+    Stream("0123_56789")
+    .map(int)
+    .group(3)
+    .flatten()
+)
+collected: List[int] = []
+
+with suppress(ValueError):
+    collected.extend(casted_ints)
+assert collected == [0, 1, 2, 3]
+
+collected.extend(casted_ints)
+assert collected == [0, 1, 2, 3, 5, 6, 7, 8, 9]
+```
+
+</details >
+
+
+## Performances
+
+Declaring a `Stream` is lazy,
+
+```python
+odd_int_strings = Stream(range(1_000_000)).filter(lambda n: n % 2).map(str)
+```
+
+and there is *zero overhead during iteration compared to builtins*, `iter(odd_int_strings)` visits the operations lineage and returns exactly this iterator:
+
+```python
+map(str, filter(lambda n: n % 2, range(1_000_000)))
+```
+
+Operations have been [implemented](https://github.com/ebonnal/streamable/blob/main/streamable/iterators.py) with speed in mind. If you have any ideas for improvement, whether performance-related or not, an issue, PR, or discussion would be very much appreciated! ([CONTRIBUTING.md](CONTRIBUTING.md))
+
+## `streamable.functions`
+
+The `Stream`'s methods are also exposed as functions in `streamable.functions`/`afunctions`:
+<details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
+
+```python
+from streamable.functions import throttle
+
+events: Iterable[...] = ...
+for event in throttle(events, 10, per=timedelta(seconds=1)):
+    # process max 10 events per second
+```
+
+</details>
+
+## Highlights from the community
+- [Tryolabs' Top 10 Python libraries of 2024](https://tryolabs.com/blog/top-python-libraries-2024#top-10---general-use) ([LinkedIn](https://www.linkedin.com/posts/tryolabs_top-python-libraries-2024-activity-7273052840984539137-bcGs?utm_source=share&utm_medium=member_desktop), [Reddit](https://www.reddit.com/r/Python/comments/1hbs4t8/the_handpicked_selection_of_the_best_python/))
+- [PyCoder’s Weekly](https://pycoders.com/issues/651) x [Real Python](https://realpython.com/)
+- [@PythonHub's tweet](https://x.com/PythonHub/status/1842886311369142713)
+- [Upvoters on our showcase Reddit post](https://www.reddit.com/r/Python/comments/1fp38jd/streamable_streamlike_manipulation_of_iterables/)
