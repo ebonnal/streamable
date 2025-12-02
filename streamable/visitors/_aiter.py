@@ -1,6 +1,6 @@
 from typing import AsyncIterable, AsyncIterator, Iterable, TypeVar, Union, cast
 
-from streamable import afunctions
+from streamable import _afunctions
 from streamable._stream import (
     ACatchStream,
     ADistinctStream,
@@ -38,7 +38,7 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
     def visit_catch_stream(
         self, stream: CatchStream[T, U]
     ) -> AsyncIterator[Union[T, U]]:
-        return afunctions.catch(
+        return _afunctions.catch(
             stream.upstream.accept(cast(AsyncIteratorVisitor[Union[T, U]], self)),
             stream._errors,
             when=stream._when,
@@ -49,7 +49,7 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
     def visit_acatch_stream(
         self, stream: ACatchStream[T, U]
     ) -> AsyncIterator[Union[T, U]]:
-        return afunctions.acatch(
+        return _afunctions.acatch(
             stream.upstream.accept(cast(AsyncIteratorVisitor[Union[T, U]], self)),
             stream._errors,
             when=stream._when,
@@ -58,33 +58,33 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
         )
 
     def visit_distinct_stream(self, stream: DistinctStream[T]) -> AsyncIterator[T]:
-        return afunctions.distinct(
+        return _afunctions.distinct(
             stream.upstream.accept(self),
             stream._by,
             consecutive=stream._consecutive,
         )
 
     def visit_adistinct_stream(self, stream: ADistinctStream[T]) -> AsyncIterator[T]:
-        return afunctions.adistinct(
+        return _afunctions.adistinct(
             stream.upstream.accept(self),
             stream._by,
             consecutive=stream._consecutive,
         )
 
     def visit_filter_stream(self, stream: FilterStream[T]) -> AsyncIterator[T]:
-        return afunctions.filter(stream.upstream.accept(self), stream._where)
+        return _afunctions.filter(stream.upstream.accept(self), stream._where)
 
     def visit_afilter_stream(self, stream: AFilterStream[T]) -> AsyncIterator[T]:
-        return afunctions.afilter(stream.upstream.accept(self), stream._where)
+        return _afunctions.afilter(stream.upstream.accept(self), stream._where)
 
     def visit_flatten_stream(self, stream: FlattenStream[T]) -> AsyncIterator[T]:
-        return afunctions.flatten(
+        return _afunctions.flatten(
             stream.upstream.accept(cast(AsyncIteratorVisitor[Iterable], self)),
             concurrency=stream._concurrency,
         )
 
     def visit_aflatten_stream(self, stream: AFlattenStream[T]) -> AsyncIterator[T]:
-        return afunctions.aflatten(
+        return _afunctions.aflatten(
             stream.upstream.accept(cast(AsyncIteratorVisitor[AsyncIterable], self)),
             concurrency=stream._concurrency,
         )
@@ -113,7 +113,7 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
     def visit_group_stream(self, stream: GroupStream[U]) -> AsyncIterator[T]:
         return cast(
             AsyncIterator[T],
-            afunctions.group(
+            _afunctions.group(
                 stream.upstream.accept(cast(AsyncIteratorVisitor[U], self)),
                 stream._size,
                 interval=stream._interval,
@@ -124,7 +124,7 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
     def visit_agroup_stream(self, stream: AGroupStream[U]) -> AsyncIterator[T]:
         return cast(
             AsyncIterator[T],
-            afunctions.agroup(
+            _afunctions.agroup(
                 stream.upstream.accept(cast(AsyncIteratorVisitor[U], self)),
                 stream._size,
                 interval=stream._interval,
@@ -135,7 +135,7 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
     def visit_groupby_stream(self, stream: GroupbyStream[U, T]) -> AsyncIterator[T]:
         return cast(
             AsyncIterator[T],
-            afunctions.groupby(
+            _afunctions.groupby(
                 stream.upstream.accept(cast(AsyncIteratorVisitor[U], self)),
                 stream._key,
                 size=stream._size,
@@ -146,7 +146,7 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
     def visit_agroupby_stream(self, stream: AGroupbyStream[U, T]) -> AsyncIterator[T]:
         return cast(
             AsyncIterator[T],
-            afunctions.agroupby(
+            _afunctions.agroupby(
                 stream.upstream.accept(cast(AsyncIteratorVisitor[U], self)),
                 stream._key,
                 size=stream._size,
@@ -155,7 +155,7 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
         )
 
     def visit_map_stream(self, stream: MapStream[U, T]) -> AsyncIterator[T]:
-        return afunctions.map(
+        return _afunctions.map(
             stream._to,
             stream.upstream.accept(cast(AsyncIteratorVisitor[U], self)),
             concurrency=stream._concurrency,
@@ -164,7 +164,7 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
         )
 
     def visit_amap_stream(self, stream: AMapStream[U, T]) -> AsyncIterator[T]:
-        return afunctions.amap(
+        return _afunctions.amap(
             stream._to,
             stream.upstream.accept(cast(AsyncIteratorVisitor[U], self)),
             concurrency=stream._concurrency,
@@ -172,38 +172,38 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
         )
 
     def visit_observe_stream(self, stream: ObserveStream[T]) -> AsyncIterator[T]:
-        return afunctions.observe(
+        return _afunctions.observe(
             stream.upstream.accept(self),
             stream._what,
         )
 
     def visit_skip_stream(self, stream: SkipStream[T]) -> AsyncIterator[T]:
-        return afunctions.skip(
+        return _afunctions.skip(
             stream.upstream.accept(self),
             until=stream._until,
         )
 
     def visit_askip_stream(self, stream: ASkipStream[T]) -> AsyncIterator[T]:
-        return afunctions.askip(
+        return _afunctions.askip(
             stream.upstream.accept(self),
             until=stream._until,
         )
 
     def visit_throttle_stream(self, stream: ThrottleStream[T]) -> AsyncIterator[T]:
-        return afunctions.throttle(
+        return _afunctions.throttle(
             stream.upstream.accept(self),
             stream._up_to,
             per=stream._per,
         )
 
     def visit_truncate_stream(self, stream: TruncateStream[T]) -> AsyncIterator[T]:
-        return afunctions.truncate(
+        return _afunctions.truncate(
             stream.upstream.accept(self),
             when=stream._when,
         )
 
     def visit_atruncate_stream(self, stream: ATruncateStream[T]) -> AsyncIterator[T]:
-        return afunctions.atruncate(
+        return _afunctions.atruncate(
             stream.upstream.accept(self),
             when=stream._when,
         )

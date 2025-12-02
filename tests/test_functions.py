@@ -1,7 +1,15 @@
 import datetime
 from typing import Callable, Iterator, List, Union, cast
 
-from streamable.functions import catch, flatten, group, map, observe, throttle, truncate
+from streamable._functions import (
+    catch,
+    flatten,
+    group,
+    map,
+    observe,
+    throttle,
+    truncate,
+)
 
 
 def test_signatures() -> None:

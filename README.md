@@ -785,19 +785,6 @@ map(str, filter(lambda n: n % 2, range(1_000_000)))
 
 Operations have been [implemented](https://github.com/ebonnal/streamable/blob/main/streamable/iterators.py) with speed in mind. If you have any ideas for improvement, whether performance-related or not, an issue, PR, or discussion would be very much appreciated! ([CONTRIBUTING.md](CONTRIBUTING.md))
 
-## `streamable.functions`
-
-The `Stream`'s methods are also exposed as functions in `streamable.functions`/`afunctions`:
-<details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
-
-```python
-from streamable.functions import throttle
-
-events: Iterable[...] = ...
-for event in throttle(events, 10, per=timedelta(seconds=1)):
-    # process max 10 events per second
-```
-
 </details>
 
 ## Highlights from the community

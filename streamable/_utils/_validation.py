@@ -56,9 +56,11 @@ def validate_count(count: int, *, name: str) -> None:
     if count < 0:
         raise ValueError(f"`{name}` must be >= 0 but got {count}")
 
+
 def validate_positive_count(count: int, *, name: str) -> None:
     if count < 1:
         raise ValueError(f"`{name}` must be >= 1 but got {count}")
+
 
 def _is_exception_subclass(error: Any) -> bool:
     return type(error) is type and issubclass(error, Exception)
