@@ -1309,35 +1309,6 @@ def test_is_iterable() -> None:
     assert isinstance(Stream(src), AsyncIterable)
 
 
-def test_count() -> None:
-    acc: List[int] = []
-
-    def effect(x: int) -> None:
-        nonlocal acc
-        acc.append(x)
-
-    stream = Stream(lambda: map(effect, src))
-    # `count` should return the count of elements.
-    assert stream.count() == N
-    # `count` should iterate over the entire stream.
-    assert acc == list(src)
-
-
-@pytest.mark.asyncio
-async def test_acount() -> None:
-    acc: List[int] = []
-
-    def effect(x: int) -> None:
-        nonlocal acc
-        acc.append(x)
-
-    stream = Stream(lambda: map(effect, src))
-    # `count` should return the count of elements.
-    assert (await stream.acount()) == N
-    # `count` should iterate over the entire stream.
-    assert acc == list(src)
-
-
 def test_call() -> None:
     acc: List[int] = []
     stream = Stream(src).map(acc.append)
@@ -1617,8 +1588,12 @@ async def test_run_in_executor(stream: Stream) -> None:
     """
     concurrency = N // 8
     res: tuple[int, int]
+
+    async def count(stream: Stream) -> int:
+        return len([_ async for _ in stream])
+
     duration, res = await timecoro(
-        lambda: asyncio.gather(stream.acount(), stream.acount()), times=10
+        lambda: asyncio.gather(count(stream), count(stream)), times=10
     )
     assert tuple(res) == (N, N)
     assert duration == pytest.approx(N * slow_identity_duration / concurrency, rel=0.25)

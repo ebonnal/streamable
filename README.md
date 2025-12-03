@@ -237,7 +237,7 @@ assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
 if __name__ == "__main__":
     state: List[int] = []
     # integers are mapped
-    assert integers.map(state.append, concurrency=4, via="process").count() == 10
+    assert list(integers.map(state.append, concurrency=4, via="process")) == [None] * 10
     # but the `state` of the main process is not mutated
     assert state == []
 ```
@@ -667,32 +667,6 @@ cubes: Stream[int] = (
 
 assert list(cubes) == [0, 1, 8, 27, 64, 125, 216, 343, 512, 729]
 ```
-</details>
-
-
-## Shorthands for consuming the stream
-
-Although consuming the stream is beyond the scope of this library, it provides two basic shorthands to trigger an iteration:
-
-## 🟡 `.count` / `.acount`
-
-> `.count` iterates over the stream until exhaustion and returns the number of elements yielded:
-
-<details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
-
-```python
-assert integers.count() == 10
-```
-</details>
-
-> The `.acount` (`async` method) iterates over the stream as an `AsyncIterable` until exhaustion and returns the number of elements yielded:
-
-<details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
-
-```python
-assert await integers.acount() == 10
-```
-
 </details>
 
 ## 🟡 `()` / `await`

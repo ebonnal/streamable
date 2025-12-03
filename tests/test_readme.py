@@ -55,8 +55,7 @@ def test_thread_concurrent_map_example() -> None:
 def test_process_concurrent_map_example() -> None:
     state: List[int] = []
     # integers are mapped
-    assert integers.map(state.append, concurrency=4, via="process").count() == 10
-    # but the `state` of the main process is not mutated
+    assert list(integers.map(state.append, concurrency=4, via="process")) == [None] * 10
     assert state == []
 
 @pytest.mark.asyncio
@@ -259,13 +258,6 @@ def test_zip_example() -> None:
     )
 
     assert list(cubes) == [0, 1, 8, 27, 64, 125, 216, 343, 512, 729]
-
-def test_count_example() -> None:
-    assert integers.count() == 10
-
-@pytest.mark.asyncio
-async def test_acount_example() -> None:
-    assert await integers.acount() == 10
 
 def test_call_example() -> None:
     state: List[int] = []
