@@ -1,11 +1,8 @@
 from typing import cast
 
 from streamable._stream import (
-    ACatchStream,
     AFlattenStream,
     AForeachStream,
-    AGroupbyStream,
-    AGroupStream,
     AMapStream,
     CatchStream,
     DistinctStream,
@@ -31,7 +28,6 @@ def test_visitor() -> None:
 
     visitor = ConcreteVisitor()
     visitor.visit_catch_stream(cast(CatchStream, ...))
-    visitor.visit_acatch_stream(cast(ACatchStream, ...))
     visitor.visit_distinct_stream(cast(DistinctStream, ...))
     visitor.visit_filter_stream(cast(FilterStream, ...))
     visitor.visit_flatten_stream(cast(FlattenStream, ...))
@@ -39,9 +35,7 @@ def test_visitor() -> None:
     visitor.visit_foreach_stream(cast(ForeachStream, ...))
     visitor.visit_aforeach_stream(cast(AForeachStream, ...))
     visitor.visit_group_stream(cast(GroupStream, ...))
-    visitor.visit_agroup_stream(cast(AGroupStream, ...))
     visitor.visit_groupby_stream(cast(GroupbyStream, ...))
-    visitor.visit_agroupby_stream(cast(AGroupbyStream, ...))
     visitor.visit_map_stream(cast(MapStream, ...))
     visitor.visit_amap_stream(cast(AMapStream, ...))
     visitor.visit_observe_stream(cast(ObserveStream, ...))

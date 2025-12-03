@@ -15,9 +15,6 @@ class Visitor(ABC, Generic[V]):
     def visit_catch_stream(self, stream: _stream.CatchStream) -> V:
         return self.visit_stream(stream)
 
-    def visit_acatch_stream(self, stream: _stream.ACatchStream) -> V:
-        return self.visit_stream(stream)
-
     def visit_distinct_stream(self, stream: _stream.DistinctStream) -> V:
         return self.visit_stream(stream)
 
@@ -39,13 +36,7 @@ class Visitor(ABC, Generic[V]):
     def visit_group_stream(self, stream: _stream.GroupStream) -> V:
         return self.visit_stream(stream)
 
-    def visit_agroup_stream(self, stream: _stream.AGroupStream) -> V:
-        return self.visit_stream(stream)
-
     def visit_groupby_stream(self, stream: _stream.GroupbyStream) -> V:
-        return self.visit_stream(stream)
-
-    def visit_agroupby_stream(self, stream: _stream.AGroupbyStream) -> V:
         return self.visit_stream(stream)
 
     def visit_observe_stream(self, stream: _stream.ObserveStream) -> V:

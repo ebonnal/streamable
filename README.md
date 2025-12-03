@@ -165,13 +165,13 @@ Let's do a tour of the `Stream`'s operations, for more details visit the [***doc
 |--|--|
 [`.map`](#-map--amap)|transform elements|
 [`.foreach`](#-foreach--aforeach)|apply a side effect on elements|
-[`.group`](#-group--agroup) / [`.groupby`](#-groupby--agroupby)|batch a certain number of elements, by a given key, over a time interval|
+[`.group`](#-group) / [`.groupby`](#-groupby)|batch a certain number of elements, by a given key, over a time interval|
 [`.flatten`](#-flatten--aflatten)|explode iterable elements|
 [`.filter`](#-filter)|remove elements|
 [`.distinct`](#-distinct)|remove duplicates|
 [`.truncate`](#-truncate)|cut the stream|
 [`.skip`](#-skip)|ignore head elements|
-[`.catch`](#-catch--acatch)|handle exceptions|
+[`.catch`](#-catch)|handle exceptions|
 [`.throttle`](#-throttle)|control the rate of iteration|
 [`.observe`](#-observe)|log elements/errors counters|
 
@@ -307,9 +307,9 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 > - set `ordered=False` for ***First Done First Out***
 > - The `.aforeach` operation can apply an `async` effect concurrently.
 
-## 🟡 `.group` / `.agroup`
+## 🟡 `.group`
 
-> Groups into `List`s
+> Groups into `List`s (works with sync or async `by` predicates)
 
 > ... up to a given group `size`:
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
@@ -364,9 +364,9 @@ assert list(integers_by_parity_by_2) == [[0, 2], [1, 3], [4, 6], [5, 7], [8], [9
 ```
 </details>
 
-## 🟡 `.groupby` / `.agroupby`
+## 🟡 `.groupby`
 
-> Like `.group`, but groups into `(key, elements)` tuples:
+> Like `.group`, but groups into `(key, elements)` tuples (sync or async `key`):
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
@@ -531,9 +531,9 @@ assert list(integers_after_five) == [5, 6, 7, 8, 9]
 
 > If both `count` and `until` are set, skipping stops as soon as either condition is met.
 
-## 🟡 `.catch` / `.acatch`
+## 🟡 `.catch`
 
-> Catches a given type of exception, and optionally `replace` it:
+> Catches a given type of exception, and optionally `replace` it (sync or async):
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 

@@ -1,12 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import Any, Iterable, List
+from typing import Any, List
 
 from streamable._stream import (
-    ACatchStream,
     AFlattenStream,
     AForeachStream,
-    AGroupbyStream,
-    AGroupStream,
     AMapStream,
     CatchStream,
     DistinctStream,
@@ -45,19 +42,6 @@ class ToStringVisitor(Visitor[str], ABC):
             errors = self.to_string(stream._errors)
         self.methods_reprs.append(
             f"catch({errors}, when={self.to_string(stream._when)}{replace}, finally_raise={self.to_string(stream._finally_raise)})"
-        )
-        return stream.upstream.accept(self)
-
-    def visit_acatch_stream(self, stream: ACatchStream) -> str:
-        replace = ""
-        if stream._replace:
-            replace = f", replace={self.to_string(stream._replace)}"
-        if isinstance(stream._errors, Iterable):
-            errors = f"({', '.join(map(self.to_string, stream._errors))})"
-        else:
-            errors = self.to_string(stream._errors)
-        self.methods_reprs.append(
-            f"acatch({errors}, when={self.to_string(stream._when)}{replace}, finally_raise={self.to_string(stream._finally_raise)})"
         )
         return stream.upstream.accept(self)
 
@@ -102,21 +86,9 @@ class ToStringVisitor(Visitor[str], ABC):
         )
         return stream.upstream.accept(self)
 
-    def visit_agroup_stream(self, stream: AGroupStream) -> str:
-        self.methods_reprs.append(
-            f"agroup(size={self.to_string(stream._size)}, by={self.to_string(stream._by)}, interval={self.to_string(stream._interval)})"
-        )
-        return stream.upstream.accept(self)
-
     def visit_groupby_stream(self, stream: GroupbyStream) -> str:
         self.methods_reprs.append(
             f"groupby({self.to_string(stream._key)}, size={self.to_string(stream._size)}, interval={self.to_string(stream._interval)})"
-        )
-        return stream.upstream.accept(self)
-
-    def visit_agroupby_stream(self, stream: AGroupbyStream) -> str:
-        self.methods_reprs.append(
-            f"agroupby({self.to_string(stream._key)}, size={self.to_string(stream._size)}, interval={self.to_string(stream._interval)})"
         )
         return stream.upstream.accept(self)
 

@@ -1,11 +1,8 @@
 from typing import Any, Union
 
 from streamable._stream import (
-    ACatchStream,
     AFlattenStream,
     AForeachStream,
-    AGroupbyStream,
-    AGroupStream,
     AMapStream,
     CatchStream,
     DistinctStream,
@@ -31,7 +28,7 @@ class EqualityVisitor(Visitor[bool]):
     def type_eq(self, stream: Stream) -> bool:
         return type(stream) is type(self.other)
 
-    def catch_eq(self, stream: Union[CatchStream, ACatchStream]) -> bool:
+    def visit_catch_stream(self, stream: CatchStream) -> bool:
         return (
             self.type_eq(stream)
             and stream.upstream.accept(EqualityVisitor(self.other.upstream))
@@ -40,12 +37,6 @@ class EqualityVisitor(Visitor[bool]):
             and stream._replace == self.other._replace
             and stream._finally_raise == self.other._finally_raise
         )
-
-    def visit_catch_stream(self, stream: CatchStream) -> bool:
-        return self.catch_eq(stream)
-
-    def visit_acatch_stream(self, stream: ACatchStream) -> bool:
-        return self.catch_eq(stream)
 
     def visit_distinct_stream(self, stream: DistinctStream) -> bool:
         return (
@@ -90,7 +81,7 @@ class EqualityVisitor(Visitor[bool]):
     def visit_aforeach_stream(self, stream: AForeachStream) -> bool:
         return self.foreach_eq(stream)
 
-    def group_eq(self, stream: Union[GroupStream, AGroupStream]) -> bool:
+    def visit_group_stream(self, stream: GroupStream) -> bool:
         return (
             self.type_eq(stream)
             and stream.upstream.accept(EqualityVisitor(self.other.upstream))
@@ -99,13 +90,7 @@ class EqualityVisitor(Visitor[bool]):
             and stream._interval == self.other._interval
         )
 
-    def visit_group_stream(self, stream: GroupStream) -> bool:
-        return self.group_eq(stream)
-
-    def visit_agroup_stream(self, stream: AGroupStream) -> bool:
-        return self.group_eq(stream)
-
-    def groupby_eq(self, stream: Union[GroupbyStream, AGroupbyStream]) -> bool:
+    def visit_groupby_stream(self, stream: GroupbyStream) -> bool:
         return (
             self.type_eq(stream)
             and stream.upstream.accept(EqualityVisitor(self.other.upstream))
@@ -113,12 +98,6 @@ class EqualityVisitor(Visitor[bool]):
             and stream._size == self.other._size
             and stream._interval == self.other._interval
         )
-
-    def visit_groupby_stream(self, stream: GroupbyStream) -> bool:
-        return self.groupby_eq(stream)
-
-    def visit_agroupby_stream(self, stream: AGroupbyStream) -> bool:
-        return self.groupby_eq(stream)
 
     def map_eq(self, stream: Union[MapStream, AMapStream]) -> bool:
         return (

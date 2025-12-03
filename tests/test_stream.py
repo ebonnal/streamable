@@ -792,23 +792,20 @@ def test_truncate(itype: IterableType, adapt) -> None:
 
 
 @pytest.mark.parametrize(
-    "itype, group, groupby, adapt, nostop_",
+    "itype, adapt, nostop_",
     (
-        (itype, group, groupby, adapt, nostop_)
-        for group, groupby, adapt, nostop_ in (
-            (Stream.group, Stream.groupby, identity, nostop),
-            (Stream.agroup, Stream.agroupby, asyncify, anostop),
-        )
+        (itype, adapt, nostop_)
+        for adapt, nostop_ in ((identity, nostop), (asyncify, anostop))
         for itype in ITERABLE_TYPES
     ),
 )
-def test_group(itype: IterableType, group, groupby, adapt, nostop_) -> None:
+def test_group(itype: IterableType, adapt, nostop_) -> None:
     # `group` should raise error when called with `seconds` <= 0.
     for seconds in [-1, 0]:
         with pytest.raises(ValueError):
             to_list(
-                group(
-                    Stream([1]), size=100, interval=datetime.timedelta(seconds=seconds)
+                Stream([1]).group(
+                    size=100, interval=datetime.timedelta(seconds=seconds)
                 ),
                 itype=itype,
             )
@@ -816,26 +813,26 @@ def test_group(itype: IterableType, group, groupby, adapt, nostop_) -> None:
     # `group` should raise error when called with `size` < 1.
     for size in [-1, 0]:
         with pytest.raises(ValueError):
-            to_list(group(Stream([1]), size=size), itype=itype)
+            to_list(Stream([1]).group(size=size), itype=itype)
 
     # group size
-    assert to_list(group(Stream(range(6)), size=4), itype=itype) == [
+    assert to_list(Stream(range(6)).group(size=4), itype=itype) == [
         [0, 1, 2, 3],
         [4, 5],
     ]
-    assert to_list(group(Stream(range(6)), size=2), itype=itype) == [
+    assert to_list(Stream(range(6)).group(size=2), itype=itype) == [
         [0, 1],
         [2, 3],
         [4, 5],
     ]
-    assert to_list(group(Stream([]), size=2), itype=itype) == []
+    assert to_list(Stream([]).group(size=2), itype=itype) == []
 
     # behavior with exceptions
     def f(i):
         return i / (110 - i)
 
     stream_iterator = bi_iterable_to_iter(
-        group(Stream(lambda: map(f, src)), 100), itype=itype
+        Stream(lambda: map(f, src)).group(100), itype=itype
     )
     anext_or_next(stream_iterator)
     # when encountering upstream exception, `group` should yield the current accumulated group...
@@ -850,8 +847,7 @@ def test_group(itype: IterableType, group, groupby, adapt, nostop_) -> None:
     # behavior of the `seconds` parameter
     # `group` should not yield empty groups even though `interval` if smaller than upstream's frequency
     assert to_list(
-        group(
-            Stream(lambda: map(slow_identity, src)),
+        Stream(lambda: map(slow_identity, src)).group(
             size=100,
             interval=datetime.timedelta(seconds=slow_identity_duration / 1000),
         ),
@@ -859,8 +855,7 @@ def test_group(itype: IterableType, group, groupby, adapt, nostop_) -> None:
     ) == list(map(lambda e: [e], src))
     # `group` with `by` argument should not yield empty groups even though `interval` if smaller than upstream's frequency
     assert to_list(
-        group(
-            Stream(lambda: map(slow_identity, src)),
+        Stream(lambda: map(slow_identity, src)).group(
             size=100,
             interval=datetime.timedelta(seconds=slow_identity_duration / 1000),
             by=adapt(lambda _: None),
@@ -869,8 +864,7 @@ def test_group(itype: IterableType, group, groupby, adapt, nostop_) -> None:
     ) == list(map(lambda e: [e], src))
     # `group` should yield upstream elements in a two-element group if `interval` inferior to twice the upstream yield period
     assert to_list(
-        group(
-            Stream(lambda: map(slow_identity, src)),
+        Stream(lambda: map(slow_identity, src)).group(
             size=100,
             interval=datetime.timedelta(seconds=2 * slow_identity_duration * 0.99),
         ),
@@ -878,14 +872,14 @@ def test_group(itype: IterableType, group, groupby, adapt, nostop_) -> None:
     ) == list(map(lambda e: [e, e + 1], even_src))
 
     # `group` without arguments should group the elements all together
-    assert anext_or_next(bi_iterable_to_iter(group(Stream(src)), itype=itype)) == list(
+    assert anext_or_next(bi_iterable_to_iter(Stream(src).group(), itype=itype)) == list(
         src
     )
 
     groupby_stream_iter: Union[
         Iterator[Tuple[int, List[int]]], AsyncIterator[Tuple[int, List[int]]]
     ] = bi_iterable_to_iter(
-        groupby(Stream(src), adapt(lambda n: n % 2), size=2), itype=itype
+        Stream(src).groupby(adapt(lambda n: n % 2), size=2), itype=itype
     )
     # `groupby` must cogroup elements.
     assert [
@@ -895,7 +889,7 @@ def test_group(itype: IterableType, group, groupby, adapt, nostop_) -> None:
 
     # test by
     stream_iter = bi_iterable_to_iter(
-        group(Stream(src), size=2, by=adapt(lambda n: n % 2)), itype=itype
+        Stream(src).group(size=2, by=adapt(lambda n: n % 2)), itype=itype
     )
     # `group` called with a `by` function must cogroup elements.
     assert [anext_or_next(stream_iter), anext_or_next(stream_iter)] == [
@@ -905,8 +899,7 @@ def test_group(itype: IterableType, group, groupby, adapt, nostop_) -> None:
     # `group` called with a `by` function and a `size` should yield the first batch becoming full.
     assert anext_or_next(
         bi_iterable_to_iter(
-            group(
-                Stream(src_raising_at_exhaustion),
+            Stream(src_raising_at_exhaustion).group(
                 size=10,
                 by=adapt(lambda n: n % 4 != 0),
             ),
@@ -914,17 +907,17 @@ def test_group(itype: IterableType, group, groupby, adapt, nostop_) -> None:
         ),
     ) == [1, 2, 3, 5, 6, 7, 9, 10, 11, 13]
     # `group` called with a `by` function and an infinite size must cogroup elements and yield groups starting with the group containing the oldest element.
-    assert to_list(group(Stream(src), by=adapt(lambda n: n % 2)), itype=itype) == [
+    assert to_list(Stream(src).group(by=adapt(lambda n: n % 2)), itype=itype) == [
         list(range(0, N, 2)),
         list(range(1, N, 2)),
     ]
     # `group` called with a `by` function and reaching exhaustion must cogroup elements and yield uncomplete groups starting with the group containing the oldest element, even though it's not the largest.
     assert to_list(
-        group(Stream(range(10)), by=adapt(lambda n: n % 4 == 0)), itype=itype
+        Stream(range(10)).group(by=adapt(lambda n: n % 4 == 0)), itype=itype
     ) == [[0, 4, 8], [1, 2, 3, 5, 6, 7, 9]]
 
     stream_iter = bi_iterable_to_iter(
-        group(Stream(src_raising_at_exhaustion), by=adapt(lambda n: n % 2)),
+        Stream(src_raising_at_exhaustion).group(by=adapt(lambda n: n % 2)),
         itype=itype,
     )
     # `group` called with a `by` function and encountering an exception must cogroup elements and yield uncomplete groups starting with the group containing the oldest element.
@@ -938,8 +931,7 @@ def test_group(itype: IterableType, group, groupby, adapt, nostop_) -> None:
     # test seconds + by
     # `group` called with a `by` function must cogroup elements and yield the largest groups when `seconds` is reached event though it's not the oldest.
     assert to_list(
-        group(
-            Stream(lambda: map(slow_identity, range(10))),
+        Stream(lambda: map(slow_identity, range(10))).group(
             interval=datetime.timedelta(seconds=slow_identity_duration * 2.9),
             by=adapt(lambda n: n % 4 == 0),
         ),
@@ -947,8 +939,7 @@ def test_group(itype: IterableType, group, groupby, adapt, nostop_) -> None:
     ) == [[1, 2], [0, 4], [3, 5, 6, 7], [8], [9]]
 
     stream_iter = bi_iterable_to_iter(
-        group(
-            Stream(src),
+        Stream(src).group(
             size=3,
             by=nostop_(
                 adapt(
@@ -1107,24 +1098,22 @@ def test_distinct(itype: IterableType, adapt) -> None:
 
 
 @pytest.mark.parametrize(
-    "itype, catch, adapt",
-    (
-        (itype, catch, adapt)
-        for catch, adapt in ((Stream.catch, identity), (Stream.acatch, asyncify))
-        for itype in ITERABLE_TYPES
-    ),
+    "itype, adapt",
+    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
 )
-def test_catch(itype: IterableType, catch, adapt) -> None:
+def test_catch(itype: IterableType, adapt) -> None:
     # `catch` should yield elements in exception-less scenarios
     assert to_list(
-        catch(Stream(src), Exception, finally_raise=True), itype=itype
+        Stream(src).catch(Exception, finally_raise=True), itype=itype
     ) == list(src)
-    # `catch` should raise TypeError when first argument is not None or Type[Exception], or Iterable[Optional[Type[Exception]]]
     with pytest.raises(
         TypeError,
-        match="`errors` must be an `Exception` subclass or a tuple of such classes but got 1",
+        match="`when` and `replace` must both be coroutine functions or neither should be",
     ):
-        catch(Stream(src), 1)  # type: ignore
+        to_list(
+            Stream(src).catch(Exception, when=identity, replace=async_identity),
+            itype=itype,
+        )  # type: ignore
 
     def f(i):
         return i / (3 - i)
@@ -1133,12 +1122,12 @@ def test_catch(itype: IterableType, catch, adapt) -> None:
     safe_src = list(src)
     del safe_src[3]
     # If the exception type matches the `error_type`, then the impacted element should be ignored.
-    assert to_list(catch(stream, ZeroDivisionError), itype=itype) == list(
+    assert to_list(stream.catch(ZeroDivisionError), itype=itype) == list(
         map(f, safe_src)
     )
     # If a non-caught exception type occurs, then it should be raised.
     with pytest.raises(ZeroDivisionError):
-        to_list(catch(stream, TestError), itype=itype)
+        to_list(stream.catch(TestError), itype=itype)
 
     first_value = 1
     second_value = 2
@@ -1155,8 +1144,8 @@ def test_catch(itype: IterableType, catch, adapt) -> None:
 
     erroring_stream: Stream[int] = Stream(lambda: map(lambda f: f(), functions))
     for caught_erroring_stream in [
-        catch(erroring_stream, Exception, finally_raise=True),
-        catch(erroring_stream, Exception, finally_raise=True),
+        erroring_stream.catch(Exception, finally_raise=True),
+        erroring_stream.catch(Exception, finally_raise=True),
     ]:
         erroring_stream_iterator = bi_iterable_to_iter(
             caught_erroring_stream, itype=itype
@@ -1175,10 +1164,9 @@ def test_catch(itype: IterableType, catch, adapt) -> None:
         # 3 elements should have passed been yielded between caught exceptions.
         assert n_yields == 3
 
-    only_caught_errors_stream = catch(
-        Stream(map(lambda _: throw(TestError), range(2000))),
-        TestError,
-    )
+    only_caught_errors_stream = Stream(
+        map(lambda _: throw(TestError), range(2000))
+    ).catch(TestError)
     # When upstream raise exceptions without yielding any element, listing the stream must return empty list, without recursion issue.
     assert to_list(only_caught_errors_stream, itype=itype) == []
     # When upstream raise exceptions without yielding any element, then the first call to `next` on a stream catching all errors should raise StopIteration.
@@ -1186,15 +1174,9 @@ def test_catch(itype: IterableType, catch, adapt) -> None:
         anext_or_next(bi_iterable_to_iter(only_caught_errors_stream, itype=itype))
 
     iterator = bi_iterable_to_iter(
-        catch(
-            catch(
-                Stream(map(throw, [TestError, ValueError])),
-                ValueError,
-                finally_raise=True,
-            ),
-            TestError,
-            finally_raise=True,
-        ),
+        Stream(map(throw, [TestError, ValueError]))
+        .catch(ValueError, finally_raise=True)
+        .catch(TestError, finally_raise=True),
         itype=itype,
     )
     # With 2 chained `catch`s with `finally_raise=True`, the error caught by the first `catch` is finally raised first (even though it was raised second)...
@@ -1209,17 +1191,14 @@ def test_catch(itype: IterableType, catch, adapt) -> None:
     # `catch` does not catch if `when` not satisfied
     with pytest.raises(TypeError):
         to_list(
-            catch(
-                Stream(map(throw, [ValueError, TypeError])),
-                Exception,
-                when=adapt(lambda exception: "ValueError" in repr(exception)),
+            Stream(map(throw, [ValueError, TypeError])).catch(
+                Exception, when=adapt(lambda exception: "ValueError" in repr(exception))
             ),
             itype=itype,
         )
     # `catch` should be able to yield a non-None replacement
     assert to_list(
-        catch(
-            Stream(map(lambda n: 1 / n, [0, 1, 2, 4])),
+        Stream(map(lambda n: 1 / n, [0, 1, 2, 4])).catch(
             ZeroDivisionError,
             replace=adapt(lambda e: float("inf")),
         ),
@@ -1227,8 +1206,7 @@ def test_catch(itype: IterableType, catch, adapt) -> None:
     ) == [float("inf"), 1, 0.5, 0.25]
     # `catch` should be able to yield a None replacement
     assert to_list(
-        catch(
-            Stream(map(lambda n: 1 / n, [0, 1, 2, 4])),
+        Stream(map(lambda n: 1 / n, [0, 1, 2, 4])).catch(
             ZeroDivisionError,
             replace=adapt(lambda e: None),
         ),
@@ -1238,19 +1216,18 @@ def test_catch(itype: IterableType, catch, adapt) -> None:
     errors_counter: Counter[Type[Exception]] = Counter()
     # `catch` should accept multiple types
     assert to_list(
-        catch(
-            Stream(
+        Stream(
+            map(
+                lambda n: 1 / n,  # potential ZeroDivisionError
                 map(
-                    lambda n: 1 / n,  # potential ZeroDivisionError
+                    throw_for_odd_func(TestError),  # potential TestError
                     map(
-                        throw_for_odd_func(TestError),  # potential TestError
-                        map(
-                            int,  # potential ValueError
-                            "01234foo56789",
-                        ),
+                        int,  # potential ValueError
+                        "01234foo56789",
                     ),
-                )
-            ),
+                ),
+            )
+        ).catch(
             (ValueError, TestError, ZeroDivisionError),
             when=adapt(lambda err: errors_counter.update([type(err)]) is None),
         ),
@@ -1408,7 +1385,7 @@ def test_eq() -> None:
     stream = (
         Stream(src)
         .catch((TypeError, ValueError), replace=identity, when=identity)
-        .acatch((TypeError, ValueError), replace=async_identity, when=async_identity)
+        .catch((TypeError, ValueError), replace=async_identity, when=async_identity)
         .distinct(identity)
         .distinct(async_identity)
         .filter(identity)
@@ -1417,12 +1394,12 @@ def test_eq() -> None:
         .aforeach(async_identity, concurrency=3)
         .group(3, by=bool)
         .flatten(concurrency=3)
-        .agroup(3, by=async_identity)
+        .group(3, by=async_identity)
         .map(iter)
         .map(sync_to_async_iter)
         .aflatten(concurrency=3)
         .groupby(bool)
-        .agroupby(async_identity)
+        .groupby(async_identity)
         .map(identity, via="process")
         .amap(async_identity)
         .observe("foo")
@@ -1436,7 +1413,7 @@ def test_eq() -> None:
     assert stream == (
         Stream(src)
         .catch((TypeError, ValueError), replace=identity, when=identity)
-        .acatch((TypeError, ValueError), replace=async_identity, when=async_identity)
+        .catch((TypeError, ValueError), replace=async_identity, when=async_identity)
         .distinct(identity)
         .distinct(async_identity)
         .filter(identity)
@@ -1445,12 +1422,12 @@ def test_eq() -> None:
         .aforeach(async_identity, concurrency=3)
         .group(3, by=bool)
         .flatten(concurrency=3)
-        .agroup(3, by=async_identity)
+        .group(3, by=async_identity)
         .map(iter)
         .map(sync_to_async_iter)
         .aflatten(concurrency=3)
         .groupby(bool)
-        .agroupby(async_identity)
+        .groupby(async_identity)
         .map(identity, via="process")
         .amap(async_identity)
         .observe("foo")
@@ -1463,7 +1440,7 @@ def test_eq() -> None:
     assert stream != (
         Stream(list(src))  # not same source
         .catch((TypeError, ValueError), replace=lambda e: 2, when=identity)
-        .acatch(
+        .catch(
             (TypeError, ValueError), replace=asyncify(lambda e: 2), when=async_identity
         )
         .distinct(identity)
@@ -1474,12 +1451,12 @@ def test_eq() -> None:
         .aforeach(async_identity, concurrency=3)
         .group(3, by=bool)
         .flatten(concurrency=3)
-        .agroup(3, by=async_identity)
+        .group(3, by=async_identity)
         .map(iter)
         .map(sync_to_async_iter)
         .aflatten(concurrency=3)
         .groupby(bool)
-        .agroupby(async_identity)
+        .groupby(async_identity)
         .map(identity, via="process")
         .amap(async_identity)
         .observe("foo")
@@ -1492,7 +1469,7 @@ def test_eq() -> None:
     assert stream != (
         Stream(src)
         .catch((TypeError, ValueError), replace=lambda e: 2, when=identity)
-        .acatch(
+        .catch(
             (TypeError, ValueError), replace=asyncify(lambda e: 2), when=async_identity
         )
         .distinct(identity)
@@ -1503,12 +1480,12 @@ def test_eq() -> None:
         .aforeach(async_identity, concurrency=3)
         .group(3, by=bool)
         .flatten(concurrency=3)
-        .agroup(3, by=async_identity)
+        .group(3, by=async_identity)
         .map(iter)
         .map(sync_to_async_iter)
         .aflatten(concurrency=3)
         .groupby(bool)
-        .agroupby(async_identity)
+        .groupby(async_identity)
         .map(identity, via="process")
         .amap(async_identity)
         .observe("foo")

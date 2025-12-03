@@ -212,6 +212,17 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         """
         return func(self, *args, **kwargs)
 
+    @overload
+    def catch(
+        self,
+        errors: Union[Type[Exception], Tuple[Type[Exception], ...]],
+        *,
+        when: Optional[Callable[[Exception], Coroutine[Any, Any, Any]]] = None,
+        replace: Optional[Callable[[Exception], Coroutine[Any, Any, U]]] = None,
+        finally_raise: bool = False,
+    ) -> "Stream[Union[T, U]]": ...
+
+    @overload
     def catch(
         self,
         errors: Union[Type[Exception], Tuple[Type[Exception], ...]],
@@ -219,16 +230,33 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         when: Optional[Callable[[Exception], Any]] = None,
         replace: Optional[Callable[[Exception], U]] = None,
         finally_raise: bool = False,
+    ) -> "Stream[Union[T, U]]": ...
+
+    def catch(
+        self,
+        errors: Union[Type[Exception], Tuple[Type[Exception], ...]],
+        *,
+        when: Union[
+            None,
+            Callable[[Exception], Any],
+            Callable[[Exception], Coroutine[Any, Any, Any]],
+        ] = None,
+        replace: Union[
+            None,
+            Callable[[Exception], U],
+            Callable[[Exception], Coroutine[Any, Any, U]],
+        ] = None,
+        finally_raise: bool = False,
     ) -> "Stream[Union[T, U]]":
         """
         Catches the upstream exceptions if they are instances of ``errors`` type and they satisfy the ``when`` predicate.
-        Optionally yields a replacement value (returned by ``replace(error)``).
+        Optionally yields a replacement value (returned by ``replace(error)`` or ``await replace(error)``).
         If any exception was caught during the iteration and ``finally_raise=True``, the first exception caught will be raised when the iteration finishes.
 
         Args:
             errors (``Type[Exception] | Tuple[Type[Exception], ...]``): The exception types to catch.
-            when (``Callable[[Exception], Any] | None``, optional): An additional condition that must be satisfied to catch the exception, i.e. ``when(exception)`` must be truthy. (default: no additional condition)
-            replace (``Callable[[Exception], U] | None``, optional): ``replace(exception)`` will be yielded when an exception is caught. (default: do not yield any replacement value)
+            when (``Callable[[Exception], Any] | Callable[[Exception], Coroutine[Any, Any, Any]] | None``, optional): An additional condition that must be satisfied to catch the exception, i.e. ``when(exception)`` (or ``await when(exception)``) must be truthy. (default: no additional condition)
+            replace (``Callable[[Exception], U] | Callable[[Exception], Coroutine[Any, Any, U]] | None``, optional): Replacement value yielded when an exception is caught. (default: do not yield any replacement value)
             finally_raise (``bool``, optional): If True the first exception caught is raised when upstream's iteration ends. (default: iteration ends without raising)
 
         Returns:
@@ -236,37 +264,6 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         """
         validate_errors(errors)
         return CatchStream(
-            self,
-            errors,
-            when=when,
-            replace=replace,
-            finally_raise=finally_raise,
-        )
-
-    def acatch(
-        self,
-        errors: Union[Type[Exception], Tuple[Type[Exception], ...]],
-        *,
-        when: Optional[Callable[[Exception], Coroutine[Any, Any, Any]]] = None,
-        replace: Optional[Callable[[Exception], Coroutine[Any, Any, U]]] = None,
-        finally_raise: bool = False,
-    ) -> "Stream[Union[T, U]]":
-        """
-        Catches the upstream exceptions if they are instances of ``errors`` type and they satisfy the ``when`` predicate.
-        Optionally yields a replacement value (returned by ``await replace(error)``).
-        If any exception was caught during the iteration and ``finally_raise=True``, the first exception caught will be raised when the iteration finishes.
-
-        Args:
-            errors (``Type[Exception] | Tuple[Type[Exception], ...]``): The exception types to catch.
-            when (``Callable[[Exception], Coroutine[Any, Any, Any]] | None``, optional): An additional condition that must be satisfied to catch the exception, i.e. ``await when(exception)`` must be truthy. (default: no additional condition)
-            replace (``Callable[[Exception], Coroutine[Any, Any, U]] | None``, optional): ``await replace(exception)`` will be yielded when an exception is caught. (default: do not yield any replacement value)
-            finally_raise (``bool``, optional): If True the first exception caught is raised when upstream's iteration ends. (default: iteration ends without raising)
-
-        Returns:
-            ``Stream[T | U]``: A stream of upstream elements catching the eligible exceptions.
-        """
-        validate_errors(errors)
-        return ACatchStream(
             self,
             errors,
             when=when,
@@ -311,7 +308,7 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
             Alternatively, remove only consecutive duplicates without memory footprint by setting ``consecutive=True``.
 
         Args:
-            by (``Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``, optional): 
+            by (``Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``, optional):
                 - ``Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``: Elements are deduplicated based on ``by(elem)``.
                 - ``None``: The deduplication is performed on the elements themselves. (default)
             consecutive (``bool``, optional): Removes only consecutive duplicates if ``True``, or deduplicates globally if ``False``. (default: global deduplication)
@@ -504,12 +501,34 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         validate_concurrency(concurrency)
         return AForeachStream(self, do, concurrency, ordered)
 
+    @overload
+    def group(
+        self,
+        size: Optional[int] = None,
+        *,
+        interval: Optional[datetime.timedelta] = None,
+        by: Callable[[T], Coroutine[Any, Any, Any]],
+    ) -> "Stream[List[T]]": ...
+
+    @overload
     def group(
         self,
         size: Optional[int] = None,
         *,
         interval: Optional[datetime.timedelta] = None,
         by: Optional[Callable[[T], Any]] = None,
+    ) -> "Stream[List[T]]": ...
+
+    def group(
+        self,
+        size: Optional[int] = None,
+        *,
+        interval: Optional[datetime.timedelta] = None,
+        by: Union[
+            None,
+            Callable[[T], Any],
+            Callable[[T], Coroutine[Any, Any, Any]],
+        ] = None,
     ) -> "Stream[List[T]]":
         """
         Groups upstream elements into lists.
@@ -520,12 +539,12 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         - ``interval`` seconds have passed since the last group was yielded.
         - The upstream source is exhausted.
 
-        If ``by`` is specified, groups will only contain elements sharing the same ``by(elem)`` value (see ``.groupby`` for ``(key, elements)`` pairs).
+        If ``by`` is specified, groups will only contain elements sharing the same ``by(elem)`` value (or ``await by(elem)``) (see ``.groupby`` for ``(key, elements)`` pairs).
 
         Args:
             size (``int | None``, optional): The maximum number of elements per group. (default: no size limit)
             interval (``float``, optional): Yields a group if ``interval`` seconds have passed since the last group was yielded. (default: no interval limit)
-            by (``Callable[[T], Any] | None``, optional): If specified, groups will only contain elements sharing the same ``by(elem)`` value. (default: does not co-group elements)
+            by (``Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]] | None``, optional): If specified, groups will only contain elements sharing the same ``by(elem)`` value. (default: does not co-group elements)
         Returns:
             ``Stream[List[T]]``: A stream of upstream elements grouped into lists.
         """
@@ -533,38 +552,30 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         validate_optional_positive_interval(interval, name="interval")
         return GroupStream(self, size, interval, by)
 
-    def agroup(
+    @overload
+    def groupby(
         self,
-        size: Optional[int] = None,
+        key: Callable[[T], Coroutine[Any, Any, U]],
         *,
+        size: Optional[int] = None,
         interval: Optional[datetime.timedelta] = None,
-        by: Optional[Callable[[T], Coroutine[Any, Any, Any]]] = None,
-    ) -> "Stream[List[T]]":
-        """
-        Groups upstream elements into lists.
+    ) -> "Stream[Tuple[U, List[T]]]": ...
 
-        A group is yielded when any of the following conditions is met:
-
-        - The group reaches ``size`` elements.
-        - ``interval`` seconds have passed since the last group was yielded.
-        - The upstream source is exhausted.
-
-        If ``by`` is specified, groups will only contain elements sharing the same ``await by(elem)`` value (see ``.agroupby`` for ``(key, elements)`` pairs).
-
-        Args:
-            size (``int | None``, optional): The maximum number of elements per group. (default: no size limit)
-            interval (``float``, optional): Yields a group if ``interval`` seconds have passed since the last group was yielded. (default: no interval limit)
-            by (``Callable[[T], Coroutine[Any, Any, Any]] | None``, optional): If specified, groups will only contain elements sharing the same ``await by(elem)`` value. (default: does not co-group elements)
-        Returns:
-            ``Stream[List[T]]``: A stream of upstream elements grouped into lists.
-        """
-        validate_group_size(size)
-        validate_optional_positive_interval(interval, name="interval")
-        return AGroupStream(self, size, interval, by)
-
+    @overload
     def groupby(
         self,
         key: Callable[[T], U],
+        *,
+        size: Optional[int] = None,
+        interval: Optional[datetime.timedelta] = None,
+    ) -> "Stream[Tuple[U, List[T]]]": ...
+
+    def groupby(
+        self,
+        key: Union[
+            Callable[[T], U],
+            Callable[[T], Coroutine[Any, Any, U]],
+        ],
         *,
         size: Optional[int] = None,
         interval: Optional[datetime.timedelta] = None,
@@ -579,7 +590,7 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         - The upstream source is exhausted.
 
         Args:
-            key (``Callable[[T], U]``): A function that returns the group key for an element.
+            key (``Callable[[T], U] | Callable[[T], Coroutine[Any, Any, U]]``): A function that returns the group key for an element.
             size (``int | None``, optional): The maximum number of elements per group. (default: no size limit)
             interval (``datetime.timedelta | None``, optional): If specified, yields a group if ``interval`` seconds have passed since the last group was yielded. (default: no interval limit)
 
@@ -587,32 +598,6 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
             ``Stream[Tuple[U, List[T]]]``: A stream of upstream elements grouped by key, as ``(key, elements)`` tuples.
         """
         return GroupbyStream(self, key, size, interval)
-
-    def agroupby(
-        self,
-        key: Callable[[T], Coroutine[Any, Any, U]],
-        *,
-        size: Optional[int] = None,
-        interval: Optional[datetime.timedelta] = None,
-    ) -> "Stream[Tuple[U, List[T]]]":
-        """
-        Groups upstream elements into ``(key, elements)`` tuples.
-
-        A group is yielded when any of the following conditions is met:
-
-        - A group reaches ``size`` elements.
-        - ``interval`` seconds have passed since the last group was yielded.
-        - The upstream source is exhausted.
-
-        Args:
-            key (``Callable[[T], Coroutine[Any, Any, U]]``): An async function that returns the group key for an element.
-            size (``int | None``, optional): The maximum number of elements per group. (default: no size limit)
-            interval (``datetime.timedelta | None``, optional): If specified, yields a group if ``interval`` seconds have passed since the last group was yielded. (default: no interval limit)
-
-        Returns:
-            ``Stream[Tuple[U, List[T]]]``: A stream of upstream elements grouped by key, as ``(key, elements)`` tuples.
-        """
-        return AGroupbyStream(self, key, size, interval)
 
     def map(
         self,
@@ -799,8 +784,16 @@ class CatchStream(DownStream[T, Union[T, U]]):
         self,
         upstream: Stream[T],
         errors: Union[Type[Exception], Tuple[Type[Exception], ...]],
-        when: Optional[Callable[[Exception], Any]],
-        replace: Optional[Callable[[Exception], U]],
+        when: Union[
+            None,
+            Callable[[Exception], Any],
+            Callable[[Exception], Coroutine[Any, Any, Any]],
+        ],
+        replace: Union[
+            None,
+            Callable[[Exception], U],
+            Callable[[Exception], Coroutine[Any, Any, U]],
+        ],
         finally_raise: bool,
     ) -> None:
         super().__init__(upstream)
@@ -811,27 +804,6 @@ class CatchStream(DownStream[T, Union[T, U]]):
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_catch_stream(self)
-
-
-class ACatchStream(DownStream[T, Union[T, U]]):
-    __slots__ = ("_errors", "_when", "_replace", "_finally_raise")
-
-    def __init__(
-        self,
-        upstream: Stream[T],
-        errors: Union[Type[Exception], Tuple[Type[Exception], ...]],
-        when: Optional[Callable[[Exception], Coroutine[Any, Any, Any]]],
-        replace: Optional[Callable[[Exception], Coroutine[Any, Any, U]]],
-        finally_raise: bool,
-    ) -> None:
-        super().__init__(upstream)
-        self._errors = errors
-        self._when = when
-        self._replace = replace
-        self._finally_raise = finally_raise
-
-    def accept(self, visitor: "Visitor[V]") -> V:
-        return visitor.visit_acatch_stream(self)
 
 
 class DistinctStream(DownStream[T, T]):
@@ -936,7 +908,11 @@ class GroupStream(DownStream[T, List[T]]):
         upstream: Stream[T],
         size: Optional[int],
         interval: Optional[datetime.timedelta],
-        by: Optional[Callable[[T], Any]],
+        by: Union[
+            None,
+            Callable[[T], Any],
+            Callable[[T], Coroutine[Any, Any, Any]],
+        ],
     ) -> None:
         super().__init__(upstream)
         self._size = size
@@ -947,32 +923,16 @@ class GroupStream(DownStream[T, List[T]]):
         return visitor.visit_group_stream(self)
 
 
-class AGroupStream(DownStream[T, List[T]]):
-    __slots__ = ("_size", "_interval", "_by")
-
-    def __init__(
-        self,
-        upstream: Stream[T],
-        size: Optional[int],
-        interval: Optional[datetime.timedelta],
-        by: Optional[Callable[[T], Coroutine[Any, Any, Any]]],
-    ) -> None:
-        super().__init__(upstream)
-        self._size = size
-        self._interval = interval
-        self._by = by
-
-    def accept(self, visitor: "Visitor[V]") -> V:
-        return visitor.visit_agroup_stream(self)
-
-
 class GroupbyStream(DownStream[T, Tuple[U, List[T]]]):
     __slots__ = ("_key", "_size", "_interval")
 
     def __init__(
         self,
         upstream: Stream[T],
-        key: Callable[[T], U],
+        key: Union[
+            Callable[[T], U],
+            Callable[[T], Coroutine[Any, Any, U]],
+        ],
         size: Optional[int],
         interval: Optional[datetime.timedelta],
     ) -> None:
@@ -983,25 +943,6 @@ class GroupbyStream(DownStream[T, Tuple[U, List[T]]]):
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_groupby_stream(self)
-
-
-class AGroupbyStream(DownStream[T, Tuple[U, List[T]]]):
-    __slots__ = ("_key", "_size", "_interval")
-
-    def __init__(
-        self,
-        upstream: Stream[T],
-        key: Callable[[T], Coroutine[Any, Any, U]],
-        size: Optional[int],
-        interval: Optional[datetime.timedelta],
-    ) -> None:
-        super().__init__(upstream)
-        self._key = key
-        self._size = size
-        self._interval = interval
-
-    def accept(self, visitor: "Visitor[V]") -> V:
-        return visitor.visit_agroupby_stream(self)
 
 
 class MapStream(DownStream[T, U]):
