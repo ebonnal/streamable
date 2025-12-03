@@ -3,7 +3,6 @@ from typing import cast
 from streamable._stream import (
     AFlattenStream,
     AForeachStream,
-    AMapStream,
     CatchStream,
     DistinctStream,
     FilterStream,
@@ -37,7 +36,6 @@ def test_visitor() -> None:
     visitor.visit_group_stream(cast(GroupStream, ...))
     visitor.visit_groupby_stream(cast(GroupbyStream, ...))
     visitor.visit_map_stream(cast(MapStream, ...))
-    visitor.visit_amap_stream(cast(AMapStream, ...))
     visitor.visit_observe_stream(cast(ObserveStream, ...))
     visitor.visit_skip_stream(cast(SkipStream, ...))
     visitor.visit_throttle_stream(cast(ThrottleStream, ...))

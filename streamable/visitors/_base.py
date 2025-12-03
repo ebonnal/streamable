@@ -45,9 +45,6 @@ class Visitor(ABC, Generic[V]):
     def visit_map_stream(self, stream: _stream.MapStream) -> V:
         return self.visit_stream(stream)
 
-    def visit_amap_stream(self, stream: _stream.AMapStream) -> V:
-        return self.visit_stream(stream)
-
     def visit_skip_stream(self, stream: _stream.SkipStream) -> V:
         return self.visit_stream(stream)
 

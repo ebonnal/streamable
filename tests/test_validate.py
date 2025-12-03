@@ -12,7 +12,7 @@ from tests.utils import (
     "method, args",
     (
         (Stream.map, [identity]),
-        (Stream.amap, [async_identity]),
+        (Stream.map, [async_identity]),
         (Stream.foreach, [identity]),
         (Stream.aforeach, [identity]),
         (Stream.flatten, []),

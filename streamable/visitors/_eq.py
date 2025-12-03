@@ -3,7 +3,6 @@ from typing import Any, Union
 from streamable._stream import (
     AFlattenStream,
     AForeachStream,
-    AMapStream,
     CatchStream,
     DistinctStream,
     FilterStream,
@@ -99,20 +98,15 @@ class EqualityVisitor(Visitor[bool]):
             and stream._interval == self.other._interval
         )
 
-    def map_eq(self, stream: Union[MapStream, AMapStream]) -> bool:
+    def visit_map_stream(self, stream: MapStream) -> bool:
         return (
             self.type_eq(stream)
             and stream.upstream.accept(EqualityVisitor(self.other.upstream))
             and stream._concurrency == self.other._concurrency
             and stream._to == self.other._to
             and stream._ordered == self.other._ordered
+            and stream._via == self.other._via
         )
-
-    def visit_map_stream(self, stream: MapStream) -> bool:
-        return self.map_eq(stream) and stream._via == self.other._via
-
-    def visit_amap_stream(self, stream: AMapStream) -> bool:
-        return self.map_eq(stream)
 
     def visit_observe_stream(self, stream: ObserveStream) -> bool:
         return (

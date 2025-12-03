@@ -14,7 +14,6 @@ from streamable import _afunctions
 from streamable._stream import (
     AFlattenStream,
     AForeachStream,
-    AMapStream,
     CatchStream,
     DistinctStream,
     FilterStream,
@@ -115,12 +114,13 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
         )
 
     def visit_aforeach_stream(self, stream: AForeachStream[T]) -> AsyncIterator[T]:
-        return self.visit_amap_stream(
-            AMapStream(
+        return self.visit_map_stream(
+            MapStream(
                 stream.upstream,
                 async_sidify(stream._do),
                 stream._concurrency,
                 stream._ordered,
+                "thread",
             )
         )
 
@@ -167,20 +167,19 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
         )
 
     def visit_map_stream(self, stream: MapStream[U, T]) -> AsyncIterator[T]:
+        if iscoroutinefunction(stream._to):
+            return _afunctions.amap(
+                stream._to,
+                stream.upstream.accept(cast(AsyncIteratorVisitor[U], self)),
+                concurrency=stream._concurrency,
+                ordered=stream._ordered,
+            )
         return _afunctions.map(
-            stream._to,
+            cast(Callable[[U], T], stream._to),
             stream.upstream.accept(cast(AsyncIteratorVisitor[U], self)),
             concurrency=stream._concurrency,
             ordered=stream._ordered,
             via=stream._via,
-        )
-
-    def visit_amap_stream(self, stream: AMapStream[U, T]) -> AsyncIterator[T]:
-        return _afunctions.amap(
-            stream._to,
-            stream.upstream.accept(cast(AsyncIteratorVisitor[U], self)),
-            concurrency=stream._concurrency,
-            ordered=stream._ordered,
         )
 
     def visit_observe_stream(self, stream: ObserveStream[T]) -> AsyncIterator[T]:

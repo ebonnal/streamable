@@ -86,7 +86,7 @@ def test_init() -> None:
         .group(100)
         .flatten()
         .map(identity)
-        .amap(async_identity)
+        .map(async_identity)
         .foreach(identity)
         .aforeach(async_identity)
         .catch(Exception)
@@ -282,7 +282,7 @@ def test_catched_error_upstream_of_map(itype, concurrency, ordered, expected) ->
         to_list(
             Stream([0, 1, 0, 2, 0])
             .map(lambda n: 1 / n)
-            .amap(async_identity_sleep, concurrency=concurrency, ordered=ordered)
+            .map(async_identity_sleep, concurrency=concurrency, ordered=ordered)
             .catch(ZeroDivisionError, replace=lambda e: float("inf")),
             itype=itype,
         )
@@ -302,7 +302,7 @@ def test_catched_error_upstream_of_map(itype, concurrency, ordered, expected) ->
             (Stream.foreach, time.sleep),
             (Stream.map, identity_sleep),
             (Stream.aforeach, asyncio.sleep),
-            (Stream.amap, async_identity_sleep),
+            (Stream.map, async_identity_sleep),
         ]
         for itype in ITERABLE_TYPES
     ],
@@ -373,7 +373,7 @@ def test_foreach(concurrency, itype) -> None:
             (Stream.foreach, throw_func, throw_for_odd_func, nostop),
             (Stream.aforeach, async_throw_func, async_throw_for_odd_func, anostop),
             (Stream.map, throw_func, throw_for_odd_func, nostop),
-            (Stream.amap, async_throw_func, async_throw_for_odd_func, anostop),
+            (Stream.map, async_throw_func, async_throw_for_odd_func, anostop),
         ]
         for itype in ITERABLE_TYPES
     ],
@@ -391,14 +391,14 @@ def test_map_or_foreach_with_exception(
     rasing_stream: Stream[int] = method(
         Stream(iter(src)), nostop(throw_func(raised_exc)), concurrency=concurrency
     )  # type: ignore
-    # At any concurrency, `map` and `foreach` and `amap` must raise.
+    # At any concurrency, `map` and `foreach` must raise.
     with pytest.raises(caught_exc):
         to_list(rasing_stream, itype=itype)
     # Only `concurrency` upstream elements should be initially pulled for processing (0 if `concurrency=1`), and 1 more should be pulled for each call to `next`.
     assert next(cast(Iterator[int], rasing_stream.source)) == (
         concurrency + 1 if concurrency > 1 else concurrency
     )
-    # At any concurrency, `map` and `foreach` and `amap` should not stop after one exception occured.
+    # At any concurrency, `map` and `foreach` should not stop after one exception occured.
     assert to_list(
         method(
             Stream(src),
@@ -417,7 +417,7 @@ def test_map_or_foreach_with_exception(
             (Stream.foreach, slow_identity),
             (Stream.aforeach, async_slow_identity),
             (Stream.map, slow_identity),
-            (Stream.amap, async_slow_identity),
+            (Stream.map, async_slow_identity),
         ]
         for concurrency in [1, 2, 4]
         for itype in ITERABLE_TYPES
@@ -437,19 +437,12 @@ def test_map_or_foreach_concurrency(method, func, concurrency, itype) -> None:
     "concurrency, itype",
     [(concurrency, itype) for concurrency in (1, 100) for itype in ITERABLE_TYPES],
 )
-def test_amap(concurrency, itype) -> None:
-    # At any concurrency the `amap` method should act as the builtin map function, transforming elements while preserving input elements order.
+def test_map_async(concurrency, itype) -> None:
+    # At any concurrency the `map` method should act as the builtin map function with async transforms, preserving input order.
     assert to_list(
-        Stream(src).amap(async_randomly_slowed(async_square), concurrency=concurrency),
+        Stream(src).map(async_randomly_slowed(async_square), concurrency=concurrency),
         itype=itype,
     ) == list(map(square, src))
-    stream = Stream(src).amap(identity, concurrency=concurrency)  # type: ignore
-    # `amap` should raise a TypeError if a non async function is passed to it.
-    with pytest.raises(
-        TypeError,
-        match=r"(An asyncio.Future, a coroutine or an awaitable is required)|(object int can't be used in 'await' expression)|('int' object can't be awaited)",
-    ):
-        anext_or_next(bi_iterable_to_iter(stream, itype=itype))
 
 
 @pytest.mark.parametrize(
@@ -607,7 +600,7 @@ def test_flatten(concurrency, itype, flatten) -> None:
         (flatten, itype, slow)
         for flatten, slow in (
             (Stream.flatten, partial(Stream.map, to=slow_identity)),
-            (Stream.aflatten, partial(Stream.amap, to=async_slow_identity)),
+            (Stream.aflatten, partial(Stream.map, to=async_slow_identity)),
         )
         for itype in ITERABLE_TYPES
     ],
@@ -659,7 +652,7 @@ def test_partial_iteration_on_streams_using_concurrency(
             concurrency + 1,
         ),
         (
-            Stream(remembering_src).amap(async_identity, concurrency=concurrency),
+            Stream(remembering_src).map(async_identity, concurrency=concurrency),
             concurrency + 1,
         ),
         (
@@ -1372,7 +1365,7 @@ def test_eq() -> None:
         .groupby(bool)
         .groupby(async_identity)
         .map(identity, via="process")
-        .amap(async_identity)
+        .map(async_identity)
         .observe("foo")
         .skip(3)
         .skip(3)
@@ -1400,7 +1393,7 @@ def test_eq() -> None:
         .groupby(bool)
         .groupby(async_identity)
         .map(identity, via="process")
-        .amap(async_identity)
+        .map(async_identity)
         .observe("foo")
         .skip(3)
         .skip(3)
@@ -1429,7 +1422,7 @@ def test_eq() -> None:
         .groupby(bool)
         .groupby(async_identity)
         .map(identity, via="process")
-        .amap(async_identity)
+        .map(async_identity)
         .observe("foo")
         .skip(3)
         .skip(3)
@@ -1458,7 +1451,7 @@ def test_eq() -> None:
         .groupby(bool)
         .groupby(async_identity)
         .map(identity, via="process")
-        .amap(async_identity)
+        .map(async_identity)
         .observe("foo")
         .skip(3)
         .skip(3)
@@ -1475,7 +1468,7 @@ def test_ref_cycles(itype: IterableType) -> None:
 
     stream = (
         Stream("123_5")
-        .amap(async_int)
+        .map(async_int)
         .map(str)
         .group(1)
         .groupby(len)

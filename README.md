@@ -111,7 +111,7 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
 
 Let's write an `async` version of this script:
 - `httpx.CLient` becomes `httpx.AsyncCLient`
-- `.map` becomes `.amap`
+- `.map` accepts async callables
 - `pipeline()` becomes `await pipeline`
 
 ```python
@@ -135,7 +135,7 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
             .throttle(16, per=timedelta(seconds=1))
             # GET pokemons via 8 concurrent coroutines
             .map(lambda poke_id: f"https://pokeapi.co/api/v2/pokemon-species/{poke_id}")
-            .amap(http_client.get, concurrency=8)
+            .map(http_client.get, concurrency=8)
             .foreach(httpx.Response.raise_for_status)
             .map(httpx.Response.json)
             # Stop the iteration when reaching the 1st pokemon of the 4th generation
@@ -163,7 +163,7 @@ Let's do a tour of the `Stream`'s operations, for more details visit the [***doc
 
 |||
 |--|--|
-[`.map`](#-map--amap)|transform elements|
+[`.map`](#-map)|transform elements|
 [`.foreach`](#-foreach--aforeach)|apply a side effect on elements|
 [`.group`](#-group) / [`.groupby`](#-groupby)|batch a certain number of elements, by a given key, over a time interval|
 [`.flatten`](#-flatten--aflatten)|explode iterable elements|
@@ -180,10 +180,9 @@ Let's do a tour of the `Stream`'s operations, for more details visit the [***doc
 > A `Stream` exposes a minimalist yet expressive set of operations to manipulate its elements, but creating its source or consuming it is not its responsability, it's meant to be combined with specialized libraries (`csv`, `json`, `pyarrow`, `psycopg2`, `boto3`, `requests`, `httpx`, ...).
 
 > [!NOTE]
-> **`async` counterparts:** For each operation that takes a function (such as `.map`), there is an equivalent that accepts an async function (such as `.amap`).
-You can freely mix synchronous and asynchronous operations within the same `Stream`. The result can then be consumed either as an `Iterable` or as an `AsyncIterable`. When a stream involving `async` operations is consumed as an `Iterable`, a temporary `asyncio` event loop is attached to it.
+> **Async callables:** Operations that take a function accept sync or async callables. You can freely mix synchronous and asynchronous operations within the same `Stream`. The result can then be consumed either as an `Iterable` or as an `AsyncIterable`. When a stream involving `async` operations is consumed as an `Iterable`, a temporary `asyncio` event loop is attached to it.
 
-## 🟡 `.map` / `.amap`
+## 🟡 `.map`
 
 > Applies a transformation on elements:
 
@@ -245,7 +244,7 @@ if __name__ == "__main__":
 
 #### via `async` coroutines
 
-> `.amap` can apply an `async` function concurrently.
+> `.map` can apply a sync or async function concurrently.
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
@@ -256,7 +255,7 @@ async with httpx.AsyncClient() as http:
     pokemon_names: Stream[str] = (
         Stream(range(1, 4))
         .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
-        .amap(http.get, concurrency=3)
+        .map(http.get, concurrency=3)
         .map(httpx.Response.json)
         .map(lambda poke: poke["name"])
     )

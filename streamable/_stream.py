@@ -582,9 +582,31 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         """
         return GroupbyStream(self, key, size, interval)
 
+    @overload
+    def map(
+        self,
+        to: Callable[[T], Coroutine[Any, Any, U]],
+        *,
+        concurrency: int = 1,
+        ordered: bool = True,
+    ) -> "Stream[U]": ...
+
+    @overload
     def map(
         self,
         to: Callable[[T], U],
+        *,
+        concurrency: int = 1,
+        ordered: bool = True,
+        via: "Literal['thread', 'process']" = "thread",
+    ) -> "Stream[U]": ...
+
+    def map(
+        self,
+        to: Union[
+            Callable[[T], U],
+            Callable[[T], Coroutine[Any, Any, U]],
+        ],
         *,
         concurrency: int = 1,
         ordered: bool = True,
@@ -594,36 +616,16 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Applies ``to`` on upstream elements and yields the results.
 
         Args:
-            to (``Callable[[T], R]``): The async transformation to be applied to each element.
-            concurrency (``int``, optional): Represents both the number of threads used to concurrently apply ``to`` and the size of the buffer containing not-yet-yielded results. If the buffer is full, the iteration over the upstream is paused until a result is yielded from the buffer. (default: no concurrency)
+            to (``Callable[[T], U] | Callable[[T], Coroutine[Any, Any, U]]``): The transformation to be applied to each element (sync or async).
+            concurrency (``int``, optional): Represents both the number of workers used to concurrently apply ``to`` and the size of the buffer containing not-yet-yielded results. If the buffer is full, the iteration over the upstream is paused until a result is yielded from the buffer. (default: no concurrency)
             ordered (``bool``, optional): If ``concurrency`` > 1, whether to preserve the order of upstream elements or to yield them as soon as they are processed. (default: preserves upstream order)
-            via ("thread" or "process", optional): If ``concurrency`` > 1, whether to apply ``to`` using processes or threads. (default: via threads)
+            via ("thread" or "process", optional): If ``concurrency`` > 1 and ``to`` is sync, whether to apply ``to`` using processes or threads. (default: via threads)
         Returns:
-            ``Stream[R]``: A stream of transformed elements.
+            ``Stream[U]``: A stream of transformed elements.
         """
         validate_concurrency(concurrency)
         validate_via(via)
         return MapStream(self, to, concurrency, ordered, via)
-
-    def amap(
-        self,
-        to: Callable[[T], Coroutine[Any, Any, U]],
-        *,
-        concurrency: int = 1,
-        ordered: bool = True,
-    ) -> "Stream[U]":
-        """
-        Applies the async ``to`` on upstream elements and yields the results.
-
-        Args:
-            to (``Callable[[T], Coroutine[Any, Any, U]]``): The async transformation to be applied to each element.
-            concurrency (``int``, optional): Represents both the number of async tasks concurrently applying ``to`` and the size of the buffer containing not-yet-yielded results. If the buffer is full, the iteration over the upstream is paused until a result is yielded from the buffer. (default: no concurrency)
-            ordered (bool, optional): If ``concurrency`` > 1, whether to preserve the order of upstream elements or to yield them as soon as they are processed. (default: preserves upstream order)
-        Returns:
-            ``Stream[R]``: A stream of transformed elements.
-        """
-        validate_concurrency(concurrency)
-        return AMapStream(self, to, concurrency, ordered)
 
     def observe(self, what: str = "elements") -> "Stream[T]":
         """
@@ -934,7 +936,10 @@ class MapStream(DownStream[T, U]):
     def __init__(
         self,
         upstream: Stream[T],
-        to: Callable[[T], U],
+        to: Union[
+            Callable[[T], U],
+            Callable[[T], Coroutine[Any, Any, U]],
+        ],
         concurrency: int,
         ordered: bool,
         via: "Literal['thread', 'process']",
@@ -947,25 +952,6 @@ class MapStream(DownStream[T, U]):
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_map_stream(self)
-
-
-class AMapStream(DownStream[T, U]):
-    __slots__ = ("_to", "_concurrency", "_ordered")
-
-    def __init__(
-        self,
-        upstream: Stream[T],
-        to: Callable[[T], Coroutine[Any, Any, U]],
-        concurrency: int,
-        ordered: bool,
-    ) -> None:
-        super().__init__(upstream)
-        self._to = to
-        self._concurrency = concurrency
-        self._ordered = ordered
-
-    def accept(self, visitor: "Visitor[V]") -> V:
-        return visitor.visit_amap_stream(self)
 
 
 class ObserveStream(DownStream[T, T]):

@@ -66,7 +66,7 @@ async def test_async_amap_example() -> None:
         pokemon_names: Stream[str] = (
             Stream(range(1, 4))
             .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
-            .amap(http.get, concurrency=3)
+            .map(http.get, concurrency=3)
             .map(httpx.Response.json)
             .map(lambda poke: poke["name"])
         )
@@ -306,7 +306,7 @@ async def test_async_etl_example(tmp_path: Path) -> None: # pragma: no cover
                 .throttle(16, per=timedelta(microseconds=1))
                 # GET pokemons via 8 concurrent coroutines
                 .map(lambda poke_id: f"https://pokeapi.co/api/v2/pokemon-species/{poke_id}")
-                .amap(http_client.get, concurrency=8)
+                .map(http_client.get, concurrency=8)
                 .foreach(httpx.Response.raise_for_status)
                 .map(httpx.Response.json)
                 # Stop the iteration when reaching the 1st pokemon of the 4th generation
