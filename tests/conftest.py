@@ -30,9 +30,9 @@ def complex_stream() -> Stream[int]:
     return (
         Stream(src)
         .truncate(1024)
-        .atruncate(1024)
+        .truncate(1024)
         .truncate(when=lambda _: False)
-        .atruncate(when=async_identity)
+        .truncate(when=async_identity)
         .skip(10)
         .askip(10)
         .skip(until=lambda _: True)
@@ -74,9 +74,9 @@ def complex_stream_str() -> str:
     return """(
     Stream(range(0, 256))
     .truncate(when=1024)
-    .atruncate(when=1024)
+    .truncate(when=1024)
     .truncate(when=<lambda>)
-    .atruncate(when=async_identity)
+    .truncate(when=async_identity)
     .skip(until=10)
     .askip(until=10)
     .skip(until=<lambda>)

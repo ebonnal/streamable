@@ -9,7 +9,6 @@ from streamable._stream import (
     AGroupStream,
     AMapStream,
     ASkipStream,
-    ATruncateStream,
     CatchStream,
     DistinctStream,
     FilterStream,
@@ -172,18 +171,12 @@ class EqualityVisitor(Visitor[bool]):
             and stream._per == self.other._per
         )
 
-    def truncate_eq(self, stream: Union[TruncateStream, ATruncateStream]) -> bool:
+    def visit_truncate_stream(self, stream: TruncateStream) -> bool:
         return (
             self.type_eq(stream)
             and stream.upstream.accept(EqualityVisitor(self.other.upstream))
             and stream._when == self.other._when
         )
-
-    def visit_truncate_stream(self, stream: TruncateStream) -> bool:
-        return self.truncate_eq(stream)
-
-    def visit_atruncate_stream(self, stream: ATruncateStream) -> bool:
-        return self.truncate_eq(stream)
 
     def visit_stream(self, stream: Stream) -> bool:
         return self.type_eq(stream) and stream.source == self.other.source

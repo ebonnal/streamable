@@ -738,39 +738,33 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         validate_positive_interval(per, name="per")
         return ThrottleStream(self, up_to, per)
 
-    def truncate(self, when: Union[int, Callable[[T], Any]]) -> "Stream[T]":
+    @overload
+    def truncate(self, when: Callable[[T], Coroutine[Any, Any, Any]]) -> "Stream[T]": ...
+
+    @overload
+    def truncate(self, when: Union[int, Callable[[T], Any]]) -> "Stream[T]": ...
+
+    def truncate(
+        self,
+        when: Union[
+            int,
+            Callable[[T], Any],
+            Callable[[T], Coroutine[Any, Any, Any]],
+        ],
+    ) -> "Stream[T]":
         """
         Stops iterations over this stream when ``when`` elements have been yielded (if ``int``) or when ``when(elem)`` becomes truthy.
 
         Args:
-            until (``int | Callable[[T], Any]``):
-
+            when (``int | Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``): 
                 - ``int``: Stops the iteration after ``when`` elements have been yielded.
-                - ``Callable[[T], Any]``: Stops the iteration when the first element for which ``when(elem)`` is truthy is encountered, that element will not be yielded.
+                - ``Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``: Stops the iteration when the first element for which ``when(elem)`` (or ``await when(elem)``) is truthy is encountered, that element will not be yielded.
 
         Returns:
             ``Stream[T]``: A stream whose iteration will stop ``when`` condition is met.
         """
         validate_count_or_callable(when, name="when")
         return TruncateStream(self, when)
-
-    def atruncate(
-        self, when: Union[int, Callable[[T], Coroutine[Any, Any, Any]]]
-    ) -> "Stream[T]":
-        """
-        Stops iterations over this stream when ``when`` elements have been yielded (if ``int``) or when ``await when(elem)`` becomes truthy.
-
-        Args:
-            until (``int | Callable[[T], Any]``):
-
-                - ``int``: Stops the iteration after ``when`` elements have been yielded.
-                - ``Callable[[T], Coroutine[Any, Any, Any]]``: Stops the iteration when the first element for which ``await when(elem)`` is truthy is encountered, that element will not be yielded.
-
-        Returns:
-            ``Stream[T]``: A stream whose iteration will stop ``when`` condition is met.
-        """
-        validate_count_or_callable(when, name="when")
-        return ATruncateStream(self, when)
 
 
 class DownStream(Stream[U], Generic[T, U]):
@@ -1134,25 +1128,14 @@ class TruncateStream(DownStream[T, T]):
     def __init__(
         self,
         upstream: Stream[T],
-        when: Union[int, Callable[[T], Any]],
+        when: Union[
+            int,
+            Callable[[T], Any],
+            Callable[[T], Coroutine[Any, Any, Any]],
+        ],
     ) -> None:
         super().__init__(upstream)
         self._when = when
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_truncate_stream(self)
-
-
-class ATruncateStream(DownStream[T, T]):
-    __slots__ = "_when"
-
-    def __init__(
-        self,
-        upstream: Stream[T],
-        when: Union[int, Callable[[T], Coroutine[Any, Any, Any]]],
-    ) -> None:
-        super().__init__(upstream)
-        self._when = when
-
-    def accept(self, visitor: "Visitor[V]") -> V:
-        return visitor.visit_atruncate_stream(self)

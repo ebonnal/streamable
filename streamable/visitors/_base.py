@@ -71,6 +71,3 @@ class Visitor(ABC, Generic[V]):
 
     def visit_truncate_stream(self, stream: _stream.TruncateStream) -> V:
         return self.visit_stream(stream)
-
-    def visit_atruncate_stream(self, stream: _stream.ATruncateStream) -> V:
-        return self.visit_stream(stream)

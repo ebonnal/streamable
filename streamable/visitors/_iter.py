@@ -12,7 +12,6 @@ from streamable._stream import (
     AGroupStream,
     AMapStream,
     ASkipStream,
-    ATruncateStream,
     CatchStream,
     DistinctStream,
     FilterStream,
@@ -219,14 +218,18 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         )
 
     def visit_truncate_stream(self, stream: TruncateStream[T]) -> Iterator[T]:
+        if isinstance(stream._when, int):
+            return _functions.truncate(
+                stream.upstream.accept(self),
+                when=stream._when,
+            )
+        if iscoroutinefunction(stream._when):
+            return _functions.atruncate(
+                self._get_loop(),
+                stream.upstream.accept(self),
+                when=stream._when,
+            )
         return _functions.truncate(
-            stream.upstream.accept(self),
-            when=stream._when,
-        )
-
-    def visit_atruncate_stream(self, stream: ATruncateStream[T]) -> Iterator[T]:
-        return _functions.atruncate(
-            self._get_loop(),
             stream.upstream.accept(self),
             when=stream._when,
         )
