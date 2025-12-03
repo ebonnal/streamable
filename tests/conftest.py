@@ -26,7 +26,7 @@ class CustomCallable:
 
 
 @pytest.fixture
-def complex_stream() -> Stream[int]:
+def complex_stream() -> Stream:
     return (
         Stream(src)
         .truncate(1024)
