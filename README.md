@@ -102,7 +102,8 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
             .catch(Exception, finally_raise=True)
         )
 
-        # Start a full iteration
+        # Call the stream to consume it (as an Iterable)
+        # without collecting its elements
         pipeline()
 ```
 
@@ -151,7 +152,8 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
             .catch(Exception, finally_raise=True)
         )
 
-        # Start a full async iteration
+        # await the stream to consume it (as an AsyncIterable)
+        # without collecting its elements
         await pipeline
 ```
 
