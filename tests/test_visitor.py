@@ -8,7 +8,6 @@ from streamable._stream import (
     AGroupbyStream,
     AGroupStream,
     AMapStream,
-    ASkipStream,
     CatchStream,
     DistinctStream,
     FilterStream,
@@ -49,7 +48,6 @@ def test_visitor() -> None:
     visitor.visit_amap_stream(cast(AMapStream, ...))
     visitor.visit_observe_stream(cast(ObserveStream, ...))
     visitor.visit_skip_stream(cast(SkipStream, ...))
-    visitor.visit_askip_stream(cast(ASkipStream, ...))
     visitor.visit_throttle_stream(cast(ThrottleStream, ...))
     visitor.visit_truncate_stream(cast(TruncateStream, ...))
     visitor.visit_stream(cast(Stream, ...))

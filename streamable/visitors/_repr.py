@@ -9,7 +9,6 @@ from streamable._stream import (
     AGroupbyStream,
     AGroupStream,
     AMapStream,
-    ASkipStream,
     CatchStream,
     DistinctStream,
     FilterStream,
@@ -147,10 +146,6 @@ class ToStringVisitor(Visitor[str], ABC):
 
     def visit_skip_stream(self, stream: SkipStream) -> str:
         self.methods_reprs.append(f"skip(until={self.to_string(stream._until)})")
-        return stream.upstream.accept(self)
-
-    def visit_askip_stream(self, stream: ASkipStream) -> str:
-        self.methods_reprs.append(f"askip(until={self.to_string(stream._until)})")
         return stream.upstream.accept(self)
 
     def visit_throttle_stream(self, stream: ThrottleStream) -> str:

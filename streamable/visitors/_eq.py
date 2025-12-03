@@ -8,7 +8,6 @@ from streamable._stream import (
     AGroupbyStream,
     AGroupStream,
     AMapStream,
-    ASkipStream,
     CatchStream,
     DistinctStream,
     FilterStream,
@@ -150,18 +149,12 @@ class EqualityVisitor(Visitor[bool]):
             and stream._what == self.other._what
         )
 
-    def skip_eq(self, stream: Union[SkipStream, ASkipStream]) -> bool:
+    def visit_skip_stream(self, stream: SkipStream) -> bool:
         return (
             self.type_eq(stream)
             and stream.upstream.accept(EqualityVisitor(self.other.upstream))
             and stream._until == self.other._until
         )
-
-    def visit_skip_stream(self, stream: SkipStream) -> bool:
-        return self.skip_eq(stream)
-
-    def visit_askip_stream(self, stream: ASkipStream) -> bool:
-        return self.skip_eq(stream)
 
     def visit_throttle_stream(self, stream: ThrottleStream) -> bool:
         return (

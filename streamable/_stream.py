@@ -674,39 +674,33 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         """
         return ObserveStream(self, what)
 
-    def skip(self, until: Union[int, Callable[[T], Any]]) -> "Stream[T]":
+    @overload
+    def skip(self, until: Callable[[T], Coroutine[Any, Any, Any]]) -> "Stream[T]": ...
+
+    @overload
+    def skip(self, until: Union[int, Callable[[T], Any]]) -> "Stream[T]": ...
+
+    def skip(
+        self,
+        until: Union[
+            int,
+            Callable[[T], Any],
+            Callable[[T], Coroutine[Any, Any, Any]],
+        ],
+    ) -> "Stream[T]":
         """
         Skips ``until`` elements (if ``int``) or skips until ``until(elem)`` becomes truthy.
 
         Args:
-            until (``int | Callable[[T], Any]``):
-
+            until (``int | Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``):
                 - ``int``: The number of elements to skip.
-                - ``Callable[[T], Any]``: Skips elements until encountering one for which ``until(elem)`` is truthy (this element and all the subsequent ones will be yielded).
+                - ``Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``: Skips elements until encountering one for which ``until(elem)`` (or ``await until(elem)``) is truthy (this element and all the subsequent ones will be yielded).
 
         Returns:
             ``Stream[T]``: A stream of the upstream elements remaining after skipping.
         """
         validate_count_or_callable(until, name="until")
         return SkipStream(self, until)
-
-    def askip(
-        self, until: Union[int, Callable[[T], Coroutine[Any, Any, Any]]]
-    ) -> "Stream[T]":
-        """
-        Skips ``until`` elements (if ``int``) or skips until ``await until(elem)`` becomes truthy.
-
-        Args:
-            until (``int | Callable[[T], Coroutine[Any, Any, Any]]``):
-
-                - ``int``: The number of elements to skip.
-                - ``Callable[[T], Any]``: Skips elements until encountering one for which ``await until(elem)`` is truthy (this element and all the subsequent ones will be yielded).
-
-        Returns:
-            ``Stream[T]``: A stream of the upstream elements remaining after skipping.
-        """
-        validate_count_or_callable(until, name="until")
-        return ASkipStream(self, until)
 
     def throttle(
         self,
@@ -739,7 +733,9 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         return ThrottleStream(self, up_to, per)
 
     @overload
-    def truncate(self, when: Callable[[T], Coroutine[Any, Any, Any]]) -> "Stream[T]": ...
+    def truncate(
+        self, when: Callable[[T], Coroutine[Any, Any, Any]]
+    ) -> "Stream[T]": ...
 
     @overload
     def truncate(self, when: Union[int, Callable[[T], Any]]) -> "Stream[T]": ...
@@ -756,7 +752,7 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Stops iterations over this stream when ``when`` elements have been yielded (if ``int``) or when ``when(elem)`` becomes truthy.
 
         Args:
-            when (``int | Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``): 
+            when (``int | Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``):
                 - ``int``: Stops the iteration after ``when`` elements have been yielded.
                 - ``Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``: Stops the iteration when the first element for which ``when(elem)`` (or ``await when(elem)``) is truthy is encountered, that element will not be yielded.
 
@@ -1081,28 +1077,17 @@ class SkipStream(DownStream[T, T]):
     def __init__(
         self,
         upstream: Stream[T],
-        until: Union[int, Callable[[T], Any]],
+        until: Union[
+            int,
+            Callable[[T], Any],
+            Callable[[T], Coroutine[Any, Any, Any]],
+        ],
     ) -> None:
         super().__init__(upstream)
         self._until = until
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_skip_stream(self)
-
-
-class ASkipStream(DownStream[T, T]):
-    __slots__ = "_until"
-
-    def __init__(
-        self,
-        upstream: Stream[T],
-        until: Union[int, Callable[[T], Coroutine[Any, Any, Any]]],
-    ) -> None:
-        super().__init__(upstream)
-        self._until = until
-
-    def accept(self, visitor: "Visitor[V]") -> V:
-        return visitor.visit_askip_stream(self)
 
 
 class ThrottleStream(DownStream[T, T]):

@@ -11,7 +11,6 @@ from streamable._stream import (
     AGroupbyStream,
     AGroupStream,
     AMapStream,
-    ASkipStream,
     CatchStream,
     DistinctStream,
     FilterStream,
@@ -198,14 +197,18 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         )
 
     def visit_skip_stream(self, stream: SkipStream[T]) -> Iterator[T]:
+        if isinstance(stream._until, int):
+            return _functions.skip(
+                stream.upstream.accept(self),
+                until=stream._until,
+            )
+        if iscoroutinefunction(stream._until):
+            return _functions.askip(
+                self._get_loop(),
+                stream.upstream.accept(self),
+                until=stream._until,
+            )
         return _functions.skip(
-            stream.upstream.accept(self),
-            until=stream._until,
-        )
-
-    def visit_askip_stream(self, stream: ASkipStream[T]) -> Iterator[T]:
-        return _functions.askip(
-            self._get_loop(),
             stream.upstream.accept(self),
             until=stream._until,
         )

@@ -63,9 +63,6 @@ class Visitor(ABC, Generic[V]):
     def visit_skip_stream(self, stream: _stream.SkipStream) -> V:
         return self.visit_stream(stream)
 
-    def visit_askip_stream(self, stream: _stream.ASkipStream) -> V:
-        return self.visit_stream(stream)
-
     def visit_throttle_stream(self, stream: _stream.ThrottleStream) -> V:
         return self.visit_stream(stream)
 

@@ -709,38 +709,34 @@ def test_filter(itype: IterableType, adapt) -> None:
 
 
 @pytest.mark.parametrize(
-    "itype, skip, adapt",
-    (
-        (itype, skip, adapt)
-        for skip, adapt in ((Stream.skip, identity), (Stream.askip, asyncify))
-        for itype in ITERABLE_TYPES
-    ),
+    "itype, adapt",
+    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
 )
-def test_skip(itype: IterableType, skip, adapt) -> None:
+def test_skip(itype: IterableType, adapt) -> None:
     # `skip` must raise ValueError if `until` is negative
     with pytest.raises(ValueError, match="`until` must be >= 0 but got -1"):
-        skip(Stream(src), -1)
+        Stream(src).skip(-1)  # type: ignore
     with pytest.raises(
         TypeError,
         match="`until` must be an int or a callable, but got ''",
     ):
-        skip(Stream(src), "")
+        Stream(src).skip("")  # type: ignore
     for count in [0, 1, 3]:
         # `skip` must skip `until` elements
-        assert to_list(skip(Stream(src), count), itype=itype) == list(src)[count:]
+        assert to_list(Stream(src).skip(count), itype=itype) == list(src)[count:]
         # `skip` should not count exceptions as skipped elements
         assert (
             to_list(
-                skip(Stream(map(throw_for_odd_func(TestError), src)), count).catch(
-                    TestError
-                ),
+                Stream(map(throw_for_odd_func(TestError), src))
+                .skip(count)
+                .catch(TestError),
                 itype=itype,
             )
             == list(filter(lambda i: i % 2 == 0, src))[count:]
         )
         # `skip` must yield starting from the first element satisfying `until`
         assert (
-            to_list(skip(Stream(src), until=adapt(lambda n: n >= count)), itype=itype)
+            to_list(Stream(src).skip(adapt(lambda n: n >= count)), itype=itype)
             == list(src)[count:]
         )
 
@@ -1439,7 +1435,7 @@ def test_eq() -> None:
         .amap(async_identity)
         .observe("foo")
         .skip(3)
-        .askip(3)
+        .skip(3)
         .truncate(4)
         .truncate(4)
         .throttle(1, per=datetime.timedelta(seconds=1))
@@ -1467,7 +1463,7 @@ def test_eq() -> None:
         .amap(async_identity)
         .observe("foo")
         .skip(3)
-        .askip(3)
+        .skip(3)
         .truncate(4)
         .truncate(4)
         .throttle(1, per=datetime.timedelta(seconds=1))
@@ -1496,7 +1492,7 @@ def test_eq() -> None:
         .amap(async_identity)
         .observe("foo")
         .skip(3)
-        .askip(3)
+        .skip(3)
         .truncate(4)
         .truncate(4)
         .throttle(1, per=datetime.timedelta(seconds=1))
@@ -1525,7 +1521,7 @@ def test_eq() -> None:
         .amap(async_identity)
         .observe("foo")
         .skip(3)
-        .askip(3)
+        .skip(3)
         .truncate(4)
         .truncate(4)
         .throttle(1, per=datetime.timedelta(seconds=2))  # not the same interval

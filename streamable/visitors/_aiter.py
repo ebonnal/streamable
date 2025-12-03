@@ -10,7 +10,6 @@ from streamable._stream import (
     AGroupbyStream,
     AGroupStream,
     AMapStream,
-    ASkipStream,
     CatchStream,
     DistinctStream,
     FilterStream,
@@ -176,13 +175,17 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
         )
 
     def visit_skip_stream(self, stream: SkipStream[T]) -> AsyncIterator[T]:
+        if isinstance(stream._until, int):
+            return _afunctions.skip(
+                stream.upstream.accept(self),
+                until=stream._until,
+            )
+        if iscoroutinefunction(stream._until):
+            return _afunctions.askip(
+                stream.upstream.accept(self),
+                until=stream._until,
+            )
         return _afunctions.skip(
-            stream.upstream.accept(self),
-            until=stream._until,
-        )
-
-    def visit_askip_stream(self, stream: ASkipStream[T]) -> AsyncIterator[T]:
-        return _afunctions.askip(
             stream.upstream.accept(self),
             until=stream._until,
         )
