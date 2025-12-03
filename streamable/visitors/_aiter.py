@@ -1,10 +1,10 @@
+from inspect import iscoroutinefunction
 from typing import AsyncIterable, AsyncIterator, Iterable, TypeVar, Union, cast
 
 from streamable import _afunctions
 from streamable._stream import (
     ACatchStream,
     ADistinctStream,
-    AFilterStream,
     AFlattenStream,
     AForeachStream,
     AGroupbyStream,
@@ -72,10 +72,9 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
         )
 
     def visit_filter_stream(self, stream: FilterStream[T]) -> AsyncIterator[T]:
+        if iscoroutinefunction(stream._where):
+            return _afunctions.afilter(stream.upstream.accept(self), stream._where)
         return _afunctions.filter(stream.upstream.accept(self), stream._where)
-
-    def visit_afilter_stream(self, stream: AFilterStream[T]) -> AsyncIterator[T]:
-        return _afunctions.afilter(stream.upstream.accept(self), stream._where)
 
     def visit_flatten_stream(self, stream: FlattenStream[T]) -> AsyncIterator[T]:
         return _afunctions.flatten(

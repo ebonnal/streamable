@@ -167,7 +167,7 @@ Let's do a tour of the `Stream`'s operations, for more details visit the [***doc
 [`.foreach`](#-foreach--aforeach)|apply a side effect on elements|
 [`.group`](#-group--agroup) / [`.groupby`](#-groupby--agroupby)|batch a certain number of elements, by a given key, over a time interval|
 [`.flatten`](#-flatten--aflatten)|explode iterable elements|
-[`.filter`](#-filter--afilter)|remove elements|
+[`.filter`](#-filter)|remove elements|
 [`.distinct`](#-distinct--adistinct)|remove duplicates|
 [`.truncate`](#-truncate--atruncate)|cut the stream|
 [`.skip`](#-skip--askip)|ignore head elements|
@@ -424,7 +424,7 @@ assert list(round_robined_integers) == [0, 1, 0, 1, 1, 2, 1, 2]
 ```
 </details>
 
-## 🟡 `.filter` / `.afilter`
+## 🟡 `.filter`
 
 > Keeps only the elements that satisfy a condition:
 

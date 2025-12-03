@@ -324,29 +324,29 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         """
         return ADistinctStream(self, by, consecutive)
 
-    def filter(self, where: Callable[[T], Any]) -> "Stream[T]":
+    @overload
+    def filter(self, where: Callable[[T], Any] = bool) -> "Stream[T]": ...
+
+    @overload
+    def filter(self, where: Callable[[T], Coroutine[Any, Any, Any]]) -> "Stream[T]": ...
+
+    def filter(
+        self,
+        where: Union[
+            Callable[[T], Any],
+            Callable[[T], Coroutine[Any, Any, Any]],
+        ] = bool,
+    ) -> "Stream[T]":
         """
         Filters the stream to yield only elements satisfying the ``where`` predicate.
 
         Args:
-            where (``Callable[[T], Any]``): An element is kept if ``where(elem)`` is truthy.
+            where (``Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``, optional): An element is kept if ``where(elem)`` is truthy.
 
         Returns:
             ``Stream[T]``: A stream of upstream elements satisfying the `where` predicate.
         """
         return FilterStream(self, where)
-
-    def afilter(self, where: Callable[[T], Coroutine[Any, Any, Any]]) -> "Stream[T]":
-        """
-        Filters the stream to yield only elements satisfying the ``where`` predicate.
-
-        Args:
-            where (``Callable[[T], Coroutine[Any, Any, Any]]``, optional): An element is kept if ``await where(elem)`` is truthy. (default: keeps truthy elements)
-
-        Returns:
-            ``Stream[T]``: A stream of upstream elements satisfying the `where` predicate.
-        """
-        return AFilterStream(self, where)
 
     # fmt: off
     @overload
@@ -890,19 +890,6 @@ class FilterStream(DownStream[T, T]):
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_filter_stream(self)
-
-
-class AFilterStream(DownStream[T, T]):
-    __slots__ = ("_where",)
-
-    def __init__(
-        self, upstream: Stream[T], where: Callable[[T], Coroutine[Any, Any, Any]]
-    ) -> None:
-        super().__init__(upstream)
-        self._where = where
-
-    def accept(self, visitor: "Visitor[V]") -> V:
-        return visitor.visit_afilter_stream(self)
 
 
 class FlattenStream(DownStream[Iterable[T], T]):

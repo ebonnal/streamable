@@ -4,7 +4,6 @@ from typing import Any, Iterable, List
 from streamable._stream import (
     ACatchStream,
     ADistinctStream,
-    AFilterStream,
     AFlattenStream,
     AForeachStream,
     AGroupbyStream,
@@ -79,10 +78,6 @@ class ToStringVisitor(Visitor[str], ABC):
 
     def visit_filter_stream(self, stream: FilterStream) -> str:
         self.methods_reprs.append(f"filter({self.to_string(stream._where)})")
-        return stream.upstream.accept(self)
-
-    def visit_afilter_stream(self, stream: AFilterStream) -> str:
-        self.methods_reprs.append(f"afilter({self.to_string(stream._where)})")
         return stream.upstream.accept(self)
 
     def visit_flatten_stream(self, stream: FlattenStream) -> str:

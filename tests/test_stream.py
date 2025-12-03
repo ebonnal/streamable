@@ -687,23 +687,23 @@ def test_partial_iteration_on_streams_using_concurrency(
 
 
 @pytest.mark.parametrize(
-    "itype, filter, adapt",
-    (
-        (itype, filter, adapt)
-        for filter, adapt in ((Stream.filter, identity), (Stream.afilter, asyncify))
-        for itype in ITERABLE_TYPES
-    ),
+    "itype, adapt",
+    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
 )
-def test_filter(itype: IterableType, filter, adapt) -> None:
+def test_filter(itype: IterableType, adapt) -> None:
     def keep(x) -> int:
         return x % 2
 
     # `filter` must act like builtin filter
-    assert to_list(filter(Stream(src), adapt(keep)), itype=itype) == list(
+    assert to_list(Stream(src).filter(adapt(keep)), itype=itype) == list(
         builtins.filter(keep, src)
     )
     # `filter` with `bool` as predicate must act like builtin filter with None predicate.
-    assert to_list(filter(Stream(src), adapt(bool)), itype=itype) == list(
+    assert to_list(Stream(src).filter(adapt(bool)), itype=itype) == list(
+        builtins.filter(None, src)
+    )
+    # `filter` with `bool` as predicate must act like builtin filter with None predicate.
+    assert to_list(Stream(src).filter(), itype=itype) == list(
         builtins.filter(None, src)
     )
 
@@ -1431,7 +1431,7 @@ def test_eq() -> None:
         .distinct(identity)
         .adistinct(async_identity)
         .filter(identity)
-        .afilter(async_identity)
+        .filter(async_identity)
         .foreach(identity, concurrency=3)
         .aforeach(async_identity, concurrency=3)
         .group(3, by=bool)
@@ -1459,7 +1459,7 @@ def test_eq() -> None:
         .distinct(identity)
         .adistinct(async_identity)
         .filter(identity)
-        .afilter(async_identity)
+        .filter(async_identity)
         .foreach(identity, concurrency=3)
         .aforeach(async_identity, concurrency=3)
         .group(3, by=bool)
@@ -1488,7 +1488,7 @@ def test_eq() -> None:
         .distinct(identity)
         .adistinct(async_identity)
         .filter(identity)
-        .afilter(async_identity)
+        .filter(async_identity)
         .foreach(identity, concurrency=3)
         .aforeach(async_identity, concurrency=3)
         .group(3, by=bool)
@@ -1517,7 +1517,7 @@ def test_eq() -> None:
         .distinct(identity)
         .adistinct(async_identity)
         .filter(identity)
-        .afilter(async_identity)
+        .filter(async_identity)
         .foreach(identity, concurrency=3)
         .aforeach(async_identity, concurrency=3)
         .group(3, by=bool)
@@ -1621,9 +1621,9 @@ def test_iter_loop_auto_closing() -> None:
         return loop
 
     asyncio.new_event_loop = tracking_new_event_loop
-    iterator_a = iter(Stream(src).afilter(async_identity))
+    iterator_a = iter(Stream(src).filter(async_identity))
     loop_a = created_loop.get_nowait()
-    iterator_b = iter(Stream(src).afilter(async_identity))
+    iterator_b = iter(Stream(src).filter(async_identity))
     loop_b = created_loop.get_nowait()
     # iterator_a is not deleted, its loop should not be closed
     assert not loop_a.is_closed()

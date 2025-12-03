@@ -27,9 +27,6 @@ class Visitor(ABC, Generic[V]):
     def visit_filter_stream(self, stream: _stream.FilterStream) -> V:
         return self.visit_stream(stream)
 
-    def visit_afilter_stream(self, stream: _stream.AFilterStream) -> V:
-        return self.visit_stream(stream)
-
     def visit_flatten_stream(self, stream: _stream.FlattenStream) -> V:
         return self.visit_stream(stream)
 
