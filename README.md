@@ -168,9 +168,9 @@ Let's do a tour of the `Stream`'s operations, for more details visit the [***doc
 [`.group`](#-group--agroup) / [`.groupby`](#-groupby--agroupby)|batch a certain number of elements, by a given key, over a time interval|
 [`.flatten`](#-flatten--aflatten)|explode iterable elements|
 [`.filter`](#-filter)|remove elements|
-[`.distinct`](#-distinct--adistinct)|remove duplicates|
-[`.truncate`](#-truncate--atruncate)|cut the stream|
-[`.skip`](#-skip--askip)|ignore head elements|
+[`.distinct`](#-distinct)|remove duplicates|
+[`.truncate`](#-truncate)|cut the stream|
+[`.skip`](#-skip)|ignore head elements|
 [`.catch`](#-catch--acatch)|handle exceptions|
 [`.throttle`](#-throttle)|control the rate of iteration|
 [`.observe`](#-observe)|log elements/errors counters|
@@ -437,7 +437,7 @@ assert list(even_integers) == [0, 2, 4, 6, 8]
 ```
 </details>
 
-## 🟡 `.distinct` / `.adistinct`
+## 🟡 `.distinct`
 
 > Removes duplicates:
 
@@ -479,7 +479,7 @@ assert list(consecutively_distinct_chars) == ["f", "o", "b", "a", "r", "f", "o"]
 ```
 </details>
 
-## 🟡 `.truncate` / `.atruncate`
+## 🟡 `.truncate`
 
 > Ends iteration when a given number of elements have been yielded:
 
@@ -505,7 +505,7 @@ assert list(five_first_integers) == [0, 1, 2, 3, 4]
 
 > If both `count` and `when` are set, truncation occurs as soon as either condition is met.
 
-## 🟡 `.skip` / `.askip`
+## 🟡 `.skip`
 
 > Skips the first specified number of elements:
 
