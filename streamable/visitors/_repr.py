@@ -3,7 +3,6 @@ from typing import Any, Iterable, List
 
 from streamable._stream import (
     ACatchStream,
-    ADistinctStream,
     AFlattenStream,
     AForeachStream,
     AGroupbyStream,
@@ -65,12 +64,6 @@ class ToStringVisitor(Visitor[str], ABC):
     def visit_distinct_stream(self, stream: DistinctStream) -> str:
         self.methods_reprs.append(
             f"distinct({self.to_string(stream._by)}, consecutive={self.to_string(stream._consecutive)})"
-        )
-        return stream.upstream.accept(self)
-
-    def visit_adistinct_stream(self, stream: ADistinctStream) -> str:
-        self.methods_reprs.append(
-            f"adistinct({self.to_string(stream._by)}, consecutive={self.to_string(stream._consecutive)})"
         )
         return stream.upstream.accept(self)
 

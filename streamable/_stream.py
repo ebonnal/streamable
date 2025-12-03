@@ -274,15 +274,35 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
             finally_raise=finally_raise,
         )
 
+    @overload
+    def distinct(
+        self,
+        by: Callable[[T], Coroutine[Any, Any, Any]],
+        *,
+        consecutive: bool = False,
+    ) -> "Stream[T]": ...
+
+    @overload
     def distinct(
         self,
         by: Optional[Callable[[T], Any]] = None,
         *,
         consecutive: bool = False,
+    ) -> "Stream[T]": ...
+
+    def distinct(
+        self,
+        by: Union[
+            None,
+            Callable[[T], Any],
+            Callable[[T], Coroutine[Any, Any, Any]],
+        ] = None,
+        *,
+        consecutive: bool = False,
     ) -> "Stream[T]":
         """
         Filters the stream to yield only distinct elements.
-        If a deduplication ``by`` is specified, ``foo`` and ``bar`` are treated as duplicates when ``by(foo) == by(bar)``.
+        If a deduplication ``by`` is specified, ``foo`` and ``bar`` are treated as duplicates when ``by(foo) == by(bar)`` (or ``await by(foo) == await by(bar)``).
 
         Among duplicates, the first encountered occurence in upstream order is yielded.
 
@@ -291,38 +311,15 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
             Alternatively, remove only consecutive duplicates without memory footprint by setting ``consecutive=True``.
 
         Args:
-            by (``Callable[[T], Any]``, optional): Elements are deduplicated based on ``by(elem)``. (default: the deduplication is performed on the elements themselves)
+            by (``Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``, optional): 
+                - ``Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``: Elements are deduplicated based on ``by(elem)``.
+                - ``None``: The deduplication is performed on the elements themselves. (default)
             consecutive (``bool``, optional): Removes only consecutive duplicates if ``True``, or deduplicates globally if ``False``. (default: global deduplication)
 
         Returns:
             ``Stream[T]``: A stream containing only unique upstream elements.
         """
         return DistinctStream(self, by, consecutive)
-
-    def adistinct(
-        self,
-        by: Optional[Callable[[T], Coroutine[Any, Any, Any]]] = None,
-        *,
-        consecutive: bool = False,
-    ) -> "Stream[T]":
-        """
-        Filters the stream to yield only distinct elements.
-        If a deduplication ``by`` is specified, ``foo`` and ``bar`` are treated as duplicates when ``await by(foo) == await by(bar)``.
-
-        Among duplicates, the first encountered occurence in upstream order is yielded.
-
-        Warning:
-            During iteration, the distinct elements yielded are retained in memory to perform deduplication.
-            Alternatively, remove only consecutive duplicates without memory footprint by setting ``consecutive=True``.
-
-        Args:
-            by (``Callable[[T], Coroutine[Any, Any, Any]]``, optional): Elements are deduplicated based on ``await by(elem)``. (default: the deduplication is performed on the elements themselves)
-            consecutive (``bool``, optional): Whether to deduplicate only consecutive duplicates, or globally. (default: the deduplication is global)
-
-        Returns:
-            ``Stream[T]``: A stream containing only unique upstream elements.
-        """
-        return ADistinctStream(self, by, consecutive)
 
     @overload
     def filter(self, where: Callable[[T], Any] = bool) -> "Stream[T]": ...
@@ -843,7 +840,11 @@ class DistinctStream(DownStream[T, T]):
     def __init__(
         self,
         upstream: Stream[T],
-        by: Optional[Callable[[T], Any]],
+        by: Union[
+            None,
+            Callable[[T], Any],
+            Callable[[T], Coroutine[Any, Any, Any]],
+        ],
         consecutive: bool,
     ) -> None:
         super().__init__(upstream)
@@ -852,23 +853,6 @@ class DistinctStream(DownStream[T, T]):
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_distinct_stream(self)
-
-
-class ADistinctStream(DownStream[T, T]):
-    __slots__ = ("_by", "_consecutive")
-
-    def __init__(
-        self,
-        upstream: Stream[T],
-        by: Optional[Callable[[T], Coroutine[Any, Any, Any]]],
-        consecutive: bool,
-    ) -> None:
-        super().__init__(upstream)
-        self._by = by
-        self._consecutive = consecutive
-
-    def accept(self, visitor: "Visitor[V]") -> V:
-        return visitor.visit_adistinct_stream(self)
 
 
 class FilterStream(DownStream[T, T]):

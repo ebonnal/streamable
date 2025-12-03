@@ -5,7 +5,6 @@ from typing import AsyncIterable, Iterable, Iterator, Optional, TypeVar, Union, 
 from streamable import _functions
 from streamable._stream import (
     ACatchStream,
-    ADistinctStream,
     AFlattenStream,
     AForeachStream,
     AGroupbyStream,
@@ -67,15 +66,20 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         )
 
     def visit_distinct_stream(self, stream: DistinctStream[T]) -> Iterator[T]:
+        if stream._by is None:
+            return _functions.distinct(
+                stream.upstream.accept(self),
+                stream._by,
+                consecutive=stream._consecutive,
+            )
+        if iscoroutinefunction(stream._by):
+            return _functions.adistinct(
+                self._get_loop(),
+                stream.upstream.accept(self),
+                stream._by,
+                consecutive=stream._consecutive,
+            )
         return _functions.distinct(
-            stream.upstream.accept(self),
-            stream._by,
-            consecutive=stream._consecutive,
-        )
-
-    def visit_adistinct_stream(self, stream: ADistinctStream[T]) -> Iterator[T]:
-        return _functions.adistinct(
-            self._get_loop(),
             stream.upstream.accept(self),
             stream._by,
             consecutive=stream._consecutive,

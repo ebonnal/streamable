@@ -21,9 +21,6 @@ class Visitor(ABC, Generic[V]):
     def visit_distinct_stream(self, stream: _stream.DistinctStream) -> V:
         return self.visit_stream(stream)
 
-    def visit_adistinct_stream(self, stream: _stream.ADistinctStream) -> V:
-        return self.visit_stream(stream)
-
     def visit_filter_stream(self, stream: _stream.FilterStream) -> V:
         return self.visit_stream(stream)
 
