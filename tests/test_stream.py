@@ -722,7 +722,7 @@ def test_skip(itype: IterableType, skip, adapt) -> None:
         skip(Stream(src), -1)
     with pytest.raises(
         TypeError,
-        match="`until` must be an int or a callable, but got ",
+        match="`until` must be an int or a callable, but got ''",
     ):
         skip(Stream(src), "")
     for count in [0, 1, 3]:

@@ -18,7 +18,7 @@ T = TypeVar("T")
 
 def validate_concurrency(concurrency: int) -> None:
     if concurrency is None or concurrency < 1:
-        raise ValueError(f"`concurrency` must be >= 1 but got {concurrency}")
+        raise ValueError(f"`concurrency` must be >= 1 but got {repr(concurrency)}")
 
 
 def validate_via(via: "Literal['thread', 'process']") -> None:
@@ -28,7 +28,7 @@ def validate_via(via: "Literal['thread', 'process']") -> None:
 
 def validate_group_size(size: Optional[int]) -> None:
     if size is not None and size < 1:
-        raise ValueError(f"`size` must be None or >= 1 but got {size}")
+        raise ValueError(f"`size` must be None or >= 1 but got {repr(size)}")
 
 
 def validate_positive_interval(interval: datetime.timedelta, *, name: str) -> None:
@@ -47,19 +47,19 @@ def validate_optional_positive_interval(
 
 def validate_count_or_callable(_: Union[int, Callable], *, name: str) -> None:
     if not isinstance(_, int) and not callable(_):
-        raise TypeError(f"`{name}` must be an int or a callable, but got {_}")
+        raise TypeError(f"`{name}` must be an int or a callable, but got {repr(_)}")
     if isinstance(_, int):
         validate_count(_, name=name)
 
 
 def validate_count(count: int, *, name: str) -> None:
     if count < 0:
-        raise ValueError(f"`{name}` must be >= 0 but got {count}")
+        raise ValueError(f"`{name}` must be >= 0 but got {repr(count)}")
 
 
 def validate_positive_count(count: int, *, name: str) -> None:
     if count < 1:
-        raise ValueError(f"`{name}` must be >= 1 but got {count}")
+        raise ValueError(f"`{name}` must be >= 1 but got {repr(count)}")
 
 
 def _is_exception_subclass(error: Any) -> bool:
@@ -74,5 +74,5 @@ def validate_errors(
     if isinstance(errors, tuple) and all(map(_is_exception_subclass, errors)):
         return
     raise TypeError(
-        f"`errors` must be an `Exception` subclass or a tuple of such classes but got {errors}"
+        f"`errors` must be an `Exception` subclass or a tuple of such classes but got {repr(errors)}"
     )
