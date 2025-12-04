@@ -27,7 +27,7 @@ class Visitor(ABC, Generic[V]):
     def visit_aflatten_stream(self, stream: _stream.AFlattenStream) -> V:
         return self.visit_stream(stream)
 
-    def visit_foreach_stream(self, stream: _stream.ForeachStream) -> V:
+    def visit_do_stream(self, stream: _stream.DoStream) -> V:
         return self.visit_stream(stream)
 
     def visit_group_stream(self, stream: _stream.GroupStream) -> V:

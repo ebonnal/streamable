@@ -87,8 +87,8 @@ def test_init() -> None:
         .flatten()
         .map(identity)
         .map(async_identity)
-        .foreach(identity)
-        .foreach(async_identity)
+        .do(identity)
+        .do(async_identity)
         .catch(Exception)
         .observe()
         .throttle(1, per=datetime.timedelta(seconds=1))
@@ -206,10 +206,10 @@ def test_process_concurrency(ordered, order_mutation, itype) -> None:
     expected_result_list: List[str] = list(order_mutation(map(str, sleeps)))
     stream = (
         Stream(sleeps)
-        .foreach(identity_sleep, concurrency=2, ordered=ordered, via="process")
+        .do(identity_sleep, concurrency=2, ordered=ordered, via="process")
         .map(str, concurrency=2, ordered=True, via="process")
-        .foreach(state.append, concurrency=2, ordered=True, via="process")
-        .foreach(lambda _: state.append(""), concurrency=1, ordered=True)
+        .do(state.append, concurrency=2, ordered=True, via="process")
+        .do(lambda _: state.append(""), concurrency=1, ordered=True)
     )
     # process-based concurrency must correctly transform elements, respecting `ordered`...
     assert to_list(stream, itype=itype) == expected_result_list
@@ -266,7 +266,7 @@ def test_map_with_more_concurrency_than_elements(concurrency, n_elems, itype) ->
     ],
 )
 def test_catched_error_upstream_of_map(itype, concurrency, ordered, expected) -> None:
-    # at any concurrency, map/foreach should not stop iteration when upstream raises
+    # at any concurrency, map/do should not stop iteration when upstream raises
     assert (
         to_list(
             Stream([0, 1, 0, 2, 0])
@@ -277,7 +277,7 @@ def test_catched_error_upstream_of_map(itype, concurrency, ordered, expected) ->
         )
         == expected
     )
-    # at any concurrency, async map/foreach should not stop iteration when upstream raises
+    # at any concurrency, async map/do should not stop iteration when upstream raises
     assert (
         to_list(
             Stream([0, 1, 0, 2, 0])
@@ -299,9 +299,9 @@ def test_catched_error_upstream_of_map(itype, concurrency, ordered, expected) ->
             (False, sorted, 0.41),
         ]
         for operation, func in [
-            (Stream.foreach, time.sleep),
+            (Stream.do, time.sleep),
             (Stream.map, identity_sleep),
-            (Stream.foreach, asyncio.sleep),
+            (Stream.do, asyncio.sleep),
             (Stream.map, async_identity_sleep),
         ]
         for itype in ITERABLE_TYPES
@@ -331,7 +331,7 @@ def test_mapping_ordering(
     "concurrency, itype",
     [(concurrency, itype) for concurrency in (1, 2) for itype in ITERABLE_TYPES],
 )
-def test_foreach(concurrency, itype) -> None:
+def test_do(concurrency, itype) -> None:
     side_collection: Set[int] = set()
 
     def side_effect(x: int, func: Callable[[int], int]):
@@ -339,15 +339,15 @@ def test_foreach(concurrency, itype) -> None:
         side_collection.add(func(x))
 
     res = to_list(
-        Stream(src).foreach(
+        Stream(src).do(
             lambda i: randomly_slowed(side_effect(i, square)),
             concurrency=concurrency,
         ),
         itype=itype,
     )
-    # At any concurrency the `foreach` method should return the upstream elements in order.
+    # At any concurrency the `do` method should return the upstream elements in order.
     assert res == list(src)
-    # At any concurrency the `foreach` method should call func on upstream elements (in any order).
+    # At any concurrency the `do` method should call func on upstream elements (in any order).
     assert side_collection == set(map(square, src))
 
 
@@ -370,15 +370,15 @@ def test_foreach(concurrency, itype) -> None:
         ]
         for concurrency in [1, 2]
         for method, throw_func_, throw_for_odd_func_, nostop_ in [
-            (Stream.foreach, throw_func, throw_for_odd_func, nostop),
-            (Stream.foreach, async_throw_func, async_throw_for_odd_func, anostop),
+            (Stream.do, throw_func, throw_for_odd_func, nostop),
+            (Stream.do, async_throw_func, async_throw_for_odd_func, anostop),
             (Stream.map, throw_func, throw_for_odd_func, nostop),
             (Stream.map, async_throw_func, async_throw_for_odd_func, anostop),
         ]
         for itype in ITERABLE_TYPES
     ],
 )
-def test_map_or_foreach_with_exception(
+def test_map_or_do_with_exception(
     raised_exc: Type[Exception],
     caught_exc: Type[Exception],
     concurrency: int,
@@ -391,14 +391,14 @@ def test_map_or_foreach_with_exception(
     rasing_stream: Stream[int] = method(
         Stream(iter(src)), nostop(throw_func(raised_exc)), concurrency=concurrency
     )  # type: ignore
-    # At any concurrency, `map` and `foreach` must raise.
+    # At any concurrency, `map` and `do` must raise.
     with pytest.raises(caught_exc):
         to_list(rasing_stream, itype=itype)
     # Only `concurrency` upstream elements should be initially pulled for processing (0 if `concurrency=1`), and 1 more should be pulled for each call to `next`.
     assert next(cast(Iterator[int], rasing_stream.source)) == (
         concurrency + 1 if concurrency > 1 else concurrency
     )
-    # At any concurrency, `map` and `foreach` should not stop after one exception occured.
+    # At any concurrency, `map` and `do` should not stop after one exception occured.
     assert to_list(
         method(
             Stream(src),
@@ -414,8 +414,8 @@ def test_map_or_foreach_with_exception(
     [
         [method, func, concurrency, itype]
         for method, func in [
-            (Stream.foreach, slow_identity),
-            (Stream.foreach, async_slow_identity),
+            (Stream.do, slow_identity),
+            (Stream.do, async_slow_identity),
             (Stream.map, slow_identity),
             (Stream.map, async_slow_identity),
         ]
@@ -423,7 +423,7 @@ def test_map_or_foreach_with_exception(
         for itype in ITERABLE_TYPES
     ],
 )
-def test_map_or_foreach_concurrency(method, func, concurrency, itype) -> None:
+def test_map_or_do_concurrency(method, func, concurrency, itype) -> None:
     expected_iteration_duration = N * slow_identity_duration / concurrency
     duration, res = timestream(
         method(Stream(src), func, concurrency=concurrency), itype=itype
@@ -449,12 +449,10 @@ def test_map_async(concurrency, itype) -> None:
     "concurrency, itype",
     [(concurrency, itype) for concurrency in (1, 100) for itype in ITERABLE_TYPES],
 )
-def test_foreach_async(concurrency, itype) -> None:
-    # At any concurrency the `foreach` method must preserve input elements order.
+def test_do_async(concurrency, itype) -> None:
+    # At any concurrency the `do` method must preserve input elements order.
     assert to_list(
-        Stream(src).foreach(
-            async_randomly_slowed(async_square), concurrency=concurrency
-        ),
+        Stream(src).do(async_randomly_slowed(async_square), concurrency=concurrency),
         itype=itype,
     ) == list(src)
 
@@ -543,7 +541,7 @@ def test_flatten(concurrency, itype, flatten) -> None:
     assert to_list(
         flatten(
             Stream([[4, 3, 2], cast(List[int], []), [1, 0]])
-            .foreach(lambda ints: 1 / len(ints))
+            .do(lambda ints: 1 / len(ints))
             .map(sync_to_bi_iterable),
             concurrency=concurrency,
         ).catch(ZeroDivisionError, replace=lambda e: -1),
@@ -649,11 +647,11 @@ def test_partial_iteration_on_streams_using_concurrency(
             concurrency + 1,
         ),
         (
-            Stream(remembering_src).foreach(identity, concurrency=concurrency),
+            Stream(remembering_src).do(identity, concurrency=concurrency),
             concurrency + 1,
         ),
         (
-            Stream(remembering_src).foreach(async_identity, concurrency=concurrency),
+            Stream(remembering_src).do(async_identity, concurrency=concurrency),
             concurrency + 1,
         ),
         (
@@ -1347,8 +1345,8 @@ def test_eq() -> None:
         .distinct(async_identity)
         .filter(identity)
         .filter(async_identity)
-        .foreach(identity, concurrency=3)
-        .foreach(async_identity, concurrency=3)
+        .do(identity, concurrency=3)
+        .do(async_identity, concurrency=3)
         .group(3, by=bool)
         .flatten(concurrency=3)
         .group(3, by=async_identity)
@@ -1375,8 +1373,8 @@ def test_eq() -> None:
         .distinct(async_identity)
         .filter(identity)
         .filter(async_identity)
-        .foreach(identity, concurrency=3)
-        .foreach(async_identity, concurrency=3)
+        .do(identity, concurrency=3)
+        .do(async_identity, concurrency=3)
         .group(3, by=bool)
         .flatten(concurrency=3)
         .group(3, by=async_identity)
@@ -1404,8 +1402,8 @@ def test_eq() -> None:
         .distinct(async_identity)
         .filter(identity)
         .filter(async_identity)
-        .foreach(identity, concurrency=3)
-        .foreach(async_identity, concurrency=3)
+        .do(identity, concurrency=3)
+        .do(async_identity, concurrency=3)
         .group(3, by=bool)
         .flatten(concurrency=3)
         .group(3, by=async_identity)
@@ -1433,8 +1431,8 @@ def test_eq() -> None:
         .distinct(async_identity)
         .filter(identity)
         .filter(async_identity)
-        .foreach(identity, concurrency=3)
-        .foreach(async_identity, concurrency=3)
+        .do(identity, concurrency=3)
+        .do(async_identity, concurrency=3)
         .group(3, by=bool)
         .flatten(concurrency=3)
         .group(3, by=async_identity)
@@ -1493,7 +1491,7 @@ def test_ref_cycles(itype: IterableType) -> None:
 def test_on_queue_in_thread() -> None:
     zeros: List[str] = []
     src: "queue.Queue[Optional[str]]" = queue.Queue()
-    thread = threading.Thread(target=Stream(iter(src.get, None)).foreach(zeros.append))
+    thread = threading.Thread(target=Stream(iter(src.get, None)).do(zeros.append))
     thread.start()
     src.put("foo")
     src.put("bar")

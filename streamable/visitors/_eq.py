@@ -6,7 +6,7 @@ from streamable._stream import (
     DistinctStream,
     FilterStream,
     FlattenStream,
-    ForeachStream,
+    DoStream,
     GroupbyStream,
     GroupStream,
     MapStream,
@@ -64,15 +64,15 @@ class EqualityVisitor(Visitor[bool]):
     def visit_aflatten_stream(self, stream: AFlattenStream) -> bool:
         return self.flatten_eq(stream)
 
-    def visit_foreach_stream(self, stream: ForeachStream) -> bool:
+    def visit_do_stream(self, stream: DoStream) -> bool:
         return (
             self.type_eq(stream)
             and stream.upstream.accept(EqualityVisitor(self.other.upstream))
             and stream._concurrency == self.other._concurrency
-            and stream._do == self.other._do
+            and stream._effect == self.other._effect
             and stream._ordered == self.other._ordered
+            and stream._via == self.other._via
         )
-        return stream._via == self.other._via
 
     def visit_group_stream(self, stream: GroupStream) -> bool:
         return (

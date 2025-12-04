@@ -5,9 +5,9 @@ from streamable._stream import (
     AFlattenStream,
     CatchStream,
     DistinctStream,
+    DoStream,
     FilterStream,
     FlattenStream,
-    ForeachStream,
     GroupbyStream,
     GroupStream,
     MapStream,
@@ -65,10 +65,10 @@ class ToStringVisitor(Visitor[str], ABC):
         )
         return stream.upstream.accept(self)
 
-    def visit_foreach_stream(self, stream: ForeachStream) -> str:
+    def visit_do_stream(self, stream: DoStream) -> str:
         via = f", via={self.to_string(stream._via)}" if stream._concurrency > 1 else ""
         self.methods_reprs.append(
-            f"foreach({self.to_string(stream._do)}, concurrency={self.to_string(stream._concurrency)}, ordered={self.to_string(stream._ordered)}{via})"
+            f"do({self.to_string(stream._effect)}, concurrency={self.to_string(stream._concurrency)}, ordered={self.to_string(stream._ordered)}{via})"
         )
         return stream.upstream.accept(self)
 

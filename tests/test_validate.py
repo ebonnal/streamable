@@ -13,8 +13,8 @@ from tests.utils import (
     (
         (Stream.map, [identity]),
         (Stream.map, [async_identity]),
-        (Stream.foreach, [identity]),
-        (Stream.foreach, [identity]),
+        (Stream.do, [identity]),
+        (Stream.do, [async_identity]),
         (Stream.flatten, []),
         (Stream.aflatten, []),
     ),
@@ -29,7 +29,7 @@ def test_validate_concurrency(method, args) -> None:
         method(stream, *args, concurrency=0)
 
 
-@pytest.mark.parametrize("method", (Stream.map, Stream.foreach))
+@pytest.mark.parametrize("method", (Stream.map, Stream.do))
 def test_validate_via(method) -> None:
     # must raise a TypeError for invalid via
     with pytest.raises(

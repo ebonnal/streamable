@@ -1,6 +1,7 @@
 import asyncio
 from inspect import iscoroutinefunction
 from typing import (
+    Any,
     AsyncIterable,
     Callable,
     Coroutine,
@@ -17,9 +18,9 @@ from streamable._stream import (
     AFlattenStream,
     CatchStream,
     DistinctStream,
+    DoStream,
     FilterStream,
     FlattenStream,
-    ForeachStream,
     GroupbyStream,
     GroupStream,
     MapStream,
@@ -123,12 +124,12 @@ class IteratorVisitor(Visitor[Iterator[T]]):
             concurrency=stream._concurrency,
         )
 
-    def visit_foreach_stream(self, stream: ForeachStream[T]) -> Iterator[T]:
-        if iscoroutinefunction(stream._do):
+    def visit_do_stream(self, stream: DoStream[T]) -> Iterator[T]:
+        if iscoroutinefunction(stream._effect):
             return self.visit_map_stream(
                 MapStream(
                     stream.upstream,
-                    async_sidify(stream._do),
+                    async_sidify(stream._effect),
                     stream._concurrency,
                     stream._ordered,
                     stream._via,
@@ -137,7 +138,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         return self.visit_map_stream(
             MapStream(
                 stream.upstream,
-                sidify(stream._do),
+                sidify(cast(Callable[[T], Any], stream._effect)),
                 stream._concurrency,
                 stream._ordered,
                 stream._via,

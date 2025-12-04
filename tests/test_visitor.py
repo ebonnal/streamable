@@ -4,9 +4,9 @@ from streamable._stream import (
     AFlattenStream,
     CatchStream,
     DistinctStream,
+    DoStream,
     FilterStream,
     FlattenStream,
-    ForeachStream,
     GroupbyStream,
     GroupStream,
     MapStream,
@@ -30,7 +30,7 @@ def test_visitor() -> None:
     visitor.visit_filter_stream(cast(FilterStream, ...))
     visitor.visit_flatten_stream(cast(FlattenStream, ...))
     visitor.visit_aflatten_stream(cast(AFlattenStream, ...))
-    visitor.visit_foreach_stream(cast(ForeachStream, ...))
+    visitor.visit_do_stream(cast(DoStream, ...))
     visitor.visit_group_stream(cast(GroupStream, ...))
     visitor.visit_groupby_stream(cast(GroupbyStream, ...))
     visitor.visit_map_stream(cast(MapStream, ...))
@@ -53,4 +53,4 @@ def test_depth_visitor_example():
     def depth(stream: Stream) -> int:
         return stream.accept(DepthVisitor())
 
-    assert depth(Stream(range(10)).map(str).foreach(print)) == 3
+    assert depth(Stream(range(10)).map(str).do(print)) == 3

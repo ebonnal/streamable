@@ -440,9 +440,9 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         return AFlattenStream(self, concurrency)
 
     @overload
-    def foreach(
+    def do(
         self,
-        do: Callable[[T], Coroutine[Any, Any, Any]],
+        effect: Callable[[T], Coroutine[Any, Any, Any]],
         *,
         concurrency: int = 1,
         ordered: bool = True,
@@ -450,18 +450,18 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
     ) -> "Stream[T]": ...
 
     @overload
-    def foreach(
+    def do(
         self,
-        do: Callable[[T], Any],
+        effect: Callable[[T], Any],
         *,
         concurrency: int = 1,
         ordered: bool = True,
         via: "Literal['thread', 'process']" = "thread",
     ) -> "Stream[T]": ...
 
-    def foreach(
+    def do(
         self,
-        do: Union[
+        effect: Union[
             Callable[[T], Any],
             Callable[[T], Coroutine[Any, Any, Any]],
         ],
@@ -475,7 +475,7 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         If ``do(elem)`` raises then it will be thrown and ``elem`` will not be yielded.
 
         Args:
-            do (``Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``): The function to be applied to each element as a side effect.
+            effect (``Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``): The function to be applied to each element as a side effect.
             concurrency (``int``, optional): Represents both the number of workers used to concurrently apply the ``do`` and the size of the buffer containing not-yet-yielded elements. If the buffer is full, the iteration over the upstream is paused until an element is yielded from the buffer. (default: no concurrency)
             ordered (``bool``, optional): If ``concurrency`` > 1, whether to preserve the order of upstream elements or to yield them as soon as they are processed. (default: preserves upstream order)
             via ("thread" or "process", optional): If ``concurrency`` > 1 and ``do`` is sync, whether to apply ``do`` using processes or threads. (default: via threads)
@@ -484,7 +484,7 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         """
         validate_concurrency(concurrency)
         validate_via(via)
-        return ForeachStream(self, do, concurrency, ordered, via)
+        return DoStream(self, effect, concurrency, ordered, via)
 
     @overload
     def group(
@@ -847,13 +847,13 @@ class AFlattenStream(DownStream[AsyncIterable[T], T]):
         return visitor.visit_aflatten_stream(self)
 
 
-class ForeachStream(DownStream[T, T]):
-    __slots__ = ("_do", "_concurrency", "_ordered", "_via")
+class DoStream(DownStream[T, T]):
+    __slots__ = ("_effect", "_concurrency", "_ordered", "_via")
 
     def __init__(
         self,
         upstream: Stream[T],
-        do: Union[
+        effect: Union[
             Callable[[T], Any],
             Callable[[T], Coroutine[Any, Any, Any]],
         ],
@@ -862,13 +862,13 @@ class ForeachStream(DownStream[T, T]):
         via: "Literal['thread', 'process']",
     ) -> None:
         super().__init__(upstream)
-        self._do = do
+        self._effect = effect
         self._concurrency = concurrency
         self._ordered = ordered
         self._via = via
 
     def accept(self, visitor: "Visitor[V]") -> V:
-        return visitor.visit_foreach_stream(self)
+        return visitor.visit_do_stream(self)
 
 
 class GroupStream(DownStream[T, List[T]]):

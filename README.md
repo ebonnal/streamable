@@ -86,7 +86,7 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
             # GET pokemons concurrently using a pool of 8 threads
             .map(lambda poke_id: f"https://pokeapi.co/api/v2/pokemon-species/{poke_id}")
             .map(http_client.get, concurrency=8)
-            .foreach(httpx.Response.raise_for_status)
+            .do(httpx.Response.raise_for_status)
             .map(httpx.Response.json)
             # Stop the iteration when reaching the 1st pokemon of the 4th generation
             .truncate(when=lambda poke: poke["generation"]["name"] == "generation-iv")
@@ -95,7 +95,7 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
             .filter(lambda poke: poke["shape"]["name"] == "quadruped")
             # Write a batch of pokemons every 5 seconds to the CSV file
             .group(interval=timedelta(seconds=5))
-            .foreach(writer.writerows)
+            .do(writer.writerows)
             .flatten()
             .observe("written pokemons")
             # Catch exceptions and raises the 1st one at the end of the iteration
@@ -136,7 +136,7 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
             # GET pokemons via 8 concurrent coroutines
             .map(lambda poke_id: f"https://pokeapi.co/api/v2/pokemon-species/{poke_id}")
             .map(http_client.get, concurrency=8)
-            .foreach(httpx.Response.raise_for_status)
+            .do(httpx.Response.raise_for_status)
             .map(httpx.Response.json)
             # Stop the iteration when reaching the 1st pokemon of the 4th generation
             .truncate(when=lambda poke: poke["generation"]["name"] == "generation-iv")
@@ -145,7 +145,7 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
             .filter(lambda poke: poke["shape"]["name"] == "quadruped")
             # Write a batch of pokemons every 5 seconds to the CSV file
             .group(interval=timedelta(seconds=5))
-            .foreach(writer.writerows)
+            .do(writer.writerows)
             .flatten()
             .observe("written pokemons")
             # Catch exceptions and raises the 1st one at the end of the iteration
@@ -164,7 +164,7 @@ Let's do a tour of the `Stream`'s operations, for more details visit the [***doc
 |||
 |--|--|
 [`.map`](#-map)|transform elements|
-[`.foreach`](#-foreach)|apply a side effect on elements|
+[`.do`](#-do)|apply a side effect on elements|
 [`.group`](#-group) / [`.groupby`](#-groupby)|batch a certain number of elements, by a given key, over a time interval|
 [`.flatten`](#-flatten--aflatten)|explode iterable elements|
 [`.filter`](#-filter)|remove elements|
@@ -283,7 +283,7 @@ assert list(zeros) == [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 </details>
 
 
-## 🟡 `.foreach`
+## 🟡 `.do`
 
 > Applies a side effect on elements:
 
@@ -291,7 +291,7 @@ assert list(zeros) == [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
 ```python
 state: List[int] = []
-appending_integers: Stream[int] = integers.foreach(state.append)
+appending_integers: Stream[int] = integers.do(state.append)
 
 assert list(appending_integers) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
@@ -304,7 +304,7 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 > - set the `concurrency` parameter for **thread-based concurrency**
 > - set `via="process"` for **process-based concurrency**
 > - set `ordered=False` for ***First Done First Out***
-> - The `.foreach` operation can apply a sync or `async` effect concurrently.
+> - The `.do` operation can apply a sync or `async` effect concurrently.
 
 ## 🟡 `.group`
 
@@ -675,7 +675,7 @@ assert list(cubes) == [0, 1, 8, 27, 64, 125, 216, 343, 512, 729]
 
 ```python
 state: List[int] = []
-appending_integers: Stream[int] = integers.foreach(state.append)
+appending_integers: Stream[int] = integers.do(state.append)
 assert appending_integers() is appending_integers
 assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
@@ -687,7 +687,7 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 ```python
 state: List[int] = []
-appending_integers: Stream[int] = integers.foreach(state.append)
+appending_integers: Stream[int] = integers.do(state.append)
 assert appending_integers is await appending_integers
 assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```

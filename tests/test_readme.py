@@ -83,9 +83,9 @@ def test_starmap_example() -> None:
 
     assert list(zeros) == [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
-def test_foreach_example() -> None:
+def test_do_example() -> None:
     state: List[int] = []
-    appending_integers: Stream[int] = integers.foreach(state.append)
+    appending_integers: Stream[int] = integers.do(state.append)
 
     assert list(appending_integers) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
@@ -261,14 +261,14 @@ def test_zip_example() -> None:
 
 def test_call_example() -> None:
     state: List[int] = []
-    appending_integers: Stream[int] = integers.foreach(state.append)
+    appending_integers: Stream[int] = integers.do(state.append)
     assert appending_integers() is appending_integers
     assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 @pytest.mark.asyncio
 async def test_await_example() -> None:
     state: List[int] = []
-    appending_integers: Stream[int] = integers.foreach(state.append)
+    appending_integers: Stream[int] = integers.do(state.append)
     assert appending_integers is await appending_integers
     assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
@@ -307,7 +307,7 @@ async def test_async_etl_example(tmp_path: Path) -> None: # pragma: no cover
                 # GET pokemons via 8 concurrent coroutines
                 .map(lambda poke_id: f"https://pokeapi.co/api/v2/pokemon-species/{poke_id}")
                 .map(http_client.get, concurrency=8)
-                .foreach(httpx.Response.raise_for_status)
+                .do(httpx.Response.raise_for_status)
                 .map(httpx.Response.json)
                 # Stop the iteration when reaching the 1st pokemon of the 4th generation
                 .truncate(when=lambda poke: poke["generation"]["name"] == "generation-iv")
@@ -316,7 +316,7 @@ async def test_async_etl_example(tmp_path: Path) -> None: # pragma: no cover
                 .filter(lambda poke: poke["shape"]["name"] == "quadruped")
                 # Write a batch of pokemons every 5 seconds to the CSV file
                 .group(interval=timedelta(seconds=5))
-                .foreach(writer.writerows)
+                .do(writer.writerows)
                 .flatten()
                 .observe("written pokemons")
                 # Catch exceptions and raises the 1st one at the end of the iteration
@@ -346,7 +346,7 @@ def test_etl_example(tmp_path: Path) -> None: # pragma: no cover
                 # GET pokemons concurrently using a pool of 8 threads
                 .map(lambda poke_id: f"https://pokeapi.co/api/v2/pokemon-species/{poke_id}")
                 .map(http_client.get, concurrency=8)
-                .foreach(httpx.Response.raise_for_status)
+                .do(httpx.Response.raise_for_status)
                 .map(httpx.Response.json)
                 # Stop the iteration when reaching the 1st pokemon of the 4th generation
                 .truncate(when=lambda poke: poke["generation"]["name"] == "generation-iv")
@@ -355,7 +355,7 @@ def test_etl_example(tmp_path: Path) -> None: # pragma: no cover
                 .filter(lambda poke: poke["shape"]["name"] == "quadruped")
                 # Write a batch of pokemons every 5 seconds to the CSV file
                 .group(interval=timedelta(seconds=5))
-                .foreach(writer.writerows)
+                .do(writer.writerows)
                 .flatten()
                 .observe("written pokemons")
                 # Catch exceptions and raises the 1st one at the end of the iteration
