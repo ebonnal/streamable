@@ -164,7 +164,7 @@ Let's do a tour of the `Stream`'s operations, for more details visit the [***doc
 |||
 |--|--|
 [`.map`](#-map)|transform elements|
-[`.foreach`](#-foreach--aforeach)|apply a side effect on elements|
+[`.foreach`](#-foreach)|apply a side effect on elements|
 [`.group`](#-group) / [`.groupby`](#-groupby)|batch a certain number of elements, by a given key, over a time interval|
 [`.flatten`](#-flatten--aflatten)|explode iterable elements|
 [`.filter`](#-filter)|remove elements|
@@ -283,7 +283,7 @@ assert list(zeros) == [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 </details>
 
 
-## 🟡 `.foreach` / `.aforeach`
+## 🟡 `.foreach`
 
 > Applies a side effect on elements:
 
@@ -304,7 +304,7 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 > - set the `concurrency` parameter for **thread-based concurrency**
 > - set `via="process"` for **process-based concurrency**
 > - set `ordered=False` for ***First Done First Out***
-> - The `.aforeach` operation can apply an `async` effect concurrently.
+> - The `.foreach` operation can apply a sync or `async` effect concurrently.
 
 ## 🟡 `.group`
 

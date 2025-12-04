@@ -2,7 +2,6 @@ from typing import cast
 
 from streamable._stream import (
     AFlattenStream,
-    AForeachStream,
     CatchStream,
     DistinctStream,
     FilterStream,
@@ -32,7 +31,6 @@ def test_visitor() -> None:
     visitor.visit_flatten_stream(cast(FlattenStream, ...))
     visitor.visit_aflatten_stream(cast(AFlattenStream, ...))
     visitor.visit_foreach_stream(cast(ForeachStream, ...))
-    visitor.visit_aforeach_stream(cast(AForeachStream, ...))
     visitor.visit_group_stream(cast(GroupStream, ...))
     visitor.visit_groupby_stream(cast(GroupbyStream, ...))
     visitor.visit_map_stream(cast(MapStream, ...))

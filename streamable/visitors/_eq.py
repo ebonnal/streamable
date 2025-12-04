@@ -2,7 +2,6 @@ from typing import Any, Union
 
 from streamable._stream import (
     AFlattenStream,
-    AForeachStream,
     CatchStream,
     DistinctStream,
     FilterStream,
@@ -65,7 +64,7 @@ class EqualityVisitor(Visitor[bool]):
     def visit_aflatten_stream(self, stream: AFlattenStream) -> bool:
         return self.flatten_eq(stream)
 
-    def foreach_eq(self, stream: Union[ForeachStream, AForeachStream]) -> bool:
+    def visit_foreach_stream(self, stream: ForeachStream) -> bool:
         return (
             self.type_eq(stream)
             and stream.upstream.accept(EqualityVisitor(self.other.upstream))
@@ -73,12 +72,7 @@ class EqualityVisitor(Visitor[bool]):
             and stream._do == self.other._do
             and stream._ordered == self.other._ordered
         )
-
-    def visit_foreach_stream(self, stream: ForeachStream) -> bool:
-        return self.foreach_eq(stream) and stream._via == self.other._via
-
-    def visit_aforeach_stream(self, stream: AForeachStream) -> bool:
-        return self.foreach_eq(stream)
+        return stream._via == self.other._via
 
     def visit_group_stream(self, stream: GroupStream) -> bool:
         return (

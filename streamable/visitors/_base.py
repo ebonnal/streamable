@@ -30,9 +30,6 @@ class Visitor(ABC, Generic[V]):
     def visit_foreach_stream(self, stream: _stream.ForeachStream) -> V:
         return self.visit_stream(stream)
 
-    def visit_aforeach_stream(self, stream: _stream.AForeachStream) -> V:
-        return self.visit_stream(stream)
-
     def visit_group_stream(self, stream: _stream.GroupStream) -> V:
         return self.visit_stream(stream)
 

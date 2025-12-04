@@ -88,7 +88,7 @@ def test_init() -> None:
         .map(identity)
         .map(async_identity)
         .foreach(identity)
-        .aforeach(async_identity)
+        .foreach(async_identity)
         .catch(Exception)
         .observe()
         .throttle(1, per=datetime.timedelta(seconds=1))
@@ -277,7 +277,7 @@ def test_catched_error_upstream_of_map(itype, concurrency, ordered, expected) ->
         )
         == expected
     )
-    # at any concurrency, amap/aforeach should not stop iteration when upstream raises
+    # at any concurrency, async map/foreach should not stop iteration when upstream raises
     assert (
         to_list(
             Stream([0, 1, 0, 2, 0])
@@ -301,7 +301,7 @@ def test_catched_error_upstream_of_map(itype, concurrency, ordered, expected) ->
         for operation, func in [
             (Stream.foreach, time.sleep),
             (Stream.map, identity_sleep),
-            (Stream.aforeach, asyncio.sleep),
+            (Stream.foreach, asyncio.sleep),
             (Stream.map, async_identity_sleep),
         ]
         for itype in ITERABLE_TYPES
@@ -371,7 +371,7 @@ def test_foreach(concurrency, itype) -> None:
         for concurrency in [1, 2]
         for method, throw_func_, throw_for_odd_func_, nostop_ in [
             (Stream.foreach, throw_func, throw_for_odd_func, nostop),
-            (Stream.aforeach, async_throw_func, async_throw_for_odd_func, anostop),
+            (Stream.foreach, async_throw_func, async_throw_for_odd_func, anostop),
             (Stream.map, throw_func, throw_for_odd_func, nostop),
             (Stream.map, async_throw_func, async_throw_for_odd_func, anostop),
         ]
@@ -415,7 +415,7 @@ def test_map_or_foreach_with_exception(
         [method, func, concurrency, itype]
         for method, func in [
             (Stream.foreach, slow_identity),
-            (Stream.aforeach, async_slow_identity),
+            (Stream.foreach, async_slow_identity),
             (Stream.map, slow_identity),
             (Stream.map, async_slow_identity),
         ]
@@ -449,21 +449,14 @@ def test_map_async(concurrency, itype) -> None:
     "concurrency, itype",
     [(concurrency, itype) for concurrency in (1, 100) for itype in ITERABLE_TYPES],
 )
-def test_aforeach(concurrency, itype) -> None:
+def test_foreach_async(concurrency, itype) -> None:
     # At any concurrency the `foreach` method must preserve input elements order.
     assert to_list(
-        Stream(src).aforeach(
+        Stream(src).foreach(
             async_randomly_slowed(async_square), concurrency=concurrency
         ),
         itype=itype,
     ) == list(src)
-    stream = Stream(src).aforeach(identity)  # type: ignore
-    # `aforeach` should raise a TypeError if a non async function is passed to it.
-    with pytest.raises(
-        TypeError,
-        match=r"(object int can't be used in 'await' expression)|('int' object can't be awaited)",
-    ):
-        anext_or_next(bi_iterable_to_iter(stream, itype=itype))
 
 
 def test_flatten_typing() -> None:
@@ -660,7 +653,7 @@ def test_partial_iteration_on_streams_using_concurrency(
             concurrency + 1,
         ),
         (
-            Stream(remembering_src).aforeach(async_identity, concurrency=concurrency),
+            Stream(remembering_src).foreach(async_identity, concurrency=concurrency),
             concurrency + 1,
         ),
         (
@@ -1355,7 +1348,7 @@ def test_eq() -> None:
         .filter(identity)
         .filter(async_identity)
         .foreach(identity, concurrency=3)
-        .aforeach(async_identity, concurrency=3)
+        .foreach(async_identity, concurrency=3)
         .group(3, by=bool)
         .flatten(concurrency=3)
         .group(3, by=async_identity)
@@ -1383,7 +1376,7 @@ def test_eq() -> None:
         .filter(identity)
         .filter(async_identity)
         .foreach(identity, concurrency=3)
-        .aforeach(async_identity, concurrency=3)
+        .foreach(async_identity, concurrency=3)
         .group(3, by=bool)
         .flatten(concurrency=3)
         .group(3, by=async_identity)
@@ -1412,7 +1405,7 @@ def test_eq() -> None:
         .filter(identity)
         .filter(async_identity)
         .foreach(identity, concurrency=3)
-        .aforeach(async_identity, concurrency=3)
+        .foreach(async_identity, concurrency=3)
         .group(3, by=bool)
         .flatten(concurrency=3)
         .group(3, by=async_identity)
@@ -1441,7 +1434,7 @@ def test_eq() -> None:
         .filter(identity)
         .filter(async_identity)
         .foreach(identity, concurrency=3)
-        .aforeach(async_identity, concurrency=3)
+        .foreach(async_identity, concurrency=3)
         .group(3, by=bool)
         .flatten(concurrency=3)
         .group(3, by=async_identity)

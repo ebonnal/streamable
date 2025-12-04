@@ -439,6 +439,17 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         validate_concurrency(concurrency)
         return AFlattenStream(self, concurrency)
 
+    @overload
+    def foreach(
+        self,
+        do: Callable[[T], Coroutine[Any, Any, Any]],
+        *,
+        concurrency: int = 1,
+        ordered: bool = True,
+        via: "Literal['thread', 'process']" = "thread",
+    ) -> "Stream[T]": ...
+
+    @overload
     def foreach(
         self,
         do: Callable[[T], Any],
@@ -446,43 +457,34 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         concurrency: int = 1,
         ordered: bool = True,
         via: "Literal['thread', 'process']" = "thread",
+    ) -> "Stream[T]": ...
+
+    def foreach(
+        self,
+        do: Union[
+            Callable[[T], Any],
+            Callable[[T], Coroutine[Any, Any, Any]],
+        ],
+        *,
+        concurrency: int = 1,
+        ordered: bool = True,
+        via: "Literal['thread', 'process']" = "thread",
     ) -> "Stream[T]":
         """
-        For each upstream element, yields it after having called ``do`` on it.
-        If ``do(elem)`` throws an exception then it will be thrown and ``elem`` will not be yielded.
+        For each upstream element, yields it after having called ``do`` on it (sync or async).
+        If ``do(elem)`` raises then it will be thrown and ``elem`` will not be yielded.
 
         Args:
-            do (``Callable[[T], Any]``): The function to be applied to each element as a side effect.
-            concurrency (``int``, optional): Represents both the number of threads used to concurrently apply the ``do`` and the size of the buffer containing not-yet-yielded elements. If the buffer is full, the iteration over the upstream is paused until an element is yielded from the buffer. (default: no concurrency)
+            do (``Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``): The function to be applied to each element as a side effect.
+            concurrency (``int``, optional): Represents both the number of workers used to concurrently apply the ``do`` and the size of the buffer containing not-yet-yielded elements. If the buffer is full, the iteration over the upstream is paused until an element is yielded from the buffer. (default: no concurrency)
             ordered (``bool``, optional): If ``concurrency`` > 1, whether to preserve the order of upstream elements or to yield them as soon as they are processed. (default: preserves upstream order)
-            via ("thread" or "process", optional): If ``concurrency`` > 1, whether to apply ``to`` using processes or threads. (default: via threads)
+            via ("thread" or "process", optional): If ``concurrency`` > 1 and ``do`` is sync, whether to apply ``do`` using processes or threads. (default: via threads)
         Returns:
             ``Stream[T]``: A stream of upstream elements, unchanged.
         """
         validate_concurrency(concurrency)
         validate_via(via)
         return ForeachStream(self, do, concurrency, ordered, via)
-
-    def aforeach(
-        self,
-        do: Callable[[T], Coroutine[Any, Any, Any]],
-        *,
-        concurrency: int = 1,
-        ordered: bool = True,
-    ) -> "Stream[T]":
-        """
-        For each upstream element, yields it after having called the asynchronous ``do`` on it.
-        If the ``await do(elem)`` coroutine throws an exception then it will be thrown and ``elem`` will not be yielded.
-
-        Args:
-            do (``Callable[[T], Coroutine[Any, Any, Any]]``): The asynchronous function to be applied to each element as a side effect.
-            concurrency (``int``, optional): Represents both the number of async tasks concurrently applying the ``do`` and the size of the buffer containing not-yet-yielded elements. If the buffer is full, the iteration over the upstream is paused until an element is yielded from the buffer. (default: no concurrency)
-            ordered (``bool``, optional): If ``concurrency`` > 1, whether to preserve the order of upstream elements or to yield them as soon as they are processed. (default: preserves upstream order)
-        Returns:
-            ``Stream[T]``: A stream of upstream elements, unchanged.
-        """
-        validate_concurrency(concurrency)
-        return AForeachStream(self, do, concurrency, ordered)
 
     @overload
     def group(
@@ -851,7 +853,10 @@ class ForeachStream(DownStream[T, T]):
     def __init__(
         self,
         upstream: Stream[T],
-        do: Callable[[T], Any],
+        do: Union[
+            Callable[[T], Any],
+            Callable[[T], Coroutine[Any, Any, Any]],
+        ],
         concurrency: int,
         ordered: bool,
         via: "Literal['thread', 'process']",
@@ -864,25 +869,6 @@ class ForeachStream(DownStream[T, T]):
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_foreach_stream(self)
-
-
-class AForeachStream(DownStream[T, T]):
-    __slots__ = ("_do", "_concurrency", "_ordered")
-
-    def __init__(
-        self,
-        upstream: Stream[T],
-        do: Callable[[T], Coroutine],
-        concurrency: int,
-        ordered: bool,
-    ) -> None:
-        super().__init__(upstream)
-        self._do = do
-        self._concurrency = concurrency
-        self._ordered = ordered
-
-    def accept(self, visitor: "Visitor[V]") -> V:
-        return visitor.visit_aforeach_stream(self)
 
 
 class GroupStream(DownStream[T, List[T]]):

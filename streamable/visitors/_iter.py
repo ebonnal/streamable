@@ -15,7 +15,6 @@ from typing import (
 from streamable import _functions
 from streamable._stream import (
     AFlattenStream,
-    AForeachStream,
     CatchStream,
     DistinctStream,
     FilterStream,
@@ -125,6 +124,16 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         )
 
     def visit_foreach_stream(self, stream: ForeachStream[T]) -> Iterator[T]:
+        if iscoroutinefunction(stream._do):
+            return self.visit_map_stream(
+                MapStream(
+                    stream.upstream,
+                    async_sidify(stream._do),
+                    stream._concurrency,
+                    stream._ordered,
+                    stream._via,
+                )
+            )
         return self.visit_map_stream(
             MapStream(
                 stream.upstream,
@@ -132,17 +141,6 @@ class IteratorVisitor(Visitor[Iterator[T]]):
                 stream._concurrency,
                 stream._ordered,
                 stream._via,
-            )
-        )
-
-    def visit_aforeach_stream(self, stream: AForeachStream[T]) -> Iterator[T]:
-        return self.visit_map_stream(
-            MapStream(
-                stream.upstream,
-                async_sidify(stream._do),
-                stream._concurrency,
-                stream._ordered,
-                "thread",
             )
         )
 

@@ -14,7 +14,7 @@ from tests.utils import (
         (Stream.map, [identity]),
         (Stream.map, [async_identity]),
         (Stream.foreach, [identity]),
-        (Stream.aforeach, [identity]),
+        (Stream.foreach, [identity]),
         (Stream.flatten, []),
         (Stream.aflatten, []),
     ),
