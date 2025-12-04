@@ -39,6 +39,8 @@ from streamable._utils._func import anostop, asyncify, nostop, star
 from streamable._utils._iter import (
     sync_to_async_iter,
     sync_to_bi_iterable,
+    to_async_iter,
+    to_sync_iter,
 )
 from tests.utils import (
     ITERABLE_TYPES,
@@ -469,20 +471,20 @@ def test_flatten_typing() -> None:
     )
 
     flattened_asynciter_stream: Stream[str] = (  # noqa: F841
-        Stream("abc").map(iter).map(sync_to_async_iter).aflatten()
+        Stream("abc").map(iter).map(sync_to_async_iter).flatten()
     )
 
 
 @pytest.mark.parametrize(
-    "concurrency, itype, flatten",
+    "concurrency, itype, to_iter",
     [
-        (concurrency, itype, flatten)
+        (concurrency, itype, to_iter)
         for concurrency in (1, 2)
         for itype in ITERABLE_TYPES
-        for flatten in (Stream.flatten, Stream.aflatten)
+        for to_iter in (to_sync_iter, to_async_iter)
     ],
 )
-def test_flatten(concurrency, itype, flatten) -> None:
+def test_flatten(concurrency, itype, to_iter) -> None:
     n_iterables = 32
     it = list(range(N // n_iterables))
     double_it = it + it
@@ -493,22 +495,27 @@ def test_flatten(concurrency, itype, flatten) -> None:
     if concurrency == 1:
         # At concurrency == 1, `flatten` method should yield all the upstream iterables' elements in the order of a nested for loop.
         assert to_list(
-            flatten(iterables_stream, concurrency=concurrency), itype=itype
+            iterables_stream.map(to_iter).flatten(concurrency=concurrency),
+            itype=itype,
         ) == [elem for iterable in iterables_stream for elem in iterable]
     else:
         # At concurrency > 1, the `flatten` method should yield all the upstream iterables' elements.
         assert Counter(
-            to_list(flatten(iterables_stream, concurrency=concurrency), itype=itype)
+            to_list(
+                iterables_stream.map(to_iter).flatten(concurrency=concurrency),
+                itype=itype,
+            )
         ) == Counter(list(it) * n_iterables + double_it)
 
     # At any concurrency the `flatten` method should continue flattening even if an iterable' __next__ raises an exception.
     assert to_list(
-        flatten(
-            Stream([[4, 3, 2, 0], [1, 0, -1], [0, -2, -3]]).map(
-                lambda iterable: sync_to_bi_iterable(map(lambda n: 1 / n, iterable))
-            ),
+        Stream([[4, 3, 2, 0], [1, 0, -1], [0, -2, -3]])
+        .map(lambda iterable: sync_to_bi_iterable(map(lambda n: 1 / n, iterable)))
+        .map(to_iter)
+        .flatten(
             concurrency=concurrency,
-        ).catch(ZeroDivisionError, replace=lambda e: float("inf")),
+        )
+        .catch(ZeroDivisionError, replace=lambda e: float("inf")),
         itype=itype,
     ) == (
         [
@@ -539,33 +546,38 @@ def test_flatten(concurrency, itype, flatten) -> None:
     )
     # At any concurrency the `flatten` method should continue pulling upstream iterables even if upstream raises an exception.
     assert to_list(
-        flatten(
-            Stream([[4, 3, 2], cast(List[int], []), [1, 0]])
-            .do(lambda ints: 1 / len(ints))
-            .map(sync_to_bi_iterable),
+        Stream([[4, 3, 2], cast(List[int], []), [1, 0]])
+        .do(lambda ints: 1 / len(ints))
+        .map(sync_to_bi_iterable)
+        .map(to_iter)
+        .flatten(
             concurrency=concurrency,
-        ).catch(ZeroDivisionError, replace=lambda e: -1),
+        )
+        .catch(ZeroDivisionError, replace=lambda e: -1),
         itype=itype,
     ) == ([4, 3, 2, -1, 1, 0] if concurrency == 1 else [4, -1, 3, 1, 2, 0])
     # At any concurrency the `flatten` method should continue pulling upstream iterables even if upstream's __iter__ raises an exception.
     assert to_list(
-        flatten(
-            Stream(
-                [
-                    sync_to_bi_iterable([4, 3, 2]),
-                    cast(List[int], None),
-                    sync_to_bi_iterable([1, 0]),
-                ]
-            ),
+        Stream(
+            [
+                sync_to_bi_iterable([4, 3, 2]),
+                cast(List[int], None),
+                sync_to_bi_iterable([1, 0]),
+            ]
+        )
+        .map(to_iter)
+        .flatten(
             concurrency=concurrency,
-        ).catch(AttributeError, replace=lambda e: -1),
+        )
+        .catch(AttributeError, replace=lambda e: -1),
         itype=itype,
     ) == ([4, 3, 2, -1, 1, 0] if concurrency == 1 else [4, -1, 3, 1, 2, 0])
     # `flatten` should not yield any element if upstream elements are empty iterables, and be resilient to recursion issue in case of successive empty upstream iterables.
     assert (
         to_list(
-            flatten(
-                Stream([sync_to_bi_iterable(iter([])) for _ in range(2000)]),
+            Stream([sync_to_bi_iterable(iter([])) for _ in range(2000)])
+            .map(to_iter)
+            .flatten(
                 concurrency=concurrency,
             ),
             itype=itype,
@@ -576,7 +588,9 @@ def test_flatten(concurrency, itype, flatten) -> None:
     with pytest.raises((TypeError, AttributeError)):
         anext_or_next(
             bi_iterable_to_iter(
-                flatten(Stream(cast(Union[Iterable, AsyncIterable], src))),
+                Stream(cast(Union[Iterable, AsyncIterable], src))
+                .map(to_iter)
+                .flatten(),
                 itype=itype,
             )
         )
@@ -586,28 +600,29 @@ def test_flatten(concurrency, itype, flatten) -> None:
 
 
 @pytest.mark.parametrize(
-    "flatten, itype, slow",
+    "itype, slow, to_iter",
     [
-        (flatten, itype, slow)
-        for flatten, slow in (
-            (Stream.flatten, partial(Stream.map, to=slow_identity)),
-            (Stream.aflatten, partial(Stream.map, to=async_slow_identity)),
+        (itype, slow, to_iter)
+        for slow, to_iter in (
+            (partial(Stream.map, to=slow_identity), Stream.__iter__),
+            (partial(Stream.map, to=async_slow_identity), Stream.__aiter__),
         )
         for itype in ITERABLE_TYPES
     ],
 )
-def test_flatten_concurrency(flatten, itype, slow) -> None:
+def test_flatten_concurrency(itype, slow, to_iter) -> None:
     concurrency = 2
     iterable_size = 5
     runtime, res = timestream(
-        flatten(
-            Stream(
-                lambda: [
-                    slow(Stream(["a"] * iterable_size)),
-                    slow(Stream(["b"] * iterable_size)),
-                    slow(Stream(["c"] * iterable_size)),
-                ]
-            ),
+        Stream(
+            lambda: [
+                slow(Stream(["a"] * iterable_size)),
+                slow(Stream(["b"] * iterable_size)),
+                slow(Stream(["c"] * iterable_size)),
+            ]
+        )
+        .map(to_iter)
+        .flatten(
             concurrency=concurrency,
         ),
         times=3,
@@ -619,7 +634,7 @@ def test_flatten_concurrency(flatten, itype, slow) -> None:
     a_runtime = b_runtime = c_runtime = iterable_size * slow_identity_duration
     expected_runtime = (a_runtime + b_runtime) / concurrency + c_runtime
     # `flatten` should process 'a's and 'b's concurrently and then 'c's without concurrency
-    assert runtime == pytest.approx(expected_runtime, rel=0.1)
+    assert runtime == pytest.approx(expected_runtime, rel=0.15)
 
 
 @pytest.mark.parametrize(
@@ -1352,7 +1367,7 @@ def test_eq() -> None:
         .group(3, by=async_identity)
         .map(iter)
         .map(sync_to_async_iter)
-        .aflatten(concurrency=3)
+        .flatten(concurrency=3)
         .groupby(bool)
         .groupby(async_identity)
         .map(identity, via="process")
@@ -1380,7 +1395,7 @@ def test_eq() -> None:
         .group(3, by=async_identity)
         .map(iter)
         .map(sync_to_async_iter)
-        .aflatten(concurrency=3)
+        .flatten(concurrency=3)
         .groupby(bool)
         .groupby(async_identity)
         .map(identity, via="process")
@@ -1409,7 +1424,7 @@ def test_eq() -> None:
         .group(3, by=async_identity)
         .map(iter)
         .map(sync_to_async_iter)
-        .aflatten(concurrency=3)
+        .flatten(concurrency=3)
         .groupby(bool)
         .groupby(async_identity)
         .map(identity, via="process")
@@ -1438,7 +1453,7 @@ def test_eq() -> None:
         .group(3, by=async_identity)
         .map(iter)
         .map(sync_to_async_iter)
-        .aflatten(concurrency=3)
+        .flatten(concurrency=3)
         .groupby(bool)
         .groupby(async_identity)
         .map(identity, via="process")

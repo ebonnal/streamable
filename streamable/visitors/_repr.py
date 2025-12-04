@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from typing import Any, List
 
 from streamable._stream import (
-    AFlattenStream,
     CatchStream,
     DistinctStream,
     DoStream,
@@ -56,12 +55,6 @@ class ToStringVisitor(Visitor[str], ABC):
     def visit_flatten_stream(self, stream: FlattenStream) -> str:
         self.methods_reprs.append(
             f"flatten(concurrency={self.to_string(stream._concurrency)})"
-        )
-        return stream.upstream.accept(self)
-
-    def visit_aflatten_stream(self, stream: AFlattenStream) -> str:
-        self.methods_reprs.append(
-            f"aflatten(concurrency={self.to_string(stream._concurrency)})"
         )
         return stream.upstream.accept(self)
 

@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 from typing import Callable, Iterator, List, Union, cast
 
@@ -25,9 +26,15 @@ def test_signatures() -> None:
     grouped_it_3: Iterator[List[int]] = group(  # noqa: F841
         iterator, size=1, interval=datetime.timedelta(seconds=2)
     )
-    flattened_grouped_it_1: Iterator[int] = flatten(grouped_it_1)  # noqa: F841
-    flattened_grouped_it_2: Iterator[int] = flatten(grouped_it_1, concurrency=1)  # noqa: F841
-    flattened_grouped_it_3: Iterator[int] = flatten(grouped_it_1, concurrency=2)  # noqa: F841
+    flattened_grouped_it_1: Iterator[int] = flatten(  # noqa: F841
+        asyncio.get_running_loop, grouped_it_1
+    )
+    flattened_grouped_it_2: Iterator[int] = flatten(  # noqa: F841
+        asyncio.get_running_loop, grouped_it_1, concurrency=1
+    )
+    flattened_grouped_it_3: Iterator[int] = flatten(  # noqa: F841
+        asyncio.get_running_loop, grouped_it_1, concurrency=2
+    )
     caught_it_1: Iterator[int] = catch(iterator, Exception)  # noqa: F841
     caught_it_2: Iterator[int] = catch(iterator, Exception, finally_raise=True)  # noqa: F841
     caught_it_3: Iterator[Union[int, str]] = catch(iterator, Exception, replace=str)  # noqa: F841

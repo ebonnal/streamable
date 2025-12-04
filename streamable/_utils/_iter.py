@@ -6,6 +6,7 @@ from typing import (
     Iterable,
     Iterator,
     TypeVar,
+    Union,
 )
 
 from streamable._utils._async import CloseEventLoopMixin
@@ -13,15 +14,15 @@ from streamable._utils._async import CloseEventLoopMixin
 T = TypeVar("T")
 
 
-class BiIterable(Iterable[T], AsyncIterable[T]):
+class SyncAsyncIterable(Iterable[T], AsyncIterable[T]):
     pass
 
 
-class BiIterator(Iterator[T], AsyncIterator[T]):
+class SyncAsyncIterator(Iterator[T], AsyncIterator[T]):
     pass
 
 
-class SyncToBiIterable(BiIterable[T]):
+class SyncToBiIterable(SyncAsyncIterable[T]):
     def __init__(self, iterable: Iterable[T]):
         self.iterable = iterable
 
@@ -32,7 +33,7 @@ class SyncToBiIterable(BiIterable[T]):
         return SyncToAsyncIterator(self.iterable.__iter__())
 
 
-sync_to_bi_iterable: Callable[[Iterable[T]], BiIterable[T]] = SyncToBiIterable
+sync_to_bi_iterable: Callable[[Iterable[T]], SyncAsyncIterable[T]] = SyncToBiIterable
 
 
 class SyncToAsyncIterator(AsyncIterator[T]):
@@ -47,6 +48,12 @@ class SyncToAsyncIterator(AsyncIterator[T]):
 
 
 sync_to_async_iter: Callable[[Iterator[T]], AsyncIterator[T]] = SyncToAsyncIterator
+
+
+def to_async_iter(iterator: Union[Iterator[T], AsyncIterator[T]]) -> AsyncIterator[T]:
+    if isinstance(iterator, Iterator):
+        iterator = SyncToAsyncIterator(iterator)
+    return iterator
 
 
 class AsyncToSyncIterator(Iterator[T], CloseEventLoopMixin):
@@ -68,3 +75,10 @@ class AsyncToSyncIterator(Iterator[T], CloseEventLoopMixin):
 async_to_sync_iter: Callable[
     [asyncio.AbstractEventLoop, AsyncIterator[T]], Iterator[T]
 ] = AsyncToSyncIterator
+
+
+def to_sync_iter(iterator: Union[AsyncIterator[T], Iterator[T]]) -> Iterator[T]:
+    if isinstance(iterator, AsyncIterator):
+        loop = asyncio.get_event_loop()
+        iterator = AsyncToSyncIterator(loop, iterator)
+    return iterator

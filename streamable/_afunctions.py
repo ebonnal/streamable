@@ -20,10 +20,8 @@ from streamable._aiterators import (
     ACatchAsyncIterator,
     ADistinctAsyncIterator,
     AFilterAsyncIterator,
-    AFlattenAsyncIterator,
     AGroupbyAsyncIterator,
     AMapAsyncIterator,
-    ConcurrentAFlattenAsyncIterator,
     ConcurrentAMapAsyncIterator,
     ConcurrentFlattenAsyncIterator,
     ConcurrentMapAsyncIterator,
@@ -119,23 +117,13 @@ def afilter(
 
 
 def flatten(
-    aiterator: AsyncIterator[Iterable[T]], *, concurrency: int = 1
+    aiterator: AsyncIterator[Union[Iterable[T], AsyncIterable[T]]],
+    *,
+    concurrency: int = 1,
 ) -> AsyncIterator[T]:
     if concurrency == 1:
         return FlattenAsyncIterator(aiterator)
     return ConcurrentFlattenAsyncIterator(
-        aiterator,
-        concurrency=concurrency,
-        buffersize=concurrency,
-    )
-
-
-def aflatten(
-    aiterator: AsyncIterator[AsyncIterable[T]], *, concurrency: int = 1
-) -> AsyncIterator[T]:
-    if concurrency == 1:
-        return AFlattenAsyncIterator(aiterator)
-    return ConcurrentAFlattenAsyncIterator(
         aiterator,
         concurrency=concurrency,
         buffersize=concurrency,

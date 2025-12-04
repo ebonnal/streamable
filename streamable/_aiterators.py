@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import multiprocessing
+import sys
 import time
 from abc import ABC, abstractmethod
 from collections import defaultdict, deque
@@ -30,7 +31,7 @@ from typing import (
     cast,
 )
 
-from streamable._utils._async import awaitable_to_coroutine, empty_aiter
+from streamable._utils._async import empty_aiter
 from streamable._utils._contextmanager import noop_context_manager
 from streamable._utils._error import ExceptionContainer
 from streamable._utils._logging import get_logger
@@ -42,6 +43,8 @@ from streamable._utils._future import (
     FutureResultCollection,
 )
 
+if sys.version_info < (3, 10):  # pragma: no cover
+    from streamable._utils._async import anext
 with suppress(ImportError):
     from typing import Literal
 
@@ -141,34 +144,28 @@ class ConsecutiveADistinctAsyncIterator(AsyncIterator[T]):
 ###########
 
 
-class FlattenAsyncIterator(AsyncIterator[U]):
-    def __init__(self, iterator: AsyncIterator[Iterable[U]]) -> None:
+class FlattenAsyncIterator(AsyncIterator[T]):
+    def __init__(
+        self, iterator: AsyncIterator[Union[Iterable[T], AsyncIterable[T]]]
+    ) -> None:
         self.iterator = iterator
-        self._current_iterator_elem: Iterator[U] = tuple().__iter__()
+        self._current_iterator_elem: Union[Iterator[T], AsyncIterator[T]] = (
+            empty_aiter()
+        )
 
-    async def __anext__(self) -> U:
+    async def __anext__(self) -> T:
         while True:
             try:
-                return self._current_iterator_elem.__next__()
-            except StopIteration:
-                self._current_iterator_elem = (
-                    await self.iterator.__anext__()
-                ).__iter__()
-
-
-class AFlattenAsyncIterator(AsyncIterator[U]):
-    def __init__(self, iterator: AsyncIterator[AsyncIterable[U]]) -> None:
-        self.iterator = iterator
-        self._current_iterator_elem: AsyncIterator[U] = empty_aiter()
-
-    async def __anext__(self) -> U:
-        while True:
-            try:
-                return await self._current_iterator_elem.__anext__()
-            except StopAsyncIteration:
-                self._current_iterator_elem = (
-                    await self.iterator.__anext__()
-                ).__aiter__()
+                if isinstance(self._current_iterator_elem, AsyncIterator):
+                    return await self._current_iterator_elem.__anext__()
+                else:
+                    return self._current_iterator_elem.__next__()
+            except (StopIteration, StopAsyncIteration):
+                iterable = await self.iterator.__anext__()
+                if isinstance(iterable, AsyncIterable):
+                    self._current_iterator_elem = iterable.__aiter__()
+                else:
+                    self._current_iterator_elem = iterable.__iter__()
 
 
 #########
@@ -740,7 +737,7 @@ class ConcurrentAMapAsyncIterator(_RaisingAsyncIterator[U]):
 class _ConcurrentFlattenAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]]):
     def __init__(
         self,
-        iterables_iterator: AsyncIterator[Iterable[T]],
+        iterables_iterator: AsyncIterator[Union[Iterable[T], AsyncIterable[T]]],
         concurrency: int,
         buffersize: int,
     ) -> None:
@@ -748,106 +745,35 @@ class _ConcurrentFlattenAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]
         self.concurrency = concurrency
         self.buffersize = buffersize
         self._next = ExceptionContainer.wrap(next)
+        self._anext = ExceptionContainer.awrap(anext)
+        self._executor: Optional[Executor] = None
 
-    async def __aiter__(
-        self,
-    ) -> AsyncIterator[Union[T, ExceptionContainer]]:
-        with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
-            iterator_and_future_pairs: Deque[
-                Tuple[
-                    Optional[Iterator[T]],
-                    "Awaitable[Union[T, ExceptionContainer]]",
-                ]
-            ] = deque()
-            to_yield: Deque[Union[T, ExceptionContainer]] = deque(maxlen=1)
-            iterator_to_queue: Optional[Iterator[T]] = None
-            # wait, queue, yield (FIFO)
-            while True:
-                if iterator_and_future_pairs:
-                    iterator, future = iterator_and_future_pairs.popleft()
-                    elem = await future
-                    if not isinstance(elem, ExceptionContainer) or not isinstance(
-                        elem.exception, StopIteration
-                    ):
-                        to_yield.append(elem)
-                        iterator_to_queue = iterator
-
-                # queue tasks up to buffersize
-                while len(iterator_and_future_pairs) < self.buffersize:
-                    if not iterator_to_queue:
-                        try:
-                            try:
-                                iterable = await self.iterables_iterator.__anext__()
-                            except StopAsyncIteration:
-                                break
-                            iterator_to_queue = iterable.__iter__()
-                        except Exception as e:
-                            iterator_to_queue = None
-                            future = FutureResult(ExceptionContainer(e))
-                            iterator_and_future_pairs.append(
-                                (iterator_to_queue, future)
-                            )
-                            continue
-                    future = asyncio.get_running_loop().run_in_executor(
-                        executor, self._next, iterator_to_queue
-                    )
-                    iterator_and_future_pairs.append((iterator_to_queue, future))
-                    iterator_to_queue = None
-                if to_yield:
-                    yield to_yield.pop()
-                if not iterator_and_future_pairs:
-                    break
-
-
-class ConcurrentFlattenAsyncIterator(_RaisingAsyncIterator[T]):
-    def __init__(
-        self,
-        iterables_iterator: AsyncIterator[Iterable[T]],
-        concurrency: int,
-        buffersize: int,
-    ) -> None:
-        super().__init__(
-            _ConcurrentFlattenAsyncIterable(
-                iterables_iterator,
-                concurrency,
-                buffersize,
-            ).__aiter__()
-        )
-
-
-class _ConcurrentAFlattenAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]]):
-    def __init__(
-        self,
-        iterables_iterator: AsyncIterator[AsyncIterable[T]],
-        concurrency: int,
-        buffersize: int,
-    ) -> None:
-        self.iterables_iterator = iterables_iterator
-        self.concurrency = concurrency
-        self.buffersize = buffersize
+    @property
+    def executor(self) -> Executor:
+        if not self._executor:
+            self._executor = ThreadPoolExecutor(max_workers=self.concurrency)
+        return self._executor
 
     async def __aiter__(
         self,
     ) -> AsyncIterator[Union[T, ExceptionContainer]]:
         iterator_and_future_pairs: Deque[
             Tuple[
-                Optional[AsyncIterator[T]],
+                Optional[Union[Iterator[T], AsyncIterator[T]]],
                 Awaitable[Union[T, ExceptionContainer]],
             ]
         ] = deque()
         to_yield: Deque[Union[T, ExceptionContainer]] = deque(maxlen=1)
-        iterator_to_queue: Optional[AsyncIterator[T]] = None
+        iterator_to_queue: Optional[Union[Iterator[T], AsyncIterator[T]]] = None
         # wait, queue, yield (FIFO)
         while True:
             if iterator_and_future_pairs:
                 iterator, future = iterator_and_future_pairs.popleft()
-                try:
-                    to_yield.append(await future)
-                    iterator_to_queue = iterator
-                except StopAsyncIteration:
-                    pass
-                except Exception as e:
-                    to_yield.append(ExceptionContainer(e))
+                elem = await future
+                if not isinstance(elem, ExceptionContainer) or not isinstance(
+                    elem.exception, (StopIteration, StopAsyncIteration)
+                ):
+                    to_yield.append(elem)
                     iterator_to_queue = iterator
 
             # queue tasks up to buffersize
@@ -858,32 +784,45 @@ class _ConcurrentAFlattenAsyncIterable(AsyncIterable[Union[T, ExceptionContainer
                             iterable = await self.iterables_iterator.__anext__()
                         except StopAsyncIteration:
                             break
-                        iterator_to_queue = iterable.__aiter__()
+                        if isinstance(iterable, AsyncIterable):
+                            iterator_to_queue = iterable.__aiter__()
+                        else:
+                            iterator_to_queue = iterable.__iter__()
                     except Exception as e:
                         iterator_to_queue = None
                         future = FutureResult(ExceptionContainer(e))
                         iterator_and_future_pairs.append((iterator_to_queue, future))
                         continue
-                future = asyncio.get_running_loop().create_task(
-                    awaitable_to_coroutine(iterator_to_queue.__anext__())
-                )
+                if isinstance(iterator_to_queue, AsyncIterator):
+                    future = asyncio.get_running_loop().create_task(
+                        self._anext(iterator_to_queue)
+                    )
+                else:
+                    future = asyncio.get_running_loop().run_in_executor(
+                        self.executor,
+                        self._next,
+                        iterator_to_queue,
+                    )
                 iterator_and_future_pairs.append((iterator_to_queue, future))
                 iterator_to_queue = None
             if to_yield:
                 yield to_yield.pop()
             if not iterator_and_future_pairs:
                 break
+        if self._executor:
+            self._executor.shutdown()
+            self._executor = None
 
 
-class ConcurrentAFlattenAsyncIterator(_RaisingAsyncIterator[T]):
+class ConcurrentFlattenAsyncIterator(_RaisingAsyncIterator[T]):
     def __init__(
         self,
-        iterables_iterator: AsyncIterator[AsyncIterable[T]],
+        iterables_iterator: AsyncIterator[Union[Iterable[T], AsyncIterable[T]]],
         concurrency: int,
         buffersize: int,
     ) -> None:
         super().__init__(
-            _ConcurrentAFlattenAsyncIterable(
+            _ConcurrentFlattenAsyncIterable(
                 iterables_iterator,
                 concurrency,
                 buffersize,

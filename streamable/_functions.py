@@ -19,9 +19,7 @@ from typing import (
 )
 
 from streamable._iterators import (
-    AFlattenIterator,
     CatchIterator,
-    ConcurrentAFlattenIterator,
     ConcurrentAMapIterator,
     ConcurrentFlattenIterator,
     ConcurrentMapIterator,
@@ -106,26 +104,16 @@ def adistinct(
     )
 
 
-def flatten(iterator: Iterator[Iterable[T]], *, concurrency: int = 1) -> Iterator[T]:
-    if concurrency == 1:
-        return FlattenIterator(iterator)
-    return ConcurrentFlattenIterator(
-        iterator,
-        concurrency=concurrency,
-        buffersize=concurrency,
-    )
-
-
-def aflatten(
-    loop: asyncio.AbstractEventLoop,
-    iterator: Iterator[AsyncIterable[T]],
+def flatten(
+    loop_getter: Callable[[], asyncio.AbstractEventLoop],
+    iterator: Iterator[Union[Iterable[T], AsyncIterable[T]]],
     *,
     concurrency: int = 1,
 ) -> Iterator[T]:
     if concurrency == 1:
-        return AFlattenIterator(loop, iterator)
-    return ConcurrentAFlattenIterator(
-        loop,
+        return FlattenIterator(loop_getter, iterator)
+    return ConcurrentFlattenIterator(
+        loop_getter,
         iterator,
         concurrency=concurrency,
         buffersize=concurrency,

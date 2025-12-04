@@ -1,4 +1,5 @@
 import copy
+import inspect
 import datetime
 from typing import (
     TYPE_CHECKING,
@@ -26,6 +27,7 @@ from typing import (
     overload,
 )
 
+from streamable._utils._iter import SyncAsyncIterable
 from streamable._utils._validation import (
     validate_concurrency,
     validate_errors,
@@ -397,47 +399,52 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
     ) -> "Stream[int]": ...
     # fmt: on
 
-    def flatten(self: "Stream[Iterable[U]]", *, concurrency: int = 1) -> "Stream[U]":
-        """
-        Iterates over upstream elements assumed to be iterables, and individually yields their items.
-
-        Args:
-            concurrency (``int``, optional): Number of upstream iterables concurrently flattened via threads. (default: no concurrency)
-        Returns:
-            ``Stream[R]``: A stream of flattened elements from upstream iterables.
-        """
-        validate_concurrency(concurrency)
-        return FlattenStream(self, concurrency)
-
-    # fmt: off
     @overload
-    def aflatten(
+    def flatten(
         self: "Stream[AsyncIterator[U]]",
         *,
         concurrency: int = 1,
     ) -> "Stream[U]": ...
 
     @overload
-    def aflatten(
+    def flatten(
         self: "Stream[AsyncIterable[U]]",
         *,
         concurrency: int = 1,
     ) -> "Stream[U]": ...
-    # fmt: on
 
-    def aflatten(
-        self: "Stream[AsyncIterable[U]]", *, concurrency: int = 1
+    @overload
+    def flatten(
+        self: "Stream[Iterable[U]]",
+        *,
+        concurrency: int = 1,
+    ) -> "Stream[U]": ...
+
+    @overload
+    def flatten(
+        self: "Stream[SyncAsyncIterable[U]]",
+        *,
+        concurrency: int = 1,
+    ) -> "Stream[U]": ...
+
+    def flatten(
+        self: "Stream[Union[Iterable[U], AsyncIterable[U]]]",
+        *,
+        concurrency: int = 1,
     ) -> "Stream[U]":
         """
-        Iterates over upstream elements assumed to be async iterables, and individually yields their items.
+        Iterates over upstream elements assumed to be iterables (sync or async), and individually yields their items.
 
         Args:
-            concurrency (``int``, optional): Number of upstream async iterables concurrently flattened. (default: no concurrency)
+            concurrency (``int``, optional): Number of upstream iterables concurrently flattened. (default: no concurrency)
         Returns:
-            ``Stream[R]``: A stream of flattened elements from upstream async iterables.
+            ``Stream[R]``: A stream of flattened elements from upstream iterables.
         """
         validate_concurrency(concurrency)
-        return AFlattenStream(self, concurrency)
+        async_upstream = isinstance(self.source, (AsyncIterable, AsyncIterator)) or (
+            callable(self.source) and inspect.iscoroutinefunction(self.source)
+        )
+        return FlattenStream(self, concurrency, async_upstream)
 
     @overload
     def do(
@@ -825,26 +832,21 @@ class FilterStream(DownStream[T, T]):
         return visitor.visit_filter_stream(self)
 
 
-class FlattenStream(DownStream[Iterable[T], T]):
-    __slots__ = ("_concurrency",)
+class FlattenStream(DownStream[Union[Iterable[T], AsyncIterable[T]], T]):
+    __slots__ = ("_concurrency", "_async")
 
-    def __init__(self, upstream: Stream[Iterable[T]], concurrency: int) -> None:
+    def __init__(
+        self,
+        upstream: Stream[Union[Iterable[T], AsyncIterable[T]]],
+        concurrency: int,
+        async_upstream: bool,
+    ) -> None:
         super().__init__(upstream)
         self._concurrency = concurrency
+        self._async = async_upstream
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_flatten_stream(self)
-
-
-class AFlattenStream(DownStream[AsyncIterable[T], T]):
-    __slots__ = ("_concurrency",)
-
-    def __init__(self, upstream: Stream[AsyncIterable[T]], concurrency: int) -> None:
-        super().__init__(upstream)
-        self._concurrency = concurrency
-
-    def accept(self, visitor: "Visitor[V]") -> V:
-        return visitor.visit_aflatten_stream(self)
 
 
 class DoStream(DownStream[T, T]):

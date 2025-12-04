@@ -15,7 +15,6 @@ from typing import (
 
 from streamable import _functions
 from streamable._stream import (
-    AFlattenStream,
     CatchStream,
     DistinctStream,
     DoStream,
@@ -113,14 +112,10 @@ class IteratorVisitor(Visitor[Iterator[T]]):
 
     def visit_flatten_stream(self, stream: FlattenStream[T]) -> Iterator[T]:
         return _functions.flatten(
-            stream.upstream.accept(cast(IteratorVisitor[Iterable], self)),
-            concurrency=stream._concurrency,
-        )
-
-    def visit_aflatten_stream(self, stream: AFlattenStream[T]) -> Iterator[T]:
-        return _functions.aflatten(
-            self._get_loop(),
-            stream.upstream.accept(cast(IteratorVisitor[AsyncIterable], self)),
+            self._get_loop,
+            stream.upstream.accept(
+                cast(IteratorVisitor[Union[Iterable[T], AsyncIterable[T]]], self)
+            ),
             concurrency=stream._concurrency,
         )
 

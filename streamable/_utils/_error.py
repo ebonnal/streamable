@@ -1,4 +1,4 @@
-from typing import Callable, NamedTuple, TypeVar, Union
+from typing import Any, Awaitable, Callable, Coroutine, NamedTuple, TypeVar, Union
 
 T = TypeVar("T")
 U = TypeVar("U")
@@ -12,6 +12,18 @@ class ExceptionContainer(NamedTuple):
         def error_wrapping(_: T) -> Union[U, "ExceptionContainer"]:
             try:
                 return func(_)
+            except Exception as e:
+                return ExceptionContainer(e)
+
+        return error_wrapping
+
+    @staticmethod
+    def awrap(
+        afunc: Callable[[T], Union[Coroutine[Any, Any, U], Awaitable[U]]],
+    ) -> Callable[[T], Coroutine[Any, Any, Union[U, "ExceptionContainer"]]]:
+        async def error_wrapping(_: T) -> Union[U, "ExceptionContainer"]:
+            try:
+                return await afunc(_)
             except Exception as e:
                 return ExceptionContainer(e)
 

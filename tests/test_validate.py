@@ -16,7 +16,7 @@ from tests.utils import (
         (Stream.do, [identity]),
         (Stream.do, [async_identity]),
         (Stream.flatten, []),
-        (Stream.aflatten, []),
+        (Stream.flatten, []),
     ),
 )
 def test_validate_concurrency(method, args) -> None:

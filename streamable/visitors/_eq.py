@@ -1,7 +1,6 @@
-from typing import Any, Union
+from typing import Any
 
 from streamable._stream import (
-    AFlattenStream,
     CatchStream,
     DistinctStream,
     FilterStream,
@@ -51,18 +50,13 @@ class EqualityVisitor(Visitor[bool]):
             and stream._where == self.other._where
         )
 
-    def flatten_eq(self, stream: Union[FlattenStream, AFlattenStream]) -> bool:
+    def visit_flatten_stream(self, stream: FlattenStream) -> bool:
         return (
             self.type_eq(stream)
             and stream.upstream.accept(EqualityVisitor(self.other.upstream))
             and stream._concurrency == self.other._concurrency
+            and stream._async == self.other._async
         )
-
-    def visit_flatten_stream(self, stream: FlattenStream) -> bool:
-        return self.flatten_eq(stream)
-
-    def visit_aflatten_stream(self, stream: AFlattenStream) -> bool:
-        return self.flatten_eq(stream)
 
     def visit_do_stream(self, stream: DoStream) -> bool:
         return (

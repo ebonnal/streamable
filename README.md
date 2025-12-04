@@ -166,7 +166,7 @@ Let's do a tour of the `Stream`'s operations, for more details visit the [***doc
 [`.map`](#-map)|transform elements|
 [`.do`](#-do)|apply a side effect on elements|
 [`.group`](#-group) / [`.groupby`](#-groupby)|batch a certain number of elements, by a given key, over a time interval|
-[`.flatten`](#-flatten--aflatten)|explode iterable elements|
+[`.flatten`](#-flatten)|explode iterable elements|
 [`.filter`](#-filter)|remove elements|
 [`.distinct`](#-distinct)|remove duplicates|
 [`.truncate`](#-truncate)|cut the stream|
@@ -395,9 +395,9 @@ assert list(counts_by_parity) == [("even", 5), ("odd", 5)]
 ```
 </details>
 
-## 🟡 `.flatten` / `.aflatten`
+## 🟡 `.flatten`
 
-> Ungroups elements assuming that they are `Iterable`s (or `AsyncIterable`s for `.aflatten`):
+> Ungroups elements assuming that they are `Iterable`s (or `AsyncIterable`s):
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
@@ -410,7 +410,7 @@ assert list(even_then_odd_integers) == [0, 2, 4, 6, 8, 1, 3, 5, 7, 9]
 
 ### concurrency
 
-> Concurrently flattens `concurrency` iterables via threads (or via coroutines for `.aflatten`):
+> Concurrently flattens `concurrency` iterables via threads (or via coroutines for async iterables):
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 

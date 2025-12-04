@@ -19,7 +19,7 @@ from typing import (
 
 from streamable._stream import Stream
 from streamable._utils._async import awaitable_to_coroutine
-from streamable._utils._iter import BiIterable
+from streamable._utils._iter import SyncAsyncIterable
 
 T = TypeVar("T")
 R = TypeVar("R")
@@ -61,7 +61,7 @@ def to_list(stream: Stream[T], itype: IterableType) -> List[T]:
 
 
 def bi_iterable_to_iter(
-    iterable: Union[BiIterable[T], Stream[T]], itype: IterableType
+    iterable: Union[SyncAsyncIterable[T], Stream[T]], itype: IterableType
 ) -> Union[Iterator[T], AsyncIterator[T]]:
     if itype is AsyncIterable:
         return iterable.__aiter__()

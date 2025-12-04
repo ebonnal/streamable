@@ -4,6 +4,10 @@ from typing import AsyncIterator, Awaitable, TypeVar
 T = TypeVar("T")
 
 
+async def anext(aiterator: AsyncIterator[T]) -> T:
+    return await aiterator.__anext__()
+
+
 async def awaitable_to_coroutine(aw: Awaitable[T]) -> T:
     return await aw
 
