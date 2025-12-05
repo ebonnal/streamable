@@ -27,13 +27,3 @@ def test_validate_concurrency(method, args) -> None:
     # should be raising ValueError for concurrency=0.
     with pytest.raises(ValueError):
         method(stream, *args, concurrency=0)
-
-
-@pytest.mark.parametrize("method", (Stream.map, Stream.do))
-def test_validate_via(method) -> None:
-    # must raise a TypeError for invalid via
-    with pytest.raises(
-        TypeError,
-        match="`via` must be 'thread' or 'process' but got 'foo'",
-    ):
-        method(Stream(src), identity, via="foo")

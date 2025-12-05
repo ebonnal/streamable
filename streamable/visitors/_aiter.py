@@ -105,7 +105,6 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
                     async_sidify(stream._effect),
                     stream._concurrency,
                     stream._ordered,
-                    stream._via,
                 )
             )
         return self.visit_map_stream(
@@ -114,7 +113,6 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
                 sidify(cast(Callable[[T], Any], stream._effect)),
                 stream._concurrency,
                 stream._ordered,
-                stream._via,
             )
         )
 
@@ -165,7 +163,7 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
             return _afunctions.amap(
                 stream._to,
                 stream.upstream.accept(cast(AsyncIteratorVisitor[U], self)),
-                concurrency=stream._concurrency,
+                concurrency=cast(int, stream._concurrency),
                 ordered=stream._ordered,
             )
         return _afunctions.map(
@@ -173,7 +171,6 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
             stream.upstream.accept(cast(AsyncIteratorVisitor[U], self)),
             concurrency=stream._concurrency,
             ordered=stream._ordered,
-            via=stream._via,
         )
 
     def visit_observe_stream(self, stream: ObserveStream[T]) -> AsyncIterator[T]:

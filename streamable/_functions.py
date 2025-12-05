@@ -1,5 +1,6 @@
 import asyncio
 import builtins
+from concurrent.futures import Executor
 import datetime
 from contextlib import suppress
 from operator import itemgetter
@@ -16,6 +17,7 @@ from typing import (
     Type,
     TypeVar,
     Union,
+    cast,
 )
 
 from streamable._iterators import (
@@ -38,7 +40,7 @@ from streamable._iterators import (
 from streamable._utils._func import syncify
 
 with suppress(ImportError):
-    from typing import Literal
+    pass
 
 T = TypeVar("T")
 U = TypeVar("U")
@@ -116,7 +118,6 @@ def flatten(
         loop_getter,
         iterator,
         concurrency=concurrency,
-        buffersize=concurrency,
     )
 
 
@@ -178,9 +179,8 @@ def map(
     to: Callable[[T], U],
     iterator: Iterator[T],
     *,
-    concurrency: int = 1,
+    concurrency: Union[int, Executor] = 1,
     ordered: bool = True,
-    via: "Literal['thread', 'process']" = "thread",
 ) -> Iterator[U]:
     if concurrency == 1:
         return builtins.map(to, iterator)
@@ -188,9 +188,7 @@ def map(
         iterator,
         to,
         concurrency=concurrency,
-        buffersize=concurrency,
         ordered=ordered,
-        via=via,
     )
 
 
@@ -208,8 +206,7 @@ def amap(
         loop,
         iterator,
         to,
-        concurrency=concurrency,
-        buffersize=concurrency,
+        concurrency=cast(int, concurrency),
         ordered=ordered,
     )
 

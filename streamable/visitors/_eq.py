@@ -65,7 +65,6 @@ class EqualityVisitor(Visitor[bool]):
             and stream._concurrency == self.other._concurrency
             and stream._effect == self.other._effect
             and stream._ordered == self.other._ordered
-            and stream._via == self.other._via
         )
 
     def visit_group_stream(self, stream: GroupStream) -> bool:
@@ -93,7 +92,6 @@ class EqualityVisitor(Visitor[bool]):
             and stream._concurrency == self.other._concurrency
             and stream._to == self.other._to
             and stream._ordered == self.other._ordered
-            and stream._via == self.other._via
         )
 
     def visit_observe_stream(self, stream: ObserveStream) -> bool:

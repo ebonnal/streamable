@@ -3,7 +3,7 @@
 
 > *concurrent fluent interface for iterables (sync & async)*
 
-`Stream[T]` is a **decorator** for `Iterable[T]` or `AsyncIterable[T]` that allows chaining **lazy** operations, with seamless **concurrency** via threads, processes, or async coroutines.
+`Stream[T]` is a **decorator** for `Iterable[T]` or `AsyncIterable[T]` that allows chaining **lazy** operations, supporting **concurrency** via threads, processes, or async coroutines.
 
 [![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/release/python-360/)
 [![coverage](https://codecov.io/gh/ebonnal/streamable/graph/badge.svg?token=S62T0JQK9N)](https://codecov.io/gh/ebonnal/streamable)
@@ -197,7 +197,7 @@ assert list(integer_strings) == ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9
 
 ### concurrency
 
-> Set the `concurrency: int` parameter to apply the transformation concurrently.
+> Set the `concurrency: Union[int, Executor]` parameter to apply the transformation concurrently.
 
 > [!NOTE]
 > **Memory-efficient**: Only `concurrency` upstream elements are pulled for processing; the next upstream element is pulled only when a result is yielded downstream.
@@ -205,9 +205,9 @@ assert list(integer_strings) == ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9
 > [!NOTE]
 > **Ordering**: it yields results in the upstream order (FIFO), set `ordered=False` to yield results as they become available (*First Done, First Out*).
 
-#### via threads (default)
+#### via threads
 
-> Applies the transformation via `concurrency` threads by default.
+> If you set a `concurrency > 1`, then the transformation will be applied via `concurrency` threads.
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
@@ -225,26 +225,9 @@ assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
 ```
 </details>
 
+#### via coroutines
 
-#### via processes
-
-> Set `via="process"`:
-
-<details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
-
-```python
-if __name__ == "__main__":
-    state: List[int] = []
-    # integers are mapped
-    assert list(integers.map(state.append, concurrency=4, via="process")) == [None] * 10
-    # but the `state` of the main process is not mutated
-    assert state == []
-```
-</details>
-
-#### via `async` coroutines
-
-> `.map` can apply a sync or async function concurrently.
+> If you set a `concurrency > 1` and you provided an coroutine function, elements will be transformed concurrently via the event loop.
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
@@ -261,6 +244,23 @@ async with httpx.AsyncClient() as http:
     )
     # consume as an AsyncIterable[str]
     assert [name async for name in pokemon_names] == ['bulbasaur', 'ivysaur', 'venusaur']
+```
+</details>
+
+#### via processes
+
+> It is also possible to pass any `concurrent.futures.Executor` as `concurrency`, so you can pass a `ProcessPoolExecutor` to transform your elements via processes:
+
+<details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
+
+```python
+if __name__ == "__main__":
+    with ProcessPoolExecutor(max_workers=10) as processes:
+        state: List[int] = []
+        # integers are mapped
+        assert list(integers.map(state.append, concurrency=processes)) == [None] * 10
+        # but the `state` of the main process is not mutated
+        assert state == []
 ```
 </details>
 
@@ -300,11 +300,7 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 ### concurrency
 
-> Similar to `.map`:
-> - set the `concurrency` parameter for **thread-based concurrency**
-> - set `via="process"` for **process-based concurrency**
-> - set `ordered=False` for ***First Done First Out***
-> - The `.do` operation can apply a sync or `async` effect concurrently.
+> Same as `.map`.
 
 ## 🟡 `.group`
 
@@ -410,7 +406,7 @@ assert list(even_then_odd_integers) == [0, 2, 4, 6, 8, 1, 3, 5, 7, 9]
 
 ### concurrency
 
-> Concurrently flattens `concurrency` iterables via threads (or via coroutines for async iterables):
+> Flattens `concurrency` iterables concurrently (via threads for `Iterable` elements and via coroutines for `AsyncIterable` elements):
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 

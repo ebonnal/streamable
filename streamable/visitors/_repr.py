@@ -59,9 +59,8 @@ class ToStringVisitor(Visitor[str], ABC):
         return stream.upstream.accept(self)
 
     def visit_do_stream(self, stream: DoStream) -> str:
-        via = f", via={self.to_string(stream._via)}" if stream._concurrency > 1 else ""
         self.methods_reprs.append(
-            f"do({self.to_string(stream._effect)}, concurrency={self.to_string(stream._concurrency)}, ordered={self.to_string(stream._ordered)}{via})"
+            f"do({self.to_string(stream._effect)}, concurrency={self.to_string(stream._concurrency)}, ordered={self.to_string(stream._ordered)})"
         )
         return stream.upstream.accept(self)
 
@@ -78,9 +77,8 @@ class ToStringVisitor(Visitor[str], ABC):
         return stream.upstream.accept(self)
 
     def visit_map_stream(self, stream: MapStream) -> str:
-        via = f", via={self.to_string(stream._via)}" if stream._concurrency > 1 else ""
         self.methods_reprs.append(
-            f"map({self.to_string(stream._to)}, concurrency={self.to_string(stream._concurrency)}, ordered={self.to_string(stream._ordered)}{via})"
+            f"map({self.to_string(stream._to)}, concurrency={self.to_string(stream._concurrency)}, ordered={self.to_string(stream._ordered)})"
         )
         return stream.upstream.accept(self)
 

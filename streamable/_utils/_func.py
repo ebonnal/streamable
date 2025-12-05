@@ -148,6 +148,23 @@ def syncify(
     return _Syncify(loop, async_func)
 
 
+class _LazySyncify(Generic[T, R], CloseEventLoopMixin):
+    def __init__(
+        self,
+        async_func: Callable[[T], Coroutine[Any, Any, R]],
+    ) -> None:
+        self.async_func = async_func
+
+    def __call__(self, arg: T) -> R:
+        return asyncio.get_running_loop().run_until_complete(self.async_func(arg))
+
+
+def lazy_syncify(
+    async_func: Callable[[T], Coroutine[Any, Any, R]],
+) -> Callable[[T], R]:
+    return _LazySyncify(async_func)
+
+
 async def _async_call(func: Callable[[T], R], o: T) -> R:
     return func(o)
 

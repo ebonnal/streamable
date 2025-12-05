@@ -1,5 +1,6 @@
 import datetime
 from contextlib import suppress
+from inspect import iscoroutinefunction
 from typing import (
     Any,
     Callable,
@@ -11,7 +12,7 @@ from typing import (
 )
 
 with suppress(ImportError):
-    from typing import Literal
+    pass
 
 T = TypeVar("T")
 
@@ -21,9 +22,15 @@ def validate_concurrency(concurrency: int) -> None:
         raise ValueError(f"`concurrency` must be >= 1 but got {repr(concurrency)}")
 
 
-def validate_via(via: "Literal['thread', 'process']") -> None:
-    if via not in ["thread", "process"]:
-        raise TypeError(f"`via` must be 'thread' or 'process' but got {repr(via)}")
+def validate_concurrency_int_or_executor(
+    concurrency: Union[int, Any], fn: Callable[[Any], Any], fn_name: str
+) -> None:
+    if not isinstance(concurrency, int) and iscoroutinefunction(fn):
+        raise TypeError(
+            f"if `{fn_name}` is a coroutine function then `concurrency` must be an int but got {repr(concurrency)}"
+        )
+    elif isinstance(concurrency, int):
+        validate_concurrency(concurrency)
 
 
 def validate_group_size(size: Optional[int]) -> None:

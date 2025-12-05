@@ -1,11 +1,10 @@
 import asyncio
 import datetime
-import multiprocessing
 import sys
 import time
 from abc import ABC, abstractmethod
 from collections import defaultdict, deque
-from concurrent.futures import Executor, Future, ProcessPoolExecutor, ThreadPoolExecutor
+from concurrent.futures import Executor, Future, ThreadPoolExecutor
 from contextlib import suppress
 from math import ceil
 from typing import (
@@ -46,7 +45,7 @@ from streamable._utils._future import (
 if sys.version_info < (3, 10):  # pragma: no cover
     from streamable._utils._async import anext
 with suppress(ImportError):
-    from typing import Literal
+    pass
 
 T = TypeVar("T")
 U = TypeVar("U")
@@ -557,15 +556,14 @@ class _BaseConcurrentMapAsyncIterable(
     def __init__(
         self,
         iterator: AsyncIterator[T],
-        buffersize: int,
+        concurrency: int,
         ordered: bool,
+        context_manager: Optional[ContextManager] = None,
     ) -> None:
         self.iterator = iterator
-        self.buffersize = buffersize
+        self.concurrency = concurrency
         self.ordered = ordered
-
-    def _context_manager(self) -> ContextManager:
-        return noop_context_manager()
+        self._context_manager = context_manager or noop_context_manager()
 
     @abstractmethod
     def _launch_task(self, elem: T) -> "Future[Union[U, ExceptionContainer]]": ...
@@ -591,11 +589,11 @@ class _BaseConcurrentMapAsyncIterable(
     async def __aiter__(
         self,
     ) -> AsyncIterator[Union[U, ExceptionContainer]]:
-        with self._context_manager():
+        with self._context_manager:
             future_results = self._future_result_collection()
 
             # queue tasks up to buffersize
-            while len(future_results) < self.buffersize:
+            while len(future_results) < self.concurrency:
                 future = await self._next_future()
                 if not future:
                     # no more tasks to queue
@@ -615,26 +613,18 @@ class _ConcurrentMapAsyncIterable(_BaseConcurrentMapAsyncIterable[T, U]):
         self,
         iterator: AsyncIterator[T],
         to: Callable[[T], U],
-        concurrency: int,
-        buffersize: int,
+        concurrency: Union[int, Executor],
         ordered: bool,
-        via: "Literal['thread', 'process']",
     ) -> None:
-        super().__init__(iterator, buffersize, ordered)
         self.to = to
-        self.concurrency = concurrency
-        self.executor: Executor
-        self.via = via
-
-    def _context_manager(self) -> ContextManager:
-        if self.via == "thread":
-            self.executor = ThreadPoolExecutor(max_workers=self.concurrency)
-        elif self.via == "process":
-            self.executor = ProcessPoolExecutor(
-                max_workers=self.concurrency,
-                mp_context=multiprocessing.get_context("spawn"),
+        if isinstance(concurrency, int):
+            self.executor: Executor = ThreadPoolExecutor(max_workers=concurrency)
+            super().__init__(
+                iterator, concurrency, ordered, context_manager=self.executor
             )
-        return self.executor
+        else:
+            self.executor = concurrency
+            super().__init__(iterator, getattr(self.executor, "_max_workers"), ordered)
 
     # picklable
     @staticmethod
@@ -658,19 +648,15 @@ class ConcurrentMapAsyncIterator(_RaisingAsyncIterator[U]):
         self,
         iterator: AsyncIterator[T],
         to: Callable[[T], U],
-        concurrency: int,
-        buffersize: int,
+        concurrency: Union[int, Executor],
         ordered: bool,
-        via: "Literal['thread', 'process']",
     ) -> None:
         super().__init__(
             _ConcurrentMapAsyncIterable(
                 iterator,
                 to,
                 concurrency,
-                buffersize,
                 ordered,
-                via,
             ).__aiter__()
         )
 
@@ -681,12 +667,10 @@ class _ConcurrentAMapAsyncIterable(_BaseConcurrentMapAsyncIterable[T, U]):
         iterator: AsyncIterator[T],
         to: Callable[[T], Coroutine[Any, Any, U]],
         concurrency: int,
-        buffersize: int,
         ordered: bool,
     ) -> None:
-        super().__init__(iterator, buffersize, ordered)
+        super().__init__(iterator, concurrency, ordered)
         self.to = to
-        self.concurrency = concurrency
         self._semaphore: Optional[asyncio.Semaphore] = None
 
     @property
@@ -715,7 +699,6 @@ class ConcurrentAMapAsyncIterator(_RaisingAsyncIterator[U]):
         iterator: AsyncIterator[T],
         to: Callable[[T], Coroutine[Any, Any, U]],
         concurrency: int,
-        buffersize: int,
         ordered: bool,
     ) -> None:
         super().__init__(
@@ -723,7 +706,6 @@ class ConcurrentAMapAsyncIterator(_RaisingAsyncIterator[U]):
                 iterator,
                 to,
                 concurrency,
-                buffersize,
                 ordered,
             ).__aiter__()
         )
@@ -739,11 +721,9 @@ class _ConcurrentFlattenAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]
         self,
         iterables_iterator: AsyncIterator[Union[Iterable[T], AsyncIterable[T]]],
         concurrency: int,
-        buffersize: int,
     ) -> None:
         self.iterables_iterator = iterables_iterator
         self.concurrency = concurrency
-        self.buffersize = buffersize
         self._next = ExceptionContainer.wrap(next)
         self._anext = ExceptionContainer.awrap(anext)
         self._executor: Optional[Executor] = None
@@ -777,7 +757,7 @@ class _ConcurrentFlattenAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]
                     iterator_to_queue = iterator
 
             # queue tasks up to buffersize
-            while len(iterator_and_future_pairs) < self.buffersize:
+            while len(iterator_and_future_pairs) < self.concurrency:
                 if not iterator_to_queue:
                     try:
                         try:
@@ -819,12 +799,10 @@ class ConcurrentFlattenAsyncIterator(_RaisingAsyncIterator[T]):
         self,
         iterables_iterator: AsyncIterator[Union[Iterable[T], AsyncIterable[T]]],
         concurrency: int,
-        buffersize: int,
     ) -> None:
         super().__init__(
             _ConcurrentFlattenAsyncIterable(
                 iterables_iterator,
                 concurrency,
-                buffersize,
             ).__aiter__()
         )

@@ -1,3 +1,4 @@
+from concurrent.futures import Executor
 import copy
 import inspect
 import datetime
@@ -30,19 +31,17 @@ from typing import (
 from streamable._utils._iter import SyncAsyncIterable
 from streamable._utils._validation import (
     validate_concurrency,
+    validate_concurrency_int_or_executor,
     validate_errors,
     validate_group_size,
     validate_count_or_callable,
     validate_optional_positive_interval,
     validate_positive_interval,
-    validate_via,
     validate_positive_count,
 )
 
 if TYPE_CHECKING:  # pragma: no cover
     import builtins
-
-    from typing import Literal
 
     from typing_extensions import Concatenate, ParamSpec
 
@@ -451,9 +450,8 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         self,
         effect: Callable[[T], Coroutine[Any, Any, Any]],
         *,
-        concurrency: int = 1,
+        concurrency: Union[int, Executor] = 1,
         ordered: bool = True,
-        via: "Literal['thread', 'process']" = "thread",
     ) -> "Stream[T]": ...
 
     @overload
@@ -461,9 +459,8 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         self,
         effect: Callable[[T], Any],
         *,
-        concurrency: int = 1,
+        concurrency: Union[int, Executor] = 1,
         ordered: bool = True,
-        via: "Literal['thread', 'process']" = "thread",
     ) -> "Stream[T]": ...
 
     def do(
@@ -473,25 +470,25 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
             Callable[[T], Coroutine[Any, Any, Any]],
         ],
         *,
-        concurrency: int = 1,
+        concurrency: Union[int, Executor] = 1,
         ordered: bool = True,
-        via: "Literal['thread', 'process']" = "thread",
     ) -> "Stream[T]":
         """
-        For each upstream element, yields it after having called ``do`` on it (sync or async).
-        If ``do(elem)`` raises then it will be thrown and ``elem`` will not be yielded.
+        Applies a side ``effect`` for each upstream element.
 
         Args:
-            effect (``Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``): The function to be applied to each element as a side effect.
-            concurrency (``int``, optional): Represents both the number of workers used to concurrently apply the ``do`` and the size of the buffer containing not-yet-yielded elements. If the buffer is full, the iteration over the upstream is paused until an element is yielded from the buffer. (default: no concurrency)
-            ordered (``bool``, optional): If ``concurrency`` > 1, whether to preserve the order of upstream elements or to yield them as soon as they are processed. (default: preserves upstream order)
-            via ("thread" or "process", optional): If ``concurrency`` > 1 and ``do`` is sync, whether to apply ``do`` using processes or threads. (default: via threads)
+            effect (``Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``): The function called on each upstream element as a side effect.
+            concurrency (``int``, optional): (default: no concurrency)
+                - ``concurrency == 1``: The ``effect`` is applied sequentially.
+                - ``concurrency > 1`` or ``Executor``: The ``effect`` is applied concurrently via ``concurrency`` threads or via the provided ``Executor``, or via the event loop if ``effect`` is a coroutine function. At any point in time, only ``concurrency`` elements are buffered for processing.
+
+            ordered (``bool``, optional): If ``concurrency`` > 1, whether to yield preserving the upstream order (First In First Out) or as completed (First Done First Out). (default: preserves order)
+
         Returns:
             ``Stream[T]``: A stream of upstream elements, unchanged.
         """
-        validate_concurrency(concurrency)
-        validate_via(via)
-        return DoStream(self, effect, concurrency, ordered, via)
+        validate_concurrency_int_or_executor(concurrency, effect, fn_name="effect")
+        return DoStream(self, effect, concurrency, ordered)
 
     @overload
     def group(
@@ -596,7 +593,7 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         self,
         to: Callable[[T], Coroutine[Any, Any, U]],
         *,
-        concurrency: int = 1,
+        concurrency: Union[int, Executor] = 1,
         ordered: bool = True,
     ) -> "Stream[U]": ...
 
@@ -605,9 +602,8 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         self,
         to: Callable[[T], U],
         *,
-        concurrency: int = 1,
+        concurrency: Union[int, Executor] = 1,
         ordered: bool = True,
-        via: "Literal['thread', 'process']" = "thread",
     ) -> "Stream[U]": ...
 
     def map(
@@ -617,24 +613,25 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
             Callable[[T], Coroutine[Any, Any, U]],
         ],
         *,
-        concurrency: int = 1,
+        concurrency: Union[int, Executor] = 1,
         ordered: bool = True,
-        via: "Literal['thread', 'process']" = "thread",
     ) -> "Stream[U]":
         """
         Applies ``to`` on upstream elements and yields the results.
 
         Args:
-            to (``Callable[[T], U] | Callable[[T], Coroutine[Any, Any, U]]``): The transformation to be applied to each element (sync or async).
-            concurrency (``int``, optional): Represents both the number of workers used to concurrently apply ``to`` and the size of the buffer containing not-yet-yielded results. If the buffer is full, the iteration over the upstream is paused until a result is yielded from the buffer. (default: no concurrency)
-            ordered (``bool``, optional): If ``concurrency`` > 1, whether to preserve the order of upstream elements or to yield them as soon as they are processed. (default: preserves upstream order)
-            via ("thread" or "process", optional): If ``concurrency`` > 1 and ``to`` is sync, whether to apply ``to`` using processes or threads. (default: via threads)
+            to (``Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``): The transformation applied to upstream elements.
+            concurrency (``int``, optional): (default: no concurrency)
+                - ``concurrency == 1``: ``to`` is applied sequentially.
+                - ``concurrency > 1`` or ``Executor``: ``to`` is applied concurrently via ``concurrency`` threads or via the provided ``Executor``, or via the event loop if ``to`` is a coroutine function. At any point in time, only ``concurrency`` elements are buffered for processing.
+
+            ordered (``bool``, optional): If ``concurrency`` > 1, whether to yield preserving the upstream order (First In First Out) or as completed (First Done First Out). (default: preserves order)
+
         Returns:
             ``Stream[U]``: A stream of transformed elements.
         """
-        validate_concurrency(concurrency)
-        validate_via(via)
-        return MapStream(self, to, concurrency, ordered, via)
+        validate_concurrency_int_or_executor(concurrency, to, fn_name="to")
+        return MapStream(self, to, concurrency, ordered)
 
     def observe(self, what: str = "elements") -> "Stream[T]":
         """
@@ -850,7 +847,7 @@ class FlattenStream(DownStream[Union[Iterable[T], AsyncIterable[T]], T]):
 
 
 class DoStream(DownStream[T, T]):
-    __slots__ = ("_effect", "_concurrency", "_ordered", "_via")
+    __slots__ = ("_effect", "_concurrency", "_ordered")
 
     def __init__(
         self,
@@ -859,15 +856,13 @@ class DoStream(DownStream[T, T]):
             Callable[[T], Any],
             Callable[[T], Coroutine[Any, Any, Any]],
         ],
-        concurrency: int,
+        concurrency: Union[int, Executor],
         ordered: bool,
-        via: "Literal['thread', 'process']",
     ) -> None:
         super().__init__(upstream)
         self._effect = effect
         self._concurrency = concurrency
         self._ordered = ordered
-        self._via = via
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_do_stream(self)
@@ -919,7 +914,7 @@ class GroupbyStream(DownStream[T, Tuple[U, List[T]]]):
 
 
 class MapStream(DownStream[T, U]):
-    __slots__ = ("_to", "_concurrency", "_ordered", "_via")
+    __slots__ = ("_to", "_concurrency", "_ordered")
 
     def __init__(
         self,
@@ -928,15 +923,13 @@ class MapStream(DownStream[T, U]):
             Callable[[T], U],
             Callable[[T], Coroutine[Any, Any, U]],
         ],
-        concurrency: int,
+        concurrency: Union[int, Executor],
         ordered: bool,
-        via: "Literal['thread', 'process']",
     ) -> None:
         super().__init__(upstream)
         self._to = to
         self._concurrency = concurrency
         self._ordered = ordered
-        self._via = via
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_map_stream(self)

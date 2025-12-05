@@ -1,3 +1,4 @@
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 import time
 from datetime import timedelta
@@ -53,10 +54,12 @@ def test_thread_concurrent_map_example() -> None:
     assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
 
 def test_process_concurrent_map_example() -> None:
-    state: List[int] = []
-    # integers are mapped
-    assert list(integers.map(state.append, concurrency=4, via="process")) == [None] * 10
-    assert state == []
+    with ProcessPoolExecutor(max_workers=10) as processes:
+        state: List[int] = []
+        # integers are mapped
+        assert list(integers.map(state.append, concurrency=processes)) == [None] * 10
+        # but the `state` of the main process is not mutated
+        assert state == []
 
 @pytest.mark.asyncio
 async def test_async_amap_example() -> None:

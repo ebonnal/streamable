@@ -1,5 +1,6 @@
 import asyncio
 import builtins
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 import copy
 import datetime
 import math
@@ -189,6 +190,25 @@ def test_map(concurrency, itype) -> None:
 
 
 @pytest.mark.parametrize(
+    "operation, fn_name",
+    [
+        (Stream.do, "effect"),
+        (Stream.map, "to"),
+    ],
+)
+def test_executor_concurrency_with_async_function(operation, fn_name):
+    with pytest.raises(
+        TypeError,
+        match=f"if `{fn_name}` is a coroutine function then `concurrency` must be an int but got <concurrent.futures.thread.ThreadPoolExecutor object at .*",
+    ):
+        operation(
+            Stream(src),
+            async_identity_sleep,
+            concurrency=ThreadPoolExecutor(max_workers=2),
+        )
+
+
+@pytest.mark.parametrize(
     "ordered, order_mutation, itype",
     [
         (ordered, order_mutation, itype)
@@ -203,34 +223,35 @@ def test_process_concurrency(ordered, order_mutation, itype) -> None:
     def local_identity(x):
         return x  # pragma: no cover
 
-    sleeps = [0.01, 1, 0.01]
-    state: List[str] = []
-    expected_result_list: List[str] = list(order_mutation(map(str, sleeps)))
-    stream = (
-        Stream(sleeps)
-        .do(identity_sleep, concurrency=2, ordered=ordered, via="process")
-        .map(str, concurrency=2, ordered=True, via="process")
-        .do(state.append, concurrency=2, ordered=True, via="process")
-        .do(lambda _: state.append(""), concurrency=1, ordered=True)
-    )
-    # process-based concurrency must correctly transform elements, respecting `ordered`...
-    assert to_list(stream, itype=itype) == expected_result_list
-    # ... and should not mutate main thread-bound structures.
-    assert state == [""] * len(sleeps)
-
-    if sys.version_info >= (3, 9):
-        for f in [lambda x: x, local_identity]:
-            # process-based concurrency should not be able to serialize a lambda or a local func
-            with pytest.raises(
-                (AttributeError, PickleError),
-                match="<locals>",
-            ):
-                to_list(Stream(src).map(f, concurrency=2, via="process"), itype=itype)
-        # partial iteration
-        assert (
-            anext_or_next(bi_iterable_to_iter(stream, itype=itype))
-            == expected_result_list[0]
+    with ProcessPoolExecutor(max_workers=10) as processes:
+        sleeps = [0.01, 1, 0.01]
+        state: List[str] = []
+        expected_result_list: List[str] = list(order_mutation(map(str, sleeps)))
+        stream = (
+            Stream(sleeps)
+            .do(identity_sleep, concurrency=processes, ordered=ordered)
+            .map(str, concurrency=processes, ordered=True)
+            .do(state.append, concurrency=processes, ordered=True)
+            .do(lambda _: state.append(""), concurrency=1, ordered=True)
         )
+        # process-based concurrency must correctly transform elements, respecting `ordered`...
+        assert to_list(stream, itype=itype) == expected_result_list
+        # ... and should not mutate main thread-bound structures.
+        assert state == [""] * len(sleeps)
+
+        if sys.version_info >= (3, 9):
+            for f in [lambda x: x, local_identity]:
+                # process-based concurrency should not be able to serialize a lambda or a local func
+                with pytest.raises(
+                    (AttributeError, PickleError),
+                    match="<locals>",
+                ):
+                    to_list(Stream(src).map(f, concurrency=processes), itype=itype)
+            # partial iteration
+            assert (
+                anext_or_next(bi_iterable_to_iter(stream, itype=itype))
+                == expected_result_list[0]
+            )
 
 
 @pytest.mark.parametrize(
@@ -1352,6 +1373,7 @@ def test_pipe(itype: IterableType) -> None:
 
 
 def test_eq() -> None:
+    threads = ThreadPoolExecutor(max_workers=10)
     stream = (
         Stream(src)
         .catch((TypeError, ValueError), replace=identity, when=identity)
@@ -1370,7 +1392,7 @@ def test_eq() -> None:
         .flatten(concurrency=3)
         .groupby(bool)
         .groupby(async_identity)
-        .map(identity, via="process")
+        .map(identity, concurrency=threads)
         .map(async_identity)
         .observe("foo")
         .skip(3)
@@ -1398,7 +1420,7 @@ def test_eq() -> None:
         .flatten(concurrency=3)
         .groupby(bool)
         .groupby(async_identity)
-        .map(identity, via="process")
+        .map(identity, concurrency=threads)
         .map(async_identity)
         .observe("foo")
         .skip(3)
@@ -1427,7 +1449,7 @@ def test_eq() -> None:
         .flatten(concurrency=3)
         .groupby(bool)
         .groupby(async_identity)
-        .map(identity, via="process")
+        .map(identity, concurrency=threads)
         .map(async_identity)
         .observe("foo")
         .skip(3)
@@ -1456,7 +1478,7 @@ def test_eq() -> None:
         .flatten(concurrency=3)
         .groupby(bool)
         .groupby(async_identity)
-        .map(identity, via="process")
+        .map(identity, concurrency=threads)
         .map(async_identity)
         .observe("foo")
         .skip(3)
