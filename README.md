@@ -46,6 +46,8 @@ inverses: stream[float] = (
 )
 ```
 
+[visit the documentation](https://streamable.readthedocs.io/en/latest/api.html)
+
 # 5. iterate
 
 A `stream` is ***both*** `Iterable` and `AsyncIterable`:

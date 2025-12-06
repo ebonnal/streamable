@@ -51,7 +51,47 @@ V = TypeVar("V")
 
 class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
     """
-    A ``stream[T]`` decorates an ``Iterable[T]`` or ``AsyncIterable[T]`` with a **fluent interface** enabling the chaining of lazy operations.
+    ``stream[T]`` enriches any ``Iterable[T]`` or ``AsyncIterable[T]`` with a small set of expressive, lazy operations for elegant data manipulation, including thread/coroutine concurrency, batching, rate limiting, and error handling.
+
+    A ``stream[T]`` is both an ``Iterable[T]`` and an `AsyncIterable[T]``: a convenient bridge between the sync and async worlds.
+
+    init
+    ^^^^
+
+    Create a ``stream[T]`` decorating an ``Iterable[T]`` or ``AsyncIterable[T]`` source:
+
+    .. code-block:: python
+
+        ints: stream[int] = stream(range(10))
+
+    operate
+    ^^^^^^^
+
+    Chain ***lazy*** operations (only evaluated during iteration), each returning a new ***immutable*** ``stream``:
+
+    .. code-block:: python
+
+        inverses: stream[float] = (
+            ints
+            .map(lambda n: round(1 / n, 2))
+            .catch(ZeroDivisionError)
+        )
+
+    iterate
+    ^^^^^^^
+
+    A ``stream`` is ***both*** ``Iterable`` and ``AsyncIterable``:
+
+    .. code-block:: python
+
+        >>> list(inverses)
+        [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
+        >>> [i for i in inverses]
+        [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
+        >>> [i async for i in inverses]
+        [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
+
+    Elements are processed ***on-the-fly*** as the iteration advances.
 
     Args:
         source (``Iterable[T] | Callable[[], Iterable[T]] | AsyncIterable[T] | Callable[[], AsyncIterable[T]]``): The iterable to decorate. Can be specified via a function that will be called each time an iteration is started over the stream (i.e. for each call to ``iter(stream)``/``aiter(stream)``).
@@ -114,7 +154,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
     def __eq__(self, other: Any) -> bool:
         """
-        Checks if this stream is equal to ``other``, meaning they apply the same operations to the same source.
+        Two streams are considered equal if they apply the same operations, with the same parameters, to the same source.
 
         Returns:
             ``bool``: True if this stream is equal to ``other``.
@@ -167,7 +207,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
     def accept(self, visitor: "Visitor[V]") -> V:
         """
-        Entry point to visit this stream (en.wikipedia.org/wiki/Visitor_pattern).
+        Entry point to visit the stream lineage.
         """
         return visitor.visit_stream(self)
 
@@ -286,8 +326,10 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         Args:
             by (``Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``, optional):
+
                 - ``Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``: Elements are deduplicated based on ``by(elem)``.
                 - ``None``: The deduplication is performed on the elements themselves. (default)
+
             consecutive (``bool``, optional): Removes only consecutive duplicates if ``True``, or deduplicates globally if ``False``. (default: global deduplication)
 
         Returns:
@@ -475,6 +517,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         Args:
             effect (``Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``): The function called on each upstream element as a side effect.
             concurrency (``int``, optional): (default: no concurrency)
+
                 - ``concurrency == 1``: The ``effect`` is applied sequentially.
                 - ``concurrency > 1`` or ``Executor``: The ``effect`` is applied concurrently via ``concurrency`` threads or via the provided ``Executor``, or via the event loop if ``effect`` is a coroutine function. At any point in time, only ``concurrency`` elements are buffered for processing.
 
@@ -627,6 +670,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         Args:
             to (``Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``): The transformation applied to upstream elements.
             concurrency (``int``, optional): (default: no concurrency)
+
                 - ``concurrency == 1``: ``to`` is applied sequentially.
                 - ``concurrency > 1`` or ``Executor``: ``to`` is applied concurrently via ``concurrency`` threads or via the provided ``Executor``, or via the event loop if ``to`` is a coroutine function. At any point in time, only ``concurrency`` elements are buffered for processing.
 
@@ -678,6 +722,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         Args:
             until (``int | Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``):
+
                 - ``int``: The number of elements to skip.
                 - ``Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``: Skips elements until encountering one for which ``until(elem)`` (or ``await until(elem)``) is truthy (this element and all the subsequent ones will be yielded).
 
@@ -742,6 +787,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         Args:
             when (``int | Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``):
+
                 - ``int``: Stops the iteration after ``when`` elements have been yielded.
                 - ``Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``: Stops the iteration when the first element for which ``when(elem)`` (or ``await when(elem)``) is truthy is encountered, that element will not be yielded.
 
