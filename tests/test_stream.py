@@ -116,9 +116,13 @@ def test_async_src(itype) -> None:
 
 
 def test_repr(complex_stream: stream, complex_stream_str: str) -> None:
+    print_stream = stream([]).map(star(print))
     assert (
-        repr(stream([]).map(star(print)))
+        repr(print_stream)
         == "stream([]).map(star(<built-in function print>), concurrency=1, ordered=True)"
+    )
+    assert (
+        str(print_stream) == "stream([]).map(star(print), concurrency=1, ordered=True)"
     )
     # `repr` should work as expected on a stream with many operation
     assert str(complex_stream) == complex_stream_str
