@@ -314,7 +314,7 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 > Groups into `List`s (works with sync or async `by` predicates)
 
-> ... up to a given group `size`:
+> ... `up_to` a given group size:
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
@@ -353,14 +353,14 @@ assert list(ints_within_1_sec) == [[0, 1, 2], [3, 4], [5, 6], [7, 8], [9]]
 </details>
 
 > [!TIP]
-> Combine the `size`/`by`/`interval` parameters:
+> Combine the `up_to`/`by`/`interval` parameters:
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 ints_by_parity_by_2: stream[list[int]] = (
     ints
-    .group(by=lambda n: n % 2, size=2)
+    .group(by=lambda n: n % 2, up_to=2)
 )
 
 assert list(ints_by_parity_by_2) == [[0, 2], [1, 3], [4, 6], [5, 7], [8], [9]]

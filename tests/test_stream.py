@@ -860,27 +860,27 @@ def test_group(itype: IterableType, adapt, nostop_) -> None:
         with pytest.raises(ValueError):
             to_list(
                 stream([1]).group(
-                    size=100, interval=datetime.timedelta(seconds=seconds)
+                    up_to=100, interval=datetime.timedelta(seconds=seconds)
                 ),
                 itype=itype,
             )
 
-    # `group` should raise error when called with `size` < 1.
+    # `group` should raise error when called with `up_to` < 1.
     for size in [-1, 0]:
         with pytest.raises(ValueError):
-            to_list(stream([1]).group(size=size), itype=itype)
+            to_list(stream([1]).group(up_to=size), itype=itype)
 
     # group size
-    assert to_list(stream(range(6)).group(size=4), itype=itype) == [
+    assert to_list(stream(range(6)).group(up_to=4), itype=itype) == [
         [0, 1, 2, 3],
         [4, 5],
     ]
-    assert to_list(stream(range(6)).group(size=2), itype=itype) == [
+    assert to_list(stream(range(6)).group(up_to=2), itype=itype) == [
         [0, 1],
         [2, 3],
         [4, 5],
     ]
-    assert to_list(stream([]).group(size=2), itype=itype) == []
+    assert to_list(stream([]).group(up_to=2), itype=itype) == []
 
     # behavior with exceptions
     def f(i):
@@ -903,7 +903,7 @@ def test_group(itype: IterableType, adapt, nostop_) -> None:
     # `group` should not yield empty groups even though `interval` if smaller than upstream's frequency
     assert to_list(
         stream(lambda: map(slow_identity, ints_src)).group(
-            size=100,
+            up_to=100,
             interval=datetime.timedelta(seconds=slow_identity_duration / 1000),
         ),
         itype=itype,
@@ -911,7 +911,7 @@ def test_group(itype: IterableType, adapt, nostop_) -> None:
     # `group` with `by` argument should not yield empty groups even though `interval` if smaller than upstream's frequency
     assert to_list(
         stream(lambda: map(slow_identity, ints_src)).group(
-            size=100,
+            up_to=100,
             interval=datetime.timedelta(seconds=slow_identity_duration / 1000),
             by=adapt(lambda _: None),
         ),
@@ -920,7 +920,7 @@ def test_group(itype: IterableType, adapt, nostop_) -> None:
     # `group` should yield upstream elements in a two-element group if `interval` inferior to twice the upstream yield period
     assert to_list(
         stream(lambda: map(slow_identity, ints_src)).group(
-            size=100,
+            up_to=100,
             interval=datetime.timedelta(seconds=2 * slow_identity_duration * 0.99),
         ),
         itype=itype,
@@ -934,7 +934,7 @@ def test_group(itype: IterableType, adapt, nostop_) -> None:
     groupby_stream_iter: Union[
         Iterator[Tuple[int, List[int]]], AsyncIterator[Tuple[int, List[int]]]
     ] = bi_iterable_to_iter(
-        stream(ints_src).groupby(adapt(lambda n: n % 2), size=2), itype=itype
+        stream(ints_src).groupby(adapt(lambda n: n % 2), up_to=2), itype=itype
     )
     # `groupby` must cogroup elements.
     assert [
@@ -944,18 +944,18 @@ def test_group(itype: IterableType, adapt, nostop_) -> None:
 
     # test by
     stream_iter = bi_iterable_to_iter(
-        stream(ints_src).group(size=2, by=adapt(lambda n: n % 2)), itype=itype
+        stream(ints_src).group(up_to=2, by=adapt(lambda n: n % 2)), itype=itype
     )
     # `group` called with a `by` function must cogroup elements.
     assert [anext_or_next(stream_iter), anext_or_next(stream_iter)] == [
         [0, 2],
         [1, 3],
     ]
-    # `group` called with a `by` function and a `size` should yield the first batch becoming full.
+    # `group` called with a `by` function and a `up_to` should yield the first batch becoming full.
     assert anext_or_next(
         bi_iterable_to_iter(
             stream(src_raising_at_exhaustion).group(
-                size=10,
+                up_to=10,
                 by=adapt(lambda n: n % 4 != 0),
             ),
             itype=itype,
@@ -995,7 +995,7 @@ def test_group(itype: IterableType, adapt, nostop_) -> None:
 
     stream_iter = bi_iterable_to_iter(
         stream(ints_src).group(
-            size=3,
+            up_to=3,
             by=nostop_(
                 adapt(
                     lambda n: throw(stopiteration_for_iter_type(itype)) if n == 2 else n

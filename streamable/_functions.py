@@ -123,27 +123,27 @@ def flatten(
 
 def group(
     iterator: Iterator[T],
-    size: Optional[int] = None,
+    up_to: Optional[int] = None,
     *,
     interval: Optional[datetime.timedelta] = None,
     by: Optional[Callable[[T], Any]] = None,
 ) -> Iterator[List[T]]:
     if by is None:
-        return GroupIterator(iterator, size, interval)
-    return map(itemgetter(1), GroupbyIterator(iterator, by, size, interval))
+        return GroupIterator(iterator, up_to, interval)
+    return map(itemgetter(1), GroupbyIterator(iterator, by, up_to, interval))
 
 
 def agroup(
     loop: asyncio.AbstractEventLoop,
     iterator: Iterator[T],
-    size: Optional[int] = None,
+    up_to: Optional[int] = None,
     *,
     interval: Optional[datetime.timedelta] = None,
     by: Optional[Callable[[T], Coroutine[Any, Any, Any]]] = None,
 ) -> Iterator[List[T]]:
     return group(
         iterator,
-        size,
+        up_to,
         interval=interval,
         by=syncify(loop, by) if by else None,
     )
@@ -153,10 +153,10 @@ def groupby(
     iterator: Iterator[T],
     key: Callable[[T], U],
     *,
-    size: Optional[int] = None,
+    up_to: Optional[int] = None,
     interval: Optional[datetime.timedelta] = None,
 ) -> Iterator[Tuple[U, List[T]]]:
-    return GroupbyIterator(iterator, key, size, interval)
+    return GroupbyIterator(iterator, key, up_to, interval)
 
 
 def agroupby(
@@ -164,13 +164,13 @@ def agroupby(
     iterator: Iterator[T],
     key: Callable[[T], Coroutine[Any, Any, U]],
     *,
-    size: Optional[int] = None,
+    up_to: Optional[int] = None,
     interval: Optional[datetime.timedelta] = None,
 ) -> Iterator[Tuple[U, List[T]]]:
     return groupby(
         iterator,
         syncify(loop, key),
-        size=size,
+        up_to=up_to,
         interval=interval,
     )
 

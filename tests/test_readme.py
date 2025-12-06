@@ -138,7 +138,7 @@ def test_group_example() -> None:
 
     ints_by_parity_by_2: stream[List[int]] = (
         ints
-        .group(by=lambda n: n % 2, size=2)
+        .group(by=lambda n: n % 2, up_to=2)
     )
 
     assert list(ints_by_parity_by_2) == [[0, 2], [1, 3], [4, 6], [5, 7], [8], [9]]

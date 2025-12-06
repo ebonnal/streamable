@@ -66,13 +66,13 @@ class ToStringVisitor(Visitor[str], ABC):
 
     def visit_group_stream(self, stream: GroupStream) -> str:
         self.methods_reprs.append(
-            f"group(size={self.to_string(stream._size)}, by={self.to_string(stream._by)}, interval={self.to_string(stream._interval)})"
+            f"group(up_to={self.to_string(stream._up_to)}, by={self.to_string(stream._by)}, interval={self.to_string(stream._interval)})"
         )
         return stream.upstream.accept(self)
 
     def visit_groupby_stream(self, stream: GroupbyStream) -> str:
         self.methods_reprs.append(
-            f"groupby({self.to_string(stream._key)}, size={self.to_string(stream._size)}, interval={self.to_string(stream._interval)})"
+            f"groupby({self.to_string(stream._key)}, up_to={self.to_string(stream._up_to)}, interval={self.to_string(stream._interval)})"
         )
         return stream.upstream.accept(self)
 

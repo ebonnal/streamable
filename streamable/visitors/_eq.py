@@ -71,7 +71,7 @@ class EqualityVisitor(Visitor[bool]):
             self.type_eq(stream)
             and stream.upstream.accept(EqualityVisitor(self.other.upstream))
             and stream._by == self.other._by
-            and stream._size == self.other._size
+            and stream._up_to == self.other._up_to
             and stream._interval == self.other._interval
         )
 
@@ -80,7 +80,7 @@ class EqualityVisitor(Visitor[bool]):
             self.type_eq(stream)
             and stream.upstream.accept(EqualityVisitor(self.other.upstream))
             and stream._key == self.other._key
-            and stream._size == self.other._size
+            and stream._up_to == self.other._up_to
             and stream._interval == self.other._interval
         )
 

@@ -180,11 +180,11 @@ class _BaseGroupIterator(Generic[T]):
     def __init__(
         self,
         iterator: Iterator[T],
-        size: Optional[int],
+        up_to: Optional[int],
         interval: Optional[datetime.timedelta],
     ) -> None:
         self.iterator = iterator
-        self.size = size or cast(int, float("inf"))
+        self.up_to = up_to or cast(int, float("inf"))
         self.interval = interval
         self._interval_seconds = interval.total_seconds() if interval else float("inf")
         self._to_be_raised: Optional[Exception] = None
@@ -210,10 +210,10 @@ class GroupIterator(_BaseGroupIterator[T], Iterator[List[T]]):
     def __init__(
         self,
         iterator: Iterator[T],
-        size: Optional[int],
+        up_to: Optional[int],
         interval: Optional[datetime.timedelta],
     ) -> None:
-        super().__init__(iterator, size, interval)
+        super().__init__(iterator, up_to, interval)
         self._current_group: List[T] = []
 
     def __next__(self) -> List[T]:
@@ -224,7 +224,7 @@ class GroupIterator(_BaseGroupIterator[T], Iterator[List[T]]):
             finally:
                 self._to_be_raised = None
         try:
-            while len(self._current_group) < self.size and (
+            while len(self._current_group) < self.up_to and (
                 not self._interval_seconds_have_elapsed() or not self._current_group
             ):
                 self._current_group.append(self.iterator.__next__())
@@ -243,10 +243,10 @@ class GroupbyIterator(_BaseGroupIterator[T], Iterator[Tuple[U, List[T]]]):
         self,
         iterator: Iterator[T],
         key: Callable[[T], U],
-        size: Optional[int],
+        up_to: Optional[int],
         interval: Optional[datetime.timedelta],
     ) -> None:
-        super().__init__(iterator, size, interval)
+        super().__init__(iterator, up_to, interval)
         self.key = key
         self._is_exhausted = False
         self._groups_by: DefaultDict[U, List[T]] = defaultdict(list)
@@ -257,7 +257,7 @@ class GroupbyIterator(_BaseGroupIterator[T], Iterator[Tuple[U, List[T]]]):
 
     def _pop_full_group(self) -> Optional[Tuple[U, List[T]]]:
         for key, group in self._groups_by.items():
-            if len(group) >= self.size:
+            if len(group) >= self.up_to:
                 return key, self._groups_by.pop(key)
         return None
 
