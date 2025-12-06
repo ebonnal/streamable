@@ -37,16 +37,12 @@ import pytest
 from streamable import stream
 from streamable._utils._async import awaitable_to_coroutine
 from streamable._utils._func import anostop, asyncify, nostop, star
-from streamable._utils._iter import (
-    sync_to_async_iter,
-    sync_to_bi_iterable,
-    to_async_iter,
-    to_sync_iter,
-)
+from streamable._utils._iter import sync_to_async_iter, sync_to_bi_iterable
 from tests.utils import (
     ITERABLE_TYPES,
     IterableType,
     N,
+    to_async_iter,
     TestError,
     alist_or_list,
     anext_or_next,
@@ -521,7 +517,7 @@ def test_flatten_typing() -> None:
         (concurrency, itype, to_iter)
         for concurrency in (1, 2)
         for itype in ITERABLE_TYPES
-        for to_iter in (to_sync_iter, to_async_iter)
+        for to_iter in (identity, to_async_iter)
     ],
 )
 def test_flatten(concurrency, itype, to_iter) -> None:

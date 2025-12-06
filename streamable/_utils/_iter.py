@@ -6,7 +6,6 @@ from typing import (
     Iterable,
     Iterator,
     TypeVar,
-    Union,
 )
 
 from streamable._utils._async import CloseEventLoopMixin
@@ -50,12 +49,6 @@ class SyncToAsyncIterator(AsyncIterator[T]):
 sync_to_async_iter: Callable[[Iterator[T]], AsyncIterator[T]] = SyncToAsyncIterator
 
 
-def to_async_iter(iterable: Union[Iterable[T], AsyncIterable[T]]) -> AsyncIterator[T]:
-    if isinstance(iterable, Iterable):
-        iterable = SyncToAsyncIterator(iterable.__iter__())
-    return iterable.__aiter__()
-
-
 class AsyncToSyncIterator(Iterator[T], CloseEventLoopMixin):
     def __init__(
         self,
@@ -75,10 +68,3 @@ class AsyncToSyncIterator(Iterator[T], CloseEventLoopMixin):
 async_to_sync_iter: Callable[
     [asyncio.AbstractEventLoop, AsyncIterator[T]], Iterator[T]
 ] = AsyncToSyncIterator
-
-
-def to_sync_iter(iterable: Union[Iterable[T], AsyncIterable[T]]) -> Iterator[T]:
-    if isinstance(iterable, AsyncIterable):
-        loop = asyncio.get_event_loop()
-        iterable = AsyncToSyncIterator(loop, iterable.__aiter__())
-    return iterable.__iter__()
