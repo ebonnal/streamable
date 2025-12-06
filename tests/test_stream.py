@@ -182,6 +182,12 @@ def test_add(itype: IterableType) -> None:
     # `chain` must yield the elements of the first stream the move on with the elements of the next ones and so on.
     assert to_list(stream_a + stream_b + stream_c, itype=itype) == list(range(30))
 
+    stream_ = stream(range(10))
+    stream_ += stream(range(10, 20))
+    stream_ += stream(range(20, 30))
+    # `chain` must yield the elements of the first stream the move on with the elements of the next ones and so on.
+    assert to_list(stream_, itype=itype) == list(range(30))
+
 
 @pytest.mark.parametrize(
     "concurrency, itype",

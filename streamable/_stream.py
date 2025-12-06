@@ -205,6 +205,9 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         """
         return cast(stream[T], stream((self, other)).flatten())
 
+    def __iadd__(self, other: "stream[T]") -> "stream[T]":
+        return self + other
+
     def accept(self, visitor: "Visitor[V]") -> V:
         """
         Entry point to visit the stream lineage.
