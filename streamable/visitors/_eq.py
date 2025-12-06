@@ -11,7 +11,7 @@ from streamable._stream import (
     MapStream,
     ObserveStream,
     SkipStream,
-    Stream,
+    stream,
     ThrottleStream,
     TruncateStream,
 )
@@ -22,7 +22,7 @@ class EqualityVisitor(Visitor[bool]):
     def __init__(self, other: Any):
         self.other: Any = other
 
-    def type_eq(self, stream: Stream) -> bool:
+    def type_eq(self, stream: stream) -> bool:
         return type(stream) is type(self.other)
 
     def visit_catch_stream(self, stream: CatchStream) -> bool:
@@ -122,5 +122,5 @@ class EqualityVisitor(Visitor[bool]):
             and stream._when == self.other._when
         )
 
-    def visit_stream(self, stream: Stream) -> bool:
+    def visit_stream(self, stream: stream) -> bool:
         return self.type_eq(stream) and stream.source == self.other.source

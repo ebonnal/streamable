@@ -17,7 +17,7 @@ from typing import (
     Union,
 )
 
-from streamable._stream import Stream
+from streamable._stream import stream
 from streamable._utils._async import awaitable_to_coroutine
 from streamable._utils._iter import SyncAsyncIterable
 
@@ -34,7 +34,7 @@ class TestError(Exception):
 
 N = 256
 
-src = range(N)
+ints_src = range(N)
 
 even_src = range(0, N, 2)
 
@@ -53,15 +53,15 @@ def stopiteration_for_iter_type(itype: IterableType) -> Type[Exception]:
     return StopIteration
 
 
-def to_list(stream: Stream[T], itype: IterableType) -> List[T]:
-    assert isinstance(stream, Stream)
+def to_list(stream_: stream[T], itype: IterableType) -> List[T]:
+    assert isinstance(stream_, stream)
     if itype is AsyncIterable:
-        return aiterable_to_list(stream)
-    return list(stream)
+        return aiterable_to_list(stream_)
+    return list(stream_)
 
 
 def bi_iterable_to_iter(
-    iterable: Union[SyncAsyncIterable[T], Stream[T]], itype: IterableType
+    iterable: Union[SyncAsyncIterable[T], stream[T]], itype: IterableType
 ) -> Union[Iterator[T], AsyncIterator[T]]:
     if itype is AsyncIterable:
         return iterable.__aiter__()
@@ -81,7 +81,7 @@ def alist_or_list(iterable: Union[Iterable[T], AsyncIterable[T]]) -> List[T]:
 
 
 def timestream(
-    stream: Stream[T], times: int = 1, itype: IterableType = Iterable
+    stream: stream[T], times: int = 1, itype: IterableType = Iterable
 ) -> Tuple[float, List[T]]:
     res: List[T] = []
 

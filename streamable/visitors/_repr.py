@@ -12,7 +12,7 @@ from streamable._stream import (
     MapStream,
     ObserveStream,
     SkipStream,
-    Stream,
+    stream,
     ThrottleStream,
     TruncateStream,
 )
@@ -100,8 +100,8 @@ class ToStringVisitor(Visitor[str], ABC):
         self.methods_reprs.append(f"truncate(when={self.to_string(stream._when)})")
         return stream.upstream.accept(self)
 
-    def visit_stream(self, stream: Stream) -> str:
-        source_stream = f"Stream({self.to_string(stream.source)})"
+    def visit_stream(self, stream: stream) -> str:
+        source_stream = f"stream({self.to_string(stream.source)})"
         depth = len(self.methods_reprs) + 1
         if depth == 1:
             return source_stream

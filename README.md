@@ -2,9 +2,9 @@
 
 > *fluent concurrent sync/async streams*
 
-`Stream[T]` enriches any `Iterable[T]` or `AsyncIterable[T]` with a small set of expressive, lazy operations for elegant data manipulation, including thread/coroutine concurrency, batching, rate limiting, and error handling.
+`stream[T]` enriches any `Iterable[T]` or `AsyncIterable[T]` with a small set of expressive, lazy operations for elegant data manipulation, including thread/coroutine concurrency, batching, rate limiting, and error handling.
 
-A `Stream[T]` is both an `Iterable[T]` and an `AsyncIterable[T]`: a convenient bridge between the sync and async worlds.
+A `stream[T]` is both an `Iterable[T]` and an `AsyncIterable[T]`: a convenient bridge between the sync and async worlds.
 
 [![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/release/python-360/)
 [![coverage](https://codecov.io/gh/ebonnal/streamable/graph/badge.svg?token=S62T0JQK9N)](https://codecov.io/gh/ebonnal/streamable)
@@ -23,24 +23,24 @@ no dependencies
 # 2. import
 
 ```python
-from streamable import Stream
+from streamable import stream
 ```
 
 # 3. init
 
-Create a `Stream[T]` ***decorating*** an `Iterable[T]` or `AsyncIterable[T]`:
+Create a `stream[T]` decorating an `Iterable[T]` or `AsyncIterable[T]` source:
 
 ```python
-integers: Stream[int] = Stream(range(10))
+ints: stream[int] = stream(range(10))
 ```
 
 # 4. operate
 
-Chain ***lazy*** operations (only evaluated during iteration), each returning a new ***immutable*** `Stream`:
+Chain ***lazy*** operations (only evaluated during iteration), each returning a new ***immutable*** `stream`:
 
 ```python
-inverses: Stream[float] = (
-    integers
+inverses: stream[float] = (
+    ints
     .map(lambda n: round(1 / n, 2))
     .catch(ZeroDivisionError)
 )
@@ -48,7 +48,7 @@ inverses: Stream[float] = (
 
 # 5. iterate
 
-A `Stream` is ***both*** `Iterable` and `AsyncIterable`:
+A `stream` is ***both*** `Iterable` and `AsyncIterable`:
 
 ```python
 >>> list(inverses)
@@ -63,7 +63,7 @@ Elements are processed ***on-the-fly*** as the iteration advances.
 
 # ↔ showcase: ETL
 
-Let's walk through the `Stream`'s features with an Extract-Transform-Load script:
+Let's walk through the `stream`'s features with an Extract-Transform-Load script:
 
 This toy script gets Pokémons concurrently from [PokéAPI](https://pokeapi.co/), and writes the quadrupeds from the first three generations into a CSV file, in 5-seconds batches:
 
@@ -72,7 +72,7 @@ import csv
 from datetime import timedelta
 from itertools import count
 import httpx
-from streamable import Stream
+from streamable import stream
 
 with open("./quadruped_pokemons.csv", mode="w") as file:
     fields = ["id", "name", "is_legendary", "base_happiness", "capture_rate"]
@@ -80,8 +80,8 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
     writer.writeheader()
     with httpx.Client() as http_client:
         pipeline = (
-            # Infinite Stream[int] of Pokemon ids starting from Pokémon #1: Bulbasaur
-            Stream(count(1))
+            # Infinite stream[int] of Pokemon ids starting from Pokémon #1: Bulbasaur
+            stream(count(1))
             # Limit to 16 requests per second to be friendly to our fellow PokéAPI devs
             .throttle(16, per=timedelta(seconds=1))
             # GET pokemons concurrently using a pool of 8 threads
@@ -122,7 +122,7 @@ import csv
 from datetime import timedelta
 from itertools import count
 import httpx
-from streamable import Stream
+from streamable import stream
 
 with open("./quadruped_pokemons.csv", mode="w") as file:
     fields = ["id", "name", "is_legendary", "base_happiness", "capture_rate"]
@@ -131,8 +131,8 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
 
     async with httpx.AsyncClient() as http_client:
         pipeline = (
-            # Infinite Stream[int] of Pokemon ids starting from Pokémon #1: Bulbasaur
-            Stream(count(1))
+            # Infinite stream[int] of Pokemon ids starting from Pokémon #1: Bulbasaur
+            stream(count(1))
             # Limit to 16 requests per second to be friendly to our fellow PokéAPI devs
             .throttle(16, per=timedelta(seconds=1))
             # GET pokemons via 8 concurrent coroutines
@@ -163,7 +163,7 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
 
 # 📒 ***Operations***
 
-Let's do a tour of the `Stream`'s operations, for more details visit the [***docs***](https://streamable.readthedocs.io/en/latest/api.html).
+Let's do a tour of the `stream`'s operations, for more details visit the [***docs***](https://streamable.readthedocs.io/en/latest/api.html).
 
 |||
 |--|--|
@@ -181,12 +181,12 @@ Let's do a tour of the `Stream`'s operations, for more details visit the [***doc
 
 
 > [!IMPORTANT]
-> A `Stream` exposes a minimalist yet expressive set of operations to manipulate its elements, but creating its source or consuming it is not its responsability, it's meant to be combined with specialized libraries (`csv`, `json`, `pyarrow`, `psycopg2`, `boto3`, `requests`, `httpx`, ...).
+> A `stream` exposes a minimalist yet expressive set of operations to manipulate its elements, but creating its source or consuming it is not its responsability, it's meant to be combined with specialized libraries (`csv`, `json`, `pyarrow`, `psycopg2`, `boto3`, `requests`, `httpx`, ...).
 
 > [!NOTE]
 ## sync/async compatibility
 
-All the operations that take a function accept both sync and async functions, you can freely mix them within the same `Stream`. It can then be consumed either as an `Iterable` or as an `AsyncIterable`. When a stream involving async functions is consumed as an `Iterable`, a temporary `asyncio` event loop is attached to it.
+All the operations that take a function accept both sync and async functions, you can freely mix them within the same `stream`. It can then be consumed either as an `Iterable` or as an `AsyncIterable`. When a stream involving async functions is consumed as an `Iterable`, a temporary `asyncio` event loop is attached to it.
 
 ## 🟡 `.map`
 
@@ -195,7 +195,7 @@ All the operations that take a function accept both sync and async functions, yo
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
-integer_strings: Stream[str] = integers.map(str)
+integer_strings: stream[str] = ints.map(str)
 
 assert list(integer_strings) == ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
 ```
@@ -220,8 +220,8 @@ assert list(integer_strings) == ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9
 ```python
 import httpx
 
-pokemon_names: Stream[str] = (
-    Stream(range(1, 4))
+pokemon_names: stream[str] = (
+    stream(range(1, 4))
     .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
     .map(httpx.get, concurrency=3)
     .map(httpx.Response.json)
@@ -241,8 +241,8 @@ assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
 import httpx
 
 async with httpx.AsyncClient() as http:
-    pokemon_names: Stream[str] = (
-        Stream(range(1, 4))
+    pokemon_names: stream[str] = (
+        stream(range(1, 4))
         .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
         .map(http.get, concurrency=3)
         .map(httpx.Response.json)
@@ -262,9 +262,9 @@ async with httpx.AsyncClient() as http:
 ```python
 if __name__ == "__main__":
     with ProcessPoolExecutor(max_workers=10) as processes:
-        state: List[int] = []
-        # integers are mapped
-        assert list(integers.map(state.append, concurrency=processes)) == [None] * 10
+        state: list[int] = []
+        # ints are mapped
+        assert list(ints.map(state.append, concurrency=processes)) == [None] * 10
         # but the `state` of the main process is not mutated
         assert state == []
 ```
@@ -279,8 +279,8 @@ if __name__ == "__main__":
 ```python
 from streamable import star
 
-zeros: Stream[int] = (
-    Stream(enumerate(integers))
+zeros: stream[int] = (
+    stream(enumerate(ints))
     .map(star(lambda index, integer: index - integer))
 )
 
@@ -296,10 +296,10 @@ assert list(zeros) == [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
-state: List[int] = []
-appending_integers: Stream[int] = integers.do(state.append)
+state: list[int] = []
+appending_ints: stream[int] = ints.do(state.append)
 
-assert list(appending_integers) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+assert list(appending_ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 </details>
@@ -316,9 +316,9 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
-integers_by_5: Stream[List[int]] = integers.group(5)
+ints_by_5: stream[list[int]] = ints.group(5)
 
-assert list(integers_by_5) == [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]]
+assert list(ints_by_5) == [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]]
 ```
 </details>
 
@@ -327,9 +327,9 @@ assert list(integers_by_5) == [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]]
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
-integers_by_parity: Stream[List[int]] = integers.group(by=lambda n: n % 2)
+ints_by_parity: stream[list[int]] = ints.group(by=lambda n: n % 2)
 
-assert list(integers_by_parity) == [[0, 2, 4, 6, 8], [1, 3, 5, 7, 9]]
+assert list(ints_by_parity) == [[0, 2, 4, 6, 8], [1, 3, 5, 7, 9]]
 ```
 </details>
 
@@ -340,13 +340,13 @@ assert list(integers_by_parity) == [[0, 2, 4, 6, 8], [1, 3, 5, 7, 9]]
 ```python
 from datetime import timedelta
 
-integers_within_1_sec: Stream[List[int]] = (
-    integers
+ints_within_1_sec: stream[list[int]] = (
+    ints
     .throttle(2, per=timedelta(seconds=1))
     .group(interval=timedelta(seconds=0.99))
 )
 
-assert list(integers_within_1_sec) == [[0, 1, 2], [3, 4], [5, 6], [7, 8], [9]]
+assert list(ints_within_1_sec) == [[0, 1, 2], [3, 4], [5, 6], [7, 8], [9]]
 ```
 </details>
 
@@ -356,12 +356,12 @@ assert list(integers_within_1_sec) == [[0, 1, 2], [3, 4], [5, 6], [7, 8], [9]]
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
-integers_by_parity_by_2: Stream[List[int]] = (
-    integers
+ints_by_parity_by_2: stream[list[int]] = (
+    ints
     .group(by=lambda n: n % 2, size=2)
 )
 
-assert list(integers_by_parity_by_2) == [[0, 2], [1, 3], [4, 6], [5, 7], [8], [9]]
+assert list(ints_by_parity_by_2) == [[0, 2], [1, 3], [4, 6], [5, 7], [8], [9]]
 ```
 </details>
 
@@ -371,12 +371,12 @@ assert list(integers_by_parity_by_2) == [[0, 2], [1, 3], [4, 6], [5, 7], [8], [9
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
-integers_by_parity: Stream[Tuple[str, List[int]]] = (
-    integers
+ints_by_parity: stream[tuple[str, list[int]]] = (
+    ints
     .groupby(lambda n: "odd" if n % 2 else "even")
 )
 
-assert list(integers_by_parity) == [("even", [0, 2, 4, 6, 8]), ("odd", [1, 3, 5, 7, 9])]
+assert list(ints_by_parity) == [("even", [0, 2, 4, 6, 8]), ("odd", [1, 3, 5, 7, 9])]
 ```
 </details>
 
@@ -388,8 +388,8 @@ assert list(integers_by_parity) == [("even", [0, 2, 4, 6, 8]), ("odd", [1, 3, 5,
 ```python
 from streamable import star
 
-counts_by_parity: Stream[Tuple[str, int]] = (
-    integers_by_parity
+counts_by_parity: stream[tuple[str, int]] = (
+    ints_by_parity
     .map(star(lambda parity, ints: (parity, len(ints))))
 )
 
@@ -404,9 +404,9 @@ assert list(counts_by_parity) == [("even", 5), ("odd", 5)]
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
-even_then_odd_integers: Stream[int] = integers_by_parity.flatten()
+even_then_odd_ints: stream[int] = ints_by_parity.flatten()
 
-assert list(even_then_odd_integers) == [0, 2, 4, 6, 8, 1, 3, 5, 7, 9]
+assert list(even_then_odd_ints) == [0, 2, 4, 6, 8, 1, 3, 5, 7, 9]
 ```
 </details>
 
@@ -417,11 +417,11 @@ assert list(even_then_odd_integers) == [0, 2, 4, 6, 8, 1, 3, 5, 7, 9]
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
-round_robined_integers: Stream[int] = (
-    Stream([[0, 0], [1, 1, 1, 1], [2, 2]])
+round_robined_ints: stream[int] = (
+    stream([[0, 0], [1, 1, 1, 1], [2, 2]])
     .flatten(concurrency=2)
 )
-assert list(round_robined_integers) == [0, 1, 0, 1, 1, 2, 1, 2]
+assert list(round_robined_ints) == [0, 1, 0, 1, 1, 2, 1, 2]
 ```
 </details>
 
@@ -432,9 +432,9 @@ assert list(round_robined_integers) == [0, 1, 0, 1, 1, 2, 1, 2]
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
-even_integers: Stream[int] = integers.filter(lambda n: n % 2 == 0)
+even_ints: stream[int] = ints.filter(lambda n: n % 2 == 0)
 
-assert list(even_integers) == [0, 2, 4, 6, 8]
+assert list(even_ints) == [0, 2, 4, 6, 8]
 ```
 </details>
 
@@ -445,7 +445,7 @@ assert list(even_integers) == [0, 2, 4, 6, 8]
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
-distinct_chars: Stream[str] = Stream("foobarfooo").distinct()
+distinct_chars: stream[str] = stream("foobarfooo").distinct()
 
 assert list(distinct_chars) == ["f", "o", "b", "a", "r"]
 ```
@@ -456,8 +456,8 @@ assert list(distinct_chars) == ["f", "o", "b", "a", "r"]
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
-strings_of_distinct_lengths: Stream[str] = (
-    Stream(["a", "foo", "bar", "z"])
+strings_of_distinct_lengths: stream[str] = (
+    stream(["a", "foo", "bar", "z"])
     .distinct(len)
 )
 
@@ -471,8 +471,8 @@ assert list(strings_of_distinct_lengths) == ["a", "foo"]
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
-consecutively_distinct_chars: Stream[str] = (
-    Stream("foobarfooo")
+consecutively_distinct_chars: stream[str] = (
+    stream("foobarfooo")
     .distinct(consecutive=True)
 )
 
@@ -487,9 +487,9 @@ assert list(consecutively_distinct_chars) == ["f", "o", "b", "a", "r", "f", "o"]
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
-five_first_integers: Stream[int] = integers.truncate(5)
+five_first_ints: stream[int] = ints.truncate(5)
 
-assert list(five_first_integers) == [0, 1, 2, 3, 4]
+assert list(five_first_ints) == [0, 1, 2, 3, 4]
 ```
 </details>
 
@@ -498,9 +498,9 @@ assert list(five_first_integers) == [0, 1, 2, 3, 4]
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
-five_first_integers: Stream[int] = integers.truncate(when=lambda n: n == 5)
+five_first_ints: stream[int] = ints.truncate(when=lambda n: n == 5)
 
-assert list(five_first_integers) == [0, 1, 2, 3, 4]
+assert list(five_first_ints) == [0, 1, 2, 3, 4]
 ```
 </details>
 
@@ -513,9 +513,9 @@ assert list(five_first_integers) == [0, 1, 2, 3, 4]
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
-integers_after_five: Stream[int] = integers.skip(5)
+ints_after_five: stream[int] = ints.skip(5)
 
-assert list(integers_after_five) == [5, 6, 7, 8, 9]
+assert list(ints_after_five) == [5, 6, 7, 8, 9]
 ```
 </details>
 
@@ -524,9 +524,9 @@ assert list(integers_after_five) == [5, 6, 7, 8, 9]
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
-integers_after_five: Stream[int] = integers.skip(until=lambda n: n >= 5)
+ints_after_five: stream[int] = ints.skip(until=lambda n: n >= 5)
 
-assert list(integers_after_five) == [5, 6, 7, 8, 9]
+assert list(ints_after_five) == [5, 6, 7, 8, 9]
 ```
 </details>
 
@@ -539,8 +539,8 @@ assert list(integers_after_five) == [5, 6, 7, 8, 9]
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
-inverses: Stream[float] = (
-    integers
+inverses: stream[float] = (
+    ints
     .map(lambda n: round(1 / n, 2))
     .catch(ZeroDivisionError, replace=lambda e: float("inf"))
 )
@@ -555,8 +555,8 @@ assert list(inverses) == [float("inf"), 1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0
 ```python
 import httpx
 
-status_codes_ignoring_resolution_errors: Stream[int] = (
-    Stream(["https://github.com", "https://foo.bar", "https://github.com/foo/bar"])
+status_codes_ignoring_resolution_errors: stream[int] = (
+    stream(["https://github.com", "https://foo.bar", "https://github.com/foo/bar"])
     .map(httpx.get, concurrency=2)
     .catch(httpx.ConnectError, when=lambda exception: "not known" in str(exception))
     .map(lambda response: response.status_code)
@@ -574,19 +574,19 @@ assert list(status_codes_ignoring_resolution_errors) == [200, 404]
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
-errors: List[Exception] = []
+errors: list[Exception] = []
 
 def store_error(error: Exception) -> bool:
     errors.append(error)  # applies effect
     return True  # signals to catch the error
 
-integers_in_string: Stream[int] = (
-    Stream("012345foo6789")
+ints_in_string: stream[int] = (
+    stream("012345foo6789")
     .map(int)
     .catch(ValueError, when=store_error)
 )
 
-assert list(integers_in_string) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+assert list(ints_in_string) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 assert len(errors) == len("foo")
 ```
 </details>
@@ -600,10 +600,10 @@ assert len(errors) == len("foo")
 ```python
 from datetime import timedelta
 
-three_integers_per_second: Stream[int] = integers.throttle(3, per=timedelta(seconds=1))
+three_ints_per_second: stream[int] = ints.throttle(3, per=timedelta(seconds=1))
 
-# takes 3s: ceil(10 integers / 3 per_second) - 1
-assert list(three_integers_per_second) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+# takes 3s: ceil(10 ints / 3 per_second) - 1
+assert list(three_ints_per_second) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 </details>
 
@@ -614,15 +614,15 @@ assert list(three_integers_per_second) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
->>> assert list(integers.throttle(2, per=timedelta(seconds=1)).observe("integers")) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+>>> assert list(ints.throttle(2, per=timedelta(seconds=1)).observe("ints")) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 
 ```
-INFO: [duration=0:00:00.001793 errors=0] 1 integers yielded
-INFO: [duration=0:00:00.004388 errors=0] 2 integers yielded
-INFO: [duration=0:00:01.003655 errors=0] 4 integers yielded
-INFO: [duration=0:00:03.003196 errors=0] 8 integers yielded
-INFO: [duration=0:00:04.003852 errors=0] 10 integers yielded
+INFO: [duration=0:00:00.001793 errors=0] 1 ints yielded
+INFO: [duration=0:00:00.004388 errors=0] 2 ints yielded
+INFO: [duration=0:00:01.003655 errors=0] 4 ints yielded
+INFO: [duration=0:00:03.003196 errors=0] 8 ints yielded
+INFO: [duration=0:00:04.003852 errors=0] 10 ints yielded
 ```
 </details>
 
@@ -647,7 +647,7 @@ logging.getLogger("streamable").setLevel(logging.WARNING)
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
-assert list(integers + integers) == [0, 1, 2, 3 ,4, 5, 6, 7, 8, 9, 0, 1, 2, 3 ,4, 5, 6, 7, 8, 9]
+assert list(ints + ints) == [0, 1, 2, 3 ,4, 5, 6, 7, 8, 9, 0, 1, 2, 3 ,4, 5, 6, 7, 8, 9]
 ```
 </details>
 
@@ -661,9 +661,9 @@ assert list(integers + integers) == [0, 1, 2, 3 ,4, 5, 6, 7, 8, 9, 0, 1, 2, 3 ,4
 ```python
 from streamable import star
 
-cubes: Stream[int] = (
-    Stream(zip(integers, integers, integers))  # Stream[Tuple[int, int, int]]
-    .map(star(lambda a, b, c: a * b * c))  # Stream[int]
+cubes: stream[int] = (
+    stream(zip(ints, ints, ints))  # stream[tuple[int, int, int]]
+    .map(star(lambda a, b, c: a * b * c))  # stream[int]
 )
 
 assert list(cubes) == [0, 1, 8, 27, 64, 125, 216, 343, 512, 729]
@@ -676,9 +676,9 @@ assert list(cubes) == [0, 1, 8, 27, 64, 125, 216, 343, 512, 729]
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
-state: List[int] = []
-appending_integers: Stream[int] = integers.do(state.append)
-assert appending_integers() is appending_integers
+state: list[int] = []
+appending_ints: stream[int] = ints.do(state.append)
+assert appending_ints() is appending_ints
 assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 </details>
@@ -688,9 +688,9 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
-state: List[int] = []
-appending_integers: Stream[int] = integers.do(state.append)
-assert appending_integers is await appending_integers
+state: list[int] = []
+appending_ints: stream[int] = ints.do(state.append)
+assert appending_ints is await appending_ints
 assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 </details>
@@ -705,10 +705,10 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 import pandas as pd
 
 (
-    integers
+    ints
     .observe("ints")
     .pipe(pd.DataFrame, columns=["integer"])
-    .to_csv("integers.csv", index=False)
+    .to_csv("ints.csv", index=False)
 )
 ```
 </details>
@@ -728,12 +728,12 @@ import pandas as pd
 from contextlib import suppress
 
 casted_ints: Iterator[int] = iter(
-    Stream("0123_56789")
+    stream("0123_56789")
     .map(int)
     .group(3)
     .flatten()
 )
-collected: List[int] = []
+collected: list[int] = []
 
 with suppress(ValueError):
     collected.extend(casted_ints)
@@ -748,10 +748,10 @@ assert collected == [0, 1, 2, 3, 5, 6, 7, 8, 9]
 
 ## Performances
 
-Declaring a `Stream` is lazy,
+Declaring a `stream` is lazy,
 
 ```python
-odd_int_strings = Stream(range(1_000_000)).filter(lambda n: n % 2).map(str)
+odd_int_strings = stream(range(1_000_000)).filter(lambda n: n % 2).map(str)
 ```
 
 and there is *zero overhead during iteration compared to builtins*, `iter(odd_int_strings)` visits the operations lineage and returns exactly this iterator:

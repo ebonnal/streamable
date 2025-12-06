@@ -6,7 +6,7 @@ import httpx
 import pytest
 import respx
 
-from streamable import Stream
+from streamable import stream
 from streamable._utils._func import star
 from streamable._utils._iter import (
     sync_to_async_iter,
@@ -14,7 +14,7 @@ from streamable._utils._iter import (
 from tests.utils import (
     async_identity,
     identity,
-    src,
+    ints_src,
 )
 
 
@@ -26,9 +26,9 @@ class CustomCallable:
 
 
 @pytest.fixture
-def complex_stream() -> Stream:
+def complex_stream() -> stream:
     return (
-        Stream(src)
+        stream(ints_src)
         .truncate(1024)
         .truncate(1024)
         .truncate(when=lambda _: False)
@@ -71,7 +71,7 @@ def complex_stream() -> Stream:
 @pytest.fixture
 def complex_stream_str() -> str:
     return """(
-    Stream(range(0, 256))
+    stream(range(0, 256))
     .truncate(when=1024)
     .truncate(when=1024)
     .truncate(when=<lambda>)

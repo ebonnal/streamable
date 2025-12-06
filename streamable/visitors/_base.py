@@ -9,7 +9,7 @@ V = TypeVar("V")
 class Visitor(ABC, Generic[V]):
     # fmt: off
     @abstractmethod
-    def visit_stream(self, stream: _stream.Stream) -> V: ...
+    def visit_stream(self, stream: _stream.stream) -> V: ...
     # fmt: on
 
     def visit_catch_stream(self, stream: _stream.CatchStream) -> V:

@@ -6,17 +6,15 @@ from typing import Iterator, List, Tuple, TypeVar
 
 import pytest
 
-from streamable._stream import Stream
+from streamable._stream import stream
 
-integers: Stream[int] = Stream(range(10))
+ints: stream[int] = stream(range(10))
 
-inverses: Stream[float] = integers.map(lambda n: round(1 / n, 2)).catch(
-    ZeroDivisionError
-)
+inverses: stream[float] = ints.map(lambda n: round(1 / n, 2)).catch(ZeroDivisionError)
 
-integers_by_parity: Stream[List[int]] = integers.group(by=lambda n: n % 2)
+ints_by_parity: stream[List[int]] = ints.group(by=lambda n: n % 2)
 
-three_integers_per_second: Stream[int] = integers.throttle(5, per=timedelta(seconds=1))
+three_ints_per_second: stream[int] = ints.throttle(5, per=timedelta(seconds=1))
 
 T = TypeVar("T")
 
@@ -37,15 +35,15 @@ async def test_aiterate() -> None:
     assert [inverse async for inverse in inverses] == [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
 
 def test_map_example() -> None:
-    integer_strings: Stream[str] = integers.map(str)
+    integer_strings: stream[str] = ints.map(str)
 
     assert list(integer_strings) == ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
 
 def test_thread_concurrent_map_example() -> None:
     import httpx
 
-    pokemon_names: Stream[str] = (
-        Stream(range(1, 4))
+    pokemon_names: stream[str] = (
+        stream(range(1, 4))
         .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
         .map(httpx.get, concurrency=3)
         .map(httpx.Response.json)
@@ -56,8 +54,8 @@ def test_thread_concurrent_map_example() -> None:
 def test_process_concurrent_map_example() -> None:
     with ProcessPoolExecutor(max_workers=10) as processes:
         state: List[int] = []
-        # integers are mapped
-        assert list(integers.map(state.append, concurrency=processes)) == [None] * 10
+        # ints are mapped
+        assert list(ints.map(state.append, concurrency=processes)) == [None] * 10
         # but the `state` of the main process is not mutated
         assert state == []
 
@@ -66,8 +64,8 @@ async def test_async_amap_example() -> None:
     import httpx
 
     async with httpx.AsyncClient() as http:
-        pokemon_names: Stream[str] = (
-            Stream(range(1, 4))
+        pokemon_names: stream[str] = (
+            stream(range(1, 4))
             .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
             .map(http.get, concurrency=3)
             .map(httpx.Response.json)
@@ -79,8 +77,8 @@ async def test_async_amap_example() -> None:
 def test_starmap_example() -> None:
     from streamable import star
 
-    zeros: Stream[int] = (
-        Stream(enumerate(integers))
+    zeros: stream[int] = (
+        stream(enumerate(ints))
         .map(star(lambda index, integer: index - integer))
     )
 
@@ -88,95 +86,95 @@ def test_starmap_example() -> None:
 
 def test_do_example() -> None:
     state: List[int] = []
-    appending_integers: Stream[int] = integers.do(state.append)
+    appending_ints: stream[int] = ints.do(state.append)
 
-    assert list(appending_integers) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    assert list(appending_ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 def test_filter_example() -> None:
-    even_integers: Stream[int] = integers.filter(lambda n: n % 2 == 0)
+    even_ints: stream[int] = ints.filter(lambda n: n % 2 == 0)
 
-    assert list(even_integers) == [0, 2, 4, 6, 8]
+    assert list(even_ints) == [0, 2, 4, 6, 8]
 
 def test_throttle_example() -> None:
     from datetime import timedelta
 
-    three_integers_per_second: Stream[int] = integers.throttle(3, per=timedelta(seconds=1))
+    three_ints_per_second: stream[int] = ints.throttle(3, per=timedelta(seconds=1))
 
     start = time.perf_counter()
-    # takes 3s: ceil(10 integers / 3 per_second) - 1
-    assert list(three_integers_per_second) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    # takes 3s: ceil(10 ints / 3 per_second) - 1
+    assert list(three_ints_per_second) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     assert 2.99 < time.perf_counter() - start < 3.25
 
-    integers_every_100_millis = (
-        integers
+    ints_every_100_millis = (
+        ints
         .throttle(1, per=timedelta(milliseconds=100))
     )
 
     start = time.perf_counter()
-    # takes 900 millis: (10 integers - 1) * 100 millis
-    assert list(integers_every_100_millis) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    # takes 900 millis: (10 ints - 1) * 100 millis
+    assert list(ints_every_100_millis) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     assert 0.89 < time.perf_counter() - start < 0.95
 
 def test_group_example() -> None:
-    global integers_by_parity
-    integers_by_5: Stream[List[int]] = integers.group(5)
+    global ints_by_parity
+    ints_by_5: stream[List[int]] = ints.group(5)
 
-    assert list(integers_by_5) == [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]]
+    assert list(ints_by_5) == [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]]
 
-    integers_by_parity = integers.group(by=lambda n: n % 2)
+    ints_by_parity = ints.group(by=lambda n: n % 2)
 
-    assert list(integers_by_parity) == [[0, 2, 4, 6, 8], [1, 3, 5, 7, 9]]
+    assert list(ints_by_parity) == [[0, 2, 4, 6, 8], [1, 3, 5, 7, 9]]
 
     from datetime import timedelta
 
-    integers_within_1_sec: Stream[List[int]] = (
-        integers
+    ints_within_1_sec: stream[List[int]] = (
+        ints
         .throttle(2, per=timedelta(seconds=1))
         .group(interval=timedelta(seconds=0.99))
     )
 
-    assert list(integers_within_1_sec) == [[0, 1, 2], [3, 4], [5, 6], [7, 8], [9]]
+    assert list(ints_within_1_sec) == [[0, 1, 2], [3, 4], [5, 6], [7, 8], [9]]
 
-    integers_by_parity_by_2: Stream[List[int]] = (
-        integers
+    ints_by_parity_by_2: stream[List[int]] = (
+        ints
         .group(by=lambda n: n % 2, size=2)
     )
 
-    assert list(integers_by_parity_by_2) == [[0, 2], [1, 3], [4, 6], [5, 7], [8], [9]]
+    assert list(ints_by_parity_by_2) == [[0, 2], [1, 3], [4, 6], [5, 7], [8], [9]]
 
 def test_groupby_example() -> None:
-    integers_by_parity: Stream[Tuple[str, List[int]]] = (
-        integers
+    ints_by_parity: stream[Tuple[str, List[int]]] = (
+        ints
         .groupby(lambda n: "odd" if n % 2 else "even")
     )
 
-    assert list(integers_by_parity) == [("even", [0, 2, 4, 6, 8]), ("odd", [1, 3, 5, 7, 9])]
+    assert list(ints_by_parity) == [("even", [0, 2, 4, 6, 8]), ("odd", [1, 3, 5, 7, 9])]
 
     from streamable import star
 
-    counts_by_parity: Stream[Tuple[str, int]] = (
-        integers_by_parity
+    counts_by_parity: stream[Tuple[str, int]] = (
+        ints_by_parity
         .map(star(lambda parity, ints: (parity, len(ints))))
     )
 
     assert list(counts_by_parity) == [("even", 5), ("odd", 5)]
 
 def test_flatten_example() -> None:
-    global integers_by_parity
-    even_then_odd_integers: Stream[int] = integers_by_parity.flatten()
+    global ints_by_parity
+    even_then_odd_ints: stream[int] = ints_by_parity.flatten()
 
-    assert list(even_then_odd_integers) == [0, 2, 4, 6, 8, 1, 3, 5, 7, 9]
+    assert list(even_then_odd_ints) == [0, 2, 4, 6, 8, 1, 3, 5, 7, 9]
 
-    round_robined_integers: Stream[int] = (
-        Stream([[0, 0], [1, 1, 1, 1], [2, 2]])
+    round_robined_ints: stream[int] = (
+        stream([[0, 0], [1, 1, 1, 1], [2, 2]])
         .flatten(concurrency=2)
     )
-    assert list(round_robined_integers) == [0, 1, 0, 1, 1, 2, 1, 2]
+    assert list(round_robined_ints) == [0, 1, 0, 1, 1, 2, 1, 2]
 
 def test_catch_example() -> None:
-    inverses: Stream[float] = (
-        integers
+    inverses: stream[float] = (
+        ints
         .map(lambda n: round(1 / n, 2))
         .catch(ZeroDivisionError, replace=lambda e: float("inf"))
     )
@@ -185,8 +183,8 @@ def test_catch_example() -> None:
 
     import httpx
 
-    status_codes_ignoring_resolution_errors: Stream[int] = (
-        Stream(["https://github.com", "https://foo.bar", "https://github.com/foo/bar"])
+    status_codes_ignoring_resolution_errors: stream[int] = (
+        stream(["https://github.com", "https://foo.bar", "https://github.com/foo/bar"])
         .map(httpx.get, concurrency=2)
         .catch(httpx.ConnectError, when=lambda exception: "not known" in str(exception))
         .map(lambda response: response.status_code)
@@ -200,85 +198,85 @@ def test_catch_example() -> None:
         errors.append(error)
         return True
 
-    integers_in_string: Stream[int] = (
-        Stream("012345foo6789")
+    ints_in_string: stream[int] = (
+        stream("012345foo6789")
         .map(int)
         .catch(ValueError, when=store_error)
     )
 
-    assert list(integers_in_string) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    assert list(ints_in_string) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     assert len(errors) == len("foo")
 
 def test_truncate_example() -> None:
-    five_first_integers: Stream[int] = integers.truncate(5)
+    five_first_ints: stream[int] = ints.truncate(5)
 
-    assert list(five_first_integers) == [0, 1, 2, 3, 4]
+    assert list(five_first_ints) == [0, 1, 2, 3, 4]
 
-    five_first_integers = integers.truncate(when=lambda n: n == 5)
+    five_first_ints = ints.truncate(when=lambda n: n == 5)
 
-    assert list(five_first_integers) == [0, 1, 2, 3, 4]
+    assert list(five_first_ints) == [0, 1, 2, 3, 4]
 
 def test_skip_example() -> None:
-    integers_after_five: Stream[int] = integers.skip(5)
+    ints_after_five: stream[int] = ints.skip(5)
 
-    assert list(integers_after_five) == [5, 6, 7, 8, 9]
+    assert list(ints_after_five) == [5, 6, 7, 8, 9]
 
-    integers_after_five = integers.skip(until=lambda n: n >= 5)
+    ints_after_five = ints.skip(until=lambda n: n >= 5)
 
-    assert list(integers_after_five) == [5, 6, 7, 8, 9]
+    assert list(ints_after_five) == [5, 6, 7, 8, 9]
 
 def test_distinct_example() -> None:
-    distinct_chars: Stream[str] = Stream("foobarfooo").distinct()
+    distinct_chars: stream[str] = stream("foobarfooo").distinct()
 
     assert list(distinct_chars) == ["f", "o", "b", "a", "r"]
 
-    strings_of_distinct_lengths: Stream[str] = (
-        Stream(["a", "foo", "bar", "z"])
+    strings_of_distinct_lengths: stream[str] = (
+        stream(["a", "foo", "bar", "z"])
         .distinct(len)
     )
 
     assert list(strings_of_distinct_lengths) == ["a", "foo"]
 
-    consecutively_distinct_chars: Stream[str] = (
-        Stream("foobarfooo")
+    consecutively_distinct_chars: stream[str] = (
+        stream("foobarfooo")
         .distinct(consecutive=True)
     )
 
     assert list(consecutively_distinct_chars) == ["f", "o", "b", "a", "r", "f", "o"]
 
 def test_observe_example() -> None:
-    assert list(integers.throttle(2, per=timedelta(seconds=1)).observe("integers")) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    assert list(ints.throttle(2, per=timedelta(seconds=1)).observe("ints")) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 def test_plus_example() -> None:
-    assert list(integers + integers) == [0, 1, 2, 3 ,4, 5, 6, 7, 8, 9, 0, 1, 2, 3 ,4, 5, 6, 7, 8, 9]
+    assert list(ints + ints) == [0, 1, 2, 3 ,4, 5, 6, 7, 8, 9, 0, 1, 2, 3 ,4, 5, 6, 7, 8, 9]
 
 def test_zip_example() -> None:
     from streamable import star
 
-    cubes: Stream[int] = (
-        Stream(zip(integers, integers, integers))  # Stream[Tuple[int, int, int]]
-        .map(star(lambda a, b, c: a * b * c))  # Stream[int]
+    cubes: stream[int] = (
+        stream(zip(ints, ints, ints))  # stream[tuple[int, int, int]]
+        .map(star(lambda a, b, c: a * b * c))  # stream[int]
     )
 
     assert list(cubes) == [0, 1, 8, 27, 64, 125, 216, 343, 512, 729]
 
 def test_call_example() -> None:
     state: List[int] = []
-    appending_integers: Stream[int] = integers.do(state.append)
-    assert appending_integers() is appending_integers
+    appending_ints: stream[int] = ints.do(state.append)
+    assert appending_ints() is appending_ints
     assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 @pytest.mark.asyncio
 async def test_await_example() -> None:
     state: List[int] = []
-    appending_integers: Stream[int] = integers.do(state.append)
-    assert appending_integers is await appending_integers
+    appending_ints: stream[int] = ints.do(state.append)
+    assert appending_ints is await appending_ints
     assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 def test_non_stopping_exceptions_example() -> None:
     from contextlib import suppress
 
-    casted_ints: Iterator[int] = iter(Stream("0123_56789").map(int).group(3).flatten())
+    casted_ints: Iterator[int] = iter(stream("0123_56789").map(int).group(3).flatten())
     collected_casted_ints: List[int] = []
 
     with suppress(ValueError):
@@ -294,7 +292,7 @@ async def test_async_etl_example(tmp_path: Path) -> None: # pragma: no cover
     from datetime import timedelta
     from itertools import count
     import httpx
-    from streamable import Stream
+    from streamable import stream
 
     with (tmp_path / "quadruped_pokemons.csv").open("w") as file:
         fields = ["id", "name", "is_legendary", "base_happiness", "capture_rate"]
@@ -303,8 +301,8 @@ async def test_async_etl_example(tmp_path: Path) -> None: # pragma: no cover
 
         async with httpx.AsyncClient() as http_client:
             pipeline = (
-                # Infinite Stream[int] of Pokemon ids starting from Pokémon #1: Bulbasaur
-                Stream(count(1))
+                # Infinite stream[int] of Pokemon ids starting from Pokémon #1: Bulbasaur
+                stream(count(1))
                 # Limit to 16 requests per second to be friendly to our fellow PokéAPI devs
                 .throttle(16, per=timedelta(microseconds=1))
                 # GET pokemons via 8 concurrent coroutines
@@ -334,7 +332,7 @@ def test_etl_example(tmp_path: Path) -> None: # pragma: no cover
     from datetime import timedelta
     from itertools import count
     import httpx
-    from streamable import Stream
+    from streamable import stream
 
     with (tmp_path / "quadruped_pokemons.csv").open("w") as file:
         fields = ["id", "name", "is_legendary", "base_happiness", "capture_rate"]
@@ -342,8 +340,8 @@ def test_etl_example(tmp_path: Path) -> None: # pragma: no cover
         writer.writeheader()
         with httpx.Client() as http_client:
             pipeline = (
-                # Infinite Stream[int] of Pokemon ids starting from Pokémon #1: Bulbasaur
-                Stream(count(1))
+                # Infinite stream[int] of Pokemon ids starting from Pokémon #1: Bulbasaur
+                stream(count(1))
                 # Limit to 16 requests per second to be friendly to our fellow PokéAPI devs
                 .throttle(16, per=timedelta(microseconds=1))
                 # GET pokemons concurrently using a pool of 8 threads

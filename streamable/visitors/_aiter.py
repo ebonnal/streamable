@@ -23,7 +23,7 @@ from streamable._stream import (
     MapStream,
     ObserveStream,
     SkipStream,
-    Stream,
+    stream,
     ThrottleStream,
     TruncateStream,
 )
@@ -218,7 +218,7 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
             when=stream._when,
         )
 
-    def visit_stream(self, stream: Stream[T]) -> AsyncIterator[T]:
+    def visit_stream(self, stream: stream[T]) -> AsyncIterator[T]:
         if isinstance(stream.source, Iterable):
             return sync_to_async_iter(stream.source.__iter__())
         if isinstance(stream.source, AsyncIterable):

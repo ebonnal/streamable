@@ -11,7 +11,7 @@ from streamable._stream import (
     MapStream,
     ObserveStream,
     SkipStream,
-    Stream,
+    stream,
     ThrottleStream,
     TruncateStream,
 )
@@ -20,7 +20,7 @@ from streamable.visitors import Visitor
 
 def test_visitor() -> None:
     class ConcreteVisitor(Visitor[None]):
-        def visit_stream(self, stream: Stream) -> None:
+        def visit_stream(self, stream: stream) -> None:
             return None
 
     visitor = ConcreteVisitor()
@@ -36,19 +36,19 @@ def test_visitor() -> None:
     visitor.visit_skip_stream(cast(SkipStream, ...))
     visitor.visit_throttle_stream(cast(ThrottleStream, ...))
     visitor.visit_truncate_stream(cast(TruncateStream, ...))
-    visitor.visit_stream(cast(Stream, ...))
+    visitor.visit_stream(cast(stream, ...))
 
 
 def test_depth_visitor_example():
     from streamable.visitors import Visitor
 
     class DepthVisitor(Visitor[int]):
-        def visit_stream(self, stream: Stream) -> int:
+        def visit_stream(self, stream: stream) -> int:
             if not stream.upstream:
                 return 1
             return 1 + stream.upstream.accept(self)
 
-    def depth(stream: Stream) -> int:
+    def depth(stream: stream) -> int:
         return stream.accept(DepthVisitor())
 
-    assert depth(Stream(range(10)).map(str).do(print)) == 3
+    assert depth(stream(range(10)).map(str).do(print)) == 3

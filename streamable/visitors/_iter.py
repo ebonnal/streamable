@@ -25,7 +25,7 @@ from streamable._stream import (
     MapStream,
     ObserveStream,
     SkipStream,
-    Stream,
+    stream,
     ThrottleStream,
     TruncateStream,
 )
@@ -245,7 +245,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
             when=stream._when,
         )
 
-    def visit_stream(self, stream: Stream[T]) -> Iterator[T]:
+    def visit_stream(self, stream: stream[T]) -> Iterator[T]:
         if isinstance(stream.source, Iterable):
             return stream.source.__iter__()
         if isinstance(stream.source, AsyncIterable):
