@@ -640,8 +640,7 @@ def test_flatten(concurrency, itype, to_iter) -> None:
     "itype, concurrency",
     [(itype, concurrency) for itype in ITERABLE_TYPES for concurrency in (1, 2)],
 )
-@pytest.mark.asyncio
-async def test_flatten_heterogeneous_sync_async_elements(itype, concurrency) -> None:
+def test_flatten_heterogeneous_sync_async_elements(itype, concurrency) -> None:
     async def aiterator() -> AsyncIterator[int]:
         yield 0
         yield 1
@@ -650,15 +649,15 @@ async def test_flatten_heterogeneous_sync_async_elements(itype, concurrency) -> 
         yield 0
         yield 1
 
-    assert [
-        _
-        async for _ in stream(
+    assert to_list(
+        stream(
             cast(
                 List[Union[AsyncIterator, Iterator]],
                 [aiterator(), iterator(), aiterator(), iterator()],
             )
-        ).flatten(concurrency=concurrency)
-    ] == ([0, 1, 0, 1, 0, 1, 0, 1] if concurrency == 1 else [0, 0, 1, 1, 0, 0, 1, 1])
+        ).flatten(concurrency=concurrency),
+        itype=itype,
+    ) == ([0, 1, 0, 1, 0, 1, 0, 1] if concurrency == 1 else [0, 0, 1, 1, 0, 0, 1, 1])
 
 
 @pytest.mark.parametrize(
