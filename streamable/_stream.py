@@ -688,19 +688,19 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             validate_concurrency_executor(concurrency, to, fn_name="to")
         return MapStream(self, to, concurrency, ordered)
 
-    def observe(self, what: str = "elements") -> "stream[T]":
+    def observe(self, label: str = "elements") -> "stream[T]":
         """
         Logs the progress of iteration over this stream.
 
         To avoid flooding, logs are emitted only when the number of yielded elements (or errors) reaches powers of 2.
 
         Args:
-            what (``str``): A plural noun describing the yielded objects (e.g., "cats", "dogs").
+            label (``str``): A plural noun describing the yielded objects (e.g., "cats", "dogs").
 
         Returns:
             ``stream[T]``: A stream of upstream elements with progress logging during iteration.
         """
-        return ObserveStream(self, what)
+        return ObserveStream(self, label)
 
     @overload
     def skip(
@@ -1000,11 +1000,11 @@ class MapStream(DownStream[T, U]):
 
 
 class ObserveStream(DownStream[T, T]):
-    __slots__ = ("_what",)
+    __slots__ = ("_label",)
 
-    def __init__(self, upstream: stream[T], what: str) -> None:
+    def __init__(self, upstream: stream[T], label: str) -> None:
         super().__init__(upstream)
-        self._what = what
+        self._label = label
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_observe_stream(self)

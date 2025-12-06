@@ -388,9 +388,9 @@ class PredicateTruncateIterator(Iterator[T]):
 
 
 class ObserveIterator(Iterator[T]):
-    def __init__(self, iterator: Iterator[T], what: str, base: int = 2) -> None:
+    def __init__(self, iterator: Iterator[T], label: str, base: int = 2) -> None:
         self.iterator = iterator
-        self.what = what
+        self.label = label
         self.base = base
         self._yields = 0
         self._errors = 0
@@ -399,7 +399,7 @@ class ObserveIterator(Iterator[T]):
         self._errors_logged = 0
         self._started_time: Optional[datetime.datetime] = None
         self._logger = get_logger()
-        self._format = f"[duration=%s errors=%s] %s {what} yielded"
+        self._format = f"[duration=%s errors=%s] %s {label} yielded"
 
     def _log(self) -> None:
         now = datetime.datetime.fromtimestamp(time.perf_counter())

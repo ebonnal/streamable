@@ -176,7 +176,7 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
     def visit_observe_stream(self, stream: ObserveStream[T]) -> AsyncIterator[T]:
         return _afunctions.observe(
             stream.upstream.accept(self),
-            stream._what,
+            stream._label,
         )
 
     def visit_skip_stream(self, stream: SkipStream[T]) -> AsyncIterator[T]:

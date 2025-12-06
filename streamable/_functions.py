@@ -211,8 +211,8 @@ def amap(
     )
 
 
-def observe(iterator: Iterator[T], what: str) -> Iterator[T]:
-    return ObserveIterator(iterator, what)
+def observe(iterator: Iterator[T], label: str) -> Iterator[T]:
+    return ObserveIterator(iterator, label)
 
 
 def skip(
