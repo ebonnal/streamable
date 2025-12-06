@@ -227,10 +227,8 @@ def skip(
 
 def askip(
     aiterator: AsyncIterator[T],
-    until: Union[int, Callable[[T], Coroutine[Any, Any, Any]]],
+    until: Callable[[T], Coroutine[Any, Any, Any]],
 ) -> AsyncIterator[T]:
-    if isinstance(until, int):
-        return CountSkipAsyncIterator(aiterator, until)
     return PredicateASkipAsyncIterator(aiterator, until)
 
 
@@ -256,8 +254,6 @@ def truncate(
 
 def atruncate(
     aiterator: AsyncIterator[T],
-    when: Union[int, Callable[[T], Coroutine[Any, Any, Any]]],
+    when: Callable[[T], Coroutine[Any, Any, Any]],
 ) -> AsyncIterator[T]:
-    if isinstance(when, int):
-        return CountTruncateAsyncIterator(aiterator, when)
     return PredicateATruncateAsyncIterator(aiterator, when)

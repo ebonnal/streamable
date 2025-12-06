@@ -21,9 +21,6 @@ from tests.utils import (
 )
 def test_validate_concurrency(method, args) -> None:
     stream = Stream(src)
-    # should be raising TypeError for non-int concurrency.
-    with pytest.raises(TypeError):
-        method(stream, *args, concurrency="1")
     # should be raising ValueError for concurrency=0.
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="`concurrency` must be >= 1 but got 0"):
         method(stream, *args, concurrency=0)

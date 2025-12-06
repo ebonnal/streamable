@@ -4,7 +4,8 @@ from typing import AsyncIterator, Awaitable, TypeVar
 T = TypeVar("T")
 
 
-async def anext(aiterator: AsyncIterator[T]) -> T:
+# pre 3.10 to builtin `anext`
+async def anext(aiterator: AsyncIterator[T]) -> T:  # pragma: nocover
     return await aiterator.__anext__()
 
 

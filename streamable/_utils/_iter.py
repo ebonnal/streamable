@@ -50,10 +50,10 @@ class SyncToAsyncIterator(AsyncIterator[T]):
 sync_to_async_iter: Callable[[Iterator[T]], AsyncIterator[T]] = SyncToAsyncIterator
 
 
-def to_async_iter(iterator: Union[Iterator[T], AsyncIterator[T]]) -> AsyncIterator[T]:
-    if isinstance(iterator, Iterator):
-        iterator = SyncToAsyncIterator(iterator)
-    return iterator
+def to_async_iter(iterable: Union[Iterable[T], AsyncIterable[T]]) -> AsyncIterator[T]:
+    if isinstance(iterable, Iterable):
+        iterable = SyncToAsyncIterator(iterable.__iter__())
+    return iterable.__aiter__()
 
 
 class AsyncToSyncIterator(Iterator[T], CloseEventLoopMixin):
@@ -77,8 +77,8 @@ async_to_sync_iter: Callable[
 ] = AsyncToSyncIterator
 
 
-def to_sync_iter(iterator: Union[AsyncIterator[T], Iterator[T]]) -> Iterator[T]:
-    if isinstance(iterator, AsyncIterator):
+def to_sync_iter(iterable: Union[Iterable[T], AsyncIterable[T]]) -> Iterator[T]:
+    if isinstance(iterable, AsyncIterable):
         loop = asyncio.get_event_loop()
-        iterator = AsyncToSyncIterator(loop, iterator)
-    return iterator
+        iterable = AsyncToSyncIterator(loop, iterable.__aiter__())
+    return iterable.__iter__()

@@ -1,6 +1,5 @@
 from concurrent.futures import Executor
 import copy
-import inspect
 import datetime
 from typing import (
     TYPE_CHECKING,
@@ -30,14 +29,9 @@ from typing import (
 
 from streamable._utils._iter import SyncAsyncIterable
 from streamable._utils._validation import (
-    validate_concurrency,
-    validate_concurrency_int_or_executor,
-    validate_errors,
-    validate_group_size,
-    validate_count_or_callable,
-    validate_optional_positive_interval,
-    validate_positive_interval,
-    validate_positive_count,
+    validate_concurrency_executor,
+    validate_positive_timedelta,
+    validate_int,
 )
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -246,7 +240,6 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Returns:
             ``Stream[T | U]``: A stream of upstream elements catching the eligible exceptions.
         """
-        validate_errors(errors)
         return CatchStream(
             self,
             errors,
@@ -336,7 +329,21 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
 
     @overload
     def flatten(
-        self: "Stream[Collection[U]]",
+        self: "Stream[AsyncIterable[U]]",
+        *,
+        concurrency: int = 1,
+    ) -> "Stream[U]": ...
+    @overload
+    def flatten(
+        self: "Stream[Iterator[U]]",
+        *,
+        concurrency: int = 1,
+    ) -> "Stream[U]": ...
+
+
+    @overload
+    def flatten(
+        self: "Stream[AsyncIterator[U]]",
         *,
         concurrency: int = 1,
     ) -> "Stream[U]": ...
@@ -350,7 +357,15 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
 
     @overload
     def flatten(
-        self: "Stream[Iterator[U]]",
+        self: "Stream[Collection[U]]",
+        *,
+        concurrency: int = 1,
+    ) -> "Stream[U]": ...
+
+
+    @overload
+    def flatten(
+        self: "Stream[Sequence[U]]",
         *,
         concurrency: int = 1,
     ) -> "Stream[U]": ...
@@ -364,11 +379,10 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
 
     @overload
     def flatten(
-        self: "Stream[Sequence[U]]",
+        self: "Stream[Set[U]]",
         *,
         concurrency: int = 1,
     ) -> "Stream[U]": ...
-
     @overload
     def flatten(
         self: "Stream[builtins.map[U]]",
@@ -383,12 +397,6 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         concurrency: int = 1,
     ) -> "Stream[U]": ...
 
-    @overload
-    def flatten(
-        self: "Stream[Set[U]]",
-        *,
-        concurrency: int = 1,
-    ) -> "Stream[U]": ...
 
     @overload
     def flatten(
@@ -396,28 +404,6 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         *,
         concurrency: int = 1,
     ) -> "Stream[int]": ...
-    # fmt: on
-
-    @overload
-    def flatten(
-        self: "Stream[AsyncIterator[U]]",
-        *,
-        concurrency: int = 1,
-    ) -> "Stream[U]": ...
-
-    @overload
-    def flatten(
-        self: "Stream[AsyncIterable[U]]",
-        *,
-        concurrency: int = 1,
-    ) -> "Stream[U]": ...
-
-    @overload
-    def flatten(
-        self: "Stream[Iterable[U]]",
-        *,
-        concurrency: int = 1,
-    ) -> "Stream[U]": ...
 
     @overload
     def flatten(
@@ -425,6 +411,19 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         *,
         concurrency: int = 1,
     ) -> "Stream[U]": ...
+    @overload
+    def flatten(
+        self: "Stream[Union[Iterable[U], AsyncIterable[U]]]",
+        *,
+        concurrency: int = 1,
+    ) -> "Stream[U]": ...
+    @overload
+    def flatten(
+        self: "Stream[Union[Iterator[U], AsyncIterator[U]]]",
+        *,
+        concurrency: int = 1,
+    ) -> "Stream[U]": ...
+    # fmt: on
 
     def flatten(
         self: "Stream[Union[Iterable[U], AsyncIterable[U]]]",
@@ -439,11 +438,8 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Returns:
             ``Stream[R]``: A stream of flattened elements from upstream iterables.
         """
-        validate_concurrency(concurrency)
-        async_upstream = isinstance(self.source, (AsyncIterable, AsyncIterator)) or (
-            callable(self.source) and inspect.iscoroutinefunction(self.source)
-        )
-        return FlattenStream(self, concurrency, async_upstream)
+        validate_int(concurrency, gte=1, name="concurrency")
+        return FlattenStream(self, concurrency)
 
     @overload
     def do(
@@ -487,7 +483,10 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Returns:
             ``Stream[T]``: A stream of upstream elements, unchanged.
         """
-        validate_concurrency_int_or_executor(concurrency, effect, fn_name="effect")
+        if isinstance(concurrency, int):
+            validate_int(concurrency, gte=1, name="concurrency")
+        else:
+            validate_concurrency_executor(concurrency, effect, fn_name="effect")
         return DoStream(self, effect, concurrency, ordered)
 
     @overload
@@ -537,8 +536,10 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Returns:
             ``Stream[List[T]]``: A stream of upstream elements grouped into lists.
         """
-        validate_group_size(size)
-        validate_optional_positive_interval(interval, name="interval")
+        if size is not None:
+            validate_int(size, gte=1, name="size")
+        if interval is not None:
+            validate_positive_timedelta(interval, name="interval")
         return GroupStream(self, size, interval, by)
 
     @overload
@@ -586,6 +587,10 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Returns:
             ``Stream[Tuple[U, List[T]]]``: A stream of upstream elements grouped by key, as ``(key, elements)`` tuples.
         """
+        if size is not None:
+            validate_int(size, gte=1, name="size")
+        if interval is not None:
+            validate_positive_timedelta(interval, name="interval")
         return GroupbyStream(self, key, size, interval)
 
     @overload
@@ -630,7 +635,10 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Returns:
             ``Stream[U]``: A stream of transformed elements.
         """
-        validate_concurrency_int_or_executor(concurrency, to, fn_name="to")
+        if isinstance(concurrency, int):
+            validate_int(concurrency, gte=1, name="concurrency")
+        else:
+            validate_concurrency_executor(concurrency, to, fn_name="to")
         return MapStream(self, to, concurrency, ordered)
 
     def observe(self, what: str = "elements") -> "Stream[T]":
@@ -648,10 +656,14 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         return ObserveStream(self, what)
 
     @overload
-    def skip(self, until: Callable[[T], Coroutine[Any, Any, Any]]) -> "Stream[T]": ...
+    def skip(
+        self, *, until: Callable[[T], Coroutine[Any, Any, Any]]
+    ) -> "Stream[T]": ...
 
     @overload
-    def skip(self, until: Union[int, Callable[[T], Any]]) -> "Stream[T]": ...
+    def skip(self, *, until: Callable[[T], Any]) -> "Stream[T]": ...
+    @overload
+    def skip(self, until: int) -> "Stream[T]": ...
 
     def skip(
         self,
@@ -672,7 +684,8 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Returns:
             ``Stream[T]``: A stream of the upstream elements remaining after skipping.
         """
-        validate_count_or_callable(until, name="until")
+        if isinstance(until, int):
+            validate_int(until, gte=0, name="until")
         return SkipStream(self, until)
 
     def throttle(
@@ -701,17 +714,20 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Returns:
             ``Stream[T]``: A stream yielding at most ``up_to`` upstream elements (or exceptions) ``per`` time interval.
         """
-        validate_positive_count(up_to, name="up_to")
-        validate_positive_interval(per, name="per")
+        validate_int(up_to, gte=1, name="up_to")
+        validate_positive_timedelta(per, name="per")
         return ThrottleStream(self, up_to, per)
 
     @overload
     def truncate(
-        self, when: Callable[[T], Coroutine[Any, Any, Any]]
+        self, *, when: Callable[[T], Coroutine[Any, Any, Any]]
     ) -> "Stream[T]": ...
 
     @overload
-    def truncate(self, when: Union[int, Callable[[T], Any]]) -> "Stream[T]": ...
+    def truncate(self, *, when: Callable[[T], Any]) -> "Stream[T]": ...
+
+    @overload
+    def truncate(self, when: int) -> "Stream[T]": ...
 
     def truncate(
         self,
@@ -732,7 +748,8 @@ class Stream(Iterable[T], AsyncIterable[T], Awaitable["Stream[T]"]):
         Returns:
             ``Stream[T]``: A stream whose iteration will stop ``when`` condition is met.
         """
-        validate_count_or_callable(when, name="when")
+        if isinstance(when, int):
+            validate_int(when, gte=0, name="when")
         return TruncateStream(self, when)
 
 
@@ -836,11 +853,9 @@ class FlattenStream(DownStream[Union[Iterable[T], AsyncIterable[T]], T]):
         self,
         upstream: Stream[Union[Iterable[T], AsyncIterable[T]]],
         concurrency: int,
-        async_upstream: bool,
     ) -> None:
         super().__init__(upstream)
         self._concurrency = concurrency
-        self._async = async_upstream
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_flatten_stream(self)

@@ -151,13 +151,13 @@ def test_iter(itype: IterableType) -> None:
     # Getting an Iterator from a Stream with a source not being a Union[Callable[[], Iterator], ITerable] must raise TypeError.
     with pytest.raises(
         TypeError,
-        match=r"`source` must be an Iterable/AsyncIterable or a Callable\[\[\], Iterable/AsyncIterable\] but got a <class 'int'>",
+        match=r"`source` must be Iterable or AsyncIterable or Callable but got <class 'int'>",
     ):
         bi_iterable_to_iter(Stream(1), itype=itype)  # type: ignore
     # Getting an Iterator from a Stream with a source not being a Union[Callable[[], Iterator], ITerable] must raise TypeError.
     with pytest.raises(
         TypeError,
-        match=r"`source` must be an Iterable/AsyncIterable or a Callable\[\[\], Iterable/AsyncIterable\] but got a Callable\[\[\], <class 'int'>\]",
+        match=r"if `source` is callable it must return an Iterable or AsyncIterable but got <class 'int'>",
     ):
         bi_iterable_to_iter(Stream(lambda: 1), itype=itype)  # type: ignore
 
@@ -199,7 +199,7 @@ def test_map(concurrency, itype) -> None:
 def test_executor_concurrency_with_async_function(operation, fn_name):
     with pytest.raises(
         TypeError,
-        match=f"if `{fn_name}` is a coroutine function then `concurrency` must be an int but got <concurrent.futures.thread.ThreadPoolExecutor object at .*",
+        match=f"`concurrency` must be an int if `{fn_name}` is a coroutine function but got <concurrent.futures.thread.ThreadPoolExecutor object at .*",
     ):
         operation(
             Stream(src),
@@ -494,6 +494,9 @@ def test_flatten_typing() -> None:
     flattened_asynciter_stream: Stream[str] = (  # noqa: F841
         Stream("abc").map(iter).map(sync_to_async_iter).flatten()
     )
+    flattened_range_stream: Stream[int] = (  # noqa: F841
+        Stream((src, src)).flatten()
+    )
 
 
 @pytest.mark.parametrize(
@@ -616,8 +619,30 @@ def test_flatten(concurrency, itype, to_iter) -> None:
             )
         )
 
-    # test typing with ranges
-    _: Stream[int] = Stream((src, src)).flatten()
+
+@pytest.mark.parametrize(
+    "itype, concurrency",
+    [(itype, concurrency) for itype in ITERABLE_TYPES for concurrency in (1, 2)],
+)
+@pytest.mark.asyncio
+async def test_flatten_heterogeneous_sync_async_elements(itype, concurrency) -> None:
+    async def aiterator() -> AsyncIterator[int]:
+        yield 0
+        yield 1
+
+    def iterator() -> Iterator[int]:
+        yield 0
+        yield 1
+
+    assert [
+        _
+        async for _ in Stream(
+            cast(
+                List[Union[AsyncIterator, Iterator]],
+                [aiterator(), iterator(), aiterator(), iterator()],
+            )
+        ).flatten(concurrency=concurrency)
+    ] == ([0, 1, 0, 1, 0, 1, 0, 1] if concurrency == 1 else [0, 0, 1, 1, 0, 0, 1, 1])
 
 
 @pytest.mark.parametrize(
@@ -735,12 +760,7 @@ def test_filter(itype: IterableType, adapt) -> None:
 def test_skip(itype: IterableType, adapt) -> None:
     # `skip` must raise ValueError if `until` is negative
     with pytest.raises(ValueError, match="`until` must be >= 0 but got -1"):
-        Stream(src).skip(-1)  # type: ignore
-    with pytest.raises(
-        TypeError,
-        match="`until` must be an int or a callable, but got ''",
-    ):
-        Stream(src).skip("")  # type: ignore
+        Stream(src).skip(-1)
     for count in [0, 1, 3]:
         # `skip` must skip `until` elements
         assert to_list(Stream(src).skip(count), itype=itype) == list(src)[count:]

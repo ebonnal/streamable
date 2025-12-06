@@ -227,10 +227,8 @@ def skip(
 def askip(
     loop: asyncio.AbstractEventLoop,
     iterator: Iterator[T],
-    until: Union[int, Callable[[T], Coroutine[Any, Any, Any]]],
+    until: Callable[[T], Coroutine[Any, Any, Any]],
 ) -> Iterator[T]:
-    if isinstance(until, int):
-        return CountSkipIterator(iterator, until)
     return PredicateSkipIterator(iterator, syncify(loop, until))
 
 
