@@ -123,7 +123,7 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
                 _afunctions.agroup(
                     stream.upstream.accept(cast(AsyncIteratorVisitor[U], self)),
                     stream._up_to,
-                    interval=stream._interval,
+                    over=stream._over,
                     by=stream._by,
                 ),
             )
@@ -132,7 +132,7 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
             _afunctions.group(
                 stream.upstream.accept(cast(AsyncIteratorVisitor[U], self)),
                 stream._up_to,
-                interval=stream._interval,
+                over=stream._over,
                 by=stream._by,
             ),
         )
@@ -145,7 +145,7 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
                     stream.upstream.accept(cast(AsyncIteratorVisitor[U], self)),
                     stream._key,
                     up_to=stream._up_to,
-                    interval=stream._interval,
+                    over=stream._over,
                 ),
             )
         return cast(
@@ -154,7 +154,7 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
                 stream.upstream.accept(cast(AsyncIteratorVisitor[U], self)),
                 stream._key,
                 up_to=stream._up_to,
-                interval=stream._interval,
+                over=stream._over,
             ),
         )
 

@@ -21,10 +21,10 @@ def test_signatures() -> None:
     mapped_it_3: Iterator[int] = map(to, iterator, concurrency=2)  # noqa: F841
     grouped_it_1: Iterator[List[int]] = group(iterator, up_to=1)
     grouped_it_2: Iterator[List[int]] = group(  # noqa: F841
-        iterator, up_to=1, interval=datetime.timedelta(seconds=0.1)
+        iterator, up_to=1, over=datetime.timedelta(seconds=0.1)
     )
     grouped_it_3: Iterator[List[int]] = group(  # noqa: F841
-        iterator, up_to=1, interval=datetime.timedelta(seconds=2)
+        iterator, up_to=1, over=datetime.timedelta(seconds=2)
     )
     flattened_grouped_it_1: Iterator[int] = flatten(  # noqa: F841
         asyncio.get_running_loop, grouped_it_1

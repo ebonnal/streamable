@@ -146,7 +146,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
                     self._get_loop(),
                     stream.upstream.accept(cast(IteratorVisitor[U], self)),
                     stream._up_to,
-                    interval=stream._interval,
+                    over=stream._over,
                     by=stream._by,
                 ),
             )
@@ -155,7 +155,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
             _functions.group(
                 stream.upstream.accept(cast(IteratorVisitor[U], self)),
                 stream._up_to,
-                interval=stream._interval,
+                over=stream._over,
                 by=stream._by,
             ),
         )
@@ -169,7 +169,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
                     stream.upstream.accept(cast(IteratorVisitor[U], self)),
                     stream._key,
                     up_to=stream._up_to,
-                    interval=stream._interval,
+                    over=stream._over,
                 ),
             )
         return cast(
@@ -178,7 +178,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
                 stream.upstream.accept(cast(IteratorVisitor[U], self)),
                 stream._key,
                 up_to=stream._up_to,
-                interval=stream._interval,
+                over=stream._over,
             ),
         )
 

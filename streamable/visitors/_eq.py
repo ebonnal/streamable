@@ -72,7 +72,7 @@ class EqualityVisitor(Visitor[bool]):
             and stream.upstream.accept(EqualityVisitor(self.other.upstream))
             and stream._by == self.other._by
             and stream._up_to == self.other._up_to
-            and stream._interval == self.other._interval
+            and stream._over == self.other._over
         )
 
     def visit_groupby_stream(self, stream: GroupbyStream) -> bool:
@@ -81,7 +81,7 @@ class EqualityVisitor(Visitor[bool]):
             and stream.upstream.accept(EqualityVisitor(self.other.upstream))
             and stream._key == self.other._key
             and stream._up_to == self.other._up_to
-            and stream._interval == self.other._interval
+            and stream._over == self.other._over
         )
 
     def visit_map_stream(self, stream: MapStream) -> bool:

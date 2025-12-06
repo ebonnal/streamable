@@ -125,12 +125,12 @@ def group(
     iterator: Iterator[T],
     up_to: Optional[int] = None,
     *,
-    interval: Optional[datetime.timedelta] = None,
+    over: Optional[datetime.timedelta] = None,
     by: Optional[Callable[[T], Any]] = None,
 ) -> Iterator[List[T]]:
     if by is None:
-        return GroupIterator(iterator, up_to, interval)
-    return map(itemgetter(1), GroupbyIterator(iterator, by, up_to, interval))
+        return GroupIterator(iterator, up_to, over)
+    return map(itemgetter(1), GroupbyIterator(iterator, by, up_to, over))
 
 
 def agroup(
@@ -138,13 +138,13 @@ def agroup(
     iterator: Iterator[T],
     up_to: Optional[int] = None,
     *,
-    interval: Optional[datetime.timedelta] = None,
+    over: Optional[datetime.timedelta] = None,
     by: Optional[Callable[[T], Coroutine[Any, Any, Any]]] = None,
 ) -> Iterator[List[T]]:
     return group(
         iterator,
         up_to,
-        interval=interval,
+        over=over,
         by=syncify(loop, by) if by else None,
     )
 
@@ -154,9 +154,9 @@ def groupby(
     key: Callable[[T], U],
     *,
     up_to: Optional[int] = None,
-    interval: Optional[datetime.timedelta] = None,
+    over: Optional[datetime.timedelta] = None,
 ) -> Iterator[Tuple[U, List[T]]]:
-    return GroupbyIterator(iterator, key, up_to, interval)
+    return GroupbyIterator(iterator, key, up_to, over)
 
 
 def agroupby(
@@ -165,13 +165,13 @@ def agroupby(
     key: Callable[[T], Coroutine[Any, Any, U]],
     *,
     up_to: Optional[int] = None,
-    interval: Optional[datetime.timedelta] = None,
+    over: Optional[datetime.timedelta] = None,
 ) -> Iterator[Tuple[U, List[T]]]:
     return groupby(
         iterator,
         syncify(loop, key),
         up_to=up_to,
-        interval=interval,
+        over=over,
     )
 
 

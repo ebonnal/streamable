@@ -181,28 +181,28 @@ class _BaseGroupIterator(Generic[T]):
         self,
         iterator: Iterator[T],
         up_to: Optional[int],
-        interval: Optional[datetime.timedelta],
+        over: Optional[datetime.timedelta],
     ) -> None:
         self.iterator = iterator
         self.up_to = up_to or cast(int, float("inf"))
-        self.interval = interval
-        self._interval_seconds = interval.total_seconds() if interval else float("inf")
+        self.over = over
+        self._interval_seconds = over.total_seconds() if over else float("inf")
         self._to_be_raised: Optional[Exception] = None
         self._last_group_yielded_at: float = 0
 
     def _interval_seconds_have_elapsed(self) -> bool:
-        if not self.interval:
+        if not self.over:
             return False
         return (
             time.perf_counter() - self._last_group_yielded_at
         ) >= self._interval_seconds
 
     def _remember_group_time(self) -> None:
-        if self.interval:
+        if self.over:
             self._last_group_yielded_at = time.perf_counter()
 
     def _init_last_group_time(self) -> None:
-        if self.interval and not self._last_group_yielded_at:
+        if self.over and not self._last_group_yielded_at:
             self._last_group_yielded_at = time.perf_counter()
 
 
@@ -244,9 +244,9 @@ class GroupbyIterator(_BaseGroupIterator[T], Iterator[Tuple[U, List[T]]]):
         iterator: Iterator[T],
         key: Callable[[T], U],
         up_to: Optional[int],
-        interval: Optional[datetime.timedelta],
+        over: Optional[datetime.timedelta],
     ) -> None:
-        super().__init__(iterator, up_to, interval)
+        super().__init__(iterator, up_to, over)
         self.key = key
         self._is_exhausted = False
         self._groups_by: DefaultDict[U, List[T]] = defaultdict(list)

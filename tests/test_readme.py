@@ -131,7 +131,7 @@ def test_group_example() -> None:
     ints_within_1_sec: stream[List[int]] = (
         ints
         .throttle(2, per=timedelta(seconds=1))
-        .group(interval=timedelta(seconds=0.99))
+        .group(over=timedelta(seconds=0.99))
     )
 
     assert list(ints_within_1_sec) == [[0, 1, 2], [3, 4], [5, 6], [7, 8], [9]]
@@ -316,7 +316,7 @@ async def test_async_etl_example(tmp_path: Path) -> None: # pragma: no cover
                 # Keep only quadruped Pokemons
                 .filter(lambda poke: poke["shape"]["name"] == "quadruped")
                 # Write a batch of pokemons every 5 seconds to the CSV file
-                .group(interval=timedelta(seconds=5))
+                .group(over=timedelta(seconds=5))
                 .do(writer.writerows)
                 .flatten()
                 .observe("written pokemons")
@@ -355,7 +355,7 @@ def test_etl_example(tmp_path: Path) -> None: # pragma: no cover
                 # Keep only quadruped Pokemons
                 .filter(lambda poke: poke["shape"]["name"] == "quadruped")
                 # Write a batch of pokemons every 5 seconds to the CSV file
-                .group(interval=timedelta(seconds=5))
+                .group(over=timedelta(seconds=5))
                 .do(writer.writerows)
                 .flatten()
                 .observe("written pokemons")
