@@ -110,10 +110,11 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
 
 ## ... or the `async` way!
 
-Let's write an `async` version of this script:
-- `httpx.CLient` becomes `httpx.AsyncCLient`
-- `.map` accepts async callables
-- `pipeline()` becomes `await pipeline`
+All operations also accept coroutine/async functions: you can pass `httpx.AsyncCient.get` to `.map` and the concurrency will happen via the event loop instead of threads.
+
+If you are within an async context you can replace `pipeline()` by `await pipeline` to consume the full stream as an `AsyncIterable` without collecting elements. If you are in a sync context, keep `pipeline()`, the `.map` concurrency will happen via a temporary event loop spawned for the duration of the iteration.
+
+<details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 import asyncio
@@ -157,6 +158,8 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
         # without collecting its elements
         await pipeline
 ```
+
+</details>
 
 # 📒 ***Operations***
 
