@@ -364,7 +364,6 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         """
         return FilterStream(self, where)
 
-    # fmt: off
     @overload
     def flatten(
         self: "stream[Iterable[U]]",
@@ -384,7 +383,6 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         *,
         concurrency: int = 1,
     ) -> "stream[U]": ...
-
 
     @overload
     def flatten(
@@ -406,7 +404,6 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         *,
         concurrency: int = 1,
     ) -> "stream[U]": ...
-
 
     @overload
     def flatten(
@@ -442,7 +439,6 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         concurrency: int = 1,
     ) -> "stream[U]": ...
 
-
     @overload
     def flatten(
         self: "stream[range]",
@@ -468,7 +464,6 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         *,
         concurrency: int = 1,
     ) -> "stream[U]": ...
-    # fmt: on
 
     def flatten(
         self: "stream[Union[Iterable[U], AsyncIterable[U]]]",
