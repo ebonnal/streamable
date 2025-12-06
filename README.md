@@ -316,7 +316,7 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
-integers_by_5: Stream[List[int]] = integers.group(size=5)
+integers_by_5: Stream[List[int]] = integers.group(5)
 
 assert list(integers_by_5) == [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]]
 ```

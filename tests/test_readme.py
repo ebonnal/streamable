@@ -120,7 +120,7 @@ def test_throttle_example() -> None:
 
 def test_group_example() -> None:
     global integers_by_parity
-    integers_by_5: Stream[List[int]] = integers.group(size=5)
+    integers_by_5: Stream[List[int]] = integers.group(5)
 
     assert list(integers_by_5) == [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]]
 
