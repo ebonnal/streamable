@@ -184,7 +184,9 @@ Let's do a tour of the `Stream`'s operations, for more details visit the [***doc
 > A `Stream` exposes a minimalist yet expressive set of operations to manipulate its elements, but creating its source or consuming it is not its responsability, it's meant to be combined with specialized libraries (`csv`, `json`, `pyarrow`, `psycopg2`, `boto3`, `requests`, `httpx`, ...).
 
 > [!NOTE]
-> **Async callables:** Operations that take a function accept sync or async callables. You can freely mix synchronous and asynchronous operations within the same `Stream`. The result can then be consumed either as an `Iterable` or as an `AsyncIterable`. When a stream involving `async` operations is consumed as an `Iterable`, a temporary `asyncio` event loop is attached to it.
+## sync/async compatibility
+
+All the operations that take a function accept both sync and async functions, you can freely mix them within the same `Stream`. It can then be consumed either as an `Iterable` or as an `AsyncIterable`. When a stream involving async functions is consumed as an `Iterable`, a temporary `asyncio` event loop is attached to it.
 
 ## 🟡 `.map`
 
