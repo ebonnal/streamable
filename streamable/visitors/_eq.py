@@ -55,7 +55,6 @@ class EqualityVisitor(Visitor[bool]):
             self.type_eq(stream)
             and stream.upstream.accept(EqualityVisitor(self.other.upstream))
             and stream._concurrency == self.other._concurrency
-            and stream._async == self.other._async
         )
 
     def visit_do_stream(self, stream: DoStream) -> bool:
