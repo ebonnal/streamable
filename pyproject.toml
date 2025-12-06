@@ -10,7 +10,7 @@ readme = { file = "README.md", content-type = "text/markdown" }
 license = { text = "Apache 2." }
 authors = [{ name = "ebonnal", email = "bonnal.enzo.dev@gmail.com" }]
 urls = { Homepage = "https://github.com/ebonnal/streamable" }
-requires-python = ">=3.7"
+requires-python = ">=3.8"
 dependencies = []
 
 [tool.setuptools.dynamic]
