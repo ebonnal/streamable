@@ -301,55 +301,6 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         )
 
     @overload
-    def distinct(
-        self,
-        by: Callable[[T], Coroutine[Any, Any, Any]],
-        *,
-        consecutive: bool = False,
-    ) -> "stream[T]": ...
-
-    @overload
-    def distinct(
-        self,
-        by: Optional[Callable[[T], Any]] = None,
-        *,
-        consecutive: bool = False,
-    ) -> "stream[T]": ...
-
-    def distinct(
-        self,
-        by: Union[
-            None,
-            Callable[[T], Any],
-            Callable[[T], Coroutine[Any, Any, Any]],
-        ] = None,
-        *,
-        consecutive: bool = False,
-    ) -> "stream[T]":
-        """
-        Filters the stream to yield only distinct elements.
-        If a deduplication ``by`` is specified, ``foo`` and ``bar`` are treated as duplicates when ``by(foo) == by(bar)`` (or ``await by(foo) == await by(bar)``).
-
-        Among duplicates, the first encountered occurence in upstream order is yielded.
-
-        Warning:
-            During iteration, the distinct elements yielded are retained in memory to perform deduplication.
-            Alternatively, remove only consecutive duplicates without memory footprint by setting ``consecutive=True``.
-
-        Args:
-            by (``Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``, optional):
-
-                - ``Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``: Elements are deduplicated based on ``by(elem)``.
-                - ``None``: The deduplication is performed on the elements themselves. (default)
-
-            consecutive (``bool``, optional): Removes only consecutive duplicates if ``True``, or deduplicates globally if ``False``. (default: global deduplication)
-
-        Returns:
-            ``stream[T]``: A stream containing only unique upstream elements.
-        """
-        return DistinctStream(self, by, consecutive)
-
-    @overload
     def filter(self, where: Callable[[T], Any] = bool) -> "stream[T]": ...
 
     @overload
@@ -871,27 +822,6 @@ class CatchStream(DownStream[T, Union[T, U]]):
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_catch_stream(self)
-
-
-class DistinctStream(DownStream[T, T]):
-    __slots__ = ("_by", "_consecutive")
-
-    def __init__(
-        self,
-        upstream: stream[T],
-        by: Union[
-            None,
-            Callable[[T], Any],
-            Callable[[T], Coroutine[Any, Any, Any]],
-        ],
-        consecutive: bool,
-    ) -> None:
-        super().__init__(upstream)
-        self._by = by
-        self._consecutive = consecutive
-
-    def accept(self, visitor: "Visitor[V]") -> V:
-        return visitor.visit_distinct_stream(self)
 
 
 class FilterStream(DownStream[T, T]):

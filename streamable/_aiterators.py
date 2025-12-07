@@ -22,7 +22,6 @@ from typing import (
     Iterator,
     List,
     Optional,
-    Set,
     Tuple,
     Type,
     TypeVar,
@@ -95,51 +94,6 @@ class ACatchAsyncIterator(AsyncIterator[Union[T, U]]):
                         return await self.replace(e)
                     continue
                 raise
-
-
-############
-# distinct #
-############
-
-
-class ADistinctAsyncIterator(AsyncIterator[T]):
-    def __init__(
-        self,
-        iterator: AsyncIterator[T],
-        by: Optional[Callable[[T], Coroutine[Any, Any, Any]]],
-    ) -> None:
-        self.iterator = iterator
-        self.by = by
-        self._already_seen: Set[Any] = set()
-
-    async def __anext__(self) -> T:
-        while True:
-            elem = await self.iterator.__anext__()
-            key = await self.by(elem) if self.by else elem
-            if key not in self._already_seen:
-                break
-        self._already_seen.add(key)
-        return elem
-
-
-class ConsecutiveADistinctAsyncIterator(AsyncIterator[T]):
-    def __init__(
-        self,
-        iterator: AsyncIterator[T],
-        by: Optional[Callable[[T], Coroutine[Any, Any, Any]]],
-    ) -> None:
-        self.iterator = iterator
-        self.by = by
-        self._last_key: Any = object()
-
-    async def __anext__(self) -> T:
-        while True:
-            elem = await self.iterator.__anext__()
-            key = await self.by(elem) if self.by else elem
-            if key != self._last_key:
-                break
-        self._last_key = key
-        return elem
 
 
 ###########

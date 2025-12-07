@@ -20,14 +20,12 @@ from typing import (
 
 from streamable._aiterators import (
     ACatchAsyncIterator,
-    ADistinctAsyncIterator,
     AFilterAsyncIterator,
     AGroupbyAsyncIterator,
     AMapAsyncIterator,
     ConcurrentAMapAsyncIterator,
     ConcurrentFlattenAsyncIterator,
     ConcurrentMapAsyncIterator,
-    ConsecutiveADistinctAsyncIterator,
     CountSkipAsyncIterator,
     CountTruncateAsyncIterator,
     FlattenAsyncIterator,
@@ -82,30 +80,6 @@ def acatch(
         do=do,
         finally_raise=finally_raise,
     )
-
-
-def distinct(
-    aiterator: AsyncIterator[T],
-    by: Optional[Callable[[T], Any]] = None,
-    *,
-    consecutive: bool = False,
-) -> AsyncIterator[T]:
-    return adistinct(
-        aiterator,
-        asyncify(by) if by else None,
-        consecutive=consecutive,
-    )
-
-
-def adistinct(
-    aiterator: AsyncIterator[T],
-    by: Optional[Callable[[T], Coroutine[Any, Any, Any]]] = None,
-    *,
-    consecutive: bool = False,
-) -> AsyncIterator[T]:
-    if consecutive:
-        return ConsecutiveADistinctAsyncIterator(aiterator, by)
-    return ADistinctAsyncIterator(aiterator, by)
 
 
 def filter(

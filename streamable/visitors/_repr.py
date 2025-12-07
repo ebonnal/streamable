@@ -3,7 +3,6 @@ from typing import Any, List
 
 from streamable._stream import (
     CatchStream,
-    DistinctStream,
     DoStream,
     FilterStream,
     FlattenStream,
@@ -39,12 +38,6 @@ class ToStringVisitor(Visitor[str], ABC):
             errors = self.to_string(stream._errors)
         self.methods_reprs.append(
             f"catch({errors}, when={self.to_string(stream._when)}{replace}, finally_raise={self.to_string(stream._finally_raise)})"
-        )
-        return stream.upstream.accept(self)
-
-    def visit_distinct_stream(self, stream: DistinctStream) -> str:
-        self.methods_reprs.append(
-            f"distinct({self.to_string(stream._by)}, consecutive={self.to_string(stream._consecutive)})"
         )
         return stream.upstream.accept(self)
 

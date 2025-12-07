@@ -2,7 +2,6 @@ from typing import Any
 
 from streamable._stream import (
     CatchStream,
-    DistinctStream,
     FilterStream,
     FlattenStream,
     DoStream,
@@ -33,14 +32,6 @@ class EqualityVisitor(Visitor[bool]):
             and stream._when == self.other._when
             and stream._replace == self.other._replace
             and stream._finally_raise == self.other._finally_raise
-        )
-
-    def visit_distinct_stream(self, stream: DistinctStream) -> bool:
-        return (
-            self.type_eq(stream)
-            and stream.upstream.accept(EqualityVisitor(self.other.upstream))
-            and stream._by == self.other._by
-            and stream._consecutive == self.other._consecutive
         )
 
     def visit_filter_stream(self, stream: FilterStream) -> bool:

@@ -25,7 +25,6 @@ from typing import (
     Iterator,
     List,
     Optional,
-    Set,
     Tuple,
     Type,
     TypeVar,
@@ -102,43 +101,6 @@ class CatchIterator(Iterator[Union[T, U]]):
                         return self.replace(e)
                     continue
                 raise
-
-
-############
-# distinct #
-############
-
-
-class DistinctIterator(Iterator[T]):
-    def __init__(self, iterator: Iterator[T], by: Optional[Callable[[T], Any]]) -> None:
-        self.iterator = iterator
-        self.by = by
-        self._already_seen: Set[Any] = set()
-
-    def __next__(self) -> T:
-        while True:
-            elem = self.iterator.__next__()
-            key = self.by(elem) if self.by else elem
-            if key not in self._already_seen:
-                break
-        self._already_seen.add(key)
-        return elem
-
-
-class ConsecutiveDistinctIterator(Iterator[T]):
-    def __init__(self, iterator: Iterator[T], by: Optional[Callable[[T], Any]]) -> None:
-        self.iterator = iterator
-        self.by = by
-        self._last_key: Any = object()
-
-    def __next__(self) -> T:
-        while True:
-            elem = self.iterator.__next__()
-            key = self.by(elem) if self.by else elem
-            if key != self._last_key:
-                break
-        self._last_key = key
-        return elem
 
 
 ###########

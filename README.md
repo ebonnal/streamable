@@ -114,7 +114,7 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
 
 All operations also accept coroutine/async functions: you can pass `httpx.AsyncCient.get` to `.map` and the concurrency will happen via the event loop instead of threads.
 
-If you are within an async context you can replace `pipeline()` by `await pipeline` to consume the full stream as an `AsyncIterable` without collecting elements. If you are in a sync context, keep `pipeline()`, the `.map` concurrency will happen via a temporary event loop spawned for the duration of the iteration.
+If you are within an async context you can replace `pipeline()` by `await pipeline` to consume the full stream as an `AsyncIterable` without collecting its elements. Within a sync context, keep `pipeline()` and the `.map` async concurrency will happen via a temporary event loop attached to the stream.
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
@@ -165,7 +165,11 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
 
 # 📒 ***Operations***
 
-Let's do a tour of the `stream`'s operations, for more details visit the [***docs***](https://streamable.readthedocs.io/en/latest/api.html).
+> [!IMPORTANT]
+> A `stream` exposes a minimalist yet expressive set of operations to manipulate its elements, but creating its source or consuming it is not its responsability, it's meant to be combined with specialized libraries (`csv`, `json`, `pyarrow`, `psycopg2`, `boto3`, `requests`, `httpx`, ...).
+
+
+Let's do a quick tour of the operations (check the [***docs***](https://streamable.readthedocs.io/en/latest/api.html) for more details).
 
 |||
 |--|--|
@@ -174,7 +178,6 @@ Let's do a tour of the `stream`'s operations, for more details visit the [***doc
 [`.group`](#-group) / [`.groupby`](#-groupby)|batch elements up to a max size, by a given key, over a time interval|
 [`.flatten`](#-flatten)|explode iterable elements|
 [`.filter`](#-filter)|remove elements|
-[`.distinct`](#-distinct)|remove duplicates|
 [`.truncate`](#-truncate)|cut the stream|
 [`.skip`](#-skip)|ignore head elements|
 [`.catch`](#-catch)|handle exceptions|
@@ -182,10 +185,6 @@ Let's do a tour of the `stream`'s operations, for more details visit the [***doc
 [`.observe`](#-observe)|log elements/errors counters|
 
 
-> [!IMPORTANT]
-> A `stream` exposes a minimalist yet expressive set of operations to manipulate its elements, but creating its source or consuming it is not its responsability, it's meant to be combined with specialized libraries (`csv`, `json`, `pyarrow`, `psycopg2`, `boto3`, `requests`, `httpx`, ...).
-
-> [!NOTE]
 ## sync/async compatibility
 
 All the operations that take a function accept both sync and async functions, you can freely mix them within the same `stream`. It can then be consumed either as an `Iterable` or as an `AsyncIterable`. When a stream involving async functions is consumed as an `Iterable`, a temporary `asyncio` event loop is attached to it.
@@ -272,25 +271,6 @@ if __name__ == "__main__":
 ```
 </details>
 
-### starmap
-
-> The `star` function decorator transforms a function that takes several positional arguments into a function that takes a tuple:
-
-<details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
-
-```python
-from streamable import star
-
-zeros: stream[int] = (
-    stream(enumerate(ints))
-    .map(star(lambda index, integer: index - integer))
-)
-
-assert list(zeros) == [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-```
-</details>
-
-
 ## 🟡 `.do`
 
 > Applies a side effect on elements:
@@ -314,7 +294,7 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 > Groups into `list`s
 
-> ... `up_to` a given group size:
+> ... `up_to` a given size:
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
@@ -324,7 +304,7 @@ assert list(ints_by_5) == [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]]
 ```
 </details>
 
-> ... and/or co-groups `by` a given key:
+> ... `by` a given key:
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
@@ -335,7 +315,7 @@ assert list(ints_by_parity) == [[0, 2, 4, 6, 8], [1, 3, 5, 7, 9]]
 ```
 </details>
 
-> ... and/or co-groups the elements yielded by the upstream within a given time `over` interval:
+> ... `over` a given time interval:
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
@@ -382,23 +362,6 @@ assert list(ints_by_parity) == [("even", [0, 2, 4, 6, 8]), ("odd", [1, 3, 5, 7, 
 ```
 </details>
 
-> [!TIP]
-> Then *"starmap"* over the tuples:
-
-<details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
-
-```python
-from streamable import star
-
-counts_by_parity: stream[tuple[str, int]] = (
-    ints_by_parity
-    .map(star(lambda parity, ints: (parity, len(ints))))
-)
-
-assert list(counts_by_parity) == [("even", 5), ("odd", 5)]
-```
-</details>
-
 ## 🟡 `.flatten`
 
 > Ungroups elements assuming that they are `Iterable` or `AsyncIterable`:
@@ -437,48 +400,6 @@ assert list(round_robined_ints) == [0, 1, 0, 1, 1, 2, 1, 2]
 even_ints: stream[int] = ints.filter(lambda n: n % 2 == 0)
 
 assert list(even_ints) == [0, 2, 4, 6, 8]
-```
-</details>
-
-## 🟡 `.distinct`
-
-> Removes duplicates:
-
-<details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
-
-```python
-distinct_chars: stream[str] = stream("foobarfooo").distinct()
-
-assert list(distinct_chars) == ["f", "o", "b", "a", "r"]
-```
-</details>
-
-> specifying a deduplication `key`:
-
-<details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
-
-```python
-strings_of_distinct_lengths: stream[str] = (
-    stream(["a", "foo", "bar", "z"])
-    .distinct(len)
-)
-
-assert list(strings_of_distinct_lengths) == ["a", "foo"]
-```
-</details>
-
-> [!WARNING]
-> During iteration, all distinct elements that are yielded are retained in memory to perform deduplication. However, you can remove only consecutive duplicates without a memory footprint by setting `consecutive=True`:
-
-<details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
-
-```python
-consecutively_distinct_chars: stream[str] = (
-    stream("foobarfooo")
-    .distinct(consecutive=True)
-)
-
-assert list(consecutively_distinct_chars) == ["f", "o", "b", "a", "r", "f", "o"]
 ```
 </details>
 
@@ -635,7 +556,8 @@ logging.getLogger("streamable").setLevel(logging.WARNING)
 ```
 </details>
 
-## 🟡 `+`
+
+## 🟡`+` (concat)
 
 > Concatenates streams:
 
@@ -646,26 +568,7 @@ assert list(ints + ints) == [0, 1, 2, 3 ,4, 5, 6, 7, 8, 9, 0, 1, 2, 3 ,4, 5, 6, 
 ```
 </details>
 
-
-##  🟡 `zip`
-
-> Use the builtins' `zip` function:
-
-<details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
-
-```python
-from streamable import star
-
-cubes: stream[int] = (
-    stream(zip(ints, ints, ints))  # stream[tuple[int, int, int]]
-    .map(star(lambda a, b, c: a * b * c))  # stream[int]
-)
-
-assert list(cubes) == [0, 1, 8, 27, 64, 125, 216, 343, 512, 729]
-```
-</details>
-
-## 🟡 `()` / `await`
+## 🟡 `__call__` / `await`
 
 > *Calling* the stream iterates over it until exhaustion without collecting its elements, and returns it:
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
@@ -692,7 +595,7 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 ## 🟡 `.pipe`
 
-> Calls a function, passing the stream as first argument, followed by `*args/**kwargs` if any (inspired by the `.pipe` from [pandas](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.pipe.html) or [polars](https://docs.pola.rs/api/python/stable/reference/dataframe/api/polars.DataFrame.pipe.html)):
+> Calls a function, passing the stream as first argument, followed by `*args/**kwargs` if any:
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
@@ -708,38 +611,71 @@ import pandas as pd
 ```
 </details>
 
----
+# ••• other notes
 
-# 💡 Notes
+## starmap
 
-## Exceptions are not terminating the iteration
-
-> [!TIP]
-> If an operation raises an exception while processing an element, you can handle it and continue the iteration:
+> The `star` function decorator transforms a function that takes several positional arguments into a function that takes a tuple:
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
-from contextlib import suppress
+from streamable import star
 
-casted_ints: Iterator[int] = iter(
-    stream("0123_56789")
-    .map(int)
-    .group(3)
-    .flatten()
+zeros: stream[int] = (
+    stream(enumerate(ints))
+    .map(star(lambda index, integer: index - integer))
 )
-collected: list[int] = []
 
-with suppress(ValueError):
-    collected.extend(casted_ints)
-assert collected == [0, 1, 2, 3]
-
-collected.extend(casted_ints)
-assert collected == [0, 1, 2, 3, 5, 6, 7, 8, 9]
+assert list(zeros) == [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 ```
+</details>
 
-</details >
 
+## zip
+
+> Use the builtins' `zip` function:
+
+<details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
+
+```python
+from streamable import star
+
+cubes: stream[int] = (
+    stream(zip(ints, ints, ints))  # stream[tuple[int, int, int]]
+    .map(star(lambda a, b, c: a * b * c))  # stream[int]
+)
+
+assert list(cubes) == [0, 1, 8, 27, 64, 125, 216, 343, 512, 729]
+```
+</details>
+
+
+##  distinct
+
+> To collect distinct elements you can `set(a_stream)`.
+
+> To deduplicates in the middle of the stream, `.filter` new values and `.do` add them into a `set` (or a fancier external cache):
+
+<details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
+
+```python
+seen: set[str] = set()
+
+unique_ints: stream[int] = (
+    stream("001000111")
+    .filter(lambda char: char not in seen)
+    .do(seen.add)
+    .map(int)
+)
+
+assert list(unique_ints) == [0, 1]
+```
+</details>
+
+## Iteration can be resumed after an exception
+
+If at one point during the iteration an exception is raised and caught, the iteration can resume from there.
 
 ## Performances
 

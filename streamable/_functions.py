@@ -25,10 +25,8 @@ from streamable._iterators import (
     ConcurrentAMapIterator,
     ConcurrentFlattenIterator,
     ConcurrentMapIterator,
-    ConsecutiveDistinctIterator,
     CountSkipIterator,
     CountTruncateIterator,
-    DistinctIterator,
     FlattenIterator,
     GroupbyIterator,
     GroupIterator,
@@ -82,31 +80,6 @@ def acatch(
         replace=syncify(loop, replace) if replace else None,
         do=syncify(loop, do) if do else None,
         finally_raise=finally_raise,
-    )
-
-
-def distinct(
-    iterator: Iterator[T],
-    by: Optional[Callable[[T], Any]] = None,
-    *,
-    consecutive: bool = False,
-) -> Iterator[T]:
-    if consecutive:
-        return ConsecutiveDistinctIterator(iterator, by)
-    return DistinctIterator(iterator, by)
-
-
-def adistinct(
-    loop: asyncio.AbstractEventLoop,
-    iterator: Iterator[T],
-    by: Optional[Callable[[T], Any]] = None,
-    *,
-    consecutive: bool = False,
-) -> Iterator[T]:
-    return distinct(
-        iterator,
-        syncify(loop, by) if by else None,
-        consecutive=consecutive,
     )
 
 

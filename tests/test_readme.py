@@ -221,23 +221,16 @@ def test_skip_example() -> None:
     assert list(ints_after_five) == [5, 6, 7, 8, 9]
 
 def test_distinct_example() -> None:
-    distinct_chars: stream[str] = stream("foobarfooo").distinct()
+    seen: set[str] = set()
 
-    assert list(distinct_chars) == ["f", "o", "b", "a", "r"]
-
-    strings_of_distinct_lengths: stream[str] = (
-        stream(["a", "foo", "bar", "z"])
-        .distinct(len)
+    unique_ints: stream[int] = (
+        stream("001000111")
+        .filter(lambda char: char not in seen)
+        .do(seen.add)
+        .map(int)
     )
 
-    assert list(strings_of_distinct_lengths) == ["a", "foo"]
-
-    consecutively_distinct_chars: stream[str] = (
-        stream("foobarfooo")
-        .distinct(consecutive=True)
-    )
-
-    assert list(consecutively_distinct_chars) == ["f", "o", "b", "a", "r", "f", "o"]
+    assert list(unique_ints) == [0, 1]
 
 def test_observe_example() -> None:
     assert list(ints.throttle(2, per=timedelta(seconds=1)).observe("ints")) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]

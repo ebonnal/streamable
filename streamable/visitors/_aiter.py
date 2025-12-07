@@ -14,7 +14,6 @@ from typing import (
 from streamable import _afunctions
 from streamable._stream import (
     CatchStream,
-    DistinctStream,
     DoStream,
     FilterStream,
     FlattenStream,
@@ -69,25 +68,6 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
             )
         raise TypeError(
             "`when`/`replace`/`do` must all be coroutine functions or neither should be"
-        )
-
-    def visit_distinct_stream(self, stream: DistinctStream[T]) -> AsyncIterator[T]:
-        if stream._by is None:
-            return _afunctions.distinct(
-                stream.upstream.accept(self),
-                stream._by,
-                consecutive=stream._consecutive,
-            )
-        if iscoroutinefunction(stream._by):
-            return _afunctions.adistinct(
-                stream.upstream.accept(self),
-                stream._by,
-                consecutive=stream._consecutive,
-            )
-        return _afunctions.distinct(
-            stream.upstream.accept(self),
-            stream._by,
-            consecutive=stream._consecutive,
         )
 
     def visit_filter_stream(self, stream: FilterStream[T]) -> AsyncIterator[T]:

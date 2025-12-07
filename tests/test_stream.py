@@ -1127,33 +1127,6 @@ def test_throttle(itype: IterableType) -> None:
     "itype, adapt",
     ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
 )
-def test_distinct(itype: IterableType, adapt) -> None:
-    # `distinct` should yield distinct elements
-    assert to_list(stream("abbcaabcccddd").distinct(), itype=itype) == list("abcd")
-    # `distinct` should only remove the duplicates that are consecutive if `consecutive=True`
-    assert to_list(
-        stream("aabbcccaabbcccc").distinct(consecutive=True), itype=itype
-    ) == list("abcabc")
-    for consecutive in [True, False]:
-        # `distinct` should yield the first encountered elem among duplicates
-        assert to_list(
-            stream(["foo", "bar", "a", "b"]).distinct(
-                adapt(len),
-                consecutive=consecutive,
-            ),
-            itype=itype,
-        ) == ["foo", "a"]
-        # `distinct` should yield zero elements on empty stream
-        assert to_list(stream([]).distinct(consecutive=consecutive), itype=itype) == []
-    # `distinct` should raise for non-hashable elements
-    with pytest.raises(TypeError, match="unhashable type: 'list'"):
-        to_list(stream([[1]]).distinct(), itype=itype)
-
-
-@pytest.mark.parametrize(
-    "itype, adapt",
-    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
-)
 def test_catch(itype: IterableType, adapt) -> None:
     # `catch` should yield elements in exception-less scenarios
     assert to_list(
@@ -1421,8 +1394,6 @@ def test_eq() -> None:
         stream(ints_src)
         .catch((TypeError, ValueError), replace=identity, when=identity)
         .catch((TypeError, ValueError), replace=async_identity, when=async_identity)
-        .distinct(identity)
-        .distinct(async_identity)
         .filter(identity)
         .filter(async_identity)
         .do(identity, concurrency=3)
@@ -1449,8 +1420,6 @@ def test_eq() -> None:
         stream(ints_src)
         .catch((TypeError, ValueError), replace=identity, when=identity)
         .catch((TypeError, ValueError), replace=async_identity, when=async_identity)
-        .distinct(identity)
-        .distinct(async_identity)
         .filter(identity)
         .filter(async_identity)
         .do(identity, concurrency=3)
@@ -1478,8 +1447,6 @@ def test_eq() -> None:
         .catch(
             (TypeError, ValueError), replace=asyncify(lambda e: 2), when=async_identity
         )
-        .distinct(identity)
-        .distinct(async_identity)
         .filter(identity)
         .filter(async_identity)
         .do(identity, concurrency=3)
@@ -1507,8 +1474,6 @@ def test_eq() -> None:
         .catch(
             (TypeError, ValueError), replace=asyncify(lambda e: 2), when=async_identity
         )
-        .distinct(identity)
-        .distinct(async_identity)
         .filter(identity)
         .filter(async_identity)
         .do(identity, concurrency=3)
