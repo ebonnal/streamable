@@ -175,14 +175,14 @@ Let's do a quick tour of the operations (check the [***docs***](https://streamab
 |--|--|
 [`.map`](#-map)|transform elements|
 [`.do`](#-do)|apply a side effect on elements|
-[`.group`](#-group) / [`.groupby`](#-groupby)|batch elements up to a max size, by a given key, over a time interval|
+[`.group`](#-group) / [`.groupby`](#-groupby)|batch elements up to a size, by a key, over a time interval|
 [`.flatten`](#-flatten)|explode iterable elements|
 [`.filter`](#-filter)|remove elements|
 [`.truncate`](#-truncate)|cut the stream|
 [`.skip`](#-skip)|ignore head elements|
 [`.catch`](#-catch)|handle exceptions|
-[`.throttle`](#-throttle)|control the rate of iteration|
-[`.observe`](#-observe)|log elements/errors counters|
+[`.throttle`](#-throttle)|rate-limit the iteration|
+[`.observe`](#-observe)|logs iteration progress|
 
 
 ## sync/async compatibility
