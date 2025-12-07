@@ -673,11 +673,11 @@ assert list(unique_ints) == [0, 1]
 ```
 </details>
 
-## Iteration can be resumed after an exception
+## iteration can be resumed after an exception
 
 If at one point during the iteration an exception is raised and caught, the iteration can resume from there.
 
-## Performances
+## performances
 
 Declaring a `stream` is lazy,
 
@@ -695,7 +695,7 @@ Operations have been [implemented](https://github.com/ebonnal/streamable/blob/ma
 
 </details>
 
-## Highlights from the community
+## highlights from the community
 - [Tryolabs' Top 10 Python libraries of 2024](https://tryolabs.com/blog/top-python-libraries-2024#top-10---general-use) ([LinkedIn](https://www.linkedin.com/posts/tryolabs_top-python-libraries-2024-activity-7273052840984539137-bcGs?utm_source=share&utm_medium=member_desktop), [Reddit](https://www.reddit.com/r/Python/comments/1hbs4t8/the_handpicked_selection_of_the_best_python/))
 - [PyCoder’s Weekly](https://pycoders.com/issues/651) x [Real Python](https://realpython.com/)
 - [@PythonHub's tweet](https://x.com/PythonHub/status/1842886311369142713)
