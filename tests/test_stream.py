@@ -1285,7 +1285,7 @@ def test_catch(itype: IterableType, adapt) -> None:
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_observe(itype: IterableType) -> None:
     def inverse(
-        chars: str, every: Optional[Union[int, datetime.timedelta]] = None
+        chars: Iterable[str], every: Optional[Union[int, datetime.timedelta]] = None
     ) -> stream[float]:
         return (
             stream(chars)
@@ -1364,7 +1364,9 @@ def test_observe(itype: IterableType) -> None:
             to_list(inverse("12---3456----07", every=2), itype=itype)
         # `observe` errors and yields independently
         assert logs == [
+            Log(errors=0, yields=1),
             Log(errors=0, yields=2),
+            Log(errors=1, yields=2),
             Log(errors=2, yields=2),
             Log(errors=3, yields=4),
             Log(errors=3, yields=6),
@@ -1379,7 +1381,9 @@ def test_observe(itype: IterableType) -> None:
         )
         # `observe` should produce one last log on StopIteration
         assert logs == [
+            Log(errors=0, yields=1),
             Log(errors=0, yields=2),
+            Log(errors=1, yields=2),
             Log(errors=2, yields=2),
             Log(errors=3, yields=4),
             Log(errors=3, yields=6),
@@ -1395,7 +1399,9 @@ def test_observe(itype: IterableType) -> None:
         )
         # `observe` should skip redundant last log on StopIteration
         assert logs == [
+            Log(errors=0, yields=1),
             Log(errors=0, yields=2),
+            Log(errors=1, yields=2),
             Log(errors=2, yields=2),
             Log(errors=3, yields=4),
             Log(errors=3, yields=6),
@@ -1416,7 +1422,7 @@ def test_observe(itype: IterableType) -> None:
                 itype=itype,
             )
         # `observe` errors and yields independently
-        assert logs == []
+        assert logs == [Log(errors=0, yields=1)]
 
         logs.clear()
         to_list(
@@ -1427,6 +1433,7 @@ def test_observe(itype: IterableType) -> None:
         )
         # `observe` should produce one last log on StopIteration
         assert logs == [
+            Log(errors=0, yields=1),
             Log(errors=8, yields=7),
         ]
 
@@ -1439,8 +1446,21 @@ def test_observe(itype: IterableType) -> None:
         )
         # `observe` should skip redundant last log on StopIteration
         assert logs == [
+            Log(errors=0, yields=1),
             Log(errors=8, yields=6),
         ]
+
+        logs.clear()
+        digits = "12---3456----0"
+        to_list(
+            inverse(
+                map(slow_identity, digits),
+                every=datetime.timedelta(seconds=0.9 * slow_identity_duration),
+            ).catch(ZeroDivisionError),
+            itype=itype,
+        )
+        # `observe` with `every` slightly under slow_identity_duration should emit one log per yield/error
+        assert len(digits) == len(logs)
 
 
 def test_is_iterable() -> None:

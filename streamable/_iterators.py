@@ -422,10 +422,12 @@ class EveryIntObserveIterator(ObserveIterator[T]):
         self.every = every
 
     def _should_emit_yield_log(self) -> bool:
-        return self._yields >= self._yields_logged + self.every
+        # always emit first yield
+        return not self._yields_logged or not self._yields % self.every
 
     def _should_emit_error_log(self) -> bool:
-        return self._errors >= self._errors_logged + self.every
+        # always emit first error
+        return not self._errors_logged or not self._errors % self.every
 
 
 class EveryIntervalObserveIterator(ObserveIterator[T]):
@@ -434,26 +436,23 @@ class EveryIntervalObserveIterator(ObserveIterator[T]):
     ) -> None:
         super().__init__(iterator, label)
         self._every_seconds: float = every.total_seconds()
-        self._last_yield_log_time: Optional[float] = None
-        self._last_error_log_time: Optional[float] = None
+        self._last_log_time: Optional[float] = None
+
+    def _should_emit_log(self) -> bool:
+        now = time.perf_counter()
+        # always emit first yield/error
+        should = self._last_log_time is None or (
+            (now - self._last_log_time) >= self._every_seconds
+        )
+        if should:
+            self._last_log_time = now
+        return should
 
     def _should_emit_yield_log(self) -> bool:
-        now = time.perf_counter()
-        should = (
-            now - (self._last_yield_log_time or self._start_time)
-        ) >= self._every_seconds
-        if should:
-            self._last_yield_log_time = now
-        return should
+        return self._should_emit_log()
 
     def _should_emit_error_log(self) -> bool:
-        now = time.perf_counter()
-        should = (
-            now - (self._last_error_log_time or self._start_time)
-        ) >= self._every_seconds
-        if should:
-            self._last_error_log_time = now
-        return should
+        return self._should_emit_log()
 
 
 ############
