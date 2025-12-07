@@ -857,9 +857,18 @@ def test_truncate(itype: IterableType, adapt) -> None:
 def test_group(itype: IterableType, adapt, nostop_) -> None:
     # `group` should raise error when called with `seconds` <= 0.
     for seconds in [-1, 0]:
-        with pytest.raises(ValueError):
+        with pytest.raises(
+            ValueError,
+            match="`over` must be a positive timedelta but got datetime\.timedelta(.*)",
+        ):
             to_list(
                 stream([1]).group(up_to=100, over=datetime.timedelta(seconds=seconds)),
+                itype=itype,
+            )
+            to_list(
+                stream([1]).groupby(
+                    str, up_to=100, over=datetime.timedelta(seconds=seconds)
+                ),
                 itype=itype,
             )
 
@@ -897,7 +906,7 @@ def test_group(itype: IterableType, adapt, nostop_) -> None:
     # ... and restarting a fresh group to yield after that.
     assert anext_or_next(stream_iterator) == list(map(f, range(111, 211)))
 
-    # behavior of the `seconds` parameter
+    # behavior of the `over` parameter
     # `group` should not yield empty groups even though `over` if smaller than upstream's frequency
     assert to_list(
         stream(lambda: map(slow_identity, ints_src)).group(
