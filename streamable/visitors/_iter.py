@@ -187,6 +187,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         return _functions.observe(
             stream.upstream.accept(self),
             stream._label,
+            stream._every,
         )
 
     def visit_skip_stream(self, stream: SkipStream[T]) -> Iterator[T]:

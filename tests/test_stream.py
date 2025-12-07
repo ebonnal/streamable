@@ -1284,12 +1284,14 @@ def test_catch(itype: IterableType, adapt) -> None:
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_observe(itype: IterableType) -> None:
-    def inverse(chars: str) -> stream[float]:
+    def inverse(
+        chars: str, every: Optional[Union[int, datetime.timedelta]] = None
+    ) -> stream[float]:
         return (
             stream(chars)
             .map(int)
             .map(lambda n: 1 / n)
-            .observe("inverses")
+            .observe("inverses", every=every)
             .catch(ValueError)
         )
 
@@ -1307,6 +1309,10 @@ def test_observe(itype: IterableType) -> None:
         "logging.Logger.info",
         lambda self, msg, dur, errors, yields: logs.append(Log(errors, yields)),
     ):
+        #################
+        # every == None #
+        #################
+
         # `observe` should reraise
         with pytest.raises(ZeroDivisionError):
             to_list(inverse("12---3456----07"), itype=itype)
@@ -1345,6 +1351,94 @@ def test_observe(itype: IterableType) -> None:
             Log(errors=2, yields=2),
             Log(errors=3, yields=4),
             Log(errors=4, yields=6),
+            Log(errors=8, yields=6),
+        ]
+
+        ##############
+        # every == 2 #
+        ##############
+
+        # `observe` should reraise
+        logs.clear()
+        with pytest.raises(ZeroDivisionError):
+            to_list(inverse("12---3456----07", every=2), itype=itype)
+        # `observe` errors and yields independently
+        assert logs == [
+            Log(errors=0, yields=2),
+            Log(errors=2, yields=2),
+            Log(errors=3, yields=4),
+            Log(errors=3, yields=6),
+            Log(errors=4, yields=6),
+            Log(errors=6, yields=6),
+            Log(errors=8, yields=6),
+        ]
+
+        logs.clear()
+        to_list(
+            inverse("12---3456----07", every=2).catch(ZeroDivisionError), itype=itype
+        )
+        # `observe` should produce one last log on StopIteration
+        assert logs == [
+            Log(errors=0, yields=2),
+            Log(errors=2, yields=2),
+            Log(errors=3, yields=4),
+            Log(errors=3, yields=6),
+            Log(errors=4, yields=6),
+            Log(errors=6, yields=6),
+            Log(errors=8, yields=6),
+            Log(errors=8, yields=7),
+        ]
+
+        logs.clear()
+        to_list(
+            inverse("12---3456----0", every=2).catch(ZeroDivisionError), itype=itype
+        )
+        # `observe` should skip redundant last log on StopIteration
+        assert logs == [
+            Log(errors=0, yields=2),
+            Log(errors=2, yields=2),
+            Log(errors=3, yields=4),
+            Log(errors=3, yields=6),
+            Log(errors=4, yields=6),
+            Log(errors=6, yields=6),
+            Log(errors=8, yields=6),
+        ]
+
+        ###############
+        # every == 1s #
+        ###############
+
+        # `observe` should reraise
+        logs.clear()
+        with pytest.raises(ZeroDivisionError):
+            to_list(
+                inverse("12---3456----07", every=datetime.timedelta(seconds=1)),
+                itype=itype,
+            )
+        # `observe` errors and yields independently
+        assert logs == []
+
+        logs.clear()
+        to_list(
+            inverse("12---3456----07", every=datetime.timedelta(seconds=1)).catch(
+                ZeroDivisionError
+            ),
+            itype=itype,
+        )
+        # `observe` should produce one last log on StopIteration
+        assert logs == [
+            Log(errors=8, yields=7),
+        ]
+
+        logs.clear()
+        to_list(
+            inverse("12---3456----0", every=datetime.timedelta(seconds=1)).catch(
+                ZeroDivisionError
+            ),
+            itype=itype,
+        )
+        # `observe` should skip redundant last log on StopIteration
+        assert logs == [
             Log(errors=8, yields=6),
         ]
 

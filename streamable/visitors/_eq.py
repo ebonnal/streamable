@@ -89,6 +89,7 @@ class EqualityVisitor(Visitor[bool]):
             self.type_eq(stream)
             and stream.upstream.accept(EqualityVisitor(self.other.upstream))
             and stream._label == self.other._label
+            and stream._every == self.other._every
         )
 
     def visit_skip_stream(self, stream: SkipStream) -> bool:

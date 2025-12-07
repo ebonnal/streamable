@@ -38,7 +38,7 @@ def test_signatures() -> None:
     caught_it_1: Iterator[int] = catch(iterator, Exception)  # noqa: F841
     caught_it_2: Iterator[int] = catch(iterator, Exception, finally_raise=True)  # noqa: F841
     caught_it_3: Iterator[Union[int, str]] = catch(iterator, Exception, replace=str)  # noqa: F841
-    observed_it_1: Iterator[int] = observe(iterator, label="objects")  # noqa: F841
+    observed_it_1: Iterator[int] = observe(iterator, label="objects", every=10)  # noqa: F841
     throttleed_it_1: Iterator[int] = throttle(  # noqa: F841
         iterator,
         1,

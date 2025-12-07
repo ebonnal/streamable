@@ -27,10 +27,12 @@ from streamable._iterators import (
     ConcurrentMapIterator,
     CountSkipIterator,
     CountTruncateIterator,
+    EveryIntObserveIterator,
+    EveryIntervalObserveIterator,
     FlattenIterator,
     GroupbyIterator,
     GroupIterator,
-    ObserveIterator,
+    PowerObserveIterator,
     PredicateSkipIterator,
     PredicateTruncateIterator,
     YieldsPerPeriodThrottleIterator,
@@ -188,8 +190,14 @@ def amap(
     )
 
 
-def observe(iterator: Iterator[T], label: str) -> Iterator[T]:
-    return ObserveIterator(iterator, label)
+def observe(
+    iterator: Iterator[T], label: str, every: Optional[Union[int, datetime.timedelta]]
+) -> Iterator[T]:
+    if every is None:
+        return PowerObserveIterator(iterator, label)
+    elif isinstance(every, int):
+        return EveryIntObserveIterator(iterator, label, every)
+    return EveryIntervalObserveIterator(iterator, label, every)
 
 
 def skip(

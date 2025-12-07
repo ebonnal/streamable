@@ -76,7 +76,9 @@ class ToStringVisitor(Visitor[str], ABC):
         return stream.upstream.accept(self)
 
     def visit_observe_stream(self, stream: ObserveStream) -> str:
-        self.methods_reprs.append(f"""observe({self.to_string(stream._label)})""")
+        self.methods_reprs.append(
+            f"""observe({self.to_string(stream._label)}, every={self.to_string(stream._every)})"""
+        )
         return stream.upstream.accept(self)
 
     def visit_skip_stream(self, stream: SkipStream) -> str:

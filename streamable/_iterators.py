@@ -354,34 +354,43 @@ class PredicateTruncateIterator(Iterator[T]):
 
 
 class ObserveIterator(Iterator[T]):
-    def __init__(self, iterator: Iterator[T], label: str, base: int = 2) -> None:
+    def __init__(self, iterator: Iterator[T], label: str) -> None:
         self.iterator = iterator
         self.label = label
-        self.base = base
         self._yields = 0
         self._errors = 0
         self._nexts_logged = 0
         self._yields_logged = 0
         self._errors_logged = 0
-        self._started_time: Optional[datetime.datetime] = None
+        self.__start_time: Optional[float] = None
         self._logger = get_logger()
         self._format = f"[duration=%s errors=%s] %s {label} yielded"
 
+    @property
+    def _start_time(self) -> float:
+        if not self.__start_time:
+            self.__start_time = time.perf_counter()
+        return self.__start_time
+
     def _log(self) -> None:
         now = datetime.datetime.fromtimestamp(time.perf_counter())
-        duration = now - cast(datetime.datetime, self._started_time)
+        duration = now - datetime.datetime.fromtimestamp(self._start_time)
         self._logger.info(self._format, duration, self._errors, self._yields)
+        self._nexts_logged = self._yields + self._errors
+
+    @abstractmethod
+    def _should_emit_yield_log(self) -> bool: ...
+
+    @abstractmethod
+    def _should_emit_error_log(self) -> bool: ...
 
     def __next__(self) -> T:
-        if not self._started_time:
-            self._started_time = datetime.datetime.fromtimestamp(time.perf_counter())
         try:
             elem = self.iterator.__next__()
             self._yields += 1
-            if self._yields >= self.base * self._yields_logged:
+            if self._should_emit_yield_log():
                 self._log()
                 self._yields_logged = self._yields
-                self._nexts_logged = self._yields + self._errors
             return elem
         except StopIteration:
             if self._yields + self._errors > self._nexts_logged:
@@ -389,11 +398,62 @@ class ObserveIterator(Iterator[T]):
             raise
         except Exception:
             self._errors += 1
-            if self._errors >= self.base * self._errors_logged:
+            if self._should_emit_error_log():
                 self._log()
                 self._errors_logged = self._errors
-                self._nexts_logged = self._yields + self._errors
             raise
+
+
+class PowerObserveIterator(ObserveIterator[T]):
+    def __init__(self, iterator: Iterator[T], label: str, base: int = 2) -> None:
+        super().__init__(iterator, label)
+        self.base = base
+
+    def _should_emit_yield_log(self) -> bool:
+        return self._yields >= self.base * self._yields_logged
+
+    def _should_emit_error_log(self) -> bool:
+        return self._errors >= self.base * self._errors_logged
+
+
+class EveryIntObserveIterator(ObserveIterator[T]):
+    def __init__(self, iterator: Iterator[T], label: str, every: int) -> None:
+        super().__init__(iterator, label)
+        self.every = every
+
+    def _should_emit_yield_log(self) -> bool:
+        return self._yields >= self._yields_logged + self.every
+
+    def _should_emit_error_log(self) -> bool:
+        return self._errors >= self._errors_logged + self.every
+
+
+class EveryIntervalObserveIterator(ObserveIterator[T]):
+    def __init__(
+        self, iterator: Iterator[T], label: str, every: datetime.timedelta
+    ) -> None:
+        super().__init__(iterator, label)
+        self._every_seconds: float = every.total_seconds()
+        self._last_yield_log_time: Optional[float] = None
+        self._last_error_log_time: Optional[float] = None
+
+    def _should_emit_yield_log(self) -> bool:
+        now = time.perf_counter()
+        should = (
+            now - (self._last_yield_log_time or self._start_time)
+        ) >= self._every_seconds
+        if should:
+            self._last_yield_log_time = now
+        return should
+
+    def _should_emit_error_log(self) -> bool:
+        now = time.perf_counter()
+        should = (
+            now - (self._last_error_log_time or self._start_time)
+        ) >= self._every_seconds
+        if should:
+            self._last_error_log_time = now
+        return should
 
 
 ############

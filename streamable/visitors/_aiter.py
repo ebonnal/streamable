@@ -163,6 +163,7 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
         return _afunctions.observe(
             stream.upstream.accept(self),
             stream._label,
+            stream._every,
         )
 
     def visit_skip_stream(self, stream: SkipStream[T]) -> AsyncIterator[T]:

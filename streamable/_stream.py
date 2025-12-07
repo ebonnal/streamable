@@ -643,19 +643,35 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             validate_concurrency_executor(concurrency, into, fn_name="into")
         return MapStream(self, into, concurrency, ordered)
 
-    def observe(self, label: str = "elements") -> "stream[T]":
+    def observe(
+        self,
+        label: str = "elements",
+        *,
+        every: Optional[Union[int, datetime.timedelta]] = None,
+    ) -> "stream[T]":
         """
-        Logs the progress of iteration over this stream.
+        Logs the progress of iteration over this stream: the duration since the iteration started, the count of yielded elements and errors.
 
-        To avoid flooding, logs are emitted only when the number of yielded elements (or errors) reaches powers of 2.
+        A log is emitted `every` interval (number of elements or time interval), or when the number of yielded elements (or errors) reaches powers of 2 if `every is None`.
+
+        On reception of an upstream element (or exception), if a log should be emitted, it will be emitted before re-yielding the element (or re-raising the exception).
 
         Args:
             label (``str``): A plural noun describing the yielded objects (e.g., "cats", "dogs").
+            every (``int | timedelta | None``): When an upstream element is pulled, a log is emitted if ...
+
+              - ``None`` (default): ... the number of yielded elements (or errors) reaches a power of 2.
+              - ``int``: ... the number of yielded elements (or errors) reaches `every`.
+              - ``timedelta``: ... `every` has elapsed since the last log.
 
         Returns:
             ``stream[T]``: A stream of upstream elements with progress logging during iteration.
         """
-        return ObserveStream(self, label)
+        if isinstance(every, int):
+            validate_int(every, gte=1, name="every")
+        elif isinstance(every, datetime.timedelta):
+            validate_positive_timedelta(every, name="every")
+        return ObserveStream(self, label, every)
 
     @overload
     def skip(
@@ -940,11 +956,17 @@ class MapStream(DownStream[T, U]):
 
 
 class ObserveStream(DownStream[T, T]):
-    __slots__ = ("_label",)
+    __slots__ = ("_label", "_every")
 
-    def __init__(self, upstream: stream[T], label: str) -> None:
+    def __init__(
+        self,
+        upstream: stream[T],
+        label: str,
+        every: Optional[Union[int, datetime.timedelta]],
+    ) -> None:
         super().__init__(upstream)
         self._label = label
+        self._every = every
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_observe_stream(self)

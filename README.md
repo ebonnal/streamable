@@ -544,17 +544,11 @@ INFO: [duration=0:00:04.003852 errors=0] 10 ints yielded
 
 > A new log is emitted when the number of yielded elements (or errors) reaches powers of 2.
 
+> To emit a log every *n* elements, set `every=n`.
 
-> [!TIP]
-> To mute these logs, set the logging level above `INFO`:
+> To emit a log every *n* seconds, set `every=timedelta(seconds=n)`.
 
-<details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
-
-```python
-import logging
-logging.getLogger("streamable").setLevel(logging.WARNING)
-```
-</details>
+> Logs are emitted by `logging.getLogger("streamable")`.
 
 
 ## 🟡`+` (concat)
