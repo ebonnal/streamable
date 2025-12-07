@@ -431,7 +431,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         concurrency: int = 1,
     ) -> "stream[U]":
         """
-        Iterates over upstream elements assumed to be iterables (sync or async), and individually yields their items.
+        Yields the elements of upstream elements assumed to be iterables (`Iterable` or `AsyncIterable`).
 
         Args:
             concurrency (``int``, optional): Number of upstream iterables concurrently flattened. (default: no concurrency)
@@ -474,10 +474,10 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         Args:
             effect (``Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``): The function called on each upstream element as a side effect.
-            concurrency (``int``, optional): (default: no concurrency)
+            concurrency (``int``, optional): The ``effect`` is applied ...
 
-                - ``concurrency == 1``: The ``effect`` is applied sequentially.
-                - ``concurrency > 1`` or ``Executor``: The ``effect`` is applied concurrently via ``concurrency`` threads or via the provided ``Executor``, or via the event loop if ``effect`` is a coroutine function. At any point in time, only ``concurrency`` elements are buffered for processing.
+                - ``concurrency == 1`` (default): ... sequentially, no concurrency.
+                - ``concurrency > 1`` or ``Executor``: ... concurrently via ``concurrency`` threads or via the provided ``Executor``, or via the event loop if ``effect`` is a coroutine function. At any point in time, only ``concurrency`` elements are buffered for processing.
 
             ordered (``bool``, optional): If ``concurrency`` > 1, whether to yield preserving the upstream order (First In First Out) or as completed (First Done First Out). (default: preserves order)
 
@@ -627,10 +627,10 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         Args:
             into (``Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``): The transformation applied to upstream elements.
-            concurrency (``int``, optional): (default: no concurrency)
+            concurrency (``int``, optional): ``into`` is applied
 
-                - ``concurrency == 1``: ``into`` is applied sequentially.
-                - ``concurrency > 1`` or ``Executor``: ``into`` is applied concurrently via ``concurrency`` threads or via the provided ``Executor``, or via the event loop if ``into`` is a coroutine function. At any point in time, only ``concurrency`` elements are buffered for processing.
+                - ``concurrency == 1`` (default): ... sequentially, no concurrency.
+                - ``concurrency > 1`` or ``Executor``: ... concurrently via ``concurrency`` threads or via the provided ``Executor``, or via the event loop if ``into`` is a coroutine function. At any point in time, only ``concurrency`` elements are buffered for processing.
 
             ordered (``bool``, optional): If ``concurrency`` > 1, whether to yield preserving the upstream order (First In First Out) or as completed (First Done First Out). (default: preserves order)
 
