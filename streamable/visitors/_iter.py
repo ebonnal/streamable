@@ -183,16 +183,16 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         )
 
     def visit_map_stream(self, stream: MapStream[U, T]) -> Iterator[T]:
-        if iscoroutinefunction(stream._to):
+        if iscoroutinefunction(stream._into):
             return _functions.amap(
                 self._get_loop(),
-                stream._to,
+                stream._into,
                 stream.upstream.accept(cast(IteratorVisitor[U], self)),
                 concurrency=cast(int, stream._concurrency),
                 ordered=stream._ordered,
             )
         return _functions.map(
-            cast(Callable[[U], T], stream._to),
+            cast(Callable[[U], T], stream._into),
             stream.upstream.accept(cast(IteratorVisitor[U], self)),
             concurrency=stream._concurrency,
             ordered=stream._ordered,

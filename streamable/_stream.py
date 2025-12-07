@@ -637,7 +637,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
     @overload
     def map(
         self,
-        to: Callable[[T], Coroutine[Any, Any, U]],
+        into: Callable[[T], Coroutine[Any, Any, U]],
         *,
         concurrency: Union[int, Executor] = 1,
         ordered: bool = True,
@@ -646,7 +646,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
     @overload
     def map(
         self,
-        to: Callable[[T], U],
+        into: Callable[[T], U],
         *,
         concurrency: Union[int, Executor] = 1,
         ordered: bool = True,
@@ -654,7 +654,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
     def map(
         self,
-        to: Union[
+        into: Union[
             Callable[[T], U],
             Callable[[T], Coroutine[Any, Any, U]],
         ],
@@ -663,14 +663,14 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         ordered: bool = True,
     ) -> "stream[U]":
         """
-        Applies ``to`` on upstream elements and yields the results.
+        Applies ``into`` on upstream elements and yields the results.
 
         Args:
-            to (``Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``): The transformation applied to upstream elements.
+            into (``Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``): The transformation applied to upstream elements.
             concurrency (``int``, optional): (default: no concurrency)
 
-                - ``concurrency == 1``: ``to`` is applied sequentially.
-                - ``concurrency > 1`` or ``Executor``: ``to`` is applied concurrently via ``concurrency`` threads or via the provided ``Executor``, or via the event loop if ``to`` is a coroutine function. At any point in time, only ``concurrency`` elements are buffered for processing.
+                - ``concurrency == 1``: ``into`` is applied sequentially.
+                - ``concurrency > 1`` or ``Executor``: ``into`` is applied concurrently via ``concurrency`` threads or via the provided ``Executor``, or via the event loop if ``into`` is a coroutine function. At any point in time, only ``concurrency`` elements are buffered for processing.
 
             ordered (``bool``, optional): If ``concurrency`` > 1, whether to yield preserving the upstream order (First In First Out) or as completed (First Done First Out). (default: preserves order)
 
@@ -680,8 +680,8 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         if isinstance(concurrency, int):
             validate_int(concurrency, gte=1, name="concurrency")
         else:
-            validate_concurrency_executor(concurrency, to, fn_name="to")
-        return MapStream(self, to, concurrency, ordered)
+            validate_concurrency_executor(concurrency, into, fn_name="into")
+        return MapStream(self, into, concurrency, ordered)
 
     def observe(self, label: str = "elements") -> "stream[T]":
         """
@@ -973,12 +973,12 @@ class GroupbyStream(DownStream[T, Tuple[U, List[T]]]):
 
 
 class MapStream(DownStream[T, U]):
-    __slots__ = ("_to", "_concurrency", "_ordered")
+    __slots__ = ("_into", "_concurrency", "_ordered")
 
     def __init__(
         self,
         upstream: stream[T],
-        to: Union[
+        into: Union[
             Callable[[T], U],
             Callable[[T], Coroutine[Any, Any, U]],
         ],
@@ -986,7 +986,7 @@ class MapStream(DownStream[T, U]):
         ordered: bool,
     ) -> None:
         super().__init__(upstream)
-        self._to = to
+        self._into = into
         self._concurrency = concurrency
         self._ordered = ordered
 

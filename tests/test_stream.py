@@ -201,7 +201,7 @@ def test_map(concurrency, itype) -> None:
     "operation, fn_name",
     [
         (stream.do, "effect"),
-        (stream.map, "to"),
+        (stream.map, "into"),
     ],
 )
 def test_executor_concurrency_with_async_function(operation, fn_name):
@@ -661,8 +661,8 @@ def test_flatten_heterogeneous_sync_async_elements(itype, concurrency) -> None:
     [
         (itype, slow, to_iter)
         for slow, to_iter in (
-            (partial(stream.map, to=slow_identity), stream.__iter__),
-            (partial(stream.map, to=async_slow_identity), stream.__aiter__),
+            (partial(stream.map, into=slow_identity), stream.__iter__),
+            (partial(stream.map, into=async_slow_identity), stream.__aiter__),
         )
         for itype in ITERABLE_TYPES
     ],

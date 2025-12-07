@@ -179,34 +179,34 @@ def agroupby(
 
 
 def map(
-    to: Callable[[T], U],
+    into: Callable[[T], U],
     aiterator: AsyncIterator[T],
     *,
     concurrency: Union[int, Executor] = 1,
     ordered: bool = True,
 ) -> AsyncIterator[U]:
     if concurrency == 1:
-        return amap(asyncify(to), aiterator)
+        return amap(asyncify(into), aiterator)
     return ConcurrentMapAsyncIterator(
         aiterator,
-        to,
+        into,
         concurrency=concurrency,
         ordered=ordered,
     )
 
 
 def amap(
-    to: Callable[[T], Coroutine[Any, Any, U]],
+    into: Callable[[T], Coroutine[Any, Any, U]],
     aiterator: AsyncIterator[T],
     *,
     concurrency: int = 1,
     ordered: bool = True,
 ) -> AsyncIterator[U]:
     if concurrency == 1:
-        return AMapAsyncIterator(aiterator, to)
+        return AMapAsyncIterator(aiterator, into)
     return ConcurrentAMapAsyncIterator(
         aiterator,
-        to,
+        into,
         concurrency=cast(int, concurrency),
         ordered=ordered,
     )

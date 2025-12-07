@@ -78,7 +78,7 @@ class ToStringVisitor(Visitor[str], ABC):
 
     def visit_map_stream(self, stream: MapStream) -> str:
         self.methods_reprs.append(
-            f"map({self.to_string(stream._to)}, concurrency={self.to_string(stream._concurrency)}, ordered={self.to_string(stream._ordered)})"
+            f"map({self.to_string(stream._into)}, concurrency={self.to_string(stream._concurrency)}, ordered={self.to_string(stream._ordered)})"
         )
         return stream.upstream.accept(self)
 
