@@ -865,6 +865,10 @@ def test_group(itype: IterableType, adapt, nostop_) -> None:
                 stream([1]).group(up_to=100, over=datetime.timedelta(seconds=seconds)),
                 itype=itype,
             )
+        with pytest.raises(
+            ValueError,
+            match="`over` must be a positive timedelta but got datetime\.timedelta(.*)",
+        ):
             to_list(
                 stream([1]).groupby(
                     str, up_to=100, over=datetime.timedelta(seconds=seconds)
