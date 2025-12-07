@@ -312,7 +312,7 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 ## 🟡 `.group`
 
-> Groups into `List`s (works with sync or async `by` predicates)
+> Groups into `list`s
 
 > ... `up_to` a given group size:
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
@@ -369,7 +369,7 @@ assert list(ints_by_parity_by_2) == [[0, 2], [1, 3], [4, 6], [5, 7], [8], [9]]
 
 ## 🟡 `.groupby`
 
-> Like `.group`, but groups into `(key, elements)` tuples (sync or async `key`):
+> Like `.group`, but groups into `(key, elements)` tuples:
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
@@ -401,7 +401,7 @@ assert list(counts_by_parity) == [("even", 5), ("odd", 5)]
 
 ## 🟡 `.flatten`
 
-> Ungroups elements assuming that they are `Iterable`s (or `AsyncIterable`s):
+> Ungroups elements assuming that they are `Iterable` or `AsyncIterable`:
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
@@ -536,7 +536,7 @@ assert list(ints_after_five) == [5, 6, 7, 8, 9]
 
 ## 🟡 `.catch`
 
-> Catches a given type of exception, and optionally `replace` it (sync or async):
+> Catches a given type of exception, and optionally `replace` it:
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
@@ -674,7 +674,7 @@ assert list(cubes) == [0, 1, 8, 27, 64, 125, 216, 343, 512, 729]
 
 ## 🟡 `()` / `await`
 
-> *Calling* the stream iterates over it until exhaustion, and returns it:
+> *Calling* the stream iterates over it until exhaustion without collecting its elements, and returns it:
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
@@ -685,7 +685,7 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 </details>
 
-> *Awaiting* the stream iterates over it as an `AsyncIterable` until exhaustion, and returns it:
+> *Awaiting* the stream iterates over it as an `AsyncIterable` until exhaustion without collecting its elements, and returns it:
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
