@@ -51,7 +51,7 @@ V = TypeVar("V")
 
 class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
     """
-    ``stream[T]`` enriches any ``Iterable[T]`` or ``AsyncIterable[T]`` with a small set of expressive, lazy operations for elegant data manipulation, including thread/coroutine concurrency, batching, rate limiting, and error handling.
+    ``stream[T]`` enriches any ``Iterable[T]`` or ``AsyncIterable[T]`` with a small set of chainable lazy operations for elegant data manipulation, including thread/coroutine concurrency, batching, rate limiting, and error handling.
 
     A ``stream[T]`` is both an ``Iterable[T]`` and an `AsyncIterable[T]``: a convenient bridge between the sync and async worlds.
 
