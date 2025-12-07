@@ -232,8 +232,6 @@ def truncate(
 def atruncate(
     loop: asyncio.AbstractEventLoop,
     iterator: Iterator[T],
-    when: Union[int, Callable[[T], Coroutine[Any, Any, Any]]],
+    when: Callable[[T], Coroutine[Any, Any, Any]],
 ) -> Iterator[T]:
-    if isinstance(when, int):
-        return CountTruncateIterator(iterator, when)
     return PredicateTruncateIterator(iterator, syncify(loop, when))
