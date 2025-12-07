@@ -568,30 +568,23 @@ assert list(status_codes_ignoring_resolution_errors) == [200, 404]
 ```
 </details>
 
-> It has an optional `finally_raise: bool` parameter to raise the first exception caught (if any) when the iteration terminates.
-
-> [!TIP]
-> Leverage `when` to apply side effects on catch:
+> You can `do` a side effect on catch:
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
-errors: list[Exception] = []
-
-def store_error(error: Exception) -> bool:
-    errors.append(error)  # applies effect
-    return True  # signals to catch the error
-
-ints_in_string: stream[int] = (
-    stream("012345foo6789")
-    .map(int)
-    .catch(ValueError, when=store_error)
+errors: List[Exception] = []
+inverses: stream[float] = (
+    ints
+    .map(lambda n: round(1 / n, 2))
+    .catch(ZeroDivisionError, do=errors.append)
 )
-
-assert list(ints_in_string) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-assert len(errors) == len("foo")
+assert list(inverses) == [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
+assert len(errors) == 1
 ```
 </details>
+
+> Set `finally_raise=True` parameter to raise the first exception caught (if any) when the iteration stops.
 
 ## 🟡 `.throttle`
 

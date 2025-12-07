@@ -39,18 +39,23 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
     def visit_catch_stream(
         self, stream: CatchStream[T, U]
     ) -> AsyncIterator[Union[T, U]]:
-        if (not stream._when or not iscoroutinefunction(stream._when)) and (
-            not stream._replace or not iscoroutinefunction(stream._replace)
+        if (
+            not iscoroutinefunction(stream._when)
+            and not iscoroutinefunction(stream._replace)
+            and not iscoroutinefunction(stream._do)
         ):
             return _afunctions.catch(
                 stream.upstream.accept(cast(AsyncIteratorVisitor[Union[T, U]], self)),
                 stream._errors,
                 when=stream._when,
                 replace=cast(Callable[[Exception], U], stream._replace),
+                do=stream._do,
                 finally_raise=stream._finally_raise,
             )
-        elif (not stream._when or iscoroutinefunction(stream._when)) and (
-            not stream._replace or iscoroutinefunction(stream._replace)
+        elif (
+            (not stream._when or iscoroutinefunction(stream._when))
+            and (not stream._replace or iscoroutinefunction(stream._replace))
+            and (not stream._do or iscoroutinefunction(stream._do))
         ):
             return _afunctions.acatch(
                 stream.upstream.accept(cast(AsyncIteratorVisitor[Union[T, U]], self)),
@@ -59,10 +64,11 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
                 replace=cast(
                     Callable[[Exception], Coroutine[Any, Any, U]], stream._replace
                 ),
+                do=stream._do,
                 finally_raise=stream._finally_raise,
             )
         raise TypeError(
-            "`when` and `replace` must both be coroutine functions or neither should be"
+            "`when`/`replace`/`do` must all be coroutine functions or neither should be"
         )
 
     def visit_distinct_stream(self, stream: DistinctStream[T]) -> AsyncIterator[T]:

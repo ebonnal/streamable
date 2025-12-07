@@ -193,19 +193,14 @@ def test_catch_example() -> None:
     assert list(status_codes_ignoring_resolution_errors) == [200, 404]
 
     errors: List[Exception] = []
-
-    def store_error(error: Exception) -> bool:
-        errors.append(error)
-        return True
-
-    ints_in_string: stream[int] = (
-        stream("012345foo6789")
-        .map(int)
-        .catch(ValueError, when=store_error)
+    inverses_: stream[float] = (
+        ints
+        .map(lambda n: round(1 / n, 2))
+        .catch(ZeroDivisionError, do=errors.append)
     )
+    assert list(inverses_) == [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
+    assert len(errors) == 1
 
-    assert list(ints_in_string) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-    assert len(errors) == len("foo")
 
 def test_truncate_example() -> None:
     five_first_ints: stream[int] = ints.truncate(5)

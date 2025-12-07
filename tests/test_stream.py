@@ -1161,24 +1161,26 @@ def test_catch(itype: IterableType, adapt) -> None:
     ) == list(ints_src)
     with pytest.raises(
         TypeError,
-        match="`when` and `replace` must both be coroutine functions or neither should be",
+        match="`when`/`replace`/`do` must all be coroutine functions or neither should be",
     ):
         to_list(
             stream(ints_src).catch(Exception, when=identity, replace=async_identity),
             itype=itype,
         )  # type: ignore
 
-    def f(i):
+    def fn(i):
         return i / (3 - i)
 
-    ints = stream(lambda: map(f, ints_src))
+    stream_ = stream(lambda: map(fn, ints_src))
     safe_src = list(ints_src)
     del safe_src[3]
     # If the exception type matches the `error_type`, then the impacted element should be ignored.
-    assert to_list(ints.catch(ZeroDivisionError), itype=itype) == list(map(f, safe_src))
+    assert to_list(stream_.catch(ZeroDivisionError), itype=itype) == list(
+        map(fn, safe_src)
+    )
     # If a non-caught exception type occurs, then it should be raised.
     with pytest.raises(ZeroDivisionError):
-        to_list(ints.catch(TestError), itype=itype)
+        to_list(stream_.catch(TestError), itype=itype)
 
     first_value = 1
     second_value = 2
@@ -1286,6 +1288,16 @@ def test_catch(itype: IterableType, adapt) -> None:
     ) == list(map(lambda n: 1 / n, range(2, 10, 2)))
     # `catch` should accept multiple types
     assert errors_counter == {TestError: 5, ValueError: 3, ZeroDivisionError: 1}
+
+    # `do` side effect should be correctly applied
+    errors: List[Exception] = []
+    to_list(
+        stream([0, 1, 0, 1, 0])
+        .map(lambda n: round(1 / n, 2))
+        .catch(ZeroDivisionError, do=adapt(errors.append)),
+        itype=itype,
+    )
+    assert len(errors) == 3
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)

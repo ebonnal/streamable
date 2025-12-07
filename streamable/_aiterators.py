@@ -63,12 +63,14 @@ class ACatchAsyncIterator(AsyncIterator[Union[T, U]]):
         errors: Union[Type[Exception], Tuple[Type[Exception], ...]],
         when: Optional[Callable[[Exception], Coroutine[Any, Any, Any]]],
         replace: Optional[Callable[[Exception], Coroutine[Any, Any, U]]],
+        do: Optional[Callable[[Exception], Coroutine[Any, Any, Any]]],
         finally_raise: bool,
     ) -> None:
         self.iterator = iterator
         self.errors = errors
         self.when = when
         self.replace = replace
+        self.do = do
         self.finally_raise = finally_raise
         self._to_be_finally_raised: Optional[Exception] = None
 
@@ -85,6 +87,8 @@ class ACatchAsyncIterator(AsyncIterator[Union[T, U]]):
                 raise
             except self.errors as e:
                 if not self.when or await self.when(e):
+                    if self.do:
+                        await self.do(e)
                     if self.finally_raise and not self._to_be_finally_raised:
                         self._to_be_finally_raised = e
                     if self.replace:

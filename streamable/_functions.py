@@ -52,6 +52,7 @@ def catch(
     *,
     when: Optional[Callable[[Exception], Any]] = None,
     replace: Optional[Callable[[Exception], U]] = None,
+    do: Optional[Callable[[Exception], Any]] = None,
     finally_raise: bool = False,
 ) -> Iterator[Union[T, U]]:
     return CatchIterator(
@@ -59,6 +60,7 @@ def catch(
         errors,
         when=when,
         replace=replace,
+        do=do,
         finally_raise=finally_raise,
     )
 
@@ -70,6 +72,7 @@ def acatch(
     *,
     when: Optional[Callable[[Exception], Coroutine[Any, Any, Any]]] = None,
     replace: Optional[Callable[[Exception], Coroutine[Any, Any, U]]] = None,
+    do: Optional[Callable[[Exception], Coroutine[Any, Any, Any]]] = None,
     finally_raise: bool = False,
 ) -> Iterator[Union[T, U]]:
     return catch(
@@ -77,6 +80,7 @@ def acatch(
         errors,
         when=syncify(loop, when) if when else None,
         replace=syncify(loop, replace) if replace else None,
+        do=syncify(loop, do) if do else None,
         finally_raise=finally_raise,
     )
 
