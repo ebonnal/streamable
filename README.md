@@ -676,13 +676,15 @@ If at one point during the iteration an exception is raised and caught, the iter
 
 ## performances
 
-Declaring a `stream` is lazy,
+All the operations process elements on-the-fly. At any point in time, concurrent operations only keep `concurrency` elements in memory for processing.
+
+There is *zero overhead during iteration compared to builtins*:
 
 ```python
 odd_int_strings = stream(range(1_000_000)).filter(lambda n: n % 2).map(str)
 ```
 
-and there is *zero overhead during iteration compared to builtins*, `iter(odd_int_strings)` visits the operations lineage and returns exactly this iterator:
+`iter(odd_int_strings)` visits the operations lineage and returns exactly this iterator:
 
 ```python
 map(str, filter(lambda n: n % 2, range(1_000_000)))
