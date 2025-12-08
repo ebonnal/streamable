@@ -612,20 +612,20 @@ import pandas as pd
 
 ## starmap
 
-The `star` function decorator transforms a function that takes several positional arguments into a function that takes a tuple:
+The `star` function decorator transforms a function that takes several positional arguments into a function that takes a tuple. `astar` is the equivalent for async functions.
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
 from streamable import star
 
-zeros: stream[int] = (
-    stream(enumerate(ints))
-    .map(star(lambda index, integer: index - integer))
+indexed_pokemons: stream[str] = (
+    stream(enumerate(pokemons))
+    .map(star(lambda index, poke: f"#{index + 1} {poke}"))
 )
-
-assert list(zeros) == [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+assert list(indexed_pokemons) == ['#1 bulbasaur', '#2 ivysaur', '#3 venusaur', '#4 charmander', '#5 charmeleon', '#6 charizard', '#7 squirtle', '#8 wartortle', '#9 blastoise']
 ```
+
 </details>
 
 

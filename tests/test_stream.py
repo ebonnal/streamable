@@ -5,6 +5,7 @@ import copy
 import datetime
 import math
 import queue
+import re
 import sys
 import threading
 import time
@@ -36,7 +37,7 @@ import pytest
 
 from streamable import stream
 from streamable._utils._async import awaitable_to_coroutine
-from streamable._utils._func import anostop, asyncify, nostop, star
+from streamable._utils._func import anostop, astar, asyncify, nostop, star
 from streamable._utils._iter import sync_to_async_iter, sync_to_bi_iterable
 from tests.utils import (
     ITERABLE_TYPES,
@@ -120,6 +121,16 @@ def test_repr(complex_stream: stream, complex_stream_str: str) -> None:
     assert (
         str(print_stream) == "stream([]).map(star(print), concurrency=1, ordered=True)"
     )
+
+    async def foo():
+        pass
+
+    foo_stream: stream = stream([]).filter(astar(foo))
+    assert (
+        re.sub("0x[a-z0-9]+", "0x", repr(foo_stream))
+        == "stream([]).filter(astar(<function test_repr.<locals>.foo at 0x>))"
+    )
+    assert str(foo_stream) == "stream([]).filter(astar(foo))"
     # `repr` should work as expected on a stream with many operation
     assert str(complex_stream) == complex_stream_str
     # explanation of different streams must be different

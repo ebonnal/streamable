@@ -1,6 +1,6 @@
 import asyncio
-
-from streamable._utils._func import sidify, star
+import pytest
+from streamable._utils._func import astar, sidify, star
 from streamable._utils._future import (
     ExecutorFIFOFutureResultCollection,
     FutureResult,
@@ -22,16 +22,28 @@ def test_sidify() -> None:
     assert g(2) == 2
 
 
-def test_star() -> None:
-    assert list(map(star(lambda i, n: i * n), enumerate(range(10)))) == list(
-        map(lambda x: x**2, range(10))
-    )
-
+@pytest.mark.asyncio
+async def test_star() -> None:
     @star
-    def mul(a: int, b: int) -> int:
-        return a * b
+    def add(a: int, b: int) -> int:
+        return a + b
 
-    assert list(map(mul, enumerate(range(10)))) == list(map(lambda x: x**2, range(10)))
+    assert add((2, 5)) == 7
+
+    assert star(lambda a, b: a + b)((2, 5)) == 7
+
+    @astar
+    async def sleepy_add(a: int, b: int) -> int:
+        await asyncio.sleep(1)
+        return a + b
+
+    assert (await sleepy_add((2, 5))) == 7
+
+    async def sleepy_add_(a: int, b: int) -> int:
+        await asyncio.sleep(1)
+        return a + b
+
+    assert (await astar(sleepy_add_)((2, 5))) == 7
 
 
 def test_os_future_result_collection_anext():

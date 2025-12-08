@@ -128,6 +128,59 @@ def star(func: Callable[..., R]) -> Callable[[Tuple], R]:
     return _Star(func)
 
 
+# fmt: off
+@overload
+def astar(func: Callable[[T], Coroutine[Any, Any, R]]) -> Callable[[Tuple], Coroutine[Any, Any, R]]: ...
+@overload
+def astar(func: Callable[[T1, T2], Coroutine[Any, Any, R]]) -> Callable[[Tuple[T1, T2]], Coroutine[Any, Any, R]]: ...
+@overload
+def astar(func: Callable[[T1, T2, T3], Coroutine[Any, Any, R]]) -> Callable[[Tuple[T1, T2, T3]], Coroutine[Any, Any, R]]: ...
+@overload
+def astar(func: Callable[[T1, T2, T3, T4], Coroutine[Any, Any, R]]) -> Callable[[Tuple[T1, T2, T3, T4]], Coroutine[Any, Any, R]]: ...
+@overload
+def astar(func: Callable[[T1, T2, T3, T4, T5], Coroutine[Any, Any, R]]) -> Callable[[Tuple[T1, T2, T3, T4, T5]], Coroutine[Any, Any, R]]: ...
+@overload
+def astar(func: Callable[[T1, T2, T3, T4, T5, T6], Coroutine[Any, Any, R]]) -> Callable[[Tuple[T1, T2, T3, T4, T5, T6]], Coroutine[Any, Any, R]]: ...
+@overload
+def astar(func: Callable[[T1, T2, T3, T4, T5, T6, T7], Coroutine[Any, Any, R]]) -> Callable[[Tuple[T1, T2, T3, T4, T5, T6, T7]], Coroutine[Any, Any, R]]: ...
+@overload
+def astar(func: Callable[[T1, T2, T3, T4, T5, T6, T7, T8], Coroutine[Any, Any, R]]) -> Callable[[Tuple[T1, T2, T3, T4, T5, T6, T7, T8]], Coroutine[Any, Any, R]]: ...
+@overload
+def astar(func: Callable[[T1, T2, T3, T4, T5, T6, T7, T8, T9], Coroutine[Any, Any, R]]) -> Callable[[Tuple[T1, T2, T3, T4, T5, T6, T7, T8, T9]], Coroutine[Any, Any, R]]: ...
+@overload
+def astar(func: Callable[..., Coroutine[Any, Any, R]]) -> Callable[[Tuple], Coroutine[Any, Any, R]]: ...
+# fmt: on
+
+
+def astar(
+    func: Callable[..., Coroutine[Any, Any, R]],
+) -> Callable[[Tuple], Coroutine[Any, Any, R]]:
+    """
+    Transforms an async function that takes several positional arguments into an async function that takes a tuple.
+
+    .. code-block:: python
+
+        @astar
+        async def sleepy_add(a: int, b: int) -> int:
+            await asyncio.sleep(1)
+            return a + b
+
+        assert await sleepy_add((2, 5)) == 7
+
+        async def sleepy_add(a: int, b: int) -> int:
+            await asyncio.sleep(1)
+            return a + b
+
+        assert await astar(sleepy_add)((2, 5)) == 7
+    """
+
+    async def __astarred__(args: Tuple) -> R:
+        return await func(*args)
+
+    setattr(__astarred__, "__astarred__", func)
+    return __astarred__
+
+
 class _Syncify(Generic[T, R], CloseEventLoopMixin):
     def __init__(
         self,

@@ -107,21 +107,11 @@ async def test_async_amap_example_iter() -> None:
 def test_starmap_example() -> None:
     from streamable import star
 
-    indexed_pokemons: stream[str] = stream(enumerate(pokemons)).map(
-        star(lambda index, poke: f"#{index + 1} {poke}")
+    indexed_pokemons: stream[str] = (
+        stream(enumerate(pokemons))
+        .map(star(lambda index, poke: f"#{index + 1} {poke}"))
     )
-    assert list(indexed_pokemons) == [
-        "#1 bulbasaur",
-        "#2 ivysaur",
-        "#3 venusaur",
-        "#4 charmander",
-        "#5 charmeleon",
-        "#6 charizard",
-        "#7 squirtle",
-        "#8 wartortle",
-        "#9 blastoise",
-    ]
-
+    assert list(indexed_pokemons) == ['#1 bulbasaur', '#2 ivysaur', '#3 venusaur', '#4 charmander', '#5 charmeleon', '#6 charizard', '#7 squirtle', '#8 wartortle', '#9 blastoise']
 
 def test_do_example() -> None:
     state: List[int] = []
