@@ -39,10 +39,15 @@ ints: stream[int] = stream(range(10))
 Chain ***lazy*** operations (only evaluated during iteration), each returning a new ***immutable*** `stream`:
 
 ```python
-inverses: stream[float] = (
+from json import JSONDecodeError
+import httpx
+
+pokemons: stream[str] = (
     ints
-    .map(lambda n: round(1 / n, 2))
-    .catch(ZeroDivisionError)
+    .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
+    .map(httpx.Client().get, concurrency=2)
+    .map(lambda poke: poke.json()["name"])
+    .catch(JSONDecodeError)
 )
 ```
 
@@ -53,12 +58,12 @@ inverses: stream[float] = (
 A `stream` is ***both*** `Iterable` and `AsyncIterable`:
 
 ```python
->>> list(inverses)
-[1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
->>> [i for i in inverses]
-[1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
->>> [i async for i in inverses]
-[1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
+>>> list(pokemons)
+['bulbasaur', 'ivysaur', 'venusaur', 'charmander', 'charmeleon', 'charizard', 'squirtle', 'wartortle', 'blastoise']
+>>> [poke for poke in pokemons]
+['bulbasaur', 'ivysaur', 'venusaur', 'charmander', 'charmeleon', 'charizard', 'squirtle', 'wartortle', 'blastoise']
+>>> [poke async for poke in pokemons]
+['bulbasaur', 'ivysaur', 'venusaur', 'charmander', 'charmeleon', 'charizard', 'squirtle', 'wartortle', 'blastoise']
 ```
 
 Elements are processed ***on-the-fly*** as the iteration advances.
@@ -80,46 +85,47 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
     fields = ["id", "name", "is_legendary", "base_happiness", "capture_rate"]
     writer = csv.DictWriter(file, fields, extrasaction='ignore')
     writer.writeheader()
-    with httpx.Client() as http_client:
-        pipeline = (
-            # Infinite stream[int] of Pokemon ids starting from Pokémon #1: Bulbasaur
-            stream(count(1))
-            # Limit to 16 requests per second to be friendly to our fellow PokéAPI devs
-            .throttle(16, per=timedelta(seconds=1))
-            # GET pokemons concurrently using a pool of 8 threads
-            .map(lambda poke_id: f"https://pokeapi.co/api/v2/pokemon-species/{poke_id}")
-            .map(http_client.get, concurrency=8)
-            .do(httpx.Response.raise_for_status)
-            .map(httpx.Response.json)
-            # Stop the iteration when reaching the 1st pokemon of the 4th generation
-            .truncate(when=lambda poke: poke["generation"]["name"] == "generation-iv")
-            .observe("pokemons")
-            # Keep only quadruped Pokemons
-            .filter(lambda poke: poke["shape"]["name"] == "quadruped")
-            # Write a batch of pokemons every 5 seconds to the CSV file
-            .group(over=timedelta(seconds=5))
-            .do(writer.writerows)
-            .flatten()
-            .observe("written pokemons")
-            # Catch exceptions and raises the 1st one at the end of the iteration
-            .catch(Exception, finally_raise=True)
-        )
+    
+    pipeline = (
+        # Infinite stream[int] of Pokemon ids starting from Pokémon #1: Bulbasaur
+        stream(count(1))
+        # Limit to 16 requests per second to be friendly to our fellow PokéAPI devs
+        .throttle(16, per=timedelta(seconds=1))
+        # GET pokemons concurrently using a pool of 8 threads
+        .map(lambda poke_id: f"https://pokeapi.co/api/v2/pokemon-species/{poke_id}")
+        .map(httpx.Client().get, concurrency=8)
+        .do(httpx.Response.raise_for_status)
+        .map(httpx.Response.json)
+        # Stop the iteration when reaching the 1st pokemon of the 4th generation
+        .truncate(when=lambda poke: poke["generation"]["name"] == "generation-iv")
+        .observe("pokemons")
+        # Keep only quadruped Pokemons
+        .filter(lambda poke: poke["shape"]["name"] == "quadruped")
+        # Write a batch of pokemons every 5 seconds to the CSV file
+        .group(over=timedelta(seconds=5))
+        .do(writer.writerows)
+        .flatten()
+        .observe("written pokemons")
+        # Catch exceptions and raises the 1st one at the end of the iteration
+        .catch(Exception, finally_raise=True)
+    )
 
-        # Call the stream to consume it (as an Iterable)
-        # without collecting its elements
-        pipeline()
+    # Call the stream to consume it (as an Iterable)
+    # without collecting its elements
+    pipeline()
 ```
 
 ## ... or the `async` way!
 
 All operations also accept coroutine/async functions: you can pass `httpx.AsyncCient.get` to `.map` and the concurrency will happen via the event loop instead of threads.
 
-If you are within an async context you can replace `pipeline()` by `await pipeline` to consume the full stream as an `AsyncIterable` without collecting its elements. Within a sync context, keep `pipeline()` and the `.map` async concurrency will happen via a temporary event loop attached to the stream.
+If you are within an async context, you can replace `pipeline()` by `await pipeline` to consume the full stream as an `AsyncIterable` without collecting its elements.
+
+If you are within a sync context, you can keep `pipeline()` and the `.map` async concurrency will happen within a dedicated event loop.
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
-import asyncio
 import csv
 from datetime import timedelta
 from itertools import count
@@ -131,34 +137,33 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
     writer = csv.DictWriter(file, fields, extrasaction='ignore')
     writer.writeheader()
 
-    async with httpx.AsyncClient() as http_client:
-        pipeline = (
-            # Infinite stream[int] of Pokemon ids starting from Pokémon #1: Bulbasaur
-            stream(count(1))
-            # Limit to 16 requests per second to be friendly to our fellow PokéAPI devs
-            .throttle(16, per=timedelta(seconds=1))
-            # GET pokemons via 8 concurrent coroutines
-            .map(lambda poke_id: f"https://pokeapi.co/api/v2/pokemon-species/{poke_id}")
-            .map(http_client.get, concurrency=8)
-            .do(httpx.Response.raise_for_status)
-            .map(httpx.Response.json)
-            # Stop the iteration when reaching the 1st pokemon of the 4th generation
-            .truncate(when=lambda poke: poke["generation"]["name"] == "generation-iv")
-            .observe("pokemons")
-            # Keep only quadruped Pokemons
-            .filter(lambda poke: poke["shape"]["name"] == "quadruped")
-            # Write a batch of pokemons every 5 seconds to the CSV file
-            .group(over=timedelta(seconds=5))
-            .do(writer.writerows)
-            .flatten()
-            .observe("written pokemons")
-            # Catch exceptions and raises the 1st one at the end of the iteration
-            .catch(Exception, finally_raise=True)
-        )
+    pipeline = (
+        # Infinite stream[int] of Pokemon ids starting from Pokémon #1: Bulbasaur
+        stream(count(1))
+        # Limit to 16 requests per second to be friendly to our fellow PokéAPI devs
+        .throttle(16, per=timedelta(seconds=1))
+        # GET pokemons via 8 concurrent coroutines
+        .map(lambda poke_id: f"https://pokeapi.co/api/v2/pokemon-species/{poke_id}")
+        .map(httpx.AsyncClient().get, concurrency=8)
+        .do(httpx.Response.raise_for_status)
+        .map(httpx.Response.json)
+        # Stop the iteration when reaching the 1st pokemon of the 4th generation
+        .truncate(when=lambda poke: poke["generation"]["name"] == "generation-iv")
+        .observe("pokemons")
+        # Keep only quadruped Pokemons
+        .filter(lambda poke: poke["shape"]["name"] == "quadruped")
+        # Write a batch of pokemons every 5 seconds to the CSV file
+        .group(over=timedelta(seconds=5))
+        .do(writer.writerows)
+        .flatten()
+        .observe("written pokemons")
+        # Catch exceptions and raises the 1st one at the end of the iteration
+        .catch(Exception, finally_raise=True)
+    )
 
-        # await the stream to consume it (as an AsyncIterable)
-        # without collecting its elements
-        await pipeline
+    # await the stream to consume it (as an AsyncIterable)
+    # without collecting its elements
+    await pipeline
 ```
 
 </details>
@@ -221,14 +226,13 @@ If you set a `concurrency > 1`, then the transformation will be applied via `con
 ```python
 import httpx
 
-pokemon_names: stream[str] = (
+pokemons: stream[str] = (
     stream(range(1, 4))
     .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
-    .map(httpx.get, concurrency=3)
-    .map(httpx.Response.json)
-    .map(lambda poke: poke["name"])
+    .map(httpx.Client().get, concurrency=3)
+    .map(lambda poke: poke.json()["name"])
 )
-assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
+assert list(pokemons) == ['bulbasaur', 'ivysaur', 'venusaur']
 ```
 </details>
 
@@ -241,16 +245,16 @@ If you set a `concurrency > 1` and you provided an coroutine function, elements 
 ```python
 import httpx
 
-async with httpx.AsyncClient() as http:
-    pokemon_names: stream[str] = (
-        stream(range(1, 4))
-        .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
-        .map(http.get, concurrency=3)
-        .map(httpx.Response.json)
-        .map(lambda poke: poke["name"])
-    )
-    # consume as an AsyncIterable[str]
-    assert [name async for name in pokemon_names] == ['bulbasaur', 'ivysaur', 'venusaur']
+pokemons: stream[str] = (
+    stream(range(1, 4))
+    .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
+    .map(httpx.AsyncClient().get, concurrency=3)
+    .map(lambda poke: poke.json()["name"])
+)
+# within async context: consume as AsyncIterable
+assert [name async for name in pokemons] == ['bulbasaur', 'ivysaur', 'venusaur']
+# within sync context: consume as Iterable (concurrency will happen in dedicated event loop)
+assert [name for name in pokemons] == ['bulbasaur', 'ivysaur', 'venusaur']
 ```
 </details>
 
