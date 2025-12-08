@@ -35,9 +35,9 @@ async def test_aiterate() -> None:
     assert [inverse async for inverse in inverses] == [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
 
 def test_map_example() -> None:
-    integer_strings: stream[str] = ints.map(str)
+    str_ints: stream[str] = ints.map(str)
 
-    assert list(integer_strings) == ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+    assert list(str_ints) == ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
 
 def test_thread_concurrent_map_example() -> None:
     import httpx

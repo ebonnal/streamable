@@ -196,9 +196,9 @@ Applies a transformation on elements:
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
-integer_strings: stream[str] = ints.map(str)
+str_ints: stream[str] = ints.map(str)
 
-assert list(integer_strings) == ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+assert list(str_ints) == ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
 ```
 </details>
 
