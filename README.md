@@ -191,7 +191,7 @@ All the operations that take a function accept both sync and async functions, yo
 
 ## 🟡 `.map`
 
-> Applies a transformation on elements:
+Applies a transformation on elements:
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
@@ -204,7 +204,7 @@ assert list(integer_strings) == ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9
 
 ### concurrency
 
-> Set the `concurrency: Union[int, Executor]` parameter to apply the transformation concurrently.
+Set the `concurrency: Union[int, Executor]` parameter to apply the transformation concurrently.
 
 > [!NOTE]
 > **Memory-efficient**: Only `concurrency` upstream elements are pulled for processing; the next upstream element is pulled only when a result is yielded downstream.
@@ -214,7 +214,7 @@ assert list(integer_strings) == ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9
 
 #### via threads
 
-> If you set a `concurrency > 1`, then the transformation will be applied via `concurrency` threads.
+If you set a `concurrency > 1`, then the transformation will be applied via `concurrency` threads.
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
@@ -234,7 +234,7 @@ assert list(pokemon_names) == ['bulbasaur', 'ivysaur', 'venusaur']
 
 #### via coroutines
 
-> If you set a `concurrency > 1` and you provided an coroutine function, elements will be transformed concurrently via the event loop.
+If you set a `concurrency > 1` and you provided an coroutine function, elements will be transformed concurrently via the event loop.
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
@@ -256,7 +256,7 @@ async with httpx.AsyncClient() as http:
 
 #### via processes
 
-> It is also possible to pass any `concurrent.futures.Executor` as `concurrency`, so you can pass a `ProcessPoolExecutor` to transform your elements via processes:
+It is also possible to pass any `concurrent.futures.Executor` as `concurrency`, so you can pass a `ProcessPoolExecutor` to transform your elements via processes:
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
@@ -273,7 +273,7 @@ if __name__ == "__main__":
 
 ## 🟡 `.do`
 
-> Applies a side effect on elements:
+Applies a side effect on elements:
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
@@ -288,13 +288,13 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 ### concurrency
 
-> Same as `.map`.
+Same as `.map`.
 
 ## 🟡 `.group`
 
-> Groups into `list`s
+Groups into `list`s ...
 
-> ... `up_to` a given size:
+... `up_to` a given size:
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
@@ -304,7 +304,7 @@ assert list(ints_by_5) == [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]]
 ```
 </details>
 
-> ... `by` a given key:
+... `by` a given key:
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
@@ -315,7 +315,7 @@ assert list(ints_by_parity) == [[0, 2, 4, 6, 8], [1, 3, 5, 7, 9]]
 ```
 </details>
 
-> ... `over` a given time interval:
+... `over` a given time interval:
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
@@ -332,8 +332,7 @@ assert list(ints_within_1_sec) == [[0, 1, 2], [3, 4], [5, 6], [7, 8], [9]]
 ```
 </details>
 
-> [!TIP]
-> Combine the `up_to`/`by`/`over` parameters:
+Combine the `up_to`/`by`/`over` parameters:
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
@@ -349,7 +348,7 @@ assert list(ints_by_parity_by_2) == [[0, 2], [1, 3], [4, 6], [5, 7], [8], [9]]
 
 ## 🟡 `.groupby`
 
-> Like `.group`, but groups into `(key, elements)` tuples:
+Like `.group`, but groups into `(key, elements)` tuples:
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
@@ -364,7 +363,7 @@ assert list(ints_by_parity) == [("even", [0, 2, 4, 6, 8]), ("odd", [1, 3, 5, 7, 
 
 ## 🟡 `.flatten`
 
-> Ungroups elements assuming that they are `Iterable` or `AsyncIterable`:
+Ungroups elements assuming that they are `Iterable` or `AsyncIterable`:
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
@@ -377,7 +376,7 @@ assert list(even_then_odd_ints) == [0, 2, 4, 6, 8, 1, 3, 5, 7, 9]
 
 ### concurrency
 
-> Flattens `concurrency` iterables concurrently (via threads for `Iterable` elements and via coroutines for `AsyncIterable` elements):
+Flattens `concurrency` iterables concurrently (via threads for `Iterable` elements and via coroutines for `AsyncIterable` elements):
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
@@ -392,7 +391,7 @@ assert list(round_robined_ints) == [0, 1, 0, 1, 1, 2, 1, 2]
 
 ## 🟡 `.filter`
 
-> Keeps only the elements that satisfy a condition:
+Keeps only the elements that satisfy a condition:
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
@@ -405,7 +404,7 @@ assert list(even_ints) == [0, 2, 4, 6, 8]
 
 ## 🟡 `.truncate`
 
-> Ends iteration when a given number of elements have been yielded:
+Ends iteration when a given number of elements have been yielded:
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
@@ -416,7 +415,7 @@ assert list(five_first_ints) == [0, 1, 2, 3, 4]
 ```
 </details>
 
-> or `when` a condition is satisfied:
+... or `when` a condition is satisfied:
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
@@ -427,11 +426,11 @@ assert list(five_first_ints) == [0, 1, 2, 3, 4]
 ```
 </details>
 
-> If both `count` and `when` are set, truncation occurs as soon as either condition is met.
+If both `count` and `when` are set, truncation occurs as soon as either condition is met.
 
 ## 🟡 `.skip`
 
-> Skips the first specified number of elements:
+Skips the first specified number of elements:
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
@@ -442,7 +441,7 @@ assert list(ints_after_five) == [5, 6, 7, 8, 9]
 ```
 </details>
 
-> or skips elements `until` a predicate is satisfied:
+or skips elements `until` a predicate is satisfied:
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
@@ -453,11 +452,11 @@ assert list(ints_after_five) == [5, 6, 7, 8, 9]
 ```
 </details>
 
-> If both `count` and `until` are set, skipping stops as soon as either condition is met.
+If both `count` and `until` are set, skipping stops as soon as either condition is met.
 
 ## 🟡 `.catch`
 
-> Catches a given type of exception, and optionally `replace` it:
+Catches a given type of exception, and optionally `replace` it:
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
@@ -472,7 +471,7 @@ assert list(inverses) == [float("inf"), 1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0
 ```
 </details>
 
-> You can specify an additional `when` condition for the catch:
+You can specify an additional `when` condition for the catch:
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
@@ -489,7 +488,7 @@ assert list(status_codes_ignoring_resolution_errors) == [200, 404]
 ```
 </details>
 
-> You can `do` a side effect on catch:
+You can `do` a side effect on catch:
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
@@ -505,11 +504,11 @@ assert len(errors) == 1
 ```
 </details>
 
-> Set `finally_raise=True` parameter to raise the first exception caught (if any) when the iteration stops.
+Set `finally_raise=True` parameter to raise the first exception caught (if any) when the iteration stops.
 
 ## 🟡 `.throttle`
 
-> Limits the number of yields `per` time interval:
+Limits the number of yields `per` time interval:
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
@@ -526,7 +525,7 @@ assert list(three_ints_per_second) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 ## 🟡 `.observe`
 
-> Logs the progress of iterations:
+Logs the progress of iterations:
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
@@ -542,18 +541,18 @@ INFO: [duration=0:00:04.003852 errors=0] 10 ints yielded
 ```
 </details>
 
-> A new log is emitted when the number of yielded elements (or errors) reaches powers of 2.
+A new log is emitted when the number of yielded elements (or errors) reaches powers of 2.
 
-> To emit a log every *n* elements, set `every=n`.
+To emit a log every *n* elements, set `every=n`.
 
-> To emit a log every *n* seconds, set `every=timedelta(seconds=n)`.
+To emit a log every *n* seconds, set `every=timedelta(seconds=n)`.
 
-> Logs are emitted by `logging.getLogger("streamable")`.
+Logs are emitted by `logging.getLogger("streamable")`.
 
 
 ## 🟡`+` (concat)
 
-> Concatenates streams:
+Concatenates streams:
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
@@ -564,7 +563,7 @@ assert list(ints + ints) == [0, 1, 2, 3 ,4, 5, 6, 7, 8, 9, 0, 1, 2, 3 ,4, 5, 6, 
 
 ## 🟡 `__call__` / `await`
 
-> *Calling* the stream iterates over it until exhaustion without collecting its elements, and returns it:
+*Calling* the stream iterates over it until exhaustion without collecting its elements, and returns it:
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
@@ -575,7 +574,7 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 </details>
 
-> *Awaiting* the stream iterates over it as an `AsyncIterable` until exhaustion without collecting its elements, and returns it:
+*Awaiting* the stream iterates over it as an `AsyncIterable` until exhaustion without collecting its elements, and returns it:
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
@@ -589,7 +588,7 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 ## 🟡 `.pipe`
 
-> Calls a function, passing the stream as first argument, followed by `*args/**kwargs` if any:
+Calls a function, passing the stream as first argument, followed by `*args/**kwargs` if any:
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
@@ -609,7 +608,7 @@ import pandas as pd
 
 ## starmap
 
-> The `star` function decorator transforms a function that takes several positional arguments into a function that takes a tuple:
+The `star` function decorator transforms a function that takes several positional arguments into a function that takes a tuple:
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
@@ -628,7 +627,7 @@ assert list(zeros) == [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
 ## zip
 
-> Use the builtins' `zip` function:
+Use the builtins' `zip` function:
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
@@ -647,9 +646,9 @@ assert list(cubes) == [0, 1, 8, 27, 64, 125, 216, 343, 512, 729]
 
 ##  distinct
 
-> To collect distinct elements you can `set(a_stream)`.
+To collect distinct elements you can `set(a_stream)`.
 
-> To deduplicates in the middle of the stream, `.filter` new values and `.do` add them into a `set` (or a fancier external cache):
+To deduplicates in the middle of the stream, `.filter` new values and `.do` add them into a `set` (or a fancier external cache):
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
