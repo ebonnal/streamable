@@ -117,7 +117,7 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
 
 ## ... or the `async` way!
 
-All operations also accept coroutine/async functions: you can pass `httpx.AsyncCient.get` to `.map` and the concurrency will happen via the event loop instead of threads.
+All operations also accept coroutine/async functions: you can pass `httpx.AsyncClient().get` to `.map` and the concurrency will happen via the event loop instead of threads.
 
 If you are within an async context, you can replace `pipeline()` by `await pipeline` to consume the full stream as an `AsyncIterable` without collecting its elements.
 
@@ -171,7 +171,7 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
 # 📒 ***Operations***
 
 > [!IMPORTANT]
-> A `stream` exposes a minimalist yet expressive set of operations to manipulate its elements, but creating its source or consuming it is not its responsability, it's meant to be combined with specialized libraries (`csv`, `json`, `pyarrow`, `psycopg2`, `boto3`, `requests`, `httpx`, ...).
+> A `stream` exposes a minimalist yet expressive set of operations to manipulate its elements, but creating its source or consuming it is not its responsability, it's meant to be combined with standard and specialized libraries (`csv`, `json`, `pyarrow`, `psycopg2`, `boto3`, `requests`, `httpx`, ...).
 
 
 Let's do a quick tour of the operations (check the [***docs***](https://streamable.readthedocs.io/en/latest/api.html) for more details).
@@ -209,7 +209,7 @@ assert list(str_ints) == ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
 
 ### concurrency
 
-Set the `concurrency: Union[int, Executor]` parameter to apply the transformation concurrently.
+Set the `concurrency` parameter to apply the transformation concurrently.
 
 > [!NOTE]
 > **Memory-efficient**: Only `concurrency` upstream elements are pulled for processing; the next upstream element is pulled only when a result is yielded downstream.
