@@ -208,18 +208,18 @@ class GroupbyIterator(_BaseGroupIterator[T], Iterator[Tuple[U, List[T]]]):
     def __init__(
         self,
         iterator: Iterator[T],
-        key: Callable[[T], U],
+        by: Callable[[T], U],
         up_to: Optional[int],
         over: Optional[datetime.timedelta],
     ) -> None:
         super().__init__(iterator, up_to, over)
-        self.key = key
+        self.by = by
         self._is_exhausted = False
         self._groups_by: DefaultDict[U, List[T]] = defaultdict(list)
 
     def _group_next_elem(self) -> None:
         elem = self.iterator.__next__()
-        self._groups_by[self.key(elem)].append(elem)
+        self._groups_by[self.by(elem)].append(elem)
 
     def _pop_full_group(self) -> Optional[Tuple[U, List[T]]]:
         for key, group in self._groups_by.items():
@@ -589,11 +589,11 @@ class _ConcurrentMapIterable(_BaseConcurrentMapIterable[T, U]):
     def __init__(
         self,
         iterator: Iterator[T],
-        to: Callable[[T], U],
+        into: Callable[[T], U],
         concurrency: Union[int, Executor],
         ordered: bool,
     ) -> None:
-        self.to = to
+        self.to = into
         if isinstance(concurrency, int):
             self.executor: Executor = ThreadPoolExecutor(max_workers=concurrency)
             super().__init__(
@@ -630,14 +630,14 @@ class ConcurrentMapIterator(_RaisingIterator[U]):
     def __init__(
         self,
         iterator: Iterator[T],
-        to: Callable[[T], U],
+        into: Callable[[T], U],
         concurrency: Union[int, Executor],
         ordered: bool,
     ) -> None:
         super().__init__(
             _ConcurrentMapIterable(
                 iterator,
-                to,
+                into,
                 concurrency,
                 ordered,
             ).__iter__()
@@ -649,12 +649,12 @@ class _ConcurrentAMapIterable(_BaseConcurrentMapIterable[T, U], CloseEventLoopMi
         self,
         loop: asyncio.AbstractEventLoop,
         iterator: Iterator[T],
-        to: Callable[[T], Coroutine[Any, Any, U]],
+        into: Callable[[T], Coroutine[Any, Any, U]],
         concurrency: int,
         ordered: bool,
     ) -> None:
         super().__init__(iterator, concurrency, ordered)
-        self.to = to
+        self.to = into
         self.loop = loop
         self._semaphore: Optional[asyncio.Semaphore] = None
 
@@ -690,7 +690,7 @@ class ConcurrentAMapIterator(_RaisingIterator[U]):
         self,
         loop: asyncio.AbstractEventLoop,
         iterator: Iterator[T],
-        to: Callable[[T], Coroutine[Any, Any, U]],
+        into: Callable[[T], Coroutine[Any, Any, U]],
         concurrency: int,
         ordered: bool,
     ) -> None:
@@ -698,7 +698,7 @@ class ConcurrentAMapIterator(_RaisingIterator[U]):
             _ConcurrentAMapIterable(
                 loop,
                 iterator,
-                to,
+                into,
                 concurrency,
                 ordered,
             ).__iter__()

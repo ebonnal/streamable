@@ -91,7 +91,7 @@ async def test_async_amap_example_aiter() -> None:
     assert [name async for name in pokemons] == ["bulbasaur", "ivysaur", "venusaur"]
 
 
-async def test_async_amap_example_iter() -> None:
+def test_async_amap_example_iter() -> None:
     import httpx
 
     pokemons: stream[str] = (

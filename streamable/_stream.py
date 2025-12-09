@@ -546,7 +546,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
     @overload
     def groupby(
         self,
-        key: Callable[[T], Coroutine[Any, Any, U]],
+        by: Callable[[T], Coroutine[Any, Any, U]],
         *,
         up_to: Optional[int] = None,
         over: Optional[datetime.timedelta] = None,
@@ -555,7 +555,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
     @overload
     def groupby(
         self,
-        key: Callable[[T], U],
+        by: Callable[[T], U],
         *,
         up_to: Optional[int] = None,
         over: Optional[datetime.timedelta] = None,
@@ -563,7 +563,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
     def groupby(
         self,
-        key: Union[
+        by: Union[
             Callable[[T], U],
             Callable[[T], Coroutine[Any, Any, U]],
         ],
@@ -581,7 +581,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         - The upstream source is exhausted.
 
         Args:
-            key (``Callable[[T], U] | Callable[[T], Coroutine[Any, Any, U]]``): A function that returns the group key for an element.
+            by (``Callable[[T], U] | Callable[[T], Coroutine[Any, Any, U]]``): A function that returns the group key for an element.
             up_to (``int | None``, optional): The maximum size of the group. (default: no size limit)
             over (``datetime.timedelta | None``, optional): Yields a group if this time interval has elapsed since the last group was yielded. (default: no time limit)
 
@@ -592,7 +592,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             validate_int(up_to, gte=1, name="up_to")
         if over is not None:
             validate_positive_timedelta(over, name="over")
-        return GroupbyStream(self, key, up_to, over)
+        return GroupbyStream(self, by, up_to, over)
 
     @overload
     def map(
@@ -912,12 +912,12 @@ class GroupStream(DownStream[T, List[T]]):
 
 
 class GroupbyStream(DownStream[T, Tuple[U, List[T]]]):
-    __slots__ = ("_key", "_up_to", "_over")
+    __slots__ = ("_by", "_up_to", "_over")
 
     def __init__(
         self,
         upstream: stream[T],
-        key: Union[
+        by: Union[
             Callable[[T], U],
             Callable[[T], Coroutine[Any, Any, U]],
         ],
@@ -925,7 +925,7 @@ class GroupbyStream(DownStream[T, Tuple[U, List[T]]]):
         over: Optional[datetime.timedelta],
     ) -> None:
         super().__init__(upstream)
-        self._key = key
+        self._by = by
         self._up_to = up_to
         self._over = over
 

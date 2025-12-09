@@ -65,7 +65,7 @@ class ToStringVisitor(Visitor[str], ABC):
 
     def visit_groupby_stream(self, stream: GroupbyStream) -> str:
         self.methods_reprs.append(
-            f"groupby({self.to_string(stream._key)}, up_to={self.to_string(stream._up_to)}, over={self.to_string(stream._over)})"
+            f"groupby({self.to_string(stream._by)}, up_to={self.to_string(stream._up_to)}, over={self.to_string(stream._over)})"
         )
         return stream.upstream.accept(self)
 

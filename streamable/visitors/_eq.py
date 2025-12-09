@@ -70,7 +70,7 @@ class EqualityVisitor(Visitor[bool]):
         return (
             self.type_eq(stream)
             and stream.upstream.accept(EqualityVisitor(self.other.upstream))
-            and stream._key == self.other._key
+            and stream._by == self.other._by
             and stream._up_to == self.other._up_to
             and stream._over == self.other._over
         )

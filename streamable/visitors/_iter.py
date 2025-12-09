@@ -1,10 +1,8 @@
 import asyncio
 from inspect import iscoroutinefunction
 from typing import (
-    Any,
     AsyncIterable,
     Callable,
-    Coroutine,
     Iterable,
     Iterator,
     Optional,
@@ -31,7 +29,6 @@ from streamable._stream import (
 from streamable._utils._func import (
     async_sidify,
     sidify,
-    syncify,
 )
 from streamable._utils._iter import async_to_sync_iter
 from streamable.visitors import Visitor
@@ -51,48 +48,21 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         return self.loop
 
     def visit_catch_stream(self, stream: CatchStream[T, U]) -> Iterator[Union[T, U]]:
-        if (
-            not iscoroutinefunction(stream._when)
-            and not iscoroutinefunction(stream._replace)
-            and not iscoroutinefunction(stream._do)
-        ):
-            return _functions.catch(
-                stream.upstream.accept(cast(IteratorVisitor[Union[T, U]], self)),
-                stream._errors,
-                when=stream._when,
-                replace=cast(Callable[[Exception], U], stream._replace),
-                do=stream._do,
-                finally_raise=stream._finally_raise,
-            )
-        elif (
-            (not stream._when or iscoroutinefunction(stream._when))
-            and (not stream._replace or iscoroutinefunction(stream._replace))
-            and (not stream._do or iscoroutinefunction(stream._do))
-        ):
-            return _functions.acatch(
-                self._get_loop(),
-                stream.upstream.accept(cast(IteratorVisitor[Union[T, U]], self)),
-                stream._errors,
-                when=stream._when,
-                replace=cast(
-                    Callable[[Exception], Coroutine[Any, Any, U]], stream._replace
-                ),
-                do=stream._do,
-                finally_raise=stream._finally_raise,
-            )
-        raise TypeError(
-            "`when`/`replace`/`do` must all be coroutine functions or neither should be"
+        return _functions.catch(
+            self._get_loop,
+            stream.upstream.accept(cast(IteratorVisitor[Union[T, U]], self)),
+            stream._errors,
+            when=stream._when,
+            replace=stream._replace,
+            do=stream._do,
+            finally_raise=stream._finally_raise,
         )
 
     def visit_filter_stream(self, stream: FilterStream[T]) -> Iterator[T]:
-        if iscoroutinefunction(stream._where):
-            return filter(
-                syncify(self._get_loop(), stream._where),
-                cast(Iterable[T], stream.upstream.accept(self)),
-            )
-        return filter(
+        return _functions.filter(
+            self._get_loop,
             stream._where,
-            cast(Iterable[T], stream.upstream.accept(self)),
+            stream.upstream.accept(self),
         )
 
     def visit_flatten_stream(self, stream: FlattenStream[T]) -> Iterator[T]:
@@ -105,39 +75,22 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         )
 
     def visit_do_stream(self, stream: DoStream[T]) -> Iterator[T]:
-        if iscoroutinefunction(stream._effect):
-            return self.visit_map_stream(
-                MapStream(
-                    stream.upstream,
-                    async_sidify(stream._effect),
-                    stream._concurrency,
-                    stream._ordered,
-                )
-            )
         return self.visit_map_stream(
             MapStream(
                 stream.upstream,
-                sidify(cast(Callable[[T], Any], stream._effect)),
+                async_sidify(stream._effect)
+                if iscoroutinefunction(stream._effect)
+                else sidify(stream._effect),
                 stream._concurrency,
                 stream._ordered,
             )
         )
 
     def visit_group_stream(self, stream: GroupStream[U]) -> Iterator[T]:
-        if iscoroutinefunction(stream._by):
-            return cast(
-                Iterator[T],
-                _functions.agroup(
-                    self._get_loop(),
-                    stream.upstream.accept(cast(IteratorVisitor[U], self)),
-                    stream._up_to,
-                    over=stream._over,
-                    by=stream._by,
-                ),
-            )
         return cast(
             Iterator[T],
             _functions.group(
+                self._get_loop,
                 stream.upstream.accept(cast(IteratorVisitor[U], self)),
                 stream._up_to,
                 over=stream._over,
@@ -146,37 +99,20 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         )
 
     def visit_groupby_stream(self, stream: GroupbyStream[U, T]) -> Iterator[T]:
-        if iscoroutinefunction(stream._key):
-            return cast(
-                Iterator[T],
-                _functions.agroupby(
-                    self._get_loop(),
-                    stream.upstream.accept(cast(IteratorVisitor[U], self)),
-                    stream._key,
-                    up_to=stream._up_to,
-                    over=stream._over,
-                ),
-            )
         return cast(
             Iterator[T],
             _functions.groupby(
+                self._get_loop,
                 stream.upstream.accept(cast(IteratorVisitor[U], self)),
-                stream._key,
+                stream._by,
                 up_to=stream._up_to,
                 over=stream._over,
             ),
         )
 
     def visit_map_stream(self, stream: MapStream[U, T]) -> Iterator[T]:
-        if iscoroutinefunction(stream._into):
-            return _functions.amap(
-                self._get_loop(),
-                stream._into,
-                stream.upstream.accept(cast(IteratorVisitor[U], self)),
-                concurrency=cast(int, stream._concurrency),
-                ordered=stream._ordered,
-            )
         return _functions.map(
+            self._get_loop,
             cast(Callable[[U], T], stream._into),
             stream.upstream.accept(cast(IteratorVisitor[U], self)),
             concurrency=stream._concurrency,
@@ -191,18 +127,8 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         )
 
     def visit_skip_stream(self, stream: SkipStream[T]) -> Iterator[T]:
-        if isinstance(stream._until, int):
-            return _functions.skip(
-                stream.upstream.accept(self),
-                until=stream._until,
-            )
-        if iscoroutinefunction(stream._until):
-            return _functions.askip(
-                self._get_loop(),
-                stream.upstream.accept(self),
-                until=stream._until,
-            )
         return _functions.skip(
+            self._get_loop,
             stream.upstream.accept(self),
             until=stream._until,
         )
@@ -215,18 +141,8 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         )
 
     def visit_truncate_stream(self, stream: TruncateStream[T]) -> Iterator[T]:
-        if isinstance(stream._when, int):
-            return _functions.truncate(
-                stream.upstream.accept(self),
-                when=stream._when,
-            )
-        if iscoroutinefunction(stream._when):
-            return _functions.atruncate(
-                self._get_loop(),
-                stream.upstream.accept(self),
-                when=stream._when,
-            )
         return _functions.truncate(
+            self._get_loop,
             stream.upstream.accept(self),
             when=stream._when,
         )

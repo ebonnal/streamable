@@ -3,6 +3,7 @@ import builtins
 from concurrent.futures import Executor
 import datetime
 from contextlib import suppress
+from inspect import iscoroutinefunction
 from operator import itemgetter
 from typing import (
     Any,
@@ -20,23 +21,7 @@ from typing import (
     cast,
 )
 
-from streamable._iterators import (
-    CatchIterator,
-    ConcurrentAMapIterator,
-    ConcurrentFlattenIterator,
-    ConcurrentMapIterator,
-    CountSkipIterator,
-    CountTruncateIterator,
-    EveryIntObserveIterator,
-    EveryIntervalObserveIterator,
-    FlattenIterator,
-    GroupbyIterator,
-    GroupIterator,
-    PowerObserveIterator,
-    PredicateSkipIterator,
-    PredicateTruncateIterator,
-    YieldsPerPeriodThrottleIterator,
-)
+from streamable import _iterators
 from streamable._utils._func import syncify
 
 with suppress(ImportError):
@@ -47,41 +32,44 @@ U = TypeVar("U")
 
 
 def catch(
+    loop_getter: Callable[[], asyncio.AbstractEventLoop],
     iterator: Iterator[T],
     errors: Union[Type[Exception], Tuple[Type[Exception], ...]],
     *,
-    when: Optional[Callable[[Exception], Any]] = None,
-    replace: Optional[Callable[[Exception], U]] = None,
-    do: Optional[Callable[[Exception], Any]] = None,
+    when: Optional[
+        Union[
+            Callable[[Exception], Any], Callable[[Exception], Coroutine[Any, Any, Any]]
+        ]
+    ] = None,
+    replace: Optional[
+        Union[Callable[[Exception], U], Callable[[Exception], Coroutine[Any, Any, U]]]
+    ] = None,
+    do: Optional[
+        Union[
+            Callable[[Exception], Any], Callable[[Exception], Coroutine[Any, Any, Any]]
+        ]
+    ] = None,
     finally_raise: bool = False,
 ) -> Iterator[Union[T, U]]:
-    return CatchIterator(
+    return _iterators.CatchIterator(
         iterator,
         errors,
-        when=when,
-        replace=replace,
-        do=do,
+        when=syncify(loop_getter(), when) if iscoroutinefunction(when) else when,
+        replace=syncify(loop_getter(), replace)
+        if iscoroutinefunction(replace)
+        else replace,
+        do=syncify(loop_getter(), do) if iscoroutinefunction(do) else do,
         finally_raise=finally_raise,
     )
 
 
-def acatch(
-    loop: asyncio.AbstractEventLoop,
+def filter(
+    loop_getter: Callable[[], asyncio.AbstractEventLoop],
+    where: Union[Callable[[T], Any], Callable[[T], Coroutine[Any, Any, Any]]],
     iterator: Iterator[T],
-    errors: Union[Type[Exception], Tuple[Type[Exception], ...]],
-    *,
-    when: Optional[Callable[[Exception], Coroutine[Any, Any, Any]]] = None,
-    replace: Optional[Callable[[Exception], Coroutine[Any, Any, U]]] = None,
-    do: Optional[Callable[[Exception], Coroutine[Any, Any, Any]]] = None,
-    finally_raise: bool = False,
-) -> Iterator[Union[T, U]]:
-    return catch(
-        iterator,
-        errors,
-        when=syncify(loop, when) if when else None,
-        replace=syncify(loop, replace) if replace else None,
-        do=syncify(loop, do) if do else None,
-        finally_raise=finally_raise,
+) -> Iterator[T]:
+    return builtins.filter(
+        syncify(loop_getter(), where) if iscoroutinefunction(where) else where, iterator
     )
 
 
@@ -92,8 +80,8 @@ def flatten(
     concurrency: int = 1,
 ) -> Iterator[T]:
     if concurrency == 1:
-        return FlattenIterator(loop_getter, iterator)
-    return ConcurrentFlattenIterator(
+        return _iterators.FlattenIterator(loop_getter, iterator)
+    return _iterators.ConcurrentFlattenIterator(
         loop_getter,
         iterator,
         concurrency=concurrency,
@@ -101,120 +89,102 @@ def flatten(
 
 
 def group(
+    loop_getter: Callable[[], asyncio.AbstractEventLoop],
     iterator: Iterator[T],
     up_to: Optional[int] = None,
     *,
     over: Optional[datetime.timedelta] = None,
-    by: Optional[Callable[[T], Any]] = None,
+    by: Optional[
+        Union[Callable[[T], Any], Callable[[T], Coroutine[Any, Any, Any]]]
+    ] = None,
 ) -> Iterator[List[T]]:
     if by is None:
-        return GroupIterator(iterator, up_to, over)
-    return map(itemgetter(1), GroupbyIterator(iterator, by, up_to, over))
-
-
-def agroup(
-    loop: asyncio.AbstractEventLoop,
-    iterator: Iterator[T],
-    up_to: Optional[int] = None,
-    *,
-    over: Optional[datetime.timedelta] = None,
-    by: Optional[Callable[[T], Coroutine[Any, Any, Any]]] = None,
-) -> Iterator[List[T]]:
-    return group(
-        iterator,
-        up_to,
-        over=over,
-        by=syncify(loop, by) if by else None,
+        return _iterators.GroupIterator(iterator, up_to, over)
+    return builtins.map(
+        itemgetter(1),
+        _iterators.GroupbyIterator(
+            iterator,
+            by=cast(
+                Callable[[T], Any],
+                syncify(loop_getter(), by) if iscoroutinefunction(by) else by,
+            ),
+            up_to=up_to,
+            over=over,
+        ),
     )
 
 
 def groupby(
+    loop_getter: Callable[[], asyncio.AbstractEventLoop],
     iterator: Iterator[T],
-    key: Callable[[T], U],
+    by: Union[Callable[[T], U], Callable[[T], Coroutine[Any, Any, U]]],
     *,
     up_to: Optional[int] = None,
     over: Optional[datetime.timedelta] = None,
 ) -> Iterator[Tuple[U, List[T]]]:
-    return GroupbyIterator(iterator, key, up_to, over)
-
-
-def agroupby(
-    loop: asyncio.AbstractEventLoop,
-    iterator: Iterator[T],
-    key: Callable[[T], Coroutine[Any, Any, U]],
-    *,
-    up_to: Optional[int] = None,
-    over: Optional[datetime.timedelta] = None,
-) -> Iterator[Tuple[U, List[T]]]:
-    return groupby(
+    return _iterators.GroupbyIterator(
         iterator,
-        syncify(loop, key),
-        up_to=up_to,
-        over=over,
+        syncify(loop_getter(), by) if iscoroutinefunction(by) else by,
+        up_to,
+        over,
     )
 
 
 def map(
-    into: Callable[[T], U],
+    loop_getter: Callable[[], asyncio.AbstractEventLoop],
+    into: Union[Callable[[T], U], Callable[[T], Coroutine[Any, Any, U]]],
     iterator: Iterator[T],
     *,
     concurrency: Union[int, Executor] = 1,
     ordered: bool = True,
 ) -> Iterator[U]:
     if concurrency == 1:
-        return builtins.map(into, iterator)
-    return ConcurrentMapIterator(
-        iterator,
-        into,
-        concurrency=concurrency,
-        ordered=ordered,
-    )
-
-
-def amap(
-    loop: asyncio.AbstractEventLoop,
-    into: Callable[[T], Coroutine[Any, Any, U]],
-    iterator: Iterator[T],
-    *,
-    concurrency: int = 1,
-    ordered: bool = True,
-) -> Iterator[U]:
-    if concurrency == 1:
-        return map(syncify(loop, into), iterator)
-    return ConcurrentAMapIterator(
-        loop,
-        iterator,
-        into,
-        concurrency=cast(int, concurrency),
-        ordered=ordered,
-    )
+        return builtins.map(
+            cast(
+                Callable[[T], U],
+                syncify(loop_getter(), into) if iscoroutinefunction(into) else into,
+            ),
+            iterator,
+        )
+    if iscoroutinefunction(into):
+        return _iterators.ConcurrentAMapIterator(
+            loop_getter(),
+            iterator,
+            into,
+            concurrency=cast(int, concurrency),
+            ordered=ordered,
+        )
+    else:
+        return _iterators.ConcurrentMapIterator(
+            iterator,
+            cast(Callable[[T], U], into),
+            concurrency=concurrency,
+            ordered=ordered,
+        )
 
 
 def observe(
-    iterator: Iterator[T], label: str, every: Optional[Union[int, datetime.timedelta]]
+    iterator: Iterator[T],
+    label: str,
+    every: Optional[Union[int, datetime.timedelta]],
 ) -> Iterator[T]:
     if every is None:
-        return PowerObserveIterator(iterator, label)
+        return _iterators.PowerObserveIterator(iterator, label)
     elif isinstance(every, int):
-        return EveryIntObserveIterator(iterator, label, every)
-    return EveryIntervalObserveIterator(iterator, label, every)
+        return _iterators.EveryIntObserveIterator(iterator, label, every)
+    return _iterators.EveryIntervalObserveIterator(iterator, label, every)
 
 
 def skip(
+    loop_getter: Callable[[], asyncio.AbstractEventLoop],
     iterator: Iterator[T],
-    until: Union[int, Callable[[T], Any]],
+    until: Union[int, Callable[[T], Any], Callable[[T], Coroutine[Any, Any, Any]]],
 ) -> Iterator[T]:
     if isinstance(until, int):
-        return CountSkipIterator(iterator, until)
-    return PredicateSkipIterator(iterator, until)
-
-
-def askip(
-    loop: asyncio.AbstractEventLoop,
-    iterator: Iterator[T],
-    until: Callable[[T], Coroutine[Any, Any, Any]],
-) -> Iterator[T]:
-    return PredicateSkipIterator(iterator, syncify(loop, until))
+        return _iterators.CountSkipIterator(iterator, until)
+    return _iterators.PredicateSkipIterator(
+        iterator, syncify(loop_getter(), until) if iscoroutinefunction(until) else until
+    )
 
 
 def throttle(
@@ -224,22 +194,17 @@ def throttle(
     per: Optional[datetime.timedelta] = None,
 ) -> Iterator[T]:
     if count and per:
-        iterator = YieldsPerPeriodThrottleIterator(iterator, count, per)
+        iterator = _iterators.YieldsPerPeriodThrottleIterator(iterator, count, per)
     return iterator
 
 
 def truncate(
+    loop_getter: Callable[[], asyncio.AbstractEventLoop],
     iterator: Iterator[T],
-    when: Union[int, Callable[[T], Any]],
+    when: Union[int, Callable[[T], Any], Callable[[T], Coroutine[Any, Any, Any]]],
 ) -> Iterator[T]:
     if isinstance(when, int):
-        return CountTruncateIterator(iterator, when)
-    return PredicateTruncateIterator(iterator, when)
-
-
-def atruncate(
-    loop: asyncio.AbstractEventLoop,
-    iterator: Iterator[T],
-    when: Callable[[T], Coroutine[Any, Any, Any]],
-) -> Iterator[T]:
-    return PredicateTruncateIterator(iterator, syncify(loop, when))
+        return _iterators.CountTruncateIterator(iterator, when)
+    return _iterators.PredicateTruncateIterator(
+        iterator, syncify(loop_getter(), when) if iscoroutinefunction(when) else when
+    )

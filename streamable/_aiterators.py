@@ -55,7 +55,7 @@ U = TypeVar("U")
 #########
 
 
-class ACatchAsyncIterator(AsyncIterator[Union[T, U]]):
+class CatchAsyncIterator(AsyncIterator[Union[T, U]]):
     def __init__(
         self,
         iterator: AsyncIterator[T],
@@ -192,24 +192,24 @@ class GroupAsyncIterator(_BaseGroupAsyncIterator[T], AsyncIterator[List[T]]):
         return group
 
 
-class AGroupbyAsyncIterator(
+class GroupbyAsyncIterator(
     _BaseGroupAsyncIterator[T], AsyncIterator[Tuple[U, List[T]]]
 ):
     def __init__(
         self,
         iterator: AsyncIterator[T],
-        key: Callable[[T], Coroutine[Any, Any, U]],
+        by: Callable[[T], Coroutine[Any, Any, U]],
         up_to: Optional[int],
         over: Optional[datetime.timedelta],
     ) -> None:
         super().__init__(iterator, up_to, over)
-        self.key = key
+        self.by = by
         self._is_exhausted = False
         self._groups_by: DefaultDict[U, List[T]] = defaultdict(list)
 
     async def _group_next_elem(self) -> None:
         elem = await self.iterator.__anext__()
-        self._groups_by[await self.key(elem)].append(elem)
+        self._groups_by[await self.by(elem)].append(elem)
 
     def _pop_full_group(self) -> Optional[Tuple[U, List[T]]]:
         for key, group in self._groups_by.items():
@@ -288,7 +288,7 @@ class CountSkipAsyncIterator(AsyncIterator[T]):
         return await self.iterator.__anext__()
 
 
-class PredicateASkipAsyncIterator(AsyncIterator[T]):
+class PredicateSkipAsyncIterator(AsyncIterator[T]):
     def __init__(
         self, iterator: AsyncIterator[T], until: Callable[[T], Coroutine[Any, Any, Any]]
     ) -> None:
@@ -324,7 +324,7 @@ class CountTruncateAsyncIterator(AsyncIterator[T]):
         return elem
 
 
-class PredicateATruncateAsyncIterator(AsyncIterator[T]):
+class PredicateTruncateAsyncIterator(AsyncIterator[T]):
     def __init__(
         self, iterator: AsyncIterator[T], when: Callable[[T], Coroutine[Any, Any, Any]]
     ) -> None:
@@ -347,14 +347,14 @@ class PredicateATruncateAsyncIterator(AsyncIterator[T]):
 #######
 
 
-class AMapAsyncIterator(AsyncIterator[U]):
+class MapAsyncIterator(AsyncIterator[U]):
     def __init__(
         self,
         iterator: AsyncIterator[T],
-        to: Callable[[T], Coroutine[Any, Any, U]],
+        into: Callable[[T], Coroutine[Any, Any, U]],
     ) -> None:
         self.iterator = iterator
-        self.to = to
+        self.to = into
 
     async def __anext__(self) -> U:
         return await self.to(await self.iterator.__anext__())
@@ -365,7 +365,7 @@ class AMapAsyncIterator(AsyncIterator[U]):
 ##########
 
 
-class AFilterAsyncIterator(AsyncIterator[T]):
+class FilterAsyncIterator(AsyncIterator[T]):
     def __init__(
         self,
         iterator: AsyncIterator[T],
@@ -629,11 +629,11 @@ class _ConcurrentMapAsyncIterable(_BaseConcurrentMapAsyncIterable[T, U]):
     def __init__(
         self,
         iterator: AsyncIterator[T],
-        to: Callable[[T], U],
+        into: Callable[[T], U],
         concurrency: Union[int, Executor],
         ordered: bool,
     ) -> None:
-        self.to = to
+        self.to = into
         if isinstance(concurrency, int):
             self.executor: Executor = ThreadPoolExecutor(max_workers=concurrency)
             super().__init__(
@@ -664,14 +664,14 @@ class ConcurrentMapAsyncIterator(_RaisingAsyncIterator[U]):
     def __init__(
         self,
         iterator: AsyncIterator[T],
-        to: Callable[[T], U],
+        into: Callable[[T], U],
         concurrency: Union[int, Executor],
         ordered: bool,
     ) -> None:
         super().__init__(
             _ConcurrentMapAsyncIterable(
                 iterator,
-                to,
+                into,
                 concurrency,
                 ordered,
             ).__aiter__()
@@ -682,12 +682,12 @@ class _ConcurrentAMapAsyncIterable(_BaseConcurrentMapAsyncIterable[T, U]):
     def __init__(
         self,
         iterator: AsyncIterator[T],
-        to: Callable[[T], Coroutine[Any, Any, U]],
+        into: Callable[[T], Coroutine[Any, Any, U]],
         concurrency: int,
         ordered: bool,
     ) -> None:
         super().__init__(iterator, concurrency, ordered)
-        self.to = to
+        self.to = into
         self._semaphore: Optional[asyncio.Semaphore] = None
 
     @property
@@ -714,14 +714,14 @@ class ConcurrentAMapAsyncIterator(_RaisingAsyncIterator[U]):
     def __init__(
         self,
         iterator: AsyncIterator[T],
-        to: Callable[[T], Coroutine[Any, Any, U]],
+        into: Callable[[T], Coroutine[Any, Any, U]],
         concurrency: int,
         ordered: bool,
     ) -> None:
         super().__init__(
             _ConcurrentAMapAsyncIterable(
                 iterator,
-                to,
+                into,
                 concurrency,
                 ordered,
             ).__aiter__()

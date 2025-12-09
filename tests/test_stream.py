@@ -123,7 +123,7 @@ def test_repr(complex_stream: stream, complex_stream_str: str) -> None:
     )
 
     async def foo():
-        pass
+        pass  # pragma: no cover
 
     foo_stream: stream = stream([]).filter(astar(foo))
     assert (
@@ -1156,14 +1156,6 @@ def test_catch(itype: IterableType, adapt) -> None:
     assert to_list(
         stream(ints_src).catch(Exception, finally_raise=True), itype=itype
     ) == list(ints_src)
-    with pytest.raises(
-        TypeError,
-        match="`when`/`replace`/`do` must all be coroutine functions or neither should be",
-    ):
-        to_list(
-            stream(ints_src).catch(Exception, when=identity, replace=async_identity),
-            itype=itype,
-        )  # type: ignore
 
     def fn(i):
         return i / (3 - i)
@@ -1286,15 +1278,21 @@ def test_catch(itype: IterableType, adapt) -> None:
     # `catch` should accept multiple types
     assert errors_counter == {TestError: 5, ValueError: 3, ZeroDivisionError: 1}
 
-    # `do` side effect should be correctly applied
     errors: List[Exception] = []
-    to_list(
-        stream([0, 1, 0, 1, 0])
-        .map(lambda n: round(1 / n, 2))
-        .catch(ZeroDivisionError, do=adapt(errors.append)),
-        itype=itype,
-    )
-    assert len(errors) == 3
+    # test sync/async combinations
+    for when, do in (
+        (identity, adapt(errors.append)),
+        (adapt(identity), errors.append),
+    ):
+        # `do` side effect should be correctly applied
+        errors.clear()
+        to_list(
+            stream([0, 1, 0, 1, 0])
+            .map(lambda n: round(1 / n, 2))
+            .catch(ZeroDivisionError, when=when, do=do),
+            itype=itype,
+        )
+        assert len(errors) == 3
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
