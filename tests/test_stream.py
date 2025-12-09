@@ -1294,6 +1294,19 @@ def test_catch(itype: IterableType, adapt) -> None:
         )
         assert len(errors) == 3
 
+    # test `terminate` on exception
+    assert to_list(
+        stream("01-3").map(int).catch(ValueError, terminate=True),
+        itype,
+    ) == [0, 1]
+    # test `terminate` on exception, with replacement as last elem
+    assert to_list(
+        stream("01-3")
+        .map(int)
+        .catch(ValueError, terminate=True, replace=lambda err: -1),
+        itype,
+    ) == [0, 1, -1]
+
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_observe(itype: IterableType) -> None:

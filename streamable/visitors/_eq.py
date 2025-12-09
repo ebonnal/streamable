@@ -32,6 +32,7 @@ class EqualityVisitor(Visitor[bool]):
             and stream._when == self.other._when
             and stream._replace == self.other._replace
             and stream._finally_raise == self.other._finally_raise
+            and stream._terminate == self.other._terminate
         )
 
     def visit_filter_stream(self, stream: FilterStream) -> bool:

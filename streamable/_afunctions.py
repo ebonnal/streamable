@@ -65,6 +65,7 @@ def catch(
         ]
     ] = None,
     finally_raise: bool = False,
+    terminate: bool = False,
 ) -> AsyncIterator[Union[T, U]]:
     return CatchAsyncIterator(
         aiterator,
@@ -75,6 +76,7 @@ def catch(
         else asyncify(replace),
         do=do if not do or iscoroutinefunction(do) else asyncify(do),
         finally_raise=finally_raise,
+        terminate=terminate,
     )
 
 

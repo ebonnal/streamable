@@ -510,6 +510,8 @@ assert len(errors) == 1
 
 Set `finally_raise=True` parameter to raise the first exception caught (if any) when the iteration stops.
 
+Set `terminate=True` to stop the iteration if an exception is caught.
+
 ## 🟡 `.throttle`
 
 Limits the number of yields `per` time interval:

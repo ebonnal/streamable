@@ -37,7 +37,7 @@ class ToStringVisitor(Visitor[str], ABC):
         else:
             errors = self.to_string(stream._errors)
         self.methods_reprs.append(
-            f"catch({errors}, when={self.to_string(stream._when)}{replace}, finally_raise={self.to_string(stream._finally_raise)})"
+            f"catch({errors}, when={self.to_string(stream._when)}{replace}, finally_raise={self.to_string(stream._finally_raise)}, terminate={self.to_string(stream._terminate)})"
         )
         return stream.upstream.accept(self)
 

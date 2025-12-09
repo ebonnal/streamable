@@ -50,6 +50,7 @@ def catch(
         ]
     ] = None,
     finally_raise: bool = False,
+    terminate: bool = False,
 ) -> Iterator[Union[T, U]]:
     return _iterators.CatchIterator(
         iterator,
@@ -60,6 +61,7 @@ def catch(
         else replace,
         do=syncify(loop_getter(), do) if iscoroutinefunction(do) else do,
         finally_raise=finally_raise,
+        terminate=terminate,
     )
 
 

@@ -64,6 +64,7 @@ class CatchAsyncIterator(AsyncIterator[Union[T, U]]):
         replace: Optional[Callable[[Exception], Coroutine[Any, Any, U]]],
         do: Optional[Callable[[Exception], Coroutine[Any, Any, Any]]],
         finally_raise: bool,
+        terminate: bool,
     ) -> None:
         self.iterator = iterator
         self.errors = errors
@@ -72,9 +73,13 @@ class CatchAsyncIterator(AsyncIterator[Union[T, U]]):
         self.do = do
         self.finally_raise = finally_raise
         self._to_be_finally_raised: Optional[Exception] = None
+        self.terminate = terminate
+        self._terminated = False
 
     async def __anext__(self) -> Union[T, U]:
         while True:
+            if self._terminated:
+                raise StopAsyncIteration()
             try:
                 return await self.iterator.__anext__()
             except StopAsyncIteration:
@@ -85,6 +90,8 @@ class CatchAsyncIterator(AsyncIterator[Union[T, U]]):
                         self._to_be_finally_raised = None
                 raise
             except self.errors as e:
+                if self.terminate:
+                    self._terminated = True
                 if not self.when or await self.when(e):
                     if self.do:
                         await self.do(e)

@@ -56,6 +56,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
             replace=stream._replace,
             do=stream._do,
             finally_raise=stream._finally_raise,
+            terminate=stream._terminate,
         )
 
     def visit_filter_stream(self, stream: FilterStream[T]) -> Iterator[T]:

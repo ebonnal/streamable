@@ -71,6 +71,7 @@ class CatchIterator(Iterator[Union[T, U]]):
         replace: Optional[Callable[[Exception], U]],
         do: Optional[Callable[[Exception], Any]],
         finally_raise: bool,
+        terminate: bool,
     ) -> None:
         self.iterator = iterator
         self.errors = errors
@@ -79,9 +80,13 @@ class CatchIterator(Iterator[Union[T, U]]):
         self.do = do
         self.finally_raise = finally_raise
         self._to_be_finally_raised: Optional[Exception] = None
+        self.terminate = terminate
+        self._terminated = False
 
     def __next__(self) -> Union[T, U]:
         while True:
+            if self._terminated:
+                raise StopIteration()
             try:
                 return self.iterator.__next__()
             except StopIteration:
@@ -92,6 +97,8 @@ class CatchIterator(Iterator[Union[T, U]]):
                         self._to_be_finally_raised = None
                 raise
             except self.errors as e:
+                if self.terminate:
+                    self._terminated = True
                 if not self.when or self.when(e):
                     if self.do:
                         self.do(e)
