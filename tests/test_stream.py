@@ -64,7 +64,7 @@ from tests.utils import (
     square,
     ints_src,
     src_raising_at_exhaustion,
-    stopiteration_for_iter_type,
+    stopiteration_type,
     throw,
     throw_for_odd_func,
     throw_func,
@@ -184,10 +184,10 @@ def test_queue_source(itype) -> None:
             ints_queue.put(i)
 
     fill()
-    ints = stream(lambda: ints_queue.get(timeout=2)).catch(Empty, terminate=True)
+    ints = stream(lambda: ints_queue.get(timeout=2)).catch(Empty, stop=True)
     assert to_list(ints, itype) == list(range(10))
     fill()
-    ints = stream(aget).catch(Empty, terminate=True)
+    ints = stream(aget).catch(Empty, stop=True)
     assert to_list(ints, itype) == list(range(10))
 
 
@@ -203,7 +203,7 @@ async def test_aqueue_source(itype) -> None:
     async def queue_get() -> int:
         return await asyncio.wait_for(ints_queue.get(), timeout=2)
 
-    ints: stream[int] = stream(queue_get).catch(TimeoutError, terminate=True)
+    ints: stream[int] = stream(queue_get).catch(TimeoutError, stop=True)
     assert [i async for i in ints] == list(range(10))
 
 
@@ -871,7 +871,7 @@ def test_truncate(itype: IterableType, adapt) -> None:
         anext_or_next(raising_stream_iterator)
     assert alist_or_list(raising_stream_iterator) == list(range(1, count + 1))
     # ... and after reaching the limit it still continues to raise StopIteration on calls to next
-    with pytest.raises(stopiteration_for_iter_type(type(raising_stream_iterator))):
+    with pytest.raises(stopiteration_type(type(raising_stream_iterator))):
         anext_or_next(raising_stream_iterator)
 
     iter_truncated_on_predicate = bi_iterable_to_iter(
@@ -882,7 +882,7 @@ def test_truncate(itype: IterableType, adapt) -> None:
         stream(ints_src).truncate(5), itype=itype
     )
     # After exhaustion a call to __next__ on a truncated iterator must raise StopIteration
-    with pytest.raises(stopiteration_for_iter_type(type(iter_truncated_on_predicate))):
+    with pytest.raises(stopiteration_type(type(iter_truncated_on_predicate))):
         anext_or_next(iter_truncated_on_predicate)
     # an exception raised by `when` must be raised
     with pytest.raises(ZeroDivisionError):
@@ -1051,9 +1051,7 @@ def test_group(itype: IterableType, adapt, nostop_) -> None:
         stream(ints_src).group(
             up_to=3,
             by=nostop_(
-                adapt(
-                    lambda n: throw(stopiteration_for_iter_type(itype)) if n == 2 else n
-                )
+                adapt(lambda n: throw(stopiteration_type(itype)) if n == 2 else n)
             ),
         ),
         itype=itype,
@@ -1063,7 +1061,7 @@ def test_group(itype: IterableType, adapt, nostop_) -> None:
     # `group` should raise and skip `elem` if `by(elem)` raises
     with pytest.raises(
         RuntimeError,
-        match=stopiteration_for_iter_type(itype).__name__,
+        match=stopiteration_type(itype).__name__,
     ):
         anext_or_next(stream_iter)
     # `group` should continue yielding after `by`'s exception has been raised.
@@ -1185,9 +1183,7 @@ def test_throttle(itype: IterableType) -> None:
 )
 def test_catch(itype: IterableType, adapt) -> None:
     # `catch` should yield elements in exception-less scenarios
-    assert to_list(
-        stream(ints_src).catch(Exception, finally_raise=True), itype=itype
-    ) == list(ints_src)
+    assert to_list(stream(ints_src).catch(Exception), itype=itype) == list(ints_src)
 
     def fn(i):
         return i / (3 - i)
@@ -1217,23 +1213,11 @@ def test_catch(itype: IterableType, adapt) -> None:
     ]
 
     caught_erroring_stream: stream[int] = stream(map(lambda f: f(), functions)).catch(
-        Exception, finally_raise=True
+        TestError
     )
-
-    erroring_stream_iterator = bi_iterable_to_iter(caught_erroring_stream, itype=itype)
-    # `catch` should yield the first non exception throwing element.
-    assert anext_or_next(erroring_stream_iterator) == first_value
-    n_yields = 1
-    # `catch` should raise the first error encountered when `finally_raise` is True.
-    with pytest.raises(TestError):
-        while True:
-            anext_or_next(erroring_stream_iterator)
-            n_yields += 1
-    # `catch` with `finally_raise`=True should finally raise StopIteration to avoid infinite recursion if there is another catch downstream.
-    with pytest.raises(stopiteration_for_iter_type(type(erroring_stream_iterator))):
-        anext_or_next(erroring_stream_iterator)
-    # 3 elements should have passed been yielded between caught exceptions.
-    assert n_yields == 3
+    # the first non-caught exception should be raised
+    with pytest.raises(TypeError):
+        to_list(caught_erroring_stream, itype)
 
     only_caught_errors_stream = stream(
         map(lambda _: throw(TestError), range(2000))
@@ -1241,24 +1225,18 @@ def test_catch(itype: IterableType, adapt) -> None:
     # When upstream raise exceptions without yielding any element, listing the stream must return empty list, without recursion issue.
     assert to_list(only_caught_errors_stream, itype=itype) == []
     # When upstream raise exceptions without yielding any element, then the first call to `next` on a stream catching all errors should raise StopIteration.
-    with pytest.raises(stopiteration_for_iter_type(itype)):
+    with pytest.raises(stopiteration_type(itype)):
         anext_or_next(bi_iterable_to_iter(only_caught_errors_stream, itype=itype))
 
+    # `catch`s chain should behave correctly
     iterator = bi_iterable_to_iter(
-        stream(map(throw, [TestError, ValueError]))
-        .catch(ValueError, finally_raise=True)
-        .catch(TestError, finally_raise=True),
+        stream(map(throw, [TestError, ValueError])).catch(ValueError).catch(TestError),
         itype=itype,
     )
-    # With 2 chained `catch`s with `finally_raise=True`, the error caught by the first `catch` is finally raised first (even though it was raised second)...
-    with pytest.raises(ValueError):
+    # no non-raising elements so first next leads to StopIteration
+    with pytest.raises(stopiteration_type(itype)):
         anext_or_next(iterator)
-    # ... and then the error caught by the second `catch` is raised...
-    with pytest.raises(TestError):
-        anext_or_next(iterator)
-    # ... and a StopIteration is raised next.
-    with pytest.raises(stopiteration_for_iter_type(type(iterator))):
-        anext_or_next(iterator)
+
     # `catch` does not catch if `when` not satisfied
     with pytest.raises(TypeError):
         to_list(
@@ -1315,24 +1293,22 @@ def test_catch(itype: IterableType, adapt) -> None:
     ):
         # `do` side effect should be correctly applied
         errors.clear()
-        to_list(
+        assert to_list(
             stream([0, 1, 0, 1, 0])
             .map(lambda n: round(1 / n, 2))
             .catch(ZeroDivisionError, when=when, do=do),
             itype=itype,
-        )
+        ) == [1, 1]
         assert len(errors) == 3
 
-    # test `terminate` on exception
+    # test `stop` on exception
     assert to_list(
-        stream("01-3").map(int).catch(ValueError, terminate=True),
+        stream("01-3").map(int).catch(ValueError, stop=True),
         itype,
     ) == [0, 1]
-    # test `terminate` on exception, with replacement as last elem
+    # test `stop` on exception, with replacement as last elem
     assert to_list(
-        stream("01-3")
-        .map(int)
-        .catch(ValueError, terminate=True, replace=lambda err: -1),
+        stream("01-3").map(int).catch(ValueError, stop=True, replace=lambda err: -1),
         itype,
     ) == [0, 1, -1]
 
@@ -1680,21 +1656,17 @@ def test_ref_cycles(itype: IterableType) -> None:
     async def async_int(o: Any) -> int:
         return int(o)
 
+    errors: List[Exception] = []
     ints = (
         stream("123_5")
         .map(async_int)
         .map(str)
         .group(1)
         .groupby(len)
-        .catch(Exception, finally_raise=True)
+        .catch(Exception, do=errors.append)
     )
-    exception: Exception
-    try:
-        to_list(ints, itype=itype)
-    except ValueError as e:
-        exception = e
-    # `finally_raise` must be respected
-    assert isinstance(exception, ValueError)
+    to_list(ints, itype=itype)
+    exception = errors[0]
     # the exception's traceback should not contain an exception captured in its own traceback
     assert [
         (var, val)

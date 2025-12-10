@@ -63,40 +63,30 @@ class CatchAsyncIterator(AsyncIterator[Union[T, U]]):
         when: Optional[Callable[[Exception], Coroutine[Any, Any, Any]]],
         replace: Optional[Callable[[Exception], Coroutine[Any, Any, U]]],
         do: Optional[Callable[[Exception], Coroutine[Any, Any, Any]]],
-        finally_raise: bool,
-        terminate: bool,
+        stop: bool,
     ) -> None:
         self.iterator = iterator
         self.errors = errors
         self.when = when
         self.replace = replace
         self.do = do
-        self.finally_raise = finally_raise
-        self._to_finally_raised: Optional[Exception] = None
-        self.terminate = terminate
-        self._terminated = False
+        self.stop = stop
+        self._stopped = False
 
     async def __anext__(self) -> Union[T, U]:
         while True:
-            if self._terminated:
+            if self._stopped:
                 raise StopAsyncIteration()
             try:
                 return await self.iterator.__anext__()
             except StopAsyncIteration:
-                if self._to_finally_raised:
-                    try:
-                        raise self._to_finally_raised
-                    finally:
-                        self._to_finally_raised = None
                 raise
             except self.errors as e:
-                if self.terminate:
-                    self._terminated = True
+                if self.stop:
+                    self._stopped = True
                 if not self.when or await self.when(e):
                     if self.do:
                         await self.do(e)
-                    if self.finally_raise and not self._to_finally_raised:
-                        self._to_finally_raised = e
                     if self.replace:
                         return await self.replace(e)
                     continue

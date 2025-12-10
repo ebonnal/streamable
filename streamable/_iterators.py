@@ -70,40 +70,30 @@ class CatchIterator(Iterator[Union[T, U]]):
         when: Optional[Callable[[Exception], Any]],
         replace: Optional[Callable[[Exception], U]],
         do: Optional[Callable[[Exception], Any]],
-        finally_raise: bool,
-        terminate: bool,
+        stop: bool,
     ) -> None:
         self.iterator = iterator
         self.errors = errors
         self.when = when
         self.replace = replace
         self.do = do
-        self.finally_raise = finally_raise
-        self._to_finally_raised: Optional[Exception] = None
-        self.terminate = terminate
-        self._terminated = False
+        self.stop = stop
+        self._stopped = False
 
     def __next__(self) -> Union[T, U]:
         while True:
-            if self._terminated:
+            if self._stopped:
                 raise StopIteration()
             try:
                 return self.iterator.__next__()
             except StopIteration:
-                if self._to_finally_raised:
-                    try:
-                        raise self._to_finally_raised
-                    finally:
-                        self._to_finally_raised = None
                 raise
             except self.errors as e:
-                if self.terminate:
-                    self._terminated = True
+                if self.stop:
+                    self._stopped = True
                 if not self.when or self.when(e):
                     if self.do:
                         self.do(e)
-                    if self.finally_raise and not self._to_finally_raised:
-                        self._to_finally_raised = e
                     if self.replace:
                         return self.replace(e)
                     continue

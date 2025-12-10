@@ -64,8 +64,7 @@ def catch(
             Callable[[Exception], Any], Callable[[Exception], Coroutine[Any, Any, Any]]
         ]
     ] = None,
-    finally_raise: bool = False,
-    terminate: bool = False,
+    stop: bool = False,
 ) -> AsyncIterator[Union[T, U]]:
     return CatchAsyncIterator(
         aiterator,
@@ -75,8 +74,7 @@ def catch(
         if not replace or iscoroutinefunction(replace)
         else asyncify(replace),
         do=do if not do or iscoroutinefunction(do) else asyncify(do),
-        finally_raise=finally_raise,
-        terminate=terminate,
+        stop=stop,
     )
 
 

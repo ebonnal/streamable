@@ -49,8 +49,7 @@ def catch(
             Callable[[Exception], Any], Callable[[Exception], Coroutine[Any, Any, Any]]
         ]
     ] = None,
-    finally_raise: bool = False,
-    terminate: bool = False,
+    stop: bool = False,
 ) -> Iterator[Union[T, U]]:
     return _iterators.CatchIterator(
         iterator,
@@ -60,8 +59,7 @@ def catch(
         if iscoroutinefunction(replace)
         else replace,
         do=syncify(loop_getter(), do) if iscoroutinefunction(do) else do,
-        finally_raise=finally_raise,
-        terminate=terminate,
+        stop=stop,
     )
 
 

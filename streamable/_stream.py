@@ -241,8 +241,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         when: Optional[Callable[[Exception], Coroutine[Any, Any, Any]]] = None,
         replace: Optional[Callable[[Exception], Coroutine[Any, Any, U]]] = None,
         do: Optional[Callable[[Exception], Coroutine[Any, Any, Any]]] = None,
-        finally_raise: bool = False,
-        terminate: bool = False,
+        stop: bool = False,
     ) -> "stream[Union[T, U]]": ...
 
     @overload
@@ -253,8 +252,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         when: Optional[Callable[[Exception], Any]] = None,
         replace: Optional[Callable[[Exception], U]] = None,
         do: Optional[Callable[[Exception], Any]] = None,
-        finally_raise: bool = False,
-        terminate: bool = False,
+        stop: bool = False,
     ) -> "stream[Union[T, U]]": ...
 
     def catch(
@@ -276,21 +274,18 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             Callable[[Exception], Any],
             Callable[[Exception], Coroutine[Any, Any, Any]],
         ] = None,
-        finally_raise: bool = False,
-        terminate: bool = False,
+        stop: bool = False,
     ) -> "stream[Union[T, U]]":
         """
         Catches the upstream exceptions if they are instances of ``errors`` type and they satisfy the ``when`` predicate.
-        Optionally yields a replacement value (returned by ``replace(error)`` or ``await replace(error)``).
-        If any exception was caught during the iteration and ``finally_raise=True``, the first exception caught will be raised when the iteration finishes.
+        Optionally ``replace`` the error by a value (returned by ``replace(error)``), or ``do`` an effect.
 
         Args:
             errors (``Type[Exception] | Tuple[Type[Exception], ...]``): The exception types to catch.
             when (``Callable[[Exception], Any] | Callable[[Exception], Coroutine[Any, Any, Any]] | None``, optional): An additional condition that must be satisfied to catch the exception, i.e. ``when(exception)`` (or ``await when(exception)``) must be truthy. (default: no additional condition)
             replace (``Callable[[Exception], U] | Callable[[Exception], Coroutine[Any, Any, U]] | None``, optional): Replacement value yielded when an exception is caught. (default: do not yield any replacement value)
             do (``Callable[[Exception], Any] | Callable[[Exception], Coroutine[Any, Any, Any]] | None``, optional): Side effect to apply when an exception is caught (default: no side effect)
-            finally_raise (``bool``, optional): If True the first exception caught is raised when upstream's iteration ends. (default: iteration ends without raising)
-            terminate (``bool``, optional): If True, catching an exception will stop the iteration. (default: iteration continues after an exception is caught)
+            stop (``bool``, optional): If True, catching an exception will stop the iteration. (default: iteration continues after an exception is caught)
 
         Returns:
             ``stream[T | U]``: A stream of upstream elements catching the eligible exceptions.
@@ -301,8 +296,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             when=when,
             replace=replace,
             do=do,
-            finally_raise=finally_raise,
-            terminate=terminate,
+            stop=stop,
         )
 
     @overload
@@ -807,7 +801,7 @@ class DownStream(stream[U], Generic[T, U]):
 
 
 class CatchStream(DownStream[T, Union[T, U]]):
-    __slots__ = ("_errors", "_when", "_replace", "_do", "_finally_raise", "_terminate")
+    __slots__ = ("_errors", "_when", "_replace", "_do", "_stop")
 
     def __init__(
         self,
@@ -828,16 +822,14 @@ class CatchStream(DownStream[T, Union[T, U]]):
             Callable[[Exception], Any],
             Callable[[Exception], Coroutine[Any, Any, Any]],
         ],
-        finally_raise: bool,
-        terminate: bool,
+        stop: bool,
     ) -> None:
         super().__init__(upstream)
         self._errors = errors
         self._when = when
         self._replace = replace
         self._do = do
-        self._finally_raise = finally_raise
-        self._terminate = terminate
+        self._stop = stop
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_catch_stream(self)

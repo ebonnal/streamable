@@ -322,7 +322,7 @@ def test_func_source() -> None:
         ints_queue.put(i)
 
     ints: stream[int] = stream(lambda: ints_queue.get(timeout=2)).catch(
-        Empty, terminate=True
+        Empty, stop=True
     )
     assert list(ints) == list(range(10))
 
@@ -338,7 +338,7 @@ async def test_afunc_source() -> None:
     async def queue_get() -> int:
         return await asyncio.wait_for(ints_queue.get(), timeout=2)
 
-    ints: stream[int] = stream(queue_get).catch(TimeoutError, terminate=True)
+    ints: stream[int] = stream(queue_get).catch(TimeoutError, stop=True)
     assert [i async for i in ints] == list(range(10))
 
 
@@ -415,8 +415,6 @@ def test_etl_example(tmp_path: Path) -> None:  # pragma: no cover
             .do(writer.writerows)
             .flatten()
             .observe("written pokemons")
-            # Catch exceptions and raises the 1st one at the end of the iteration
-            .catch(Exception, finally_raise=True)
         )
 
         # Call the stream to consume it (as an Iterable)
@@ -457,8 +455,6 @@ async def test_async_etl_example(tmp_path: Path) -> None:  # pragma: no cover
             .do(writer.writerows)
             .flatten()
             .observe("written pokemons")
-            # Catch exceptions and raises the 1st one at the end of the iteration
-            .catch(Exception, finally_raise=True)
         )
 
         # await the stream to consume it (as an AsyncIterable)

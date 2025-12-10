@@ -106,8 +106,6 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
         .do(writer.writerows)
         .flatten()
         .observe("written pokemons")
-        # Catch exceptions and raises the 1st one at the end of the iteration
-        .catch(Exception, finally_raise=True)
     )
 
     # Call the stream to consume it (as an Iterable)
@@ -157,8 +155,6 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
         .do(writer.writerows)
         .flatten()
         .observe("written pokemons")
-        # Catch exceptions and raises the 1st one at the end of the iteration
-        .catch(Exception, finally_raise=True)
     )
 
     # await the stream to consume it (as an AsyncIterable)
@@ -475,7 +471,7 @@ assert list(inverses) == [float("inf"), 1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0
 ```
 </details>
 
-You can specify an additional `when` condition for the catch:
+Only catch the exception `when` it satisfy a condition:
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
@@ -492,7 +488,7 @@ assert list(status_codes_ignoring_resolution_errors) == [200, 404]
 ```
 </details>
 
-You can `do` a side effect on catch:
+`do` a side effect on catch:
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
@@ -508,9 +504,7 @@ assert len(errors) == 1
 ```
 </details>
 
-Set `finally_raise=True` parameter to raise the first exception caught (if any) when the iteration stops.
-
-Set `terminate=True` to stop the iteration if an exception is caught.
+Set `stop=True` to stop the iteration if an exception is caught.
 
 ## 🟡 `.throttle`
 

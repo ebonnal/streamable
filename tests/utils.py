@@ -50,7 +50,7 @@ def aiterable_to_list(aiterable: AsyncIterable[T]) -> List[T]:
     return asyncio.run(_aiter_to_list(aiterable))
 
 
-def stopiteration_for_iter_type(itype: IterableType) -> Type[Exception]:
+def stopiteration_type(itype: IterableType) -> Type[Exception]:
     if issubclass(itype, AsyncIterable):
         return StopAsyncIteration
     return StopIteration
