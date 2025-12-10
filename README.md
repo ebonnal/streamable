@@ -619,14 +619,9 @@ A `stream` ***can also be instantiated from a function*** (sync or async), it wi
 e.g. stream from a `Queue` source:
 
 ```python
-from queue import Queue, Empty
+queued_ints: queue.Queue[int] = ...
 
-ints_queue: Queue[int] = ...
-
-ints: stream[int] = (
-    stream(lambda: ints_queue.get(timeout=2))
-    .catch(Empty, terminate=True)
-)
+ints: stream[int] = stream(queued_ints.get)
 ```
 
 
