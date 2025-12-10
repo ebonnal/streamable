@@ -26,7 +26,7 @@ from streamable._stream import (
     SkipStream,
     stream,
     ThrottleStream,
-    TruncateStream,
+    HeadStream,
 )
 from streamable._utils._func import (
     async_sidify,
@@ -142,8 +142,8 @@ class IteratorVisitor(Visitor[Iterator[T]]):
             per=stream._per,
         )
 
-    def visit_truncate_stream(self, stream: TruncateStream[T]) -> Iterator[T]:
-        return _functions.truncate(
+    def visit_head_stream(self, stream: HeadStream[T]) -> Iterator[T]:
+        return _functions.head(
             self._get_loop,
             stream.upstream.accept(self),
             when=stream._when,

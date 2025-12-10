@@ -42,5 +42,5 @@ class Visitor(ABC, Generic[V]):
     def visit_throttle_stream(self, stream: _stream.ThrottleStream) -> V:
         return self.visit_stream(stream)
 
-    def visit_truncate_stream(self, stream: _stream.TruncateStream) -> V:
+    def visit_head_stream(self, stream: _stream.HeadStream) -> V:
         return self.visit_stream(stream)

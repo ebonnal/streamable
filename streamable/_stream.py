@@ -737,39 +737,39 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         return ThrottleStream(self, up_to, per)
 
     @overload
-    def truncate(
-        self, *, when: Callable[[T], Coroutine[Any, Any, Any]]
+    def head(
+        self, *, until: Callable[[T], Coroutine[Any, Any, Any]]
     ) -> "stream[T]": ...
 
     @overload
-    def truncate(self, *, when: Callable[[T], Any]) -> "stream[T]": ...
+    def head(self, *, until: Callable[[T], Any]) -> "stream[T]": ...
 
     @overload
-    def truncate(self, when: int) -> "stream[T]": ...
+    def head(self, until: int) -> "stream[T]": ...
 
-    def truncate(
+    def head(
         self,
-        when: Union[
+        until: Union[
             int,
             Callable[[T], Any],
             Callable[[T], Coroutine[Any, Any, Any]],
         ],
     ) -> "stream[T]":
         """
-        Stops iterations over this stream when ``when`` elements have been yielded (if ``int``) or when ``when(elem)`` becomes truthy.
+        Yields at most ``until`` elements (if ``int``) or until ``until(elem)`` becomes truthy.
 
         Args:
-            when (``int | Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``):
+            until (``int | Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``):
 
-                - ``int``: Stops the iteration after ``when`` elements have been yielded.
-                - ``Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``: Stops the iteration when the first element for which ``when(elem)`` (or ``await when(elem)``) is truthy is encountered, that element will not be yielded.
+                - ``int``: Yields at most ``until`` elements.
+                - ``Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``: Yields elements until encountering one for which ``until(elem)`` (or ``await until(elem)``) is truthy; that element will not be yielded.
 
         Returns:
-            ``stream[T]``: A stream whose iteration will stop ``when`` condition is met.
+            ``stream[T]``: A stream of the first upstream elements stopping according to ``until``.
         """
-        if isinstance(when, int):
-            validate_int(when, gte=0, name="when")
-        return TruncateStream(self, when)
+        if isinstance(until, int):
+            validate_int(until, gte=0, name="until")
+        return HeadStream(self, until)
 
 
 class DownStream(stream[U], Generic[T, U]):
@@ -1003,7 +1003,7 @@ class ThrottleStream(DownStream[T, T]):
         return visitor.visit_throttle_stream(self)
 
 
-class TruncateStream(DownStream[T, T]):
+class HeadStream(DownStream[T, T]):
     __slots__ = "_when"
 
     def __init__(
@@ -1019,4 +1019,4 @@ class TruncateStream(DownStream[T, T]):
         self._when = when
 
     def accept(self, visitor: "Visitor[V]") -> V:
-        return visitor.visit_truncate_stream(self)
+        return visitor.visit_head_stream(self)

@@ -97,7 +97,7 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
         .do(httpx.Response.raise_for_status)
         .map(httpx.Response.json)
         # Stop the iteration when reaching the 1st pokemon of the 4th generation
-        .truncate(when=lambda poke: poke["generation"]["name"] == "generation-iv")
+        .head(until=lambda poke: poke["generation"]["name"] == "generation-iv")
         .observe("pokemons")
         # Keep only quadruped Pokemons
         .filter(lambda poke: poke["shape"]["name"] == "quadruped")
@@ -146,7 +146,7 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
         .do(httpx.Response.raise_for_status)
         .map(httpx.Response.json)
         # Stop the iteration when reaching the 1st pokemon of the 4th generation
-        .truncate(when=lambda poke: poke["generation"]["name"] == "generation-iv")
+        .head(until=lambda poke: poke["generation"]["name"] == "generation-iv")
         .observe("pokemons")
         # Keep only quadruped Pokemons
         .filter(lambda poke: poke["shape"]["name"] == "quadruped")
@@ -179,7 +179,7 @@ Let's do a quick tour of the operations (check the [****docs****](https://stream
 [`.group`](#-group) / [`.groupby`](#-groupby)|batch elements up to a size, by a key, over a time interval|
 [`.flatten`](#-flatten)|explode iterable elements|
 [`.filter`](#-filter)|remove elements|
-[`.truncate`](#-truncate)|cut the stream|
+[`.head`](#-head)|select only first elements|
 [`.skip`](#-skip)|ignore head elements|
 [`.catch`](#-catch)|handle exceptions|
 [`.throttle`](#-throttle)|rate-limit the iteration|

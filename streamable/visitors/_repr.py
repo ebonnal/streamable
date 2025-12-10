@@ -13,7 +13,7 @@ from streamable._stream import (
     SkipStream,
     stream,
     ThrottleStream,
-    TruncateStream,
+    HeadStream,
 )
 from streamable._utils._func import _Star
 from streamable.visitors import Visitor
@@ -91,8 +91,8 @@ class ToStringVisitor(Visitor[str], ABC):
         )
         return stream.upstream.accept(self)
 
-    def visit_truncate_stream(self, stream: TruncateStream) -> str:
-        self.methods_reprs.append(f"truncate(when={self.to_string(stream._when)})")
+    def visit_head_stream(self, stream: HeadStream) -> str:
+        self.methods_reprs.append(f"head(until={self.to_string(stream._when)})")
         return stream.upstream.accept(self)
 
     def visit_stream(self, stream: stream) -> str:

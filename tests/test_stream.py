@@ -841,32 +841,30 @@ def test_skip(itype: IterableType, adapt) -> None:
     "itype, adapt",
     ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
 )
-def test_truncate(itype: IterableType, adapt) -> None:
-    # `truncate` must be ok with `when` >= stream length
-    assert to_list(stream(ints_src).truncate(N * 2), itype=itype) == list(ints_src)
-    # `truncate` must be ok with `when` >= 1
-    assert to_list(stream(ints_src).truncate(2), itype=itype) == [0, 1]
-    # `truncate` must be ok with `when` == 1
-    assert to_list(stream(ints_src).truncate(1), itype=itype) == [0]
-    # `truncate` must be ok with `when` == 0
-    assert to_list(stream(ints_src).truncate(0), itype=itype) == []
-    # `truncate` must raise ValueError if `when` is negative
+def test_head(itype: IterableType, adapt) -> None:
+    # `head` must be ok with `until` >= stream length
+    assert to_list(stream(ints_src).head(N * 2), itype=itype) == list(ints_src)
+    # `head` must be ok with `until` >= 1
+    assert to_list(stream(ints_src).head(2), itype=itype) == [0, 1]
+    # `head` must be ok with `until` == 1
+    assert to_list(stream(ints_src).head(1), itype=itype) == [0]
+    # `head` must be ok with `until` == 0
+    assert to_list(stream(ints_src).head(0), itype=itype) == []
+    # `head` must raise ValueError if `until` is negative
     with pytest.raises(
         ValueError,
-        match="`when` must be >= 0 but got -1",
+        match="`until` must be >= 0 but got -1",
     ):
-        stream(ints_src).truncate(-1)
+        stream(ints_src).head(-1)
 
-    # `truncate` must be no-op if `when` greater than source's size
-    assert to_list(stream(ints_src).truncate(sys.maxsize), itype=itype) == list(
-        ints_src
-    )
+    # `head` must be no-op if `until` greater than source's size
+    assert to_list(stream(ints_src).head(sys.maxsize), itype=itype) == list(ints_src)
     count = N // 2
     raising_stream_iterator = bi_iterable_to_iter(
-        stream(map(lambda x: round((1 / x) * x**2), ints_src)).truncate(count),
+        stream(map(lambda x: round((1 / x) * x**2), ints_src)).head(count),
         itype=itype,
     )
-    # `truncate` should not stop iteration when encountering exceptions and raise them without counting them...
+    # `head` should not stop iteration when encountering exceptions and raise them without counting them...
     with pytest.raises(ZeroDivisionError):
         anext_or_next(raising_stream_iterator)
     assert alist_or_list(raising_stream_iterator) == list(range(1, count + 1))
@@ -874,19 +872,19 @@ def test_truncate(itype: IterableType, adapt) -> None:
     with pytest.raises(stopiteration_type(type(raising_stream_iterator))):
         anext_or_next(raising_stream_iterator)
 
-    iter_truncated_on_predicate = bi_iterable_to_iter(
-        stream(ints_src).truncate(adapt(lambda n: n == 5)), itype=itype
+    iter_head_on_predicate = bi_iterable_to_iter(
+        stream(ints_src).head(until=adapt(lambda n: n == 5)), itype=itype
     )
-    # `when` n == 5 must be equivalent to `when` = 5
-    assert alist_or_list(iter_truncated_on_predicate) == to_list(
-        stream(ints_src).truncate(5), itype=itype
+    # `until` n == 5 must be equivalent to `until` = 5
+    assert alist_or_list(iter_head_on_predicate) == to_list(
+        stream(ints_src).head(5), itype=itype
     )
-    # After exhaustion a call to __next__ on a truncated iterator must raise StopIteration
-    with pytest.raises(stopiteration_type(type(iter_truncated_on_predicate))):
-        anext_or_next(iter_truncated_on_predicate)
-    # an exception raised by `when` must be raised
+    # After exhaustion a call to __next__ on a head iterator must raise StopIteration
+    with pytest.raises(stopiteration_type(type(iter_head_on_predicate))):
+        anext_or_next(iter_head_on_predicate)
+    # an exception raised by `until` must be raised
     with pytest.raises(ZeroDivisionError):
-        to_list(stream(ints_src).truncate(adapt(lambda _: 1 / 0)), itype=itype)
+        to_list(stream(ints_src).head(until=adapt(lambda _: 1 / 0)), itype=itype)
 
 
 @pytest.mark.parametrize(
@@ -1565,8 +1563,8 @@ def test_eq() -> None:
         .observe("foo")
         .skip(3)
         .skip(3)
-        .truncate(4)
-        .truncate(4)
+        .head(4)
+        .head(4)
         .throttle(1, per=datetime.timedelta(seconds=1))
     )
 
@@ -1591,8 +1589,8 @@ def test_eq() -> None:
         .observe("foo")
         .skip(3)
         .skip(3)
-        .truncate(4)
-        .truncate(4)
+        .head(4)
+        .head(4)
         .throttle(1, per=datetime.timedelta(seconds=1))
     )
     assert big_stream != (
@@ -1618,8 +1616,8 @@ def test_eq() -> None:
         .observe("foo")
         .skip(3)
         .skip(3)
-        .truncate(4)
-        .truncate(4)
+        .head(4)
+        .head(4)
         .throttle(1, per=datetime.timedelta(seconds=1))
     )
     assert big_stream != (
@@ -1645,8 +1643,8 @@ def test_eq() -> None:
         .observe("foo")
         .skip(3)
         .skip(3)
-        .truncate(4)
-        .truncate(4)
+        .head(4)
+        .head(4)
         .throttle(1, per=datetime.timedelta(seconds=2))  # not the same interval
     )
 

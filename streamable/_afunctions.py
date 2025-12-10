@@ -28,14 +28,14 @@ from streamable._aiterators import (
     ConcurrentFlattenAsyncIterator,
     ConcurrentMapAsyncIterator,
     CountSkipAsyncIterator,
-    CountTruncateAsyncIterator,
+    CountHeadAsyncIterator,
     EveryIntObserveAsyncIterator,
     EveryIntervalObserveAsyncIterator,
     FlattenAsyncIterator,
     GroupAsyncIterator,
     PowerObserveAsyncIterator,
     PredicateSkipAsyncIterator,
-    PredicateTruncateAsyncIterator,
+    PredicateHeadAsyncIterator,
     YieldsPerPeriodThrottleAsyncIterator,
 )
 from streamable._utils._func import asyncify
@@ -205,12 +205,12 @@ def throttle(
     return aiterator
 
 
-def truncate(
+def head(
     aiterator: AsyncIterator[T],
     when: Union[int, Callable[[T], Any], Callable[[T], Coroutine[Any, Any, Any]]],
 ) -> AsyncIterator[T]:
     if isinstance(when, int):
-        return CountTruncateAsyncIterator(aiterator, when)
-    return PredicateTruncateAsyncIterator(
+        return CountHeadAsyncIterator(aiterator, when)
+    return PredicateHeadAsyncIterator(
         aiterator, when if not when or iscoroutinefunction(when) else asyncify(when)
     )

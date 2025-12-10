@@ -244,12 +244,12 @@ def test_catch_example() -> None:
     assert len(errors) == 1
 
 
-def test_truncate_example() -> None:
-    five_first_ints: stream[int] = ints.truncate(5)
+def test_head_example() -> None:
+    five_first_ints: stream[int] = ints.head(5)
 
     assert list(five_first_ints) == [0, 1, 2, 3, 4]
 
-    five_first_ints = ints.truncate(when=lambda n: n == 5)
+    five_first_ints = ints.head(until=lambda n: n == 5)
 
     assert list(five_first_ints) == [0, 1, 2, 3, 4]
 
@@ -406,7 +406,7 @@ def test_etl_example(tmp_path: Path) -> None:  # pragma: no cover
             .do(httpx.Response.raise_for_status)
             .map(httpx.Response.json)
             # Stop the iteration when reaching the 1st pokemon of the 4th generation
-            .truncate(when=lambda poke: poke["generation"]["name"] == "generation-iv")
+            .head(until=lambda poke: poke["generation"]["name"] == "generation-iv")
             .observe("pokemons")
             # Keep only quadruped Pokemons
             .filter(lambda poke: poke["shape"]["name"] == "quadruped")
@@ -446,7 +446,7 @@ async def test_async_etl_example(tmp_path: Path) -> None:  # pragma: no cover
             .do(httpx.Response.raise_for_status)
             .map(httpx.Response.json)
             # Stop the iteration when reaching the 1st pokemon of the 4th generation
-            .truncate(when=lambda poke: poke["generation"]["name"] == "generation-iv")
+            .head(until=lambda poke: poke["generation"]["name"] == "generation-iv")
             .observe("pokemons")
             # Keep only quadruped Pokemons
             .filter(lambda poke: poke["shape"]["name"] == "quadruped")

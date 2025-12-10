@@ -198,13 +198,13 @@ def throttle(
     return iterator
 
 
-def truncate(
+def head(
     loop_getter: Callable[[], asyncio.AbstractEventLoop],
     iterator: Iterator[T],
     when: Union[int, Callable[[T], Any], Callable[[T], Coroutine[Any, Any, Any]]],
 ) -> Iterator[T]:
     if isinstance(when, int):
-        return _iterators.CountTruncateIterator(iterator, when)
-    return _iterators.PredicateTruncateIterator(
+        return _iterators.CountHeadIterator(iterator, when)
+    return _iterators.PredicateHeadIterator(
         iterator, syncify(loop_getter(), when) if iscoroutinefunction(when) else when
     )
