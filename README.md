@@ -1,10 +1,10 @@
 # ༄ `streamable`
 
-> *fluent concurrent sync/async streams*
+> ***fluent concurrent sync/async streams***
 
-`stream[T]` enriches any `Iterable[T]` or `AsyncIterable[T]` with a small set of chainable lazy operations for elegant data manipulation, including thread/coroutine concurrency, batching, rate limiting, and error handling.
+`stream[T]` enriches any `Iterable[T]` or `AsyncIterable[T]` with a small set of **chainable lazy operations** for elegant data manipulation, including thread/coroutine **concurrency, batching, rate limiting, and error handling**.
 
-A `stream[T]` is both an `Iterable[T]` and an `AsyncIterable[T]`: a convenient bridge between the sync and async worlds.
+A `stream[T]` is both an `Iterable[T]` and an `AsyncIterable[T]`: a convenient **bridge between the sync and async** worlds.
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/release/python-360/)
 [![coverage](https://codecov.io/gh/ebonnal/streamable/graph/badge.svg?token=S62T0JQK9N)](https://codecov.io/gh/ebonnal/streamable)
@@ -36,7 +36,7 @@ ints: stream[int] = stream(range(10))
 
 # 4. operate
 
-Chain ***lazy*** operations (only evaluated during iteration), each returning a new ***immutable*** `stream`:
+Chain **lazy** operations (only evaluated during iteration), each returning a new `stream`:
 
 ```python
 from json import JSONDecodeError
@@ -55,7 +55,7 @@ pokemons: stream[str] = (
 
 # 5. iterate
 
-A `stream` is ***both*** `Iterable` and `AsyncIterable`:
+A `stream` is **both** `Iterable` and `AsyncIterable`:
 
 ```python
 >>> list(pokemons)
@@ -66,11 +66,11 @@ A `stream` is ***both*** `Iterable` and `AsyncIterable`:
 ['bulbasaur', 'ivysaur', 'venusaur', 'charmander', 'charmeleon', 'charizard', 'squirtle', 'wartortle', 'blastoise']
 ```
 
-Elements are processed ***on-the-fly*** as the iteration advances.
+Elements are processed **on-the-fly** as the iteration advances.
 
 # ↔ showcase: ETL
 
-Let's walk through the `stream`'s features with an Extract-Transform-Load script:
+Let's walk through the `stream`'s features with an **Extract-Transform-Load script**:
 
 This toy script gets Pokémons concurrently from [PokéAPI](https://pokeapi.co/), and writes the quadrupeds from the first three generations into a CSV file, in 5-seconds batches:
 
@@ -117,7 +117,7 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
 
 ## ... or the `async` way!
 
-All operations also accept coroutine/async functions: you can pass `httpx.AsyncClient().get` to `.map` and the concurrency will happen via the event loop instead of threads.
+All **operations also accept async functions**: you can pass `httpx.AsyncClient().get` to `.map` and the concurrency will happen via the event loop instead of threads.
 
 If you are within an async context, you can replace `pipeline()` by `await pipeline` to consume the full stream as an `AsyncIterable` without collecting its elements.
 
@@ -171,7 +171,7 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
 # 📒 ***Operations***
 
 > [!IMPORTANT]
-> A `stream` exposes a minimalist yet expressive set of operations to manipulate its elements, but creating its source or consuming it is not its responsability, it's meant to be combined with standard and specialized libraries (`csv`, `json`, `pyarrow`, `psycopg2`, `boto3`, `requests`, `httpx`, ...).
+> A `stream` exposes a **minimalist** yet expressive set of operations to manipulate its elements, but **creating its source or consuming it is not its responsability**, it's meant to be combined with standard and specialized libraries (`csv`, `json`, `pyarrow`, `psycopg2`, `boto3`, `requests`, `httpx`, ...).
 
 
 Let's do a quick tour of the operations (check the [***docs***](https://streamable.readthedocs.io/en/latest/api.html) for more details).
@@ -192,7 +192,7 @@ Let's do a quick tour of the operations (check the [***docs***](https://streamab
 
 ## sync/async compatibility
 
-All the operations that take a function accept both sync and async functions, you can freely mix them within the same `stream`. It can then be consumed either as an `Iterable` or as an `AsyncIterable`. When a stream involving async functions is consumed as an `Iterable`, a temporary `asyncio` event loop is attached to it.
+All the **operations that take a function accept both sync and async functions**, you can freely mix them within the same `stream`. It can then be consumed either as an `Iterable` or as an `AsyncIterable`. When a stream involving async functions is consumed as an `Iterable`, a temporary `asyncio` event loop is attached to it.
 
 ## 🟡 `.map`
 
@@ -547,11 +547,11 @@ INFO: [duration=0:00:04.003852 errors=0] 10 ints yielded
 ```
 </details>
 
-A new log is emitted when the number of yielded elements (or errors) reaches powers of 2.
+A new log is emitted when the number of yielded elements (or errors) **reaches powers of 2**.
 
-To emit a log every *n* elements, set `every=n`.
+To emit a log **every `n` elements**, set `every=n`.
 
-To emit a log every *n* seconds, set `every=timedelta(seconds=n)`.
+To emit a log **every `n` seconds**, set `every=timedelta(seconds=n)`.
 
 Logs are emitted by `logging.getLogger("streamable")`.
 
@@ -569,7 +569,7 @@ assert list(ints + ints) == [0, 1, 2, 3 ,4, 5, 6, 7, 8, 9, 0, 1, 2, 3 ,4, 5, 6, 
 
 ## 🟡 `__call__` / `await`
 
-*Calling* the stream iterates over it until exhaustion without collecting its elements, and returns it:
+*Calling* the stream iterates over it until exhaustion **without collecting its elements**, and returns it:
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
@@ -580,7 +580,7 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 </details>
 
-*Awaiting* the stream iterates over it as an `AsyncIterable` until exhaustion without collecting its elements, and returns it:
+*Awaiting* the stream iterates over it as an `AsyncIterable` until exhaustion **without collecting its elements**, and returns it:
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
@@ -614,9 +614,9 @@ import pandas as pd
 
 ## function as source
 
-A stream can also be instantiated from a (sync or async) function source, it will be called sequentially to get the next source element, e.g. stream from a `Queue` source:
+A `stream` **can also be instantiated from a function** (sync or async), it will be called sequentially to get the next source element.
 
-<details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
+e.g. stream from a `Queue` source:
 
 ```python
 from queue import Queue, Empty
@@ -628,7 +628,6 @@ ints: stream[int] = (
     .catch(Empty, terminate=True)
 )
 ```
-</details>
 
 
 ## starmap
@@ -697,9 +696,9 @@ If at one point during the iteration an exception is raised and caught, the iter
 
 ## performances
 
-All the operations process elements on-the-fly. At any point in time, concurrent operations only keep `concurrency` elements in memory for processing.
+All the operations process elements on-the-fly. At any point in time, **concurrent operations only keep `concurrency` elements in memory for processing**.
 
-There is *zero overhead during iteration compared to builtins*:
+There is **zero overhead during iteration compared to builtins**:
 
 ```python
 odd_int_strings = stream(range(1_000_000)).filter(lambda n: n % 2).map(str)
@@ -715,7 +714,7 @@ Operations have been [implemented](https://github.com/ebonnal/streamable/blob/ma
 
 </details>
 
-## highlights from the community
+## ⭐ highlights from the community
 - [Tryolabs' Top 10 Python libraries of 2024](https://tryolabs.com/blog/top-python-libraries-2024#top-10---general-use) ([LinkedIn](https://www.linkedin.com/posts/tryolabs_top-python-libraries-2024-activity-7273052840984539137-bcGs?utm_source=share&utm_medium=member_desktop), [Reddit](https://www.reddit.com/r/Python/comments/1hbs4t8/the_handpicked_selection_of_the_best_python/))
 - [PyCoder’s Weekly](https://pycoders.com/issues/651) x [Real Python](https://realpython.com/)
 - [@PythonHub's tweet](https://x.com/PythonHub/status/1842886311369142713)
