@@ -620,7 +620,7 @@ e.g. stream from a `Queue` source:
 
 ```python
 queued_ints: queue.Queue[int] = ...
-
+# or asyncio.Queue[int]
 ints: stream[int] = stream(queued_ints.get)
 ```
 
