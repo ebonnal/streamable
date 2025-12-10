@@ -72,7 +72,7 @@ class CatchAsyncIterator(AsyncIterator[Union[T, U]]):
         self.replace = replace
         self.do = do
         self.finally_raise = finally_raise
-        self._to_be_finally_raised: Optional[Exception] = None
+        self._to_finally_raised: Optional[Exception] = None
         self.terminate = terminate
         self._terminated = False
 
@@ -83,11 +83,11 @@ class CatchAsyncIterator(AsyncIterator[Union[T, U]]):
             try:
                 return await self.iterator.__anext__()
             except StopAsyncIteration:
-                if self._to_be_finally_raised:
+                if self._to_finally_raised:
                     try:
-                        raise self._to_be_finally_raised
+                        raise self._to_finally_raised
                     finally:
-                        self._to_be_finally_raised = None
+                        self._to_finally_raised = None
                 raise
             except self.errors as e:
                 if self.terminate:
@@ -95,8 +95,8 @@ class CatchAsyncIterator(AsyncIterator[Union[T, U]]):
                 if not self.when or await self.when(e):
                     if self.do:
                         await self.do(e)
-                    if self.finally_raise and not self._to_be_finally_raised:
-                        self._to_be_finally_raised = e
+                    if self.finally_raise and not self._to_finally_raised:
+                        self._to_finally_raised = e
                     if self.replace:
                         return await self.replace(e)
                     continue
@@ -148,7 +148,7 @@ class _BaseGroupAsyncIterator(Generic[T]):
         self.up_to = up_to or cast(int, float("inf"))
         self.over = over
         self._interval_seconds = over.total_seconds() if over else float("inf")
-        self._to_be_raised: Optional[Exception] = None
+        self._to_raised: Optional[Exception] = None
         self._last_group_yielded_at: float = 0
 
     def _interval_seconds_have_elapsed(self) -> bool:
@@ -179,11 +179,11 @@ class GroupAsyncIterator(_BaseGroupAsyncIterator[T], AsyncIterator[List[T]]):
 
     async def __anext__(self) -> List[T]:
         self._init_last_group_time()
-        if self._to_be_raised:
+        if self._to_raised:
             try:
-                raise self._to_be_raised
+                raise self._to_raised
             finally:
-                self._to_be_raised = None
+                self._to_raised = None
         try:
             while len(self._current_group) < self.up_to and (
                 not self._interval_seconds_have_elapsed() or not self._current_group
@@ -192,7 +192,7 @@ class GroupAsyncIterator(_BaseGroupAsyncIterator[T], AsyncIterator[List[T]]):
         except Exception as e:
             if not self._current_group:
                 raise
-            self._to_be_raised = e
+            self._to_raised = e
 
         group, self._current_group = self._current_group, []
         self._remember_group_time()
@@ -244,14 +244,14 @@ class GroupbyAsyncIterator(
                 return self._pop_first_group()
             raise StopAsyncIteration
 
-        if self._to_be_raised:
+        if self._to_raised:
             if self._groups_by:
                 self._remember_group_time()
                 return self._pop_first_group()
             try:
-                raise self._to_be_raised
+                raise self._to_raised
             finally:
-                self._to_be_raised = None
+                self._to_raised = None
 
         try:
             await self._group_next_elem()
@@ -269,7 +269,7 @@ class GroupbyAsyncIterator(
             return await self.__anext__()
 
         except Exception as e:
-            self._to_be_raised = e
+            self._to_raised = e
             return await self.__anext__()
 
 
