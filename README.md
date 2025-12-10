@@ -2,9 +2,9 @@
 
 > ***fluent concurrent sync/async streams***
 
-`stream[T]` enriches any `Iterable[T]` or `AsyncIterable[T]` with a small set of ***chainable lazy operations*** for elegant data manipulation, including thread/coroutine ***concurrency, batching, rate limiting, and error handling***.
+`stream[T]` enriches any `Iterable[T]` or `AsyncIterable[T]` with a small set of chainable lazy operations for elegant data manipulation, including thread/coroutine concurrency, batching, rate limiting, and error handling.
 
-A `stream[T]` is both an `Iterable[T]` and an `AsyncIterable[T]`: a convenient ***bridge between the sync and async*** worlds.
+A `stream[T]` is both an `Iterable[T]` and an `AsyncIterable[T]`: a convenient bridge between the sync and async worlds.
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/release/python-360/)
 [![coverage](https://codecov.io/gh/ebonnal/streamable/graph/badge.svg?token=S62T0JQK9N)](https://codecov.io/gh/ebonnal/streamable)
