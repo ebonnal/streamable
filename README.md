@@ -402,31 +402,29 @@ assert list(even_ints) == [0, 2, 4, 6, 8]
 ```
 </details>
 
-## 🟡 `.truncate`
+## 🟡 `.head`
 
-Ends iteration when a given number of elements have been yielded:
+Yields the first specified number of elements:
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
-five_first_ints: stream[int] = ints.truncate(5)
+five_first_ints: stream[int] = ints.head(5)
 
 assert list(five_first_ints) == [0, 1, 2, 3, 4]
 ```
 </details>
 
-... or `when` a condition is satisfied:
+... or yield elements `until` a condition is satisfied:
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
-five_first_ints: stream[int] = ints.truncate(when=lambda n: n == 5)
+five_first_ints: stream[int] = ints.head(until=lambda n: n == 5)
 
 assert list(five_first_ints) == [0, 1, 2, 3, 4]
 ```
 </details>
-
-If both `count` and `when` are set, truncation occurs as soon as either condition is met.
 
 ## 🟡 `.skip`
 
@@ -451,8 +449,6 @@ ints_after_five: stream[int] = ints.skip(until=lambda n: n >= 5)
 assert list(ints_after_five) == [5, 6, 7, 8, 9]
 ```
 </details>
-
-If both `count` and `until` are set, skipping stops as soon as either condition is met.
 
 ## 🟡 `.catch`
 
