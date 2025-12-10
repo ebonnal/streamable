@@ -1,8 +1,10 @@
 from inspect import iscoroutinefunction
 from typing import (
+    Any,
     AsyncIterable,
     AsyncIterator,
     Callable,
+    Coroutine,
     Iterable,
     TypeVar,
     Union,
@@ -25,7 +27,7 @@ from streamable._stream import (
     TruncateStream,
 )
 from streamable._utils._func import async_sidify, sidify
-from streamable._utils._iter import sync_to_async_iter
+from streamable._utils._iter import afn_to_aiter, fn_to_aiter, sync_to_async_iter
 from streamable.visitors import Visitor
 
 T = TypeVar("T")
@@ -131,14 +133,12 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
         if isinstance(stream.source, AsyncIterable):
             return stream.source.__aiter__()
         if callable(stream.source):
-            iterable = stream.source()
-            if isinstance(iterable, Iterable):
-                return sync_to_async_iter(iterable.__iter__())
-            if isinstance(iterable, AsyncIterable):
-                return iterable.__aiter__()
-            raise TypeError(
-                f"if `source` is callable it must return an Iterable or AsyncIterable but got {type(iterable)}"
-            )
+            if iscoroutinefunction(stream.source):
+                return afn_to_aiter(
+                    cast(Callable[[], Coroutine[Any, Any, T]], stream.source)
+                )
+            else:
+                return fn_to_aiter(stream.source)
         raise TypeError(
             f"`source` must be Iterable or AsyncIterable or Callable but got {type(stream.source)}"
         )

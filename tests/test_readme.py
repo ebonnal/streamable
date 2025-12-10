@@ -1,3 +1,4 @@
+import asyncio
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 import time
@@ -311,6 +312,34 @@ def test_plus_example() -> None:
         8,
         9,
     ]
+
+
+def test_func_source() -> None:
+    from queue import Queue, Empty
+
+    ints_queue: Queue[int] = Queue()
+    for i in range(10):
+        ints_queue.put(i)
+
+    ints: stream[int] = stream(lambda: ints_queue.get(timeout=2)).catch(
+        Empty, terminate=True
+    )
+    assert list(ints) == list(range(10))
+
+
+@pytest.mark.asyncio
+async def test_afunc_source() -> None:
+    from asyncio import Queue, TimeoutError
+
+    ints_queue: Queue[int] = Queue()
+    for i in range(10):
+        await ints_queue.put(i)
+
+    async def queue_get() -> int:
+        return await asyncio.wait_for(ints_queue.get(), timeout=2)
+
+    ints: stream[int] = stream(queue_get).catch(TimeoutError, terminate=True)
+    assert [i async for i in ints] == list(range(10))
 
 
 def test_zip_example() -> None:

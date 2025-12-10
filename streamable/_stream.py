@@ -94,7 +94,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
     Elements are processed ***on-the-fly*** as the iteration advances.
 
     Args:
-        source (``Iterable[T] | Callable[[], Iterable[T]] | AsyncIterable[T] | Callable[[], AsyncIterable[T]]``): The iterable to decorate. Can be specified via a function that will be called each time an iteration is started over the stream (i.e. for each call to ``iter(stream)``/``aiter(stream)``).
+        source (``Iterable[T] | AsyncIterable[T] | Callable[[], T] | Callable[[], Coroutine[Any, Any, T]]``): The iterable to decorate. Can be specified as a function (sync or async) that will be called sequentially to get the next source element.
     """
 
     __slots__ = ("_source", "_upstream")
@@ -105,18 +105,18 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
     @overload
     def __init__(self, source: AsyncIterable[T]) -> None: ...
     @overload
-    def __init__(self, source: Callable[[], Iterable[T]]) -> None: ...
+    def __init__(self, source: Callable[[], Coroutine[Any, Any, T]]) -> None: ...
     @overload
-    def __init__(self, source: Callable[[], AsyncIterable[T]]) -> None: ...
+    def __init__(self, source: Callable[[], T]) -> None: ...
     # fmt: on
 
     def __init__(
         self,
         source: Union[
             Iterable[T],
-            Callable[[], Iterable[T]],
             AsyncIterable[T],
-            Callable[[], AsyncIterable[T]],
+            Callable[[], Coroutine[Any, Any, T]],
+            Callable[[], T],
         ],
     ) -> None:
         self._source = source
@@ -125,20 +125,20 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
     @property
     def upstream(self) -> "Optional[stream]":
         """
+        The parent stream if any.
+
         Returns:
-            ``Stream | None``: Parent stream if any.
+            ``Stream | None``
         """
         return self._upstream
 
     @property
-    def source(
-        self,
-    ) -> Union[
-        Iterable, Callable[[], Iterable], AsyncIterable, Callable[[], AsyncIterable]
-    ]:
+    def source(self) -> Union[Iterable, AsyncIterable, Callable]:
         """
+        The source of the stream's elements
+
         Returns:
-            ``Iterable | Callable[[], Iterable] | AsyncIterable | Callable[[], AsyncIterable]``: The source of the stream's elements.
+            ``Iterable | AsyncIterable | Callable``
         """
         return self._source
 
@@ -794,11 +794,7 @@ class DownStream(stream[U], Generic[T, U]):
         return new
 
     @property
-    def source(
-        self,
-    ) -> Union[
-        Iterable, Callable[[], Iterable], AsyncIterable, Callable[[], AsyncIterable]
-    ]:
+    def source(self) -> Union[Iterable, AsyncIterable, Callable]:
         return self._upstream.source
 
     @property

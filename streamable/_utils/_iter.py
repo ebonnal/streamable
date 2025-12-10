@@ -1,8 +1,10 @@
 import asyncio
 from typing import (
+    Any,
     AsyncIterable,
     AsyncIterator,
     Callable,
+    Coroutine,
     Iterable,
     Iterator,
     TypeVar,
@@ -68,3 +70,56 @@ class AsyncToSyncIterator(Iterator[T], CloseEventLoopMixin):
 async_to_sync_iter: Callable[
     [asyncio.AbstractEventLoop, AsyncIterator[T]], Iterator[T]
 ] = AsyncToSyncIterator
+
+
+class _FnIterator(Iterator[T]):
+    def __init__(self, fn: Callable[[], T]) -> None:
+        self.fn = fn
+
+    def __next__(self) -> T:
+        return self.fn()
+
+
+def fn_to_iter(fn: Callable[[], T]) -> Iterator[T]:
+    return _FnIterator(fn)
+
+
+class _AsyncFnIterator(Iterator[T]):
+    def __init__(
+        self, loop: asyncio.AbstractEventLoop, fn: Callable[[], Coroutine[Any, Any, T]]
+    ) -> None:
+        self.loop = loop
+        self.fn = fn
+
+    def __next__(self) -> T:
+        return self.loop.run_until_complete(self.fn())
+
+
+def afn_to_iter(
+    loop: asyncio.AbstractEventLoop, fn: Callable[[], Coroutine[Any, Any, T]]
+) -> Iterator[T]:
+    return _AsyncFnIterator(loop, fn)
+
+
+class _AsyncFnAsyncIterator(AsyncIterator[T]):
+    def __init__(self, fn: Callable[[], Coroutine[Any, Any, T]]) -> None:
+        self.fn = fn
+
+    async def __anext__(self) -> T:
+        return await self.fn()
+
+
+def afn_to_aiter(fn: Callable[[], Coroutine[Any, Any, T]]) -> AsyncIterator[T]:
+    return _AsyncFnAsyncIterator(fn)
+
+
+class _FnAsyncIterator(AsyncIterator[T]):
+    def __init__(self, fn: Callable[[], T]) -> None:
+        self.fn = fn
+
+    async def __anext__(self) -> T:
+        return self.fn()
+
+
+def fn_to_aiter(fn: Callable[[], T]) -> AsyncIterator[T]:
+    return _FnAsyncIterator(fn)

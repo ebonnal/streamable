@@ -612,6 +612,25 @@ import pandas as pd
 
 # ••• other notes
 
+## function as source
+
+A stream can also be instantiated from a (sync or async) function source, it will be called sequentially to get the next source element, e.g. stream from a `Queue` source:
+
+<details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
+
+```python
+from queue import Queue, Empty
+
+ints_queue: Queue[int] = ...
+
+ints: stream[int] = (
+    stream(lambda: ints_queue.get(timeout=2))
+    .catch(Empty, terminate=True)
+)
+```
+</details>
+
+
 ## starmap
 
 The `star` function decorator transforms a function that takes several positional arguments into a function that takes a tuple. `astar` is the equivalent for async functions.
