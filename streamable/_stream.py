@@ -239,8 +239,8 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         errors: Union[Type[Exception], Tuple[Type[Exception], ...]],
         *,
         when: Optional[Callable[[Exception], Coroutine[Any, Any, Any]]] = None,
-        replace: Optional[Callable[[Exception], Coroutine[Any, Any, U]]] = None,
         do: Optional[Callable[[Exception], Coroutine[Any, Any, Any]]] = None,
+        replace: Optional[Callable[[Exception], Coroutine[Any, Any, U]]] = None,
         stop: bool = False,
     ) -> "stream[Union[T, U]]": ...
 
@@ -250,8 +250,8 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         errors: Union[Type[Exception], Tuple[Type[Exception], ...]],
         *,
         when: Optional[Callable[[Exception], Any]] = None,
-        replace: Optional[Callable[[Exception], U]] = None,
         do: Optional[Callable[[Exception], Any]] = None,
+        replace: Optional[Callable[[Exception], U]] = None,
         stop: bool = False,
     ) -> "stream[Union[T, U]]": ...
 
@@ -264,15 +264,15 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             Callable[[Exception], Any],
             Callable[[Exception], Coroutine[Any, Any, Any]],
         ] = None,
-        replace: Union[
-            None,
-            Callable[[Exception], U],
-            Callable[[Exception], Coroutine[Any, Any, U]],
-        ] = None,
         do: Union[
             None,
             Callable[[Exception], Any],
             Callable[[Exception], Coroutine[Any, Any, Any]],
+        ] = None,
+        replace: Union[
+            None,
+            Callable[[Exception], U],
+            Callable[[Exception], Coroutine[Any, Any, U]],
         ] = None,
         stop: bool = False,
     ) -> "stream[Union[T, U]]":
@@ -283,8 +283,8 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         Args:
             errors (``Type[Exception] | Tuple[Type[Exception], ...]``): The exception types to catch.
             when (``Callable[[Exception], Any] | Callable[[Exception], Coroutine[Any, Any, Any]] | None``, optional): An additional condition that must be satisfied to catch the exception, i.e. ``when(exception)`` (or ``await when(exception)``) must be truthy. (default: no additional condition)
-            replace (``Callable[[Exception], U] | Callable[[Exception], Coroutine[Any, Any, U]] | None``, optional): Replacement value yielded when an exception is caught. (default: do not yield any replacement value)
             do (``Callable[[Exception], Any] | Callable[[Exception], Coroutine[Any, Any, Any]] | None``, optional): Side effect to apply when an exception is caught (default: no side effect)
+            replace (``Callable[[Exception], U] | Callable[[Exception], Coroutine[Any, Any, U]] | None``, optional): Replacement value yielded when an exception is caught. (default: do not yield any replacement value)
             stop (``bool``, optional): If True, catching an exception will stop the iteration. (default: iteration continues after an exception is caught)
 
         Returns:

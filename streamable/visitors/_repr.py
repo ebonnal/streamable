@@ -29,15 +29,12 @@ class ToStringVisitor(Visitor[str], ABC):
     def to_string(o: object) -> str: ...
 
     def visit_catch_stream(self, stream: CatchStream) -> str:
-        replace = ""
-        if stream._replace:
-            replace = f", replace={self.to_string(stream._replace)}"
         if isinstance(stream._errors, tuple):
             errors = f"({', '.join(map(self.to_string, stream._errors))})"
         else:
             errors = self.to_string(stream._errors)
         self.methods_reprs.append(
-            f"catch({errors}, when={self.to_string(stream._when)}{replace}, stop={self.to_string(stream._stop)})"
+            f"catch({errors}, when={self.to_string(stream._when)}, do={self.to_string(stream._do)}, replace={self.to_string(stream._replace)}, stop={self.to_string(stream._stop)})"
         )
         return stream.upstream.accept(self)
 

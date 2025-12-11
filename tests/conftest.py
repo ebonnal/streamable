@@ -57,7 +57,7 @@ def complex_stream() -> stream:
         .map(lambda _: 0)
         .throttle(64, per=datetime.timedelta(seconds=1))
         .observe("foos", every=10)
-        .catch(Exception, when=identity, stop=True)
+        .catch(Exception, when=identity, do=identity, stop=True)
         .catch(Exception, when=async_identity)
         .catch((TypeError, ValueError, ZeroDivisionError))
         .catch((TypeError, ValueError, ZeroDivisionError))
@@ -98,12 +98,12 @@ def complex_stream_str() -> str:
     .map(<lambda>, concurrency=1, ordered=True)
     .throttle(64, per=datetime.timedelta(seconds=1))
     .observe('foos', every=10)
-    .catch(Exception, when=identity, stop=True)
-    .catch(Exception, when=async_identity, stop=False)
-    .catch((TypeError, ValueError, ZeroDivisionError), when=None, stop=False)
-    .catch((TypeError, ValueError, ZeroDivisionError), when=None, stop=False)
-    .catch(TypeError, when=None, replace=identity, stop=True)
-    .catch(TypeError, when=None, replace=async_identity, stop=False)
+    .catch(Exception, when=identity, do=identity, replace=None, stop=True)
+    .catch(Exception, when=async_identity, do=None, replace=None, stop=False)
+    .catch((TypeError, ValueError, ZeroDivisionError), when=None, do=None, replace=None, stop=False)
+    .catch((TypeError, ValueError, ZeroDivisionError), when=None, do=None, replace=None, stop=False)
+    .catch(TypeError, when=None, do=None, replace=identity, stop=True)
+    .catch(TypeError, when=None, do=None, replace=async_identity, stop=False)
 )"""
 
 
