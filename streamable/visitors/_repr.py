@@ -112,7 +112,7 @@ class ReprVisitor(ToStringVisitor):
         if isinstance(o, _Star):
             return f"star({ReprVisitor.to_string(o.func)})"
         if hasattr(o, "__astarred__"):
-            return f"astar({ReprVisitor.to_string(getattr(o, '__astarred__'))})"
+            return f"star({ReprVisitor.to_string(getattr(o, '__astarred__'))})"
         return repr(o)
 
 
@@ -122,7 +122,7 @@ class StrVisitor(ToStringVisitor):
         if isinstance(o, _Star):
             return f"star({StrVisitor.to_string(o.func)})"
         if hasattr(o, "__astarred__"):
-            return f"astar({StrVisitor.to_string(getattr(o, '__astarred__'))})"
+            return f"star({StrVisitor.to_string(getattr(o, '__astarred__'))})"
         if type(o) is type and issubclass(o, Exception):
             return o.__name__
         if repr(o).startswith("<"):

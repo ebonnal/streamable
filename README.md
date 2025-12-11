@@ -617,7 +617,7 @@ ints: stream[int] = stream(queued_ints.get)
 
 ## starmap
 
-The `star` function decorator transforms a function that takes several positional arguments into a function that takes a tuple. `astar` is the equivalent for async functions.
+The `star` function decorator transforms a function (sync or async) that takes several positional arguments into a function that takes a tuple.
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 

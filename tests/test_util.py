@@ -1,6 +1,6 @@
 import asyncio
 import pytest
-from streamable._utils._func import astar, sidify, star
+from streamable._utils._func import sidify, star
 from streamable._utils._future import (
     ExecutorFIFOFutureResultCollection,
     FutureResult,
@@ -32,7 +32,7 @@ async def test_star() -> None:
 
     assert star(lambda a, b: a + b)((2, 5)) == 7
 
-    @astar
+    @star
     async def sleepy_add(a: int, b: int) -> int:
         await asyncio.sleep(1)
         return a + b
@@ -43,7 +43,7 @@ async def test_star() -> None:
         await asyncio.sleep(1)
         return a + b
 
-    assert (await astar(sleepy_add_)((2, 5))) == 7
+    assert (await star(sleepy_add_)((2, 5))) == 7
 
 
 def test_os_future_result_collection_anext():
