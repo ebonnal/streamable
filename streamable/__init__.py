@@ -3,4 +3,4 @@ from streamable._utils._func import star
 
 __all__ = ["stream", "star"]
 
-__version__ = "1.6.6"
+__version__ = "2.0.0b1"
