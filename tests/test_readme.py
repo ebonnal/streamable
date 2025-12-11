@@ -274,8 +274,8 @@ def test_distinct_example() -> None:
     assert list(unique_ints) == [0, 1]
 
 
-def test_observe_example() -> None:
-    assert list(ints.throttle(2, per=timedelta(seconds=1)).observe("ints")) == [
+def test_watch_example() -> None:
+    assert list(ints.throttle(2, per=timedelta(seconds=1)).watch("ints")) == [
         0,
         1,
         2,
@@ -407,14 +407,14 @@ def test_etl_example(tmp_path: Path) -> None:  # pragma: no cover
             .map(httpx.Response.json)
             # Stop the iteration when reaching the 1st pokemon of the 4th generation
             .keep(until=lambda poke: poke["generation"]["name"] == "generation-iv")
-            .observe("pokemons")
+            .watch("pokemons")
             # Keep only quadruped Pokemons
             .filter(lambda poke: poke["shape"]["name"] == "quadruped")
             # Write a batch of pokemons every 5 seconds to the CSV file
             .group(every=timedelta(seconds=5))
             .do(writer.writerows)
             .flatten()
-            .observe("written pokemons")
+            .watch("written pokemons")
         )
 
         # Call the stream to consume it (as an Iterable)
@@ -447,14 +447,14 @@ async def test_async_etl_example(tmp_path: Path) -> None:  # pragma: no cover
             .map(httpx.Response.json)
             # Stop the iteration when reaching the 1st pokemon of the 4th generation
             .keep(until=lambda poke: poke["generation"]["name"] == "generation-iv")
-            .observe("pokemons")
+            .watch("pokemons")
             # Keep only quadruped Pokemons
             .filter(lambda poke: poke["shape"]["name"] == "quadruped")
             # Write a batch of pokemons every 5 seconds to the CSV file
             .group(every=timedelta(seconds=5))
             .do(writer.writerows)
             .flatten()
-            .observe("written pokemons")
+            .watch("written pokemons")
         )
 
         # await the stream to consume it (as an AsyncIterable)

@@ -98,14 +98,14 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
         .map(httpx.Response.json)
         # Stop the iteration when reaching the 1st pokemon of the 4th generation
         .keep(until=lambda poke: poke["generation"]["name"] == "generation-iv")
-        .observe("pokemons")
+        .watch("pokemons")
         # Keep only quadruped Pokemons
         .filter(lambda poke: poke["shape"]["name"] == "quadruped")
         # Write a batch of pokemons every 5 seconds to the CSV file
         .group(every=timedelta(seconds=5))
         .do(writer.writerows)
         .flatten()
-        .observe("written pokemons")
+        .watch("written pokemons")
     )
 
     # Call the stream to consume it (as an Iterable)
@@ -147,14 +147,14 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
         .map(httpx.Response.json)
         # Stop the iteration when reaching the 1st pokemon of the 4th generation
         .keep(until=lambda poke: poke["generation"]["name"] == "generation-iv")
-        .observe("pokemons")
+        .watch("pokemons")
         # Keep only quadruped Pokemons
         .filter(lambda poke: poke["shape"]["name"] == "quadruped")
         # Write a batch of pokemons every 5 seconds to the CSV file
         .group(every=timedelta(seconds=5))
         .do(writer.writerows)
         .flatten()
-        .observe("written pokemons")
+        .watch("written pokemons")
     )
 
     # await the stream to consume it (as an AsyncIterable)
@@ -183,7 +183,7 @@ Let's do a quick tour of the operations (check the [****docs****](https://stream
 [`.skip`](#-skip)|ignore head elements|
 [`.catch`](#-catch)|handle exceptions|
 [`.throttle`](#-throttle)|rate-limit the iteration|
-[`.observe`](#-observe)|logs iteration progress|
+[`.watch`](#-watch)|logs iteration progress|
 
 
 ## sync/async compatibility
@@ -519,13 +519,13 @@ assert list(three_ints_per_second) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 </details>
 
 
-## 🟡 `.observe`
+## 🟡 `.watch`
 
 Logs the progress of iterations:
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
 ```python
->>> assert list(ints.throttle(2, per=timedelta(seconds=1)).observe("ints")) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+>>> assert list(ints.throttle(2, per=timedelta(seconds=1)).watch("ints")) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 
 ```
@@ -593,7 +593,7 @@ import pandas as pd
 
 (
     ints
-    .observe("ints")
+    .watch("ints")
     .pipe(pd.DataFrame, columns=["integer"])
     .to_csv("ints.csv", index=False)
 )

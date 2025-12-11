@@ -29,11 +29,11 @@ from streamable._aiterators import (
     ConcurrentMapAsyncIterator,
     CountSkipAsyncIterator,
     CountKeepAsyncIterator,
-    EveryIntObserveAsyncIterator,
-    EveryIntervalObserveAsyncIterator,
+    EveryIntWatchAsyncIterator,
+    EveryIntervalWatchAsyncIterator,
     FlattenAsyncIterator,
     GroupAsyncIterator,
-    PowerObserveAsyncIterator,
+    PowerWatchAsyncIterator,
     PredicateSkipAsyncIterator,
     PredicateKeepAsyncIterator,
     YieldsPerPeriodThrottleAsyncIterator,
@@ -171,16 +171,16 @@ def map(
         )
 
 
-def observe(
+def watch(
     aiterator: AsyncIterator[T],
     label: str,
     every: Optional[Union[int, datetime.timedelta]],
 ) -> AsyncIterator[T]:
     if every is None:
-        return PowerObserveAsyncIterator(aiterator, label)
+        return PowerWatchAsyncIterator(aiterator, label)
     elif isinstance(every, int):
-        return EveryIntObserveAsyncIterator(aiterator, label, every)
-    return EveryIntervalObserveAsyncIterator(aiterator, label, every)
+        return EveryIntWatchAsyncIterator(aiterator, label, every)
+    return EveryIntervalWatchAsyncIterator(aiterator, label, every)
 
 
 def skip(

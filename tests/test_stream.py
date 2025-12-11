@@ -90,7 +90,7 @@ def test_init() -> None:
         .do(identity)
         .do(async_identity)
         .catch(Exception)
-        .observe()
+        .watch()
         .throttle(1, per=datetime.timedelta(seconds=1))
         .source
     ) is ints_src
@@ -1312,7 +1312,7 @@ def test_catch(itype: IterableType, adapt) -> None:
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_observe(itype: IterableType) -> None:
+def test_watch(itype: IterableType) -> None:
     def inverse(
         chars: Iterable[str], every: Optional[Union[int, datetime.timedelta]] = None
     ) -> stream[float]:
@@ -1320,11 +1320,11 @@ def test_observe(itype: IterableType) -> None:
             stream(chars)
             .map(int)
             .map(lambda n: 1 / n)
-            .observe("inverses", every=every)
+            .watch("inverses", every=every)
             .catch(ValueError)
         )
 
-    # `observe` should yield upstream elements
+    # `watch` should yield upstream elements
     assert to_list(inverse("12---3456----7"), itype=itype) == list(
         map(lambda n: 1 / n, range(1, 8))
     )
@@ -1342,10 +1342,10 @@ def test_observe(itype: IterableType) -> None:
         # every == None #
         #################
 
-        # `observe` should reraise
+        # `watch` should reraise
         with pytest.raises(ZeroDivisionError):
             to_list(inverse("12---3456----07"), itype=itype)
-        # `observe` errors and yields independently
+        # `watch` errors and yields independently
         assert logs == [
             Log(errors=0, yields=1),
             Log(errors=0, yields=2),
@@ -1358,7 +1358,7 @@ def test_observe(itype: IterableType) -> None:
 
         logs.clear()
         to_list(inverse("12---3456----07").catch(ZeroDivisionError), itype=itype)
-        # `observe` should produce one last log on StopIteration
+        # `watch` should produce one last log on StopIteration
         assert logs == [
             Log(errors=0, yields=1),
             Log(errors=0, yields=2),
@@ -1372,7 +1372,7 @@ def test_observe(itype: IterableType) -> None:
 
         logs.clear()
         to_list(inverse("12---3456----0").catch(ZeroDivisionError), itype=itype)
-        # `observe` should skip redundant last log on StopIteration
+        # `watch` should skip redundant last log on StopIteration
         assert logs == [
             Log(errors=0, yields=1),
             Log(errors=0, yields=2),
@@ -1387,11 +1387,11 @@ def test_observe(itype: IterableType) -> None:
         # every == 2 #
         ##############
 
-        # `observe` should reraise
+        # `watch` should reraise
         logs.clear()
         with pytest.raises(ZeroDivisionError):
             to_list(inverse("12---3456----07", every=2), itype=itype)
-        # `observe` errors and yields independently
+        # `watch` errors and yields independently
         assert logs == [
             Log(errors=0, yields=1),
             Log(errors=0, yields=2),
@@ -1408,7 +1408,7 @@ def test_observe(itype: IterableType) -> None:
         to_list(
             inverse("12---3456----07", every=2).catch(ZeroDivisionError), itype=itype
         )
-        # `observe` should produce one last log on StopIteration
+        # `watch` should produce one last log on StopIteration
         assert logs == [
             Log(errors=0, yields=1),
             Log(errors=0, yields=2),
@@ -1426,7 +1426,7 @@ def test_observe(itype: IterableType) -> None:
         to_list(
             inverse("12---3456----0", every=2).catch(ZeroDivisionError), itype=itype
         )
-        # `observe` should skip redundant last log on StopIteration
+        # `watch` should skip redundant last log on StopIteration
         assert logs == [
             Log(errors=0, yields=1),
             Log(errors=0, yields=2),
@@ -1443,14 +1443,14 @@ def test_observe(itype: IterableType) -> None:
         # every == 1s #
         ###############
 
-        # `observe` should reraise
+        # `watch` should reraise
         logs.clear()
         with pytest.raises(ZeroDivisionError):
             to_list(
                 inverse("12---3456----07", every=datetime.timedelta(seconds=1)),
                 itype=itype,
             )
-        # `observe` errors and yields independently
+        # `watch` errors and yields independently
         assert logs == [Log(errors=0, yields=1)]
 
         logs.clear()
@@ -1460,7 +1460,7 @@ def test_observe(itype: IterableType) -> None:
             ),
             itype=itype,
         )
-        # `observe` should produce one last log on StopIteration
+        # `watch` should produce one last log on StopIteration
         assert logs == [
             Log(errors=0, yields=1),
             Log(errors=8, yields=7),
@@ -1473,7 +1473,7 @@ def test_observe(itype: IterableType) -> None:
             ),
             itype=itype,
         )
-        # `observe` should skip redundant last log on StopIteration
+        # `watch` should skip redundant last log on StopIteration
         assert logs == [
             Log(errors=0, yields=1),
             Log(errors=8, yields=6),
@@ -1488,7 +1488,7 @@ def test_observe(itype: IterableType) -> None:
             ).catch(ZeroDivisionError),
             itype=itype,
         )
-        # `observe` with `every` slightly under slow_identity_duration should emit one log per yield/error
+        # `watch` with `every` slightly under slow_identity_duration should emit one log per yield/error
         assert len(digits) == len(logs)
 
 
@@ -1560,7 +1560,7 @@ def test_eq() -> None:
         .groupby(async_identity)
         .map(identity, concurrency=threads)
         .map(async_identity)
-        .observe("foo")
+        .watch("foo")
         .skip(3)
         .skip(3)
         .keep(4)
@@ -1586,7 +1586,7 @@ def test_eq() -> None:
         .groupby(async_identity)
         .map(identity, concurrency=threads)
         .map(async_identity)
-        .observe("foo")
+        .watch("foo")
         .skip(3)
         .skip(3)
         .keep(4)
@@ -1613,7 +1613,7 @@ def test_eq() -> None:
         .groupby(async_identity)
         .map(identity, concurrency=threads)
         .map(async_identity)
-        .observe("foo")
+        .watch("foo")
         .skip(3)
         .skip(3)
         .keep(4)
@@ -1640,7 +1640,7 @@ def test_eq() -> None:
         .groupby(async_identity)
         .map(identity, concurrency=threads)
         .map(async_identity)
-        .observe("foo")
+        .watch("foo")
         .skip(3)
         .skip(3)
         .keep(4)

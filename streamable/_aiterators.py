@@ -379,11 +379,11 @@ class FilterAsyncIterator(AsyncIterator[T]):
 
 
 ###########
-# observe #
+# watch #
 ###########
 
 
-class ObserveAsyncIterator(AsyncIterator[T]):
+class WatchAsyncIterator(AsyncIterator[T]):
     def __init__(self, iterator: AsyncIterator[T], label: str) -> None:
         self.iterator = iterator
         self.label = label
@@ -430,7 +430,7 @@ class ObserveAsyncIterator(AsyncIterator[T]):
             raise
 
 
-class PowerObserveAsyncIterator(ObserveAsyncIterator[T]):
+class PowerWatchAsyncIterator(WatchAsyncIterator[T]):
     def __init__(self, iterator: AsyncIterator[T], label: str, base: int = 2) -> None:
         super().__init__(iterator, label)
         self.base = base
@@ -442,7 +442,7 @@ class PowerObserveAsyncIterator(ObserveAsyncIterator[T]):
         return self._errors >= self.base * self._errors_logged
 
 
-class EveryIntObserveAsyncIterator(ObserveAsyncIterator[T]):
+class EveryIntWatchAsyncIterator(WatchAsyncIterator[T]):
     def __init__(self, iterator: AsyncIterator[T], label: str, every: int) -> None:
         super().__init__(iterator, label)
         self.every = every
@@ -456,7 +456,7 @@ class EveryIntObserveAsyncIterator(ObserveAsyncIterator[T]):
         return not self._errors_logged or not self._errors % self.every
 
 
-class EveryIntervalObserveAsyncIterator(ObserveAsyncIterator[T]):
+class EveryIntervalWatchAsyncIterator(WatchAsyncIterator[T]):
     def __init__(
         self, iterator: AsyncIterator[T], label: str, every: datetime.timedelta
     ) -> None:

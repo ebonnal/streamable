@@ -163,16 +163,16 @@ def map(
         )
 
 
-def observe(
+def watch(
     iterator: Iterator[T],
     label: str,
     every: Optional[Union[int, datetime.timedelta]],
 ) -> Iterator[T]:
     if every is None:
-        return _iterators.PowerObserveIterator(iterator, label)
+        return _iterators.PowerWatchIterator(iterator, label)
     elif isinstance(every, int):
-        return _iterators.EveryIntObserveIterator(iterator, label, every)
-    return _iterators.EveryIntervalObserveIterator(iterator, label, every)
+        return _iterators.EveryIntWatchIterator(iterator, label, every)
+    return _iterators.EveryIntervalWatchIterator(iterator, label, every)
 
 
 def skip(

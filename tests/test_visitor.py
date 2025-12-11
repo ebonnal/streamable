@@ -8,7 +8,7 @@ from streamable._stream import (
     GroupbyStream,
     GroupStream,
     MapStream,
-    ObserveStream,
+    WatchStream,
     SkipStream,
     stream,
     ThrottleStream,
@@ -30,7 +30,7 @@ def test_visitor() -> None:
     visitor.visit_group_stream(cast(GroupStream, ...))
     visitor.visit_groupby_stream(cast(GroupbyStream, ...))
     visitor.visit_map_stream(cast(MapStream, ...))
-    visitor.visit_observe_stream(cast(ObserveStream, ...))
+    visitor.visit_watch_stream(cast(WatchStream, ...))
     visitor.visit_skip_stream(cast(SkipStream, ...))
     visitor.visit_throttle_stream(cast(ThrottleStream, ...))
     visitor.visit_keep_stream(cast(KeepStream, ...))

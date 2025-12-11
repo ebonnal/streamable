@@ -642,7 +642,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             validate_concurrency_executor(concurrency, into, fn_name="into")
         return MapStream(self, into, concurrency, ordered)
 
-    def observe(
+    def watch(
         self,
         label: str = "elements",
         *,
@@ -670,7 +670,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             validate_int(every, gte=1, name="every")
         elif isinstance(every, datetime.timedelta):
             validate_positive_timedelta(every, name="every")
-        return ObserveStream(self, label, every)
+        return WatchStream(self, label, every)
 
     @overload
     def skip(
@@ -950,7 +950,7 @@ class MapStream(DownStream[T, U]):
         return visitor.visit_map_stream(self)
 
 
-class ObserveStream(DownStream[T, T]):
+class WatchStream(DownStream[T, T]):
     __slots__ = ("_label", "_every")
 
     def __init__(
@@ -964,7 +964,7 @@ class ObserveStream(DownStream[T, T]):
         self._every = every
 
     def accept(self, visitor: "Visitor[V]") -> V:
-        return visitor.visit_observe_stream(self)
+        return visitor.visit_watch_stream(self)
 
 
 class SkipStream(DownStream[T, T]):

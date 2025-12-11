@@ -8,7 +8,7 @@ from streamable._stream import (
     GroupbyStream,
     GroupStream,
     MapStream,
-    ObserveStream,
+    WatchStream,
     SkipStream,
     stream,
     ThrottleStream,
@@ -84,7 +84,7 @@ class EqualityVisitor(Visitor[bool]):
             and stream._ordered == self.other._ordered
         )
 
-    def visit_observe_stream(self, stream: ObserveStream) -> bool:
+    def visit_watch_stream(self, stream: WatchStream) -> bool:
         return (
             self.type_eq(stream)
             and stream.upstream.accept(EqualityVisitor(self.other.upstream))

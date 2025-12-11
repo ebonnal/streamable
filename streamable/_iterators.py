@@ -346,11 +346,11 @@ class PredicateKeepIterator(Iterator[T]):
 
 
 ###########
-# observe #
+# watch #
 ###########
 
 
-class ObserveIterator(Iterator[T]):
+class WatchIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], label: str) -> None:
         self.iterator = iterator
         self.label = label
@@ -397,7 +397,7 @@ class ObserveIterator(Iterator[T]):
             raise
 
 
-class PowerObserveIterator(ObserveIterator[T]):
+class PowerWatchIterator(WatchIterator[T]):
     def __init__(self, iterator: Iterator[T], label: str, base: int = 2) -> None:
         super().__init__(iterator, label)
         self.base = base
@@ -409,7 +409,7 @@ class PowerObserveIterator(ObserveIterator[T]):
         return self._errors >= self.base * self._errors_logged
 
 
-class EveryIntObserveIterator(ObserveIterator[T]):
+class EveryIntWatchIterator(WatchIterator[T]):
     def __init__(self, iterator: Iterator[T], label: str, every: int) -> None:
         super().__init__(iterator, label)
         self.every = every
@@ -423,7 +423,7 @@ class EveryIntObserveIterator(ObserveIterator[T]):
         return not self._errors_logged or not self._errors % self.every
 
 
-class EveryIntervalObserveIterator(ObserveIterator[T]):
+class EveryIntervalWatchIterator(WatchIterator[T]):
     def __init__(
         self, iterator: Iterator[T], label: str, every: datetime.timedelta
     ) -> None:
