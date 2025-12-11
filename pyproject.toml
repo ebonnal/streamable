@@ -14,7 +14,7 @@ requires-python = ">=3.8"
 dependencies = []
 
 [tool.setuptools.dynamic]
-version = { attr = "version.__version__" }
+version = { attr = "streamable.__version__" }
 
 [tool.setuptools.packages.find]
 where = ["."]
