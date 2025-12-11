@@ -303,11 +303,11 @@ class PredicateSkipAsyncIterator(AsyncIterator[T]):
 
 
 ############
-# head #
+# keep #
 ############
 
 
-class CountHeadAsyncIterator(AsyncIterator[T]):
+class CountKeepAsyncIterator(AsyncIterator[T]):
     def __init__(self, iterator: AsyncIterator[T], count: int) -> None:
         self.iterator = iterator
         self.count = count
@@ -321,7 +321,7 @@ class CountHeadAsyncIterator(AsyncIterator[T]):
         return elem
 
 
-class PredicateHeadAsyncIterator(AsyncIterator[T]):
+class PredicateKeepAsyncIterator(AsyncIterator[T]):
     def __init__(
         self, iterator: AsyncIterator[T], when: Callable[[T], Coroutine[Any, Any, Any]]
     ) -> None:

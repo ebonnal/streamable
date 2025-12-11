@@ -12,7 +12,7 @@ from streamable._stream import (
     SkipStream,
     stream,
     ThrottleStream,
-    HeadStream,
+    KeepStream,
 )
 from streamable.visitors import Visitor
 
@@ -107,7 +107,7 @@ class EqualityVisitor(Visitor[bool]):
             and stream._per == self.other._per
         )
 
-    def visit_head_stream(self, stream: HeadStream) -> bool:
+    def visit_keep_stream(self, stream: KeepStream) -> bool:
         return (
             self.type_eq(stream)
             and stream.upstream.accept(EqualityVisitor(self.other.upstream))

@@ -737,17 +737,17 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         return ThrottleStream(self, up_to, per)
 
     @overload
-    def head(
+    def keep(
         self, *, until: Callable[[T], Coroutine[Any, Any, Any]]
     ) -> "stream[T]": ...
 
     @overload
-    def head(self, *, until: Callable[[T], Any]) -> "stream[T]": ...
+    def keep(self, *, until: Callable[[T], Any]) -> "stream[T]": ...
 
     @overload
-    def head(self, until: int) -> "stream[T]": ...
+    def keep(self, until: int) -> "stream[T]": ...
 
-    def head(
+    def keep(
         self,
         until: Union[
             int,
@@ -756,12 +756,12 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         ],
     ) -> "stream[T]":
         """
-        Yields at most ``until`` elements (if ``int``) or until ``until(elem)`` becomes truthy.
+        Yields the first ``until`` elements (if ``int``) or until ``until(elem)`` becomes truthy, and stop.
 
         Args:
             until (``int | Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``):
 
-                - ``int``: Yields at most ``until`` elements.
+                - ``int``: Yields the first ``until`` elements.
                 - ``Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``: Yields elements until encountering one for which ``until(elem)`` (or ``await until(elem)``) is truthy; that element will not be yielded.
 
         Returns:
@@ -769,7 +769,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         """
         if isinstance(until, int):
             validate_int(until, gte=0, name="until")
-        return HeadStream(self, until)
+        return KeepStream(self, until)
 
 
 class DownStream(stream[U], Generic[T, U]):
@@ -1003,7 +1003,7 @@ class ThrottleStream(DownStream[T, T]):
         return visitor.visit_throttle_stream(self)
 
 
-class HeadStream(DownStream[T, T]):
+class KeepStream(DownStream[T, T]):
     __slots__ = "_when"
 
     def __init__(
@@ -1019,4 +1019,4 @@ class HeadStream(DownStream[T, T]):
         self._when = when
 
     def accept(self, visitor: "Visitor[V]") -> V:
-        return visitor.visit_head_stream(self)
+        return visitor.visit_keep_stream(self)

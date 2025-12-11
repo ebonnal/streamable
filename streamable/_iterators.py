@@ -311,11 +311,11 @@ class PredicateSkipIterator(Iterator[T]):
 
 
 ############
-# head #
+# keep #
 ############
 
 
-class CountHeadIterator(Iterator[T]):
+class CountKeepIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], count: int) -> None:
         self.iterator = iterator
         self.count = count
@@ -329,7 +329,7 @@ class CountHeadIterator(Iterator[T]):
         return elem
 
 
-class PredicateHeadIterator(Iterator[T]):
+class PredicateKeepIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], when: Callable[[T], Any]) -> None:
         self.iterator = iterator
         self.when = when

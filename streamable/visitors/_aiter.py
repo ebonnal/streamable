@@ -24,7 +24,7 @@ from streamable._stream import (
     SkipStream,
     stream,
     ThrottleStream,
-    HeadStream,
+    KeepStream,
 )
 from streamable._utils._func import async_sidify, sidify
 from streamable._utils._iter import afn_to_aiter, fn_to_aiter, sync_to_async_iter
@@ -120,8 +120,8 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
             per=stream._per,
         )
 
-    def visit_head_stream(self, stream: HeadStream[T]) -> AsyncIterator[T]:
-        return _afunctions.head(
+    def visit_keep_stream(self, stream: KeepStream[T]) -> AsyncIterator[T]:
+        return _afunctions.keep(
             stream.upstream.accept(self),
             when=stream._when,
         )
