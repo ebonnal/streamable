@@ -900,19 +900,19 @@ def test_group(itype: IterableType, adapt, nostop_) -> None:
     for seconds in [-1, 0]:
         with pytest.raises(
             ValueError,
-            match="`over` must be a positive timedelta but got datetime\.timedelta(.*)",
+            match="`every` must be a positive timedelta but got datetime\.timedelta(.*)",
         ):
             to_list(
-                stream([1]).group(up_to=100, over=datetime.timedelta(seconds=seconds)),
+                stream([1]).group(up_to=100, every=datetime.timedelta(seconds=seconds)),
                 itype=itype,
             )
         with pytest.raises(
             ValueError,
-            match="`over` must be a positive timedelta but got datetime\.timedelta(.*)",
+            match="`every` must be a positive timedelta but got datetime\.timedelta(.*)",
         ):
             to_list(
                 stream([1]).groupby(
-                    str, up_to=100, over=datetime.timedelta(seconds=seconds)
+                    str, up_to=100, every=datetime.timedelta(seconds=seconds)
                 ),
                 itype=itype,
             )
@@ -951,29 +951,29 @@ def test_group(itype: IterableType, adapt, nostop_) -> None:
     # ... and restarting a fresh group to yield after that.
     assert anext_or_next(stream_iterator) == list(map(f, range(111, 211)))
 
-    # behavior of the `over` parameter
-    # `group` should not yield empty groups even though `over` if smaller than upstream's frequency
+    # behavior of the `every` parameter
+    # `group` should not yield empty groups even though `every` if smaller than upstream's frequency
     assert to_list(
         stream(map(slow_identity, ints_src)).group(
             up_to=100,
-            over=datetime.timedelta(seconds=slow_identity_duration / 1000),
+            every=datetime.timedelta(seconds=slow_identity_duration / 1000),
         ),
         itype=itype,
     ) == list(map(lambda e: [e], ints_src))
-    # `group` with `by` argument should not yield empty groups even though `over` if smaller than upstream's frequency
+    # `group` with `by` argument should not yield empty groups even though `every` if smaller than upstream's frequency
     assert to_list(
         stream(map(slow_identity, ints_src)).group(
             up_to=100,
-            over=datetime.timedelta(seconds=slow_identity_duration / 1000),
+            every=datetime.timedelta(seconds=slow_identity_duration / 1000),
             by=adapt(lambda _: None),
         ),
         itype=itype,
     ) == list(map(lambda e: [e], ints_src))
-    # `group` should yield upstream elements in a two-element group if `over` inferior to twice the upstream yield period
+    # `group` should yield upstream elements in a two-element group if `every` inferior to twice the upstream yield period
     assert to_list(
         stream(map(slow_identity, ints_src)).group(
             up_to=100,
-            over=datetime.timedelta(seconds=2 * slow_identity_duration * 0.99),
+            every=datetime.timedelta(seconds=2 * slow_identity_duration * 0.99),
         ),
         itype=itype,
     ) == list(map(lambda e: [e, e + 1], even_src))
@@ -1039,7 +1039,7 @@ def test_group(itype: IterableType, adapt, nostop_) -> None:
     # `group` called with a `by` function must cogroup elements and yield the largest groups when `seconds` is reached event though it's not the oldest.
     assert to_list(
         stream(map(slow_identity, range(10))).group(
-            over=datetime.timedelta(seconds=slow_identity_duration * 2.9),
+            every=datetime.timedelta(seconds=slow_identity_duration * 2.9),
             by=adapt(lambda n: n % 4 == 0),
         ),
         itype=itype,

@@ -102,7 +102,7 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
         # Keep only quadruped Pokemons
         .filter(lambda poke: poke["shape"]["name"] == "quadruped")
         # Write a batch of pokemons every 5 seconds to the CSV file
-        .group(over=timedelta(seconds=5))
+        .group(every=timedelta(seconds=5))
         .do(writer.writerows)
         .flatten()
         .observe("written pokemons")
@@ -151,7 +151,7 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
         # Keep only quadruped Pokemons
         .filter(lambda poke: poke["shape"]["name"] == "quadruped")
         # Write a batch of pokemons every 5 seconds to the CSV file
-        .group(over=timedelta(seconds=5))
+        .group(every=timedelta(seconds=5))
         .do(writer.writerows)
         .flatten()
         .observe("written pokemons")
@@ -176,7 +176,7 @@ Let's do a quick tour of the operations (check the [****docs****](https://stream
 |--|--|
 [`.map`](#-map)|transform elements|
 [`.do`](#-do)|apply a side effect on elements|
-[`.group`](#-group) / [`.groupby`](#-groupby)|batch elements up to a size, by a key, over a time interval|
+[`.group`](#-group) / [`.groupby`](#-groupby)|batch elements up to a size, by a key, every time interval|
 [`.flatten`](#-flatten)|explode iterable elements|
 [`.filter`](#-filter)|remove elements|
 [`.head`](#-head)|select only first elements|
@@ -315,7 +315,7 @@ assert list(ints_by_parity) == [[0, 2, 4, 6, 8], [1, 3, 5, 7, 9]]
 ```
 </details>
 
-... `over` a given time interval:
+... `every` given time interval:
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 
@@ -325,14 +325,14 @@ from datetime import timedelta
 ints_within_1_sec: stream[list[int]] = (
     ints
     .throttle(2, per=timedelta(seconds=1))
-    .group(over=timedelta(seconds=0.99))
+    .group(every=timedelta(seconds=0.99))
 )
 
 assert list(ints_within_1_sec) == [[0, 1, 2], [3, 4], [5, 6], [7, 8], [9]]
 ```
 </details>
 
-Combine the `up_to`/`by`/`over` parameters:
+Combine the `up_to`/`by`/`every` parameters:
 
 <details><summary style="text-indent: 40px;">👀 show snippet</summary></br>
 

@@ -104,20 +104,20 @@ def group(
     aiterator: AsyncIterator[T],
     up_to: Optional[int] = None,
     *,
-    over: Optional[datetime.timedelta] = None,
+    every: Optional[datetime.timedelta] = None,
     by: Optional[
         Union[Callable[[T], Any], Callable[[T], Coroutine[Any, Any, Any]]]
     ] = None,
 ) -> AsyncIterator[List[T]]:
     if by is None:
-        return GroupAsyncIterator(aiterator, up_to, over)
+        return GroupAsyncIterator(aiterator, up_to, every)
     return map(
         itemgetter(1),
         GroupbyAsyncIterator(
             aiterator,
             by=by if not by or iscoroutinefunction(by) else asyncify(by),
             up_to=up_to,
-            over=over,
+            every=every,
         ),
     )
 
@@ -127,7 +127,7 @@ def groupby(
     by: Union[Callable[[T], U], Callable[[T], Coroutine[Any, Any, U]]],
     *,
     up_to: Optional[int] = None,
-    over: Optional[datetime.timedelta] = None,
+    every: Optional[datetime.timedelta] = None,
 ) -> AsyncIterator[Tuple[U, List[T]]]:
     return GroupbyAsyncIterator(
         aiterator,
@@ -136,7 +136,7 @@ def groupby(
             by if not by or iscoroutinefunction(by) else asyncify(by),
         ),
         up_to,
-        over,
+        every,
     )
 
 

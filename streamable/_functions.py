@@ -93,13 +93,13 @@ def group(
     iterator: Iterator[T],
     up_to: Optional[int] = None,
     *,
-    over: Optional[datetime.timedelta] = None,
+    every: Optional[datetime.timedelta] = None,
     by: Optional[
         Union[Callable[[T], Any], Callable[[T], Coroutine[Any, Any, Any]]]
     ] = None,
 ) -> Iterator[List[T]]:
     if by is None:
-        return _iterators.GroupIterator(iterator, up_to, over)
+        return _iterators.GroupIterator(iterator, up_to, every)
     return builtins.map(
         itemgetter(1),
         _iterators.GroupbyIterator(
@@ -109,7 +109,7 @@ def group(
                 syncify(loop_getter(), by) if iscoroutinefunction(by) else by,
             ),
             up_to=up_to,
-            over=over,
+            every=every,
         ),
     )
 
@@ -120,13 +120,13 @@ def groupby(
     by: Union[Callable[[T], U], Callable[[T], Coroutine[Any, Any, U]]],
     *,
     up_to: Optional[int] = None,
-    over: Optional[datetime.timedelta] = None,
+    every: Optional[datetime.timedelta] = None,
 ) -> Iterator[Tuple[U, List[T]]]:
     return _iterators.GroupbyIterator(
         iterator,
         syncify(loop_getter(), by) if iscoroutinefunction(by) else by,
         up_to,
-        over,
+        every,
     )
 
 

@@ -95,7 +95,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
                 self._get_loop,
                 stream.upstream.accept(cast(IteratorVisitor[U], self)),
                 stream._up_to,
-                over=stream._over,
+                every=stream._every,
                 by=stream._by,
             ),
         )
@@ -108,7 +108,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
                 stream.upstream.accept(cast(IteratorVisitor[U], self)),
                 stream._by,
                 up_to=stream._up_to,
-                over=stream._over,
+                every=stream._every,
             ),
         )
 

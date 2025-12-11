@@ -76,7 +76,7 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
             _afunctions.group(
                 stream.upstream.accept(cast(AsyncIteratorVisitor[U], self)),
                 stream._up_to,
-                over=stream._over,
+                every=stream._every,
                 by=stream._by,
             ),
         )
@@ -88,7 +88,7 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
                 stream.upstream.accept(cast(AsyncIteratorVisitor[U], self)),
                 stream._by,
                 up_to=stream._up_to,
-                over=stream._over,
+                every=stream._every,
             ),
         )
 

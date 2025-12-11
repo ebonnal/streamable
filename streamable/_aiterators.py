@@ -132,28 +132,28 @@ class _BaseGroupAsyncIterator(Generic[T]):
         self,
         iterator: AsyncIterator[T],
         up_to: Optional[int],
-        over: Optional[datetime.timedelta],
+        every: Optional[datetime.timedelta],
     ) -> None:
         self.iterator = iterator
         self.up_to = up_to or cast(int, float("inf"))
-        self.over = over
-        self._interval_seconds = over.total_seconds() if over else float("inf")
+        self.every = every
+        self._interval_seconds = every.total_seconds() if every else float("inf")
         self._to_raised: Optional[Exception] = None
         self._last_group_yielded_at: float = 0
 
     def _interval_seconds_have_elapsed(self) -> bool:
-        if not self.over:
+        if not self.every:
             return False
         return (
             time.perf_counter() - self._last_group_yielded_at
         ) >= self._interval_seconds
 
     def _remember_group_time(self) -> None:
-        if self.over:
+        if self.every:
             self._last_group_yielded_at = time.perf_counter()
 
     def _init_last_group_time(self) -> None:
-        if self.over and not self._last_group_yielded_at:
+        if self.every and not self._last_group_yielded_at:
             self._last_group_yielded_at = time.perf_counter()
 
 
@@ -162,9 +162,9 @@ class GroupAsyncIterator(_BaseGroupAsyncIterator[T], AsyncIterator[List[T]]):
         self,
         iterator: AsyncIterator[T],
         up_to: Optional[int],
-        over: Optional[datetime.timedelta],
+        every: Optional[datetime.timedelta],
     ) -> None:
-        super().__init__(iterator, up_to, over)
+        super().__init__(iterator, up_to, every)
         self._current_group: List[T] = []
 
     async def __anext__(self) -> List[T]:
@@ -197,9 +197,9 @@ class GroupbyAsyncIterator(
         iterator: AsyncIterator[T],
         by: Callable[[T], Coroutine[Any, Any, U]],
         up_to: Optional[int],
-        over: Optional[datetime.timedelta],
+        every: Optional[datetime.timedelta],
     ) -> None:
-        super().__init__(iterator, up_to, over)
+        super().__init__(iterator, up_to, every)
         self.by = by
         self._is_exhausted = False
         self._groups_by: DefaultDict[U, List[T]] = defaultdict(list)
