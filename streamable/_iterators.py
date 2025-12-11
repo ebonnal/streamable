@@ -359,20 +359,14 @@ class ObserveIterator(Iterator[T]):
         self._nexts_logged = 0
         self._yields_logged = 0
         self._errors_logged = 0
-        self.__start_time: Optional[float] = None
+        self._start_time: float = 0
         self._logger = get_logger()
         self._format = f"[duration=%s errors=%s] %s {label} yielded"
 
-    @property
-    def _start_time(self) -> float:
-        if not self.__start_time:
-            self.__start_time = time.perf_counter()
-        return self.__start_time
-
     def _log(self) -> None:
+        start = datetime.datetime.fromtimestamp(self._start_time)
         now = datetime.datetime.fromtimestamp(time.perf_counter())
-        duration = now - datetime.datetime.fromtimestamp(self._start_time)
-        self._logger.info(self._format, duration, self._errors, self._yields)
+        self._logger.info(self._format, now - start, self._errors, self._yields)
         self._nexts_logged = self._yields + self._errors
 
     @abstractmethod
@@ -382,6 +376,8 @@ class ObserveIterator(Iterator[T]):
     def _should_emit_error_log(self) -> bool: ...
 
     def __next__(self) -> T:
+        if not self._start_time:
+            self._start_time = time.perf_counter()
         try:
             elem = self.iterator.__next__()
             self._yields += 1
