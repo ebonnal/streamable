@@ -126,9 +126,9 @@ def test_starmap_example() -> None:
 
 def test_do_example() -> None:
     state: List[int] = []
-    appending_ints: stream[int] = ints.do(state.append)
+    ints_into_state: stream[int] = ints.do(state.append)
 
-    assert list(appending_ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    assert list(ints_into_state) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 
@@ -356,16 +356,16 @@ def test_zip_example() -> None:
 
 def test_call_example() -> None:
     state: List[int] = []
-    appending_ints: stream[int] = ints.do(state.append)
-    assert appending_ints() is appending_ints
+    ints_into_state: stream[int] = ints.do(state.append)
+    assert ints_into_state() is ints_into_state
     assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 
 @pytest.mark.asyncio
 async def test_await_example() -> None:
     state: List[int] = []
-    appending_ints: stream[int] = ints.do(state.append)
-    assert appending_ints is await appending_ints
+    ints_into_state: stream[int] = ints.do(state.append)
+    assert ints_into_state is await ints_into_state
     assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 

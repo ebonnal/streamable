@@ -279,9 +279,9 @@ Applies a side effect on elements:
 
 ```python
 state: list[int] = []
-appending_ints: stream[int] = ints.do(state.append)
+ints_into_state: stream[int] = ints.do(state.append)
 
-assert list(appending_ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+assert list(ints_into_state) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 </details>
@@ -564,8 +564,8 @@ assert list(ints + ints) == [0, 1, 2, 3 ,4, 5, 6, 7, 8, 9, 0, 1, 2, 3 ,4, 5, 6, 
 
 ```python
 state: list[int] = []
-appending_ints: stream[int] = ints.do(state.append)
-assert appending_ints() is appending_ints
+ints_into_state: stream[int] = ints.do(state.append)
+ints_into_state()
 assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 </details>
@@ -576,8 +576,8 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 ```python
 state: list[int] = []
-appending_ints: stream[int] = ints.do(state.append)
-assert appending_ints is await appending_ints
+ints_into_state: stream[int] = ints.do(state.append)
+await ints_into_state
 assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 </details>
