@@ -361,7 +361,7 @@ Set `stop=True` to stop the iteration if an exception is caught.
 
 ## ▼ `.throttle`
 
-Limits the number of yields `per` time interval:
+Limits the number of emissions `per` time interval:
 
 ```python
 from datetime import timedelta

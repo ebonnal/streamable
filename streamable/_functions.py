@@ -195,7 +195,7 @@ def throttle(
     per: Optional[datetime.timedelta] = None,
 ) -> Iterator[T]:
     if count and per:
-        iterator = _iterators.YieldsPerPeriodThrottleIterator(iterator, count, per)
+        iterator = _iterators.ThrottleIterator(iterator, count, per)
     return iterator
 
 

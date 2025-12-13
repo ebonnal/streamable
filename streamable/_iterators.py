@@ -356,10 +356,10 @@ class ObserveIterator(Iterator[T]):
     ) -> None:
         self.iterator = iterator
         self.label = label
-        self._yields = 0
+        self._emissions = 0
         self._errors = 0
         self._nexts_logged = 0
-        self._yields_logged = 0
+        self._emissions_logged = 0
         self._errors_logged = 0
         self.__start_point: Optional[datetime.datetime] = None
         self._logger = get_logger()
@@ -380,10 +380,10 @@ class ObserveIterator(Iterator[T]):
             elapsed=self._time_point() - self._start_point(),
             label=self.label,
             errors=self._errors,
-            emissions=self._yields,
+            emissions=self._emissions,
         )
         self._logger.info(log)
-        self._nexts_logged = self._yields + self._errors
+        self._nexts_logged = self._emissions + self._errors
 
     @abstractmethod
     def _should_emit_yield_log(self) -> bool: ...
@@ -395,13 +395,13 @@ class ObserveIterator(Iterator[T]):
         self._start_point()
         try:
             elem = self.iterator.__next__()
-            self._yields += 1
+            self._emissions += 1
             if self._should_emit_yield_log():
                 self._log()
-                self._yields_logged = self._yields
+                self._emissions_logged = self._emissions
             return elem
         except StopIteration:
-            if self._yields + self._errors > self._nexts_logged:
+            if self._emissions + self._errors > self._nexts_logged:
                 self._log()
             raise
         except Exception:
@@ -420,7 +420,7 @@ class PowerObserveIterator(ObserveIterator[T]):
         self.base = base
 
     def _should_emit_yield_log(self) -> bool:
-        return self._yields >= self.base * self._yields_logged
+        return self._emissions >= self.base * self._emissions_logged
 
     def _should_emit_error_log(self) -> bool:
         return self._errors >= self.base * self._errors_logged
@@ -435,7 +435,7 @@ class EveryIntObserveIterator(ObserveIterator[T]):
 
     def _should_emit_yield_log(self) -> bool:
         # always emit first yield
-        return not self._yields_logged or not self._yields % self.every
+        return not self._emissions_logged or not self._emissions % self.every
 
     def _should_emit_error_log(self) -> bool:
         # always emit first error
@@ -476,18 +476,18 @@ class EveryIntervalObserveIterator(ObserveIterator[T]):
 ############
 
 
-class YieldsPerPeriodThrottleIterator(Iterator[T]):
+class ThrottleIterator(Iterator[T]):
     def __init__(
         self,
         iterator: Iterator[T],
-        max_yields: int,
+        max_emissions: int,
         period: datetime.timedelta,
     ) -> None:
         self.iterator = iterator
-        self.max_yields = max_yields
+        self.max_emissions = max_emissions
         self._period_seconds = period.total_seconds()
         self._period_index: int = -1
-        self._yields_in_period = 0
+        self._emissions_in_period = 0
         self._offset: Optional[float] = None
 
     def __next__(self) -> T:
@@ -510,11 +510,13 @@ class YieldsPerPeriodThrottleIterator(Iterator[T]):
 
         if self._period_index != period_index:
             self._period_index = period_index
-            self._yields_in_period = max(0, self._yields_in_period - self.max_yields)
+            self._emissions_in_period = max(
+                0, self._emissions_in_period - self.max_emissions
+            )
 
-        if self._yields_in_period >= self.max_yields:
+        if self._emissions_in_period >= self.max_emissions:
             time.sleep((ceil(num_periods) - num_periods) * self._period_seconds)
-        self._yields_in_period += 1
+        self._emissions_in_period += 1
 
         if caught_error:
             try:

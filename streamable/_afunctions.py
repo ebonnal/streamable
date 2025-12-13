@@ -36,7 +36,7 @@ from streamable._aiterators import (
     PowerObserveAsyncIterator,
     PredicateSkipAsyncIterator,
     PredicateTakeAsyncIterator,
-    YieldsPerPeriodThrottleAsyncIterator,
+    ThrottleAsyncIterator,
 )
 from streamable._utils._func import asyncify
 
@@ -202,7 +202,7 @@ def throttle(
     per: Optional[datetime.timedelta] = None,
 ) -> AsyncIterator[T]:
     if count and per:
-        aiterator = YieldsPerPeriodThrottleAsyncIterator(aiterator, count, per)
+        aiterator = ThrottleAsyncIterator(aiterator, count, per)
     return aiterator
 
 
