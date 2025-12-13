@@ -36,7 +36,7 @@ from streamable._utils._async import (
 )
 from streamable._utils._contextmanager import noop_context_manager
 from streamable._utils._error import ExceptionContainer
-from streamable._utils._logging import get_logger
+from streamable._utils._logging import ECS_LOG_FORMAT, get_logger
 
 from streamable._utils._future import (
     AsyncFDFOFutureResultCollection,
@@ -346,12 +346,14 @@ class PredicateTakeIterator(Iterator[T]):
 
 
 ###########
-# watch #
+# observe #
 ###########
 
 
-class WatchIterator(Iterator[T]):
-    def __init__(self, iterator: Iterator[T], label: str) -> None:
+class ObserveIterator(Iterator[T]):
+    def __init__(
+        self, iterator: Iterator[T], label: str, format: Optional[str]
+    ) -> None:
         self.iterator = iterator
         self.label = label
         self._yields = 0
@@ -359,14 +361,28 @@ class WatchIterator(Iterator[T]):
         self._nexts_logged = 0
         self._yields_logged = 0
         self._errors_logged = 0
-        self._start_time: float = 0
+        self.__start_point: Optional[datetime.datetime] = None
         self._logger = get_logger()
-        self._format = f"[duration=%s errors=%s] %s {label} yielded"
+        self._format = format or ECS_LOG_FORMAT
+
+    @staticmethod
+    def _time_point() -> datetime.datetime:
+        return datetime.datetime.fromtimestamp(time.perf_counter())
+
+    def _start_point(self) -> datetime.datetime:
+        if not self.__start_point:
+            self.__start_point = self._time_point()
+        return self.__start_point
 
     def _log(self) -> None:
-        start = datetime.datetime.fromtimestamp(self._start_time)
-        now = datetime.datetime.fromtimestamp(time.perf_counter())
-        self._logger.info(self._format, now - start, self._errors, self._yields)
+        log = self._format.format(
+            timestamp=datetime.datetime.now().isoformat() + "Z",
+            elapsed=self._time_point() - self._start_point(),
+            label=self.label,
+            errors=self._errors,
+            emissions=self._yields,
+        )
+        self._logger.info(log)
         self._nexts_logged = self._yields + self._errors
 
     @abstractmethod
@@ -376,8 +392,7 @@ class WatchIterator(Iterator[T]):
     def _should_emit_error_log(self) -> bool: ...
 
     def __next__(self) -> T:
-        if not self._start_time:
-            self._start_time = time.perf_counter()
+        self._start_point()
         try:
             elem = self.iterator.__next__()
             self._yields += 1
@@ -397,9 +412,11 @@ class WatchIterator(Iterator[T]):
             raise
 
 
-class PowerWatchIterator(WatchIterator[T]):
-    def __init__(self, iterator: Iterator[T], label: str, base: int = 2) -> None:
-        super().__init__(iterator, label)
+class PowerObserveIterator(ObserveIterator[T]):
+    def __init__(
+        self, iterator: Iterator[T], label: str, format: Optional[str], base: int = 2
+    ) -> None:
+        super().__init__(iterator, label, format)
         self.base = base
 
     def _should_emit_yield_log(self) -> bool:
@@ -409,9 +426,11 @@ class PowerWatchIterator(WatchIterator[T]):
         return self._errors >= self.base * self._errors_logged
 
 
-class EveryIntWatchIterator(WatchIterator[T]):
-    def __init__(self, iterator: Iterator[T], label: str, every: int) -> None:
-        super().__init__(iterator, label)
+class EveryIntObserveIterator(ObserveIterator[T]):
+    def __init__(
+        self, iterator: Iterator[T], label: str, format: Optional[str], every: int
+    ) -> None:
+        super().__init__(iterator, label, format)
         self.every = every
 
     def _should_emit_yield_log(self) -> bool:
@@ -423,11 +442,15 @@ class EveryIntWatchIterator(WatchIterator[T]):
         return not self._errors_logged or not self._errors % self.every
 
 
-class EveryIntervalWatchIterator(WatchIterator[T]):
+class EveryIntervalObserveIterator(ObserveIterator[T]):
     def __init__(
-        self, iterator: Iterator[T], label: str, every: datetime.timedelta
+        self,
+        iterator: Iterator[T],
+        label: str,
+        format: Optional[str],
+        every: datetime.timedelta,
     ) -> None:
-        super().__init__(iterator, label)
+        super().__init__(iterator, label, format)
         self._every_seconds: float = every.total_seconds()
         self._last_log_time: Optional[float] = None
 

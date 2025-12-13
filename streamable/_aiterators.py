@@ -32,7 +32,7 @@ from typing import (
 from streamable._utils._async import empty_aiter
 from streamable._utils._contextmanager import noop_context_manager
 from streamable._utils._error import ExceptionContainer
-from streamable._utils._logging import get_logger
+from streamable._utils._logging import ECS_LOG_FORMAT, get_logger
 
 from streamable._utils._future import (
     AsyncFDFOFutureResultCollection,
@@ -379,12 +379,14 @@ class FilterAsyncIterator(AsyncIterator[T]):
 
 
 ###########
-# watch #
+# observe #
 ###########
 
 
-class WatchAsyncIterator(AsyncIterator[T]):
-    def __init__(self, iterator: AsyncIterator[T], label: str) -> None:
+class ObserveAsyncIterator(AsyncIterator[T]):
+    def __init__(
+        self, iterator: AsyncIterator[T], label: str, format: Optional[str]
+    ) -> None:
         self.iterator = iterator
         self.label = label
         self._yields = 0
@@ -392,14 +394,28 @@ class WatchAsyncIterator(AsyncIterator[T]):
         self._nexts_logged = 0
         self._yields_logged = 0
         self._errors_logged = 0
-        self._start_time: float = 0
+        self.__start_point: Optional[datetime.datetime] = None
         self._logger = get_logger()
-        self._format = f"[duration=%s errors=%s] %s {label} yielded"
+        self._format = format or ECS_LOG_FORMAT
+
+    @staticmethod
+    def _time_point() -> datetime.datetime:
+        return datetime.datetime.fromtimestamp(time.perf_counter())
+
+    def _start_point(self) -> datetime.datetime:
+        if not self.__start_point:
+            self.__start_point = self._time_point()
+        return self.__start_point
 
     def _log(self) -> None:
-        start = datetime.datetime.fromtimestamp(self._start_time)
-        now = datetime.datetime.fromtimestamp(time.perf_counter())
-        self._logger.info(self._format, now - start, self._errors, self._yields)
+        log = self._format.format(
+            timestamp=datetime.datetime.now().isoformat() + "Z",
+            elapsed=self._time_point() - self._start_point(),
+            label=self.label,
+            errors=self._errors,
+            emissions=self._yields,
+        )
+        self._logger.info(log)
         self._nexts_logged = self._yields + self._errors
 
     @abstractmethod
@@ -409,8 +425,7 @@ class WatchAsyncIterator(AsyncIterator[T]):
     def _should_emit_error_log(self) -> bool: ...
 
     async def __anext__(self) -> T:
-        if not self._start_time:
-            self._start_time = time.perf_counter()
+        self._start_point()
         try:
             elem = await self.iterator.__anext__()
             self._yields += 1
@@ -430,9 +445,15 @@ class WatchAsyncIterator(AsyncIterator[T]):
             raise
 
 
-class PowerWatchAsyncIterator(WatchAsyncIterator[T]):
-    def __init__(self, iterator: AsyncIterator[T], label: str, base: int = 2) -> None:
-        super().__init__(iterator, label)
+class PowerObserveAsyncIterator(ObserveAsyncIterator[T]):
+    def __init__(
+        self,
+        iterator: AsyncIterator[T],
+        label: str,
+        format: Optional[str],
+        base: int = 2,
+    ) -> None:
+        super().__init__(iterator, label, format)
         self.base = base
 
     def _should_emit_yield_log(self) -> bool:
@@ -442,9 +463,11 @@ class PowerWatchAsyncIterator(WatchAsyncIterator[T]):
         return self._errors >= self.base * self._errors_logged
 
 
-class EveryIntWatchAsyncIterator(WatchAsyncIterator[T]):
-    def __init__(self, iterator: AsyncIterator[T], label: str, every: int) -> None:
-        super().__init__(iterator, label)
+class EveryIntObserveAsyncIterator(ObserveAsyncIterator[T]):
+    def __init__(
+        self, iterator: AsyncIterator[T], label: str, format: Optional[str], every: int
+    ) -> None:
+        super().__init__(iterator, label, format)
         self.every = every
 
     def _should_emit_yield_log(self) -> bool:
@@ -456,11 +479,15 @@ class EveryIntWatchAsyncIterator(WatchAsyncIterator[T]):
         return not self._errors_logged or not self._errors % self.every
 
 
-class EveryIntervalWatchAsyncIterator(WatchAsyncIterator[T]):
+class EveryIntervalObserveAsyncIterator(ObserveAsyncIterator[T]):
     def __init__(
-        self, iterator: AsyncIterator[T], label: str, every: datetime.timedelta
+        self,
+        iterator: AsyncIterator[T],
+        label: str,
+        format: Optional[str],
+        every: datetime.timedelta,
     ) -> None:
-        super().__init__(iterator, label)
+        super().__init__(iterator, label, format)
         self._every_seconds: float = every.total_seconds()
         self._last_log_time: Optional[float] = None
 

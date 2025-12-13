@@ -9,7 +9,7 @@ from streamable._stream import (
     GroupbyStream,
     GroupStream,
     MapStream,
-    WatchStream,
+    ObserveStream,
     SkipStream,
     stream,
     ThrottleStream,
@@ -72,9 +72,9 @@ class ToStringVisitor(Visitor[str], ABC):
         )
         return stream.upstream.accept(self)
 
-    def visit_watch_stream(self, stream: WatchStream) -> str:
+    def visit_observe_stream(self, stream: ObserveStream) -> str:
         self.methods_reprs.append(
-            f"""watch({self.to_string(stream._label)}, every={self.to_string(stream._every)})"""
+            f"""observe({self.to_string(stream._label)}, every={self.to_string(stream._every)}, format={self.to_string(stream._format)})"""
         )
         return stream.upstream.accept(self)
 

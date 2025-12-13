@@ -76,16 +76,17 @@ Elements are processed ***on-the-fly*** as the iteration advances.
 
 # 📒 Operations ([API Reference](https://streamable.readthedocs.io/en/latest/api.html))
 
-  - [`.map`](#-map): transform elements
-  - [`.do`](#-do): apply a side effect
-  - [`.group`](#-group) / [`.groupby`](#-groupby): batch up to a group size / by a key / every time   interval
-  - [`.flatten`](#-flatten): explode iterable elements
-  - [`.filter`](#-filter): ignore certain elements
-  - [`.take`](#-take): yield elements until ...
-  - [`.skip`](#-skip): skip elements until ...
-  - [`.catch`](#-catch): handle exceptions
-  - [`.throttle`](#-throttle): rate-limit the iteration
-  - [`.watch`](#-watch): logs iteration progress
+
+  - [`.map`](#-map) elements
+  - [`.do`](#-do) a side effect
+  - [`.group`](#-group) elements
+  - [`.flatten`](#-flatten) iterable elements
+  - [`.filter`](#-filter) elements
+  - [`.take`](#-take) first elements until ...
+  - [`.skip`](#-skip) elements until ...
+  - [`.catch`](#-catch) exceptions
+  - [`.throttle`](#-throttle) the rate of iteration
+  - [`.observe`](#-observe) the iteration progress
 
 All the ***operations that take a function accept both sync and async functions***, you can freely mix them within the same `stream`. It can then be consumed either as an `Iterable` or as an `AsyncIterable`. When a stream involving async functions is consumed as an `Iterable`, a temporary `asyncio` event loop is attached to it.
 
@@ -372,21 +373,30 @@ assert list(three_ints_per_second) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 
 
-## ▼ `.watch`
+## ▼ `.observe`
 
-Logs the progress of iterations:
+Logs the progress of iteration:
 
 ```python
->>> assert list(ints.throttle(2, per=timedelta(seconds=1)).watch("ints")) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+observed_ints: stream[int] = (
+    ints
+    .throttle(2, per=timedelta(seconds=1))
+    .observe("ints")
+)
+assert list(observed_ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 
+logs:
+
 ```
-INFO: [duration=0:00:00.001793 errors=0] 1 ints yielded
-INFO: [duration=0:00:00.004388 errors=0] 2 ints yielded
-INFO: [duration=0:00:01.003655 errors=0] 4 ints yielded
-INFO: [duration=0:00:03.003196 errors=0] 8 ints yielded
-INFO: [duration=0:00:04.003852 errors=0] 10 ints yielded
+{"@timestamp":...,"log.level":"INFO","elapsed":"0:00:00.000012","label":"ints","errors":0,"emissions":1}
+{"@timestamp":...,"log.level":"INFO","elapsed":"0:00:00.000063","label":"ints","errors":0,"emissions":2}
+{"@timestamp":...,"log.level":"INFO","elapsed":"0:00:01.005173","label":"ints","errors":0,"emissions":4}
+{"@timestamp":...,"log.level":"INFO","elapsed":"0:00:03.002394","label":"ints","errors":0,"emissions":8}
+{"@timestamp":...,"log.level":"INFO","elapsed":"0:00:04.005194","label":"ints","errors":0,"emissions":10}
 ```
+
+It follows [ECS format](https://www.elastic.co/docs/reference/ecs) but you can specify your own via the `format` parameter.
 
 A new log is emitted when the number of yielded elements (or errors) ***reaches powers of 2***.
 
@@ -434,14 +444,9 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 Calls a function, passing the stream as first argument, followed by `*args/**kwargs` if any:
 
 ```python
-import pandas as pd
+import polars as pl
 
-(
-    ints
-    .watch("ints")
-    .pipe(pd.DataFrame, columns=["integer"])
-    .to_csv("ints.csv", index=False)
-)
+pokemons.pipe(pl.DataFrame, schema=["name"]).write_csv("pokemons.csv")
 ```
 
 # ••• other notes

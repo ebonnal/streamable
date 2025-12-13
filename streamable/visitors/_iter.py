@@ -22,7 +22,7 @@ from streamable._stream import (
     GroupbyStream,
     GroupStream,
     MapStream,
-    WatchStream,
+    ObserveStream,
     SkipStream,
     stream,
     ThrottleStream,
@@ -121,11 +121,12 @@ class IteratorVisitor(Visitor[Iterator[T]]):
             ordered=stream._ordered,
         )
 
-    def visit_watch_stream(self, stream: WatchStream[T]) -> Iterator[T]:
-        return _functions.watch(
+    def visit_observe_stream(self, stream: ObserveStream[T]) -> Iterator[T]:
+        return _functions.observe(
             stream.upstream.accept(self),
             stream._label,
             stream._every,
+            stream._format,
         )
 
     def visit_skip_stream(self, stream: SkipStream[T]) -> Iterator[T]:

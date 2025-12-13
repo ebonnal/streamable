@@ -274,19 +274,11 @@ def test_distinct_example() -> None:
     assert list(unique_ints) == [0, 1]
 
 
-def test_watch_example() -> None:
-    assert list(ints.throttle(2, per=timedelta(seconds=1)).watch("ints")) == [
-        0,
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
-        7,
-        8,
-        9,
-    ]
+def test_observe_example() -> None:
+    observed_ints: stream[int] = ints.throttle(2, per=timedelta(seconds=1)).observe(
+        "ints"
+    )
+    assert list(observed_ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 
 def test_plus_example() -> None:
@@ -407,14 +399,14 @@ def test_etl_example(tmp_path: Path) -> None:  # pragma: no cover
             .map(httpx.Response.json)
             # Stop when reaching the 1st pokemon of the 4th generation
             .take(until=lambda poke: poke["generation"]["name"] == "generation-iv")
-            .watch("pokemons")
+            .observe("pokemons")
             # Keep only quadruped Pokemons
             .filter(lambda poke: poke["shape"]["name"] == "quadruped")
             # Write a batch of pokemons every 5 seconds to the CSV file
             .group(every=timedelta(seconds=5))
             .do(writer.writerows)
             .flatten()
-            .watch("written pokemons")
+            .observe("written pokemons")
         )
 
         # Call the stream to consume it (as an Iterable)
@@ -447,14 +439,14 @@ async def test_async_etl_example(tmp_path: Path) -> None:  # pragma: no cover
             .map(httpx.Response.json)
             # Stop when reaching the 1st pokemon of the 4th generation
             .take(until=lambda poke: poke["generation"]["name"] == "generation-iv")
-            .watch("pokemons")
+            .observe("pokemons")
             # Keep only quadruped Pokemons
             .filter(lambda poke: poke["shape"]["name"] == "quadruped")
             # Write a batch of pokemons every 5 seconds to the CSV file
             .group(every=timedelta(seconds=5))
             .do(writer.writerows)
             .flatten()
-            .watch("written pokemons")
+            .observe("written pokemons")
         )
 
         # await the stream to consume it (as an AsyncIterable)

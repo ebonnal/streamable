@@ -10,8 +10,11 @@ def get_logger() -> logging.Logger:
         _logger = logging.getLogger("streamable")
         _logger.propagate = False
         _handler = logging.StreamHandler()
-        _formatter = logging.Formatter("%(asctime)s: %(levelname)s: %(message)s")
+        _formatter = logging.Formatter("%(message)s")
         _handler.setFormatter(_formatter)
         _logger.addHandler(_handler)
         _logger.setLevel(logging.INFO)
     return _logger
+
+
+ECS_LOG_FORMAT = """{{"@timestamp":"{timestamp}","log.level":"INFO","elapsed":"{elapsed}","label":"{label}","errors":{errors},"emissions":{emissions}}}"""

@@ -644,26 +644,27 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             validate_concurrency_executor(concurrency, into, fn_name="into")
         return MapStream(self, into, concurrency, ordered)
 
-    def watch(
+    def observe(
         self,
-        label: str = "elements",
+        label: str = "",
         *,
         every: Optional[Union[int, datetime.timedelta]] = None,
+        format: Optional[str] = None,
     ) -> "stream[T]":
         """
-        Logs the progress of iteration over this stream: the duration since the iteration started, the count of yielded elements and errors.
+        Logs the progress of iteration over this stream: the time elapsed since the iteration started, the count of emitted elements and errors.
 
         A log is emitted `every` interval (number of elements or time interval), or when the number of yielded elements (or errors) reaches powers of 2 if `every is None`.
 
-        On reception of an upstream element (or exception), if a log should be emitted, it will be emitted before re-yielding the element (or re-raising the exception).
-
         Args:
-            label (``str``): A plural noun describing the yielded objects (e.g., "cats", "dogs").
+            label (``str``): Name for the yielded objects ("cats", "dogs", ...).
             every (``int | timedelta | None``): When an upstream element is pulled, a log is emitted if ...
 
               - ``None`` (default): ... the number of yielded elements (or errors) reaches a power of 2.
               - ``int``: ... the number of yielded elements (or errors) reaches `every`.
               - ``timedelta``: ... `every` has elapsed since the last log.
+
+            format (``str | None``): The format of the logs, a string that can contain these placeholders: ``{timestamp}``, ``{elapsed}``, ``{label}``, ``{errors}``, ``{emissions}``, example ``format="{timestamp} INFO {emissions} {label} emitted with {errors} errors"``. (default: ECS format https://www.elastic.co/docs/reference/ecs).
 
         Returns:
             ``stream[T]``: A stream of upstream elements with progress logging during iteration.
@@ -672,7 +673,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             validate_int(every, gte=1, name="every")
         elif isinstance(every, datetime.timedelta):
             validate_positive_timedelta(every, name="every")
-        return WatchStream(self, label, every)
+        return ObserveStream(self, label, every, format)
 
     @overload
     def skip(
@@ -952,21 +953,23 @@ class MapStream(DownStream[T, U]):
         return visitor.visit_map_stream(self)
 
 
-class WatchStream(DownStream[T, T]):
-    __slots__ = ("_label", "_every")
+class ObserveStream(DownStream[T, T]):
+    __slots__ = ("_label", "_every", "_format")
 
     def __init__(
         self,
         upstream: stream[T],
         label: str,
         every: Optional[Union[int, datetime.timedelta]],
+        format: Optional[str],
     ) -> None:
         super().__init__(upstream)
         self._label = label
         self._every = every
+        self._format = format
 
     def accept(self, visitor: "Visitor[V]") -> V:
-        return visitor.visit_watch_stream(self)
+        return visitor.visit_observe_stream(self)
 
 
 class SkipStream(DownStream[T, T]):

@@ -20,7 +20,7 @@ from streamable._stream import (
     GroupbyStream,
     GroupStream,
     MapStream,
-    WatchStream,
+    ObserveStream,
     SkipStream,
     stream,
     ThrottleStream,
@@ -100,11 +100,12 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
             ordered=stream._ordered,
         )
 
-    def visit_watch_stream(self, stream: WatchStream[T]) -> AsyncIterator[T]:
-        return _afunctions.watch(
+    def visit_observe_stream(self, stream: ObserveStream[T]) -> AsyncIterator[T]:
+        return _afunctions.observe(
             stream.upstream.accept(self),
             stream._label,
             stream._every,
+            stream._format,
         )
 
     def visit_skip_stream(self, stream: SkipStream[T]) -> AsyncIterator[T]:
