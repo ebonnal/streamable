@@ -527,7 +527,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         - the ``every`` time interval elapsed since the last group was yielded
         - the upstream is exhausted.
 
-        If ``by`` is specified, groups will only contain elements sharing the same ``by(elem)`` value (or ``await by(elem)``) (see ``.groupby`` for ``(key, elements)`` pairs).
+        If ``by`` is specified, groups will only contain elements sharing the same ``by(elem)`` value (see ``.groupby`` for ``(key, elements)`` pairs).
 
         Args:
             up_to (``int | None``, optional): The maximum size of the group. (default: no size limit)
@@ -697,7 +697,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             until (``int | Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``):
 
                 - ``int``: The number of elements to skip.
-                - ``Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``: Skips elements until encountering one for which ``until(elem)`` (or ``await until(elem)``) is truthy (this element and all the subsequent ones will be yielded).
+                - ``Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``: Skips elements until encountering one for which ``until(elem)`` is truthy (this element and all the subsequent ones will be yielded).
 
         Returns:
             ``stream[T]``: A stream of the upstream elements remaining after skipping.
@@ -762,7 +762,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             until (``int | Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``):
 
                 - ``int``: Yields the first ``until`` elements.
-                - ``Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``: Yields elements until encountering one for which ``until(elem)`` (or ``await until(elem)``) is truthy; that element will not be yielded.
+                - ``Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``: Yields elements until encountering one for which ``until(elem)`` is truthy; that element will not be yielded.
 
         Returns:
             ``stream[T]``: A stream of the first upstream elements stopping according to ``until``.
