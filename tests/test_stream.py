@@ -1239,7 +1239,7 @@ def test_catch(itype: IterableType, adapt) -> None:
     with pytest.raises(TypeError):
         to_list(
             stream(map(throw, [ValueError, TypeError])).catch(
-                Exception, when=adapt(lambda exception: "ValueError" in repr(exception))
+                Exception, when=adapt(lambda exc: "ValueError" in repr(exc))
             ),
             itype=itype,
         )
@@ -1276,7 +1276,7 @@ def test_catch(itype: IterableType, adapt) -> None:
             )
         ).catch(
             (ValueError, TestError, ZeroDivisionError),
-            when=adapt(lambda err: errors_counter.update([type(err)]) is None),
+            when=adapt(lambda exc: errors_counter.update([type(exc)]) is None),
         ),
         itype=itype,
     ) == list(map(lambda n: 1 / n, range(2, 10, 2)))
@@ -1306,7 +1306,7 @@ def test_catch(itype: IterableType, adapt) -> None:
     ) == [0, 1]
     # test `stop` on exception, with replacement as last elem
     assert to_list(
-        stream("01-3").map(int).catch(ValueError, stop=True, replace=lambda err: -1),
+        stream("01-3").map(int).catch(ValueError, stop=True, replace=lambda exc: -1),
         itype,
     ) == [0, 1, -1]
 

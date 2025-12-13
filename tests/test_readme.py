@@ -230,7 +230,7 @@ def test_catch_example() -> None:
     status_codes_ignoring_resolution_errors: stream[int] = (
         stream(["https://github.com", "https://foo.bar", "https://github.com/foo/bar"])
         .map(httpx.get, concurrency=2)
-        .catch(httpx.ConnectError, when=lambda exception: "not known" in str(exception))
+        .catch(httpx.ConnectError, when=lambda exc: "not known" in str(exc))
         .map(lambda response: response.status_code)
     )
 

@@ -411,7 +411,7 @@ Catches a given type of exception, and optionally `replace` it:
 inverses: stream[float] = (
     ints
     .map(lambda n: round(1 / n, 2))
-    .catch(ZeroDivisionError, replace=lambda err: float("inf"))
+    .catch(ZeroDivisionError, replace=lambda exc: float("inf"))
 )
 
 assert list(inverses) == [float("inf"), 1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
@@ -425,7 +425,7 @@ import httpx
 status_codes_ignoring_resolution_errors: stream[int] = (
     stream(["https://github.com", "https://foo.bar", "https://github.com/foo/bar"])
     .map(httpx.get, concurrency=2)
-    .catch(httpx.ConnectError, when=lambda exception: "not known" in str(exception))
+    .catch(httpx.ConnectError, when=lambda exc: "not known" in str(exc))
     .map(lambda response: response.status_code)
 )
 
@@ -445,6 +445,8 @@ inverses: stream[float] = (
 assert list(inverses) == [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
 assert len(errors) == 1
 ```
+
+You can mix these parameters, the order of the calls is ``when`` -> ``do`` -> ``replace``.
 
 Set `stop=True` to stop the iteration if an exception is caught.
 

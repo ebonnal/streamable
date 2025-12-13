@@ -278,11 +278,13 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
     ) -> "stream[Union[T, U]]":
         """
         Catches the upstream exceptions if they are instances of ``errors`` type and they satisfy the ``when`` predicate.
-        Optionally ``replace`` the error by a value (returned by ``replace(error)``), or ``do`` an effect.
+        When an exception is caught you can ``do`` an effect and/or yield a replacement value ``replace(exc)``.
+
+        The order of the calls is ``when`` -> ``do`` -> ``replace``.
 
         Args:
             errors (``Type[Exception] | Tuple[Type[Exception], ...]``): The exception types to catch.
-            when (``Callable[[Exception], Any] | Callable[[Exception], Coroutine[Any, Any, Any]] | None``, optional): An additional condition that must be satisfied to catch the exception, i.e. ``when(exception)`` (or ``await when(exception)``) must be truthy. (default: no additional condition)
+            when (``Callable[[Exception], Any] | Callable[[Exception], Coroutine[Any, Any, Any]] | None``, optional): An additional condition that must be satisfied to catch the exception, i.e. ``when(exc)`` must be truthy. (default: no additional condition)
             do (``Callable[[Exception], Any] | Callable[[Exception], Coroutine[Any, Any, Any]] | None``, optional): Side effect to apply when an exception is caught (default: no side effect)
             replace (``Callable[[Exception], U] | Callable[[Exception], Coroutine[Any, Any, U]] | None``, optional): Replacement value yielded when an exception is caught. (default: do not yield any replacement value)
             stop (``bool``, optional): If True, catching an exception will stop the iteration. (default: iteration continues after an exception is caught)
