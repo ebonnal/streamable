@@ -1,14 +1,14 @@
-name: formatting
+name: typing
 
 on:
   push:
     paths:
       - 'streamable/**'
       - 'tests/**'
-      - '.github/workflows/formatting.yml'
+      - '.github/workflows/type-check.yml'
 
 jobs:
-  formatting:
+  typing:
     runs-on: ubuntu-latest
 
     steps:
@@ -18,5 +18,5 @@ jobs:
       with:
         python-version: 3.9
 
-    - name: checks
-      run: make venv format-check
+    - name: mypy
+      run: make venv type-check

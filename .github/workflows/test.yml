@@ -5,7 +5,7 @@ on:
     paths:
       - 'streamable/**'
       - 'tests/**'
-      - '.github/workflows/testing.yml'
+      - '.github/workflows/test.yml'
 
 jobs:
   testing:

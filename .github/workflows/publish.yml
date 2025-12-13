@@ -8,7 +8,7 @@ on:
       - beta
       - rc
     paths:
-      - 'version.py'
+      - 'streamable/__init__.py'
 
 jobs:
   pypi:
