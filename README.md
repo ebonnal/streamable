@@ -216,7 +216,7 @@ ints_within_1_sec: stream[list[int]] = (
 assert list(ints_within_1_sec) == [[0, 1, 2], [3, 4], [5, 6], [7, 8], [9]]
 ```
 
-Combine the `up_to`/`by`/`every` parameters:
+You can mix the `up_to`/`by`/`every` parameters:
 
 
 ```python
