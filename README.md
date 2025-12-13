@@ -182,7 +182,7 @@ Same as `.map`.
 
 ## ▼ `.group`
 
-Groups into `list`s ...
+Groups elements into batches...
 
 ... `up_to` a given size:
 
@@ -276,7 +276,7 @@ assert list(even_ints) == [0, 2, 4, 6, 8]
 
 ## ▼ `.take`
 
-Takes the first specified number of elements, and stop:
+Takes the first specified number of elements:
 
 ```python
 five_first_ints: stream[int] = ints.take(5)
@@ -284,7 +284,7 @@ five_first_ints: stream[int] = ints.take(5)
 assert list(five_first_ints) == [0, 1, 2, 3, 4]
 ```
 
-... or takes elements `until` a condition become satisfied, and stop:
+... or takes elements `until` a condition become satisfied:
 
 
 ```python
@@ -303,7 +303,7 @@ ints_after_five: stream[int] = ints.skip(5)
 assert list(ints_after_five) == [5, 6, 7, 8, 9]
 ```
 
-or skips elements `until` a predicate is satisfied:
+... or skips elements `until` a predicate is satisfied:
 
 
 ```python
@@ -355,7 +355,7 @@ assert list(inverses) == [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
 assert len(errors) == 1
 ```
 
-You can mix these parameters, the order of the calls is ``when`` -> ``do`` -> ``replace``.
+You can mix these parameters.
 
 Set `stop=True` to stop the iteration if an exception is caught.
 
