@@ -246,10 +246,10 @@ It is also possible to pass any `concurrent.futures.Executor` as `concurrency`, 
 
 ```python
 if __name__ == "__main__":
-    with ProcessPoolExecutor(max_workers=10) as processes:
+    with ProcessPoolExecutor(10) as processes:
         state: list[int] = []
         # ints are mapped
-        assert list(ints.map(state.append, concurrency=processes)) == [None] * 10
+        assert list(ints.map(state.append, concurrency=processes)) == 10 * [None]
         # but the `state` of the main process is not mutated
         assert state == []
 ```

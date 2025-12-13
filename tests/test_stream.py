@@ -274,7 +274,7 @@ def test_process_concurrency(ordered, order_mutation, itype) -> None:
     def local_identity(x):
         return x  # pragma: no cover
 
-    with ProcessPoolExecutor(max_workers=10) as processes:
+    with ProcessPoolExecutor(10) as processes:
         sleeps = [0.01, 1, 0.01]
         state: List[str] = []
         expected_result_list: List[str] = list(order_mutation(map(str, sleeps)))

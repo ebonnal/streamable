@@ -70,7 +70,7 @@ def test_thread_concurrent_map_example() -> None:
 
 
 def test_process_concurrent_map_example() -> None:
-    with ProcessPoolExecutor(max_workers=10) as processes:
+    with ProcessPoolExecutor(10) as processes:
         state: List[int] = []
         # ints are mapped
         assert list(ints.map(state.append, concurrency=processes)) == [None] * 10
