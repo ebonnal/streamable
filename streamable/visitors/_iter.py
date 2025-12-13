@@ -26,7 +26,7 @@ from streamable._stream import (
     SkipStream,
     stream,
     ThrottleStream,
-    KeepStream,
+    TakeStream,
 )
 from streamable._utils._func import (
     async_sidify,
@@ -142,11 +142,11 @@ class IteratorVisitor(Visitor[Iterator[T]]):
             per=stream._per,
         )
 
-    def visit_keep_stream(self, stream: KeepStream[T]) -> Iterator[T]:
-        return _functions.keep(
+    def visit_take_stream(self, stream: TakeStream[T]) -> Iterator[T]:
+        return _functions.take(
             self._get_loop,
             stream.upstream.accept(self),
-            when=stream._when,
+            until=stream._until,
         )
 
     def visit_stream(self, stream: stream[T]) -> Iterator[T]:

@@ -13,7 +13,7 @@ from streamable._stream import (
     SkipStream,
     stream,
     ThrottleStream,
-    KeepStream,
+    TakeStream,
 )
 from streamable._utils._func import _Star
 from streamable.visitors import Visitor
@@ -88,8 +88,8 @@ class ToStringVisitor(Visitor[str], ABC):
         )
         return stream.upstream.accept(self)
 
-    def visit_keep_stream(self, stream: KeepStream) -> str:
-        self.methods_reprs.append(f"keep(until={self.to_string(stream._when)})")
+    def visit_take_stream(self, stream: TakeStream) -> str:
+        self.methods_reprs.append(f"take(until={self.to_string(stream._until)})")
         return stream.upstream.accept(self)
 
     def visit_stream(self, stream: stream) -> str:

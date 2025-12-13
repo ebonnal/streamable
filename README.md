@@ -96,8 +96,8 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
         .map(httpx.Client().get, concurrency=8)
         .do(httpx.Response.raise_for_status)
         .map(httpx.Response.json)
-        # Stop the iteration when reaching the 1st pokemon of the 4th generation
-        .keep(until=lambda poke: poke["generation"]["name"] == "generation-iv")
+        # Stop when reaching the 1st pokemon of the 4th generation
+        .take(until=lambda poke: poke["generation"]["name"] == "generation-iv")
         .watch("pokemons")
         # Keep only quadruped Pokemons
         .filter(lambda poke: poke["shape"]["name"] == "quadruped")
@@ -146,8 +146,8 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
         .map(httpx.AsyncClient().get, concurrency=8)
         .do(httpx.Response.raise_for_status)
         .map(httpx.Response.json)
-        # Stop the iteration when reaching the 1st pokemon of the 4th generation
-        .keep(until=lambda poke: poke["generation"]["name"] == "generation-iv")
+        # Stop when reaching the 1st pokemon of the 4th generation
+        .take(until=lambda poke: poke["generation"]["name"] == "generation-iv")
         .watch("pokemons")
         # Keep only quadruped Pokemons
         .filter(lambda poke: poke["shape"]["name"] == "quadruped")
@@ -173,7 +173,7 @@ with open("./quadruped_pokemons.csv", mode="w") as file:
   - [`.group`](#-group) / [`.groupby`](#-groupby): batch up to a group size / by a key / every time   interval
   - [`.flatten`](#-flatten): explode iterable elements
   - [`.filter`](#-filter): ignore certain elements
-  - [`.keep`](#-keep): yield elements until ...
+  - [`.take`](#-take): yield elements until ...
   - [`.skip`](#-skip): skip elements until ...
   - [`.catch`](#-catch): handle exceptions
   - [`.throttle`](#-throttle): rate-limit the iteration
@@ -365,21 +365,21 @@ even_ints: stream[int] = ints.filter(lambda n: n % 2 == 0)
 assert list(even_ints) == [0, 2, 4, 6, 8]
 ```
 
-## ▼ `.keep`
+## ▼ `.take`
 
-Keep the first specified number of elements, and stop:
+Takes the first specified number of elements, and stop:
 
 ```python
-five_first_ints: stream[int] = ints.keep(5)
+five_first_ints: stream[int] = ints.take(5)
 
 assert list(five_first_ints) == [0, 1, 2, 3, 4]
 ```
 
-... or keep elements `until` a condition become satisfied, and stop:
+... or takes elements `until` a condition become satisfied, and stop:
 
 
 ```python
-five_first_ints: stream[int] = ints.keep(until=lambda n: n == 5)
+five_first_ints: stream[int] = ints.take(until=lambda n: n == 5)
 
 assert list(five_first_ints) == [0, 1, 2, 3, 4]
 ```

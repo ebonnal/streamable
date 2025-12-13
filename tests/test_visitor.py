@@ -12,7 +12,7 @@ from streamable._stream import (
     SkipStream,
     stream,
     ThrottleStream,
-    KeepStream,
+    TakeStream,
 )
 from streamable.visitors import Visitor
 
@@ -33,7 +33,7 @@ def test_visitor() -> None:
     visitor.visit_watch_stream(cast(WatchStream, ...))
     visitor.visit_skip_stream(cast(SkipStream, ...))
     visitor.visit_throttle_stream(cast(ThrottleStream, ...))
-    visitor.visit_keep_stream(cast(KeepStream, ...))
+    visitor.visit_take_stream(cast(TakeStream, ...))
     visitor.visit_stream(cast(stream, ...))
 
 

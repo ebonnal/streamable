@@ -244,12 +244,12 @@ def test_catch_example() -> None:
     assert len(errors) == 1
 
 
-def test_keep_example() -> None:
-    five_first_ints: stream[int] = ints.keep(5)
+def test_take_example() -> None:
+    five_first_ints: stream[int] = ints.take(5)
 
     assert list(five_first_ints) == [0, 1, 2, 3, 4]
 
-    five_first_ints = ints.keep(until=lambda n: n == 5)
+    five_first_ints = ints.take(until=lambda n: n == 5)
 
     assert list(five_first_ints) == [0, 1, 2, 3, 4]
 
@@ -405,8 +405,8 @@ def test_etl_example(tmp_path: Path) -> None:  # pragma: no cover
             .map(httpx.Client().get, concurrency=8)
             .do(httpx.Response.raise_for_status)
             .map(httpx.Response.json)
-            # Stop the iteration when reaching the 1st pokemon of the 4th generation
-            .keep(until=lambda poke: poke["generation"]["name"] == "generation-iv")
+            # Stop when reaching the 1st pokemon of the 4th generation
+            .take(until=lambda poke: poke["generation"]["name"] == "generation-iv")
             .watch("pokemons")
             # Keep only quadruped Pokemons
             .filter(lambda poke: poke["shape"]["name"] == "quadruped")
@@ -445,8 +445,8 @@ async def test_async_etl_example(tmp_path: Path) -> None:  # pragma: no cover
             .map(httpx.AsyncClient().get, concurrency=8)
             .do(httpx.Response.raise_for_status)
             .map(httpx.Response.json)
-            # Stop the iteration when reaching the 1st pokemon of the 4th generation
-            .keep(until=lambda poke: poke["generation"]["name"] == "generation-iv")
+            # Stop when reaching the 1st pokemon of the 4th generation
+            .take(until=lambda poke: poke["generation"]["name"] == "generation-iv")
             .watch("pokemons")
             # Keep only quadruped Pokemons
             .filter(lambda poke: poke["shape"]["name"] == "quadruped")

@@ -198,13 +198,13 @@ def throttle(
     return iterator
 
 
-def keep(
+def take(
     loop_getter: Callable[[], asyncio.AbstractEventLoop],
     iterator: Iterator[T],
-    when: Union[int, Callable[[T], Any], Callable[[T], Coroutine[Any, Any, Any]]],
+    until: Union[int, Callable[[T], Any], Callable[[T], Coroutine[Any, Any, Any]]],
 ) -> Iterator[T]:
-    if isinstance(when, int):
-        return _iterators.CountKeepIterator(iterator, when)
-    return _iterators.PredicateKeepIterator(
-        iterator, syncify(loop_getter(), when) if iscoroutinefunction(when) else when
+    if isinstance(until, int):
+        return _iterators.CountTakeIterator(iterator, until)
+    return _iterators.PredicateTakeIterator(
+        iterator, syncify(loop_getter(), until) if iscoroutinefunction(until) else until
     )

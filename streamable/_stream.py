@@ -739,17 +739,17 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         return ThrottleStream(self, up_to, per)
 
     @overload
-    def keep(
+    def take(
         self, *, until: Callable[[T], Coroutine[Any, Any, Any]]
     ) -> "stream[T]": ...
 
     @overload
-    def keep(self, *, until: Callable[[T], Any]) -> "stream[T]": ...
+    def take(self, *, until: Callable[[T], Any]) -> "stream[T]": ...
 
     @overload
-    def keep(self, until: int) -> "stream[T]": ...
+    def take(self, until: int) -> "stream[T]": ...
 
-    def keep(
+    def take(
         self,
         until: Union[
             int,
@@ -771,7 +771,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         """
         if isinstance(until, int):
             validate_int(until, gte=0, name="until")
-        return KeepStream(self, until)
+        return TakeStream(self, until)
 
 
 class DownStream(stream[U], Generic[T, U]):
@@ -1005,20 +1005,20 @@ class ThrottleStream(DownStream[T, T]):
         return visitor.visit_throttle_stream(self)
 
 
-class KeepStream(DownStream[T, T]):
-    __slots__ = "_when"
+class TakeStream(DownStream[T, T]):
+    __slots__ = "_until"
 
     def __init__(
         self,
         upstream: stream[T],
-        when: Union[
+        until: Union[
             int,
             Callable[[T], Any],
             Callable[[T], Coroutine[Any, Any, Any]],
         ],
     ) -> None:
         super().__init__(upstream)
-        self._when = when
+        self._until = until
 
     def accept(self, visitor: "Visitor[V]") -> V:
-        return visitor.visit_keep_stream(self)
+        return visitor.visit_take_stream(self)
