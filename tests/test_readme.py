@@ -356,16 +356,16 @@ def test_zip_example() -> None:
 
 def test_call_example() -> None:
     state: List[int] = []
-    ints_into_state: stream[int] = ints.do(state.append)
-    assert ints_into_state() is ints_into_state
+    pipeline: stream[int] = ints.do(state.append)
+    assert pipeline() is pipeline
     assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 
 @pytest.mark.asyncio
 async def test_await_example() -> None:
     state: List[int] = []
-    ints_into_state: stream[int] = ints.do(state.append)
-    assert ints_into_state is await ints_into_state
+    pipeline: stream[int] = ints.do(state.append)
+    assert pipeline is await pipeline
     assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 
