@@ -150,7 +150,7 @@ class _BaseGroupIterator(Generic[T]):
         self.up_to = up_to or cast(int, float("inf"))
         self.every = every
         self._interval_seconds = every.total_seconds() if every else float("inf")
-        self._to_raised: Optional[Exception] = None
+        self._to_raise: Optional[Exception] = None
         self._last_group_yielded_at: float = 0
 
     def _interval_seconds_have_elapsed(self) -> bool:
@@ -181,11 +181,11 @@ class GroupIterator(_BaseGroupIterator[T], Iterator[List[T]]):
 
     def __next__(self) -> List[T]:
         self._init_last_group_time()
-        if self._to_raised:
+        if self._to_raise:
             try:
-                raise self._to_raised
+                raise self._to_raise
             finally:
-                self._to_raised = None
+                self._to_raise = None
         try:
             while len(self._current_group) < self.up_to and (
                 not self._interval_seconds_have_elapsed() or not self._current_group
@@ -194,7 +194,7 @@ class GroupIterator(_BaseGroupIterator[T], Iterator[List[T]]):
         except Exception as e:
             if not self._current_group:
                 raise
-            self._to_raised = e
+            self._to_raise = e
 
         group, self._current_group = self._current_group, []
         self._remember_group_time()
@@ -244,14 +244,14 @@ class GroupbyIterator(_BaseGroupIterator[T], Iterator[Tuple[U, List[T]]]):
                 return self._pop_first_group()
             raise StopIteration
 
-        if self._to_raised:
+        if self._to_raise:
             if self._groups_by:
                 self._remember_group_time()
                 return self._pop_first_group()
             try:
-                raise self._to_raised
+                raise self._to_raise
             finally:
-                self._to_raised = None
+                self._to_raise = None
 
         try:
             self._group_next_elem()
@@ -269,7 +269,7 @@ class GroupbyIterator(_BaseGroupIterator[T], Iterator[Tuple[U, List[T]]]):
             return self.__next__()
 
         except Exception as e:
-            self._to_raised = e
+            self._to_raise = e
             return self.__next__()
 
 

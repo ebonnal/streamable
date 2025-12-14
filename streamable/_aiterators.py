@@ -138,7 +138,7 @@ class _BaseGroupAsyncIterator(Generic[T]):
         self.up_to = up_to or cast(int, float("inf"))
         self.every = every
         self._interval_seconds = every.total_seconds() if every else float("inf")
-        self._to_raised: Optional[Exception] = None
+        self._to_raise: Optional[Exception] = None
         self._last_group_yielded_at: float = 0
 
     def _interval_seconds_have_elapsed(self) -> bool:
@@ -169,11 +169,11 @@ class GroupAsyncIterator(_BaseGroupAsyncIterator[T], AsyncIterator[List[T]]):
 
     async def __anext__(self) -> List[T]:
         self._init_last_group_time()
-        if self._to_raised:
+        if self._to_raise:
             try:
-                raise self._to_raised
+                raise self._to_raise
             finally:
-                self._to_raised = None
+                self._to_raise = None
         try:
             while len(self._current_group) < self.up_to and (
                 not self._interval_seconds_have_elapsed() or not self._current_group
@@ -182,7 +182,7 @@ class GroupAsyncIterator(_BaseGroupAsyncIterator[T], AsyncIterator[List[T]]):
         except Exception as e:
             if not self._current_group:
                 raise
-            self._to_raised = e
+            self._to_raise = e
 
         group, self._current_group = self._current_group, []
         self._remember_group_time()
@@ -234,14 +234,14 @@ class GroupbyAsyncIterator(
                 return self._pop_first_group()
             raise StopAsyncIteration
 
-        if self._to_raised:
+        if self._to_raise:
             if self._groups_by:
                 self._remember_group_time()
                 return self._pop_first_group()
             try:
-                raise self._to_raised
+                raise self._to_raise
             finally:
-                self._to_raised = None
+                self._to_raise = None
 
         try:
             await self._group_next_elem()
@@ -259,7 +259,7 @@ class GroupbyAsyncIterator(
             return await self.__anext__()
 
         except Exception as e:
-            self._to_raised = e
+            self._to_raise = e
             return await self.__anext__()
 
 
