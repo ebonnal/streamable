@@ -45,6 +45,7 @@ from tests.utils import (
     ITERABLE_TYPES,
     IterableType,
     N,
+    alist,
     to_async_iter,
     TestError,
     alist_or_list,
@@ -675,6 +676,14 @@ def test_flatten(concurrency, itype, to_iter) -> None:
                 itype=itype,
             )
         )
+
+
+@pytest.mark.parametrize("itype", [AsyncIterable])
+@pytest.mark.asyncio
+async def test_flatten_within_async(itype):
+    assert await alist(
+        stream([stream(ints_src), stream(ints_src).__aiter__()]).flatten()
+    ) == list(ints_src) + list(ints_src)
 
 
 @pytest.mark.parametrize(

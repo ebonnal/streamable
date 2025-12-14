@@ -63,6 +63,10 @@ def to_list(stream_: stream[T], itype: IterableType) -> List[T]:
     return list(stream_)
 
 
+async def alist(iterable: AsyncIterable[T]) -> List[T]:
+    return [_ async for _ in iterable]
+
+
 def bi_iterable_to_iter(
     iterable: Union[SyncAsyncIterable[T], stream[T]], itype: IterableType
 ) -> Union[Iterator[T], AsyncIterator[T]]:
