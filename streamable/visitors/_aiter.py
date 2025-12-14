@@ -17,7 +17,6 @@ from streamable._stream import (
     DoStream,
     FilterStream,
     FlattenStream,
-    GroupbyStream,
     GroupStream,
     MapStream,
     ObserveStream,
@@ -78,17 +77,6 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
                 stream._up_to,
                 every=stream._every,
                 by=stream._by,
-            ),
-        )
-
-    def visit_groupby_stream(self, stream: GroupbyStream[U, T]) -> AsyncIterator[T]:
-        return cast(
-            AsyncIterator[T],
-            _afunctions.groupby(
-                stream.upstream.accept(cast(AsyncIteratorVisitor[U], self)),
-                stream._by,
-                up_to=stream._up_to,
-                every=stream._every,
             ),
         )
 

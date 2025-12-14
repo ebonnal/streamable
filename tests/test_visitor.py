@@ -5,7 +5,6 @@ from streamable._stream import (
     DoStream,
     FilterStream,
     FlattenStream,
-    GroupbyStream,
     GroupStream,
     MapStream,
     ObserveStream,
@@ -28,7 +27,6 @@ def test_visitor() -> None:
     visitor.visit_flatten_stream(cast(FlattenStream, ...))
     visitor.visit_do_stream(cast(DoStream, ...))
     visitor.visit_group_stream(cast(GroupStream, ...))
-    visitor.visit_groupby_stream(cast(GroupbyStream, ...))
     visitor.visit_map_stream(cast(MapStream, ...))
     visitor.visit_observe_stream(cast(ObserveStream, ...))
     visitor.visit_skip_stream(cast(SkipStream, ...))

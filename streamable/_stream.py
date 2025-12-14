@@ -386,6 +386,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         *,
         concurrency: int = 1,
     ) -> "stream[U]": ...
+
     @overload
     def flatten(
         self: "stream[builtins.map[U]]",
@@ -406,6 +407,13 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         *,
         concurrency: int = 1,
     ) -> "stream[int]": ...
+
+    @overload
+    def flatten(
+        self: "stream[str]",
+        *,
+        concurrency: int = 1,
+    ) -> "stream[str]": ...
 
     @overload
     def flatten(
@@ -497,8 +505,8 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         up_to: Optional[int] = None,
         *,
         every: Optional[datetime.timedelta] = None,
-        by: Callable[[T], Coroutine[Any, Any, Any]],
-    ) -> "stream[List[T]]": ...
+        by: Callable[[T], Coroutine[Any, Any, U]],
+    ) -> "stream[Tuple[U, List[T]]]": ...
 
     @overload
     def group(
@@ -506,7 +514,15 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         up_to: Optional[int] = None,
         *,
         every: Optional[datetime.timedelta] = None,
-        by: Optional[Callable[[T], Any]] = None,
+        by: Callable[[T], U],
+    ) -> "stream[Tuple[U, List[T]]]": ...
+
+    @overload
+    def group(
+        self,
+        up_to: Optional[int] = None,
+        *,
+        every: Optional[datetime.timedelta] = None,
     ) -> "stream[List[T]]": ...
 
     def group(
@@ -516,20 +532,18 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         every: Optional[datetime.timedelta] = None,
         by: Union[
             None,
-            Callable[[T], Any],
-            Callable[[T], Coroutine[Any, Any, Any]],
+            Callable[[T], U],
+            Callable[[T], Coroutine[Any, Any, U]],
         ] = None,
-    ) -> "stream[List[T]]":
+    ) -> "Union[stream[List[T]], stream[Tuple[U, List[T]]]]":
         """
-        Groups upstream elements into lists.
+        Groups upstream elements into lists. Yields ``(key, group)`` pairs if ``by`` is specified.
 
         A group is yielded when any of the following conditions is met:
 
         - it contains ``up_to`` elements
         - the ``every`` time interval elapsed since the last group was yielded
         - the upstream is exhausted.
-
-        If ``by`` is specified, groups will only contain elements sharing the same ``by(elem)`` value (see ``.groupby`` for ``(key, elements)`` pairs).
 
         Args:
             up_to (``int | None``, optional): The maximum size of the group. (default: no size limit)
@@ -543,57 +557,6 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         if every is not None:
             validate_positive_timedelta(every, name="every")
         return GroupStream(self, up_to, every, by)
-
-    @overload
-    def groupby(
-        self,
-        by: Callable[[T], Coroutine[Any, Any, U]],
-        *,
-        up_to: Optional[int] = None,
-        every: Optional[datetime.timedelta] = None,
-    ) -> "stream[Tuple[U, List[T]]]": ...
-
-    @overload
-    def groupby(
-        self,
-        by: Callable[[T], U],
-        *,
-        up_to: Optional[int] = None,
-        every: Optional[datetime.timedelta] = None,
-    ) -> "stream[Tuple[U, List[T]]]": ...
-
-    def groupby(
-        self,
-        by: Union[
-            Callable[[T], U],
-            Callable[[T], Coroutine[Any, Any, U]],
-        ],
-        *,
-        up_to: Optional[int] = None,
-        every: Optional[datetime.timedelta] = None,
-    ) -> "stream[Tuple[U, List[T]]]":
-        """
-        Groups upstream elements into ``(key, elements)`` tuples.
-
-        A group is yielded when any of the following conditions is met:
-
-        - it contains ``up_to`` elements
-        - the ``every`` time interval elapsed since the last group was yielded
-        - the upstream is exhausted.
-
-        Args:
-            by (``Callable[[T], U] | Callable[[T], Coroutine[Any, Any, U]]``): A function that returns the group key for an element.
-            up_to (``int | None``, optional): The maximum size of the group. (default: no size limit)
-            every (``datetime.timedelta | None``, optional): Yields a group if this time interval has elapsed since the last group was yielded. (default: no time limit)
-
-        Returns:
-            ``stream[tuple[U, list[T]]]``: A stream of upstream elements grouped by key, as ``(key, elements)`` tuples.
-        """
-        if up_to is not None:
-            validate_int(up_to, gte=1, name="up_to")
-        if every is not None:
-            validate_positive_timedelta(every, name="every")
-        return GroupbyStream(self, by, up_to, every)
 
     @overload
     def map(
@@ -907,28 +870,6 @@ class GroupStream(DownStream[T, List[T]]):
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_group_stream(self)
-
-
-class GroupbyStream(DownStream[T, Tuple[U, List[T]]]):
-    __slots__ = ("_by", "_up_to", "_every")
-
-    def __init__(
-        self,
-        upstream: stream[T],
-        by: Union[
-            Callable[[T], U],
-            Callable[[T], Coroutine[Any, Any, U]],
-        ],
-        up_to: Optional[int],
-        every: Optional[datetime.timedelta],
-    ) -> None:
-        super().__init__(upstream)
-        self._by = by
-        self._up_to = up_to
-        self._every = every
-
-    def accept(self, visitor: "Visitor[V]") -> V:
-        return visitor.visit_groupby_stream(self)
 
 
 class MapStream(DownStream[T, U]):

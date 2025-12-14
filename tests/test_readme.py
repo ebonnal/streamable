@@ -21,8 +21,6 @@ pokemons: stream[str] = (
     .catch(JSONDecodeError)
 )
 
-ints_by_parity: stream[List[int]] = ints.group(by=lambda n: n % 2)
-
 three_ints_per_second: stream[int] = ints.throttle(5, per=timedelta(seconds=1))
 
 POKEMONS = [
@@ -157,14 +155,9 @@ def test_throttle_example() -> None:
 
 
 def test_group_example() -> None:
-    global ints_by_parity
     ints_by_5: stream[List[int]] = ints.group(5)
 
     assert list(ints_by_5) == [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]]
-
-    ints_by_parity = ints.group(by=lambda n: n % 2)
-
-    assert list(ints_by_parity) == [[0, 2, 4, 6, 8], [1, 3, 5, 7, 9]]
 
     from datetime import timedelta
 
@@ -174,14 +167,8 @@ def test_group_example() -> None:
 
     assert list(ints_within_1_sec) == [[0, 1, 2], [3, 4], [5, 6], [7, 8], [9]]
 
-    ints_by_parity_by_2: stream[List[int]] = ints.group(by=lambda n: n % 2, up_to=2)
-
-    assert list(ints_by_parity_by_2) == [[0, 2], [1, 3], [4, 6], [5, 7], [8], [9]]
-
-
-def test_groupby_example() -> None:
-    ints_by_parity: stream[Tuple[str, List[int]]] = ints.groupby(
-        lambda n: "odd" if n % 2 else "even"
+    ints_by_parity: stream[Tuple[str, List[int]]] = ints.group(
+        by=lambda n: "odd" if n % 2 else "even"
     )
 
     assert list(ints_by_parity) == [("even", [0, 2, 4, 6, 8]), ("odd", [1, 3, 5, 7, 9])]
@@ -196,10 +183,9 @@ def test_groupby_example() -> None:
 
 
 def test_flatten_example() -> None:
-    global ints_by_parity
-    even_then_odd_ints: stream[int] = ints_by_parity.flatten()
+    flattened_grouped_ints: stream[int] = ints.group(2).flatten()
 
-    assert list(even_then_odd_ints) == [0, 2, 4, 6, 8, 1, 3, 5, 7, 9]
+    assert list(flattened_grouped_ints) == list(ints)
 
     round_robined_ints: stream[int] = stream([[0, 0], [1, 1, 1, 1], [2, 2]]).flatten(
         concurrency=2

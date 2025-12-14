@@ -4,7 +4,6 @@ from concurrent.futures import Executor
 import datetime
 from contextlib import suppress
 from inspect import iscoroutinefunction
-from operator import itemgetter
 from typing import (
     Any,
     AsyncIterable,
@@ -54,11 +53,9 @@ def catch(
     return _iterators.CatchIterator(
         iterator,
         errors,
-        where=syncify(loop_getter(), where) if iscoroutinefunction(where) else where,
-        replace=syncify(loop_getter(), replace)
-        if iscoroutinefunction(replace)
-        else replace,
-        do=syncify(loop_getter(), do) if iscoroutinefunction(do) else do,
+        where=syncify(loop_getter(), where),
+        replace=syncify(loop_getter(), replace),
+        do=syncify(loop_getter(), do),
         stop=stop,
     )
 
@@ -68,9 +65,7 @@ def filter(
     where: Union[Callable[[T], Any], Callable[[T], Coroutine[Any, Any, Any]]],
     iterator: Iterator[T],
 ) -> Iterator[T]:
-    return builtins.filter(
-        syncify(loop_getter(), where) if iscoroutinefunction(where) else where, iterator
-    )
+    return builtins.filter(syncify(loop_getter(), where), iterator)
 
 
 def flatten(
@@ -94,39 +89,15 @@ def group(
     up_to: Optional[int] = None,
     *,
     every: Optional[datetime.timedelta] = None,
-    by: Optional[
-        Union[Callable[[T], Any], Callable[[T], Coroutine[Any, Any, Any]]]
-    ] = None,
-) -> Iterator[List[T]]:
+    by: Optional[Union[Callable[[T], U], Callable[[T], Coroutine[Any, Any, U]]]] = None,
+) -> Union[Iterator[List[T]], Iterator[Tuple[U, List[T]]]]:
     if by is None:
         return _iterators.GroupIterator(iterator, up_to, every)
-    return builtins.map(
-        itemgetter(1),
-        _iterators.GroupbyIterator(
-            iterator,
-            by=cast(
-                Callable[[T], Any],
-                syncify(loop_getter(), by) if iscoroutinefunction(by) else by,
-            ),
-            up_to=up_to,
-            every=every,
-        ),
-    )
-
-
-def groupby(
-    loop_getter: Callable[[], asyncio.AbstractEventLoop],
-    iterator: Iterator[T],
-    by: Union[Callable[[T], U], Callable[[T], Coroutine[Any, Any, U]]],
-    *,
-    up_to: Optional[int] = None,
-    every: Optional[datetime.timedelta] = None,
-) -> Iterator[Tuple[U, List[T]]]:
     return _iterators.GroupbyIterator(
         iterator,
-        syncify(loop_getter(), by) if iscoroutinefunction(by) else by,
-        up_to,
-        every,
+        by=syncify(loop_getter(), by),
+        up_to=up_to,
+        every=every,
     )
 
 
@@ -139,13 +110,7 @@ def map(
     ordered: bool = True,
 ) -> Iterator[U]:
     if concurrency == 1:
-        return builtins.map(
-            cast(
-                Callable[[T], U],
-                syncify(loop_getter(), into) if iscoroutinefunction(into) else into,
-            ),
-            iterator,
-        )
+        return builtins.map(syncify(loop_getter(), into), iterator)
     if iscoroutinefunction(into):
         return _iterators.ConcurrentAMapIterator(
             loop_getter(),
@@ -183,9 +148,7 @@ def skip(
 ) -> Iterator[T]:
     if isinstance(until, int):
         return _iterators.CountSkipIterator(iterator, until)
-    return _iterators.PredicateSkipIterator(
-        iterator, syncify(loop_getter(), until) if iscoroutinefunction(until) else until
-    )
+    return _iterators.PredicateSkipIterator(iterator, syncify(loop_getter(), until))
 
 
 def throttle(
@@ -206,6 +169,4 @@ def take(
 ) -> Iterator[T]:
     if isinstance(until, int):
         return _iterators.CountTakeIterator(iterator, until)
-    return _iterators.PredicateTakeIterator(
-        iterator, syncify(loop_getter(), until) if iscoroutinefunction(until) else until
-    )
+    return _iterators.PredicateTakeIterator(iterator, syncify(loop_getter(), until))

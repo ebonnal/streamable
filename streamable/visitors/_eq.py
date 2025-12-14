@@ -5,7 +5,6 @@ from streamable._stream import (
     FilterStream,
     FlattenStream,
     DoStream,
-    GroupbyStream,
     GroupStream,
     MapStream,
     ObserveStream,
@@ -58,15 +57,6 @@ class EqualityVisitor(Visitor[bool]):
         )
 
     def visit_group_stream(self, stream: GroupStream) -> bool:
-        return (
-            self.type_eq(stream)
-            and stream.upstream.accept(EqualityVisitor(self.other.upstream))
-            and stream._by == self.other._by
-            and stream._up_to == self.other._up_to
-            and stream._every == self.other._every
-        )
-
-    def visit_groupby_stream(self, stream: GroupbyStream) -> bool:
         return (
             self.type_eq(stream)
             and stream.upstream.accept(EqualityVisitor(self.other.upstream))

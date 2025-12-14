@@ -5,6 +5,7 @@ import copy
 import datetime
 import json
 import math
+from operator import itemgetter
 import queue
 import re
 import sys
@@ -907,16 +908,6 @@ def test_group(itype: IterableType, adapt, nostop_) -> None:
                 stream([1]).group(up_to=100, every=datetime.timedelta(seconds=seconds)),
                 itype=itype,
             )
-        with pytest.raises(
-            ValueError,
-            match="`every` must be a positive timedelta but got datetime\.timedelta(.*)",
-        ):
-            to_list(
-                stream([1]).groupby(
-                    str, up_to=100, every=datetime.timedelta(seconds=seconds)
-                ),
-                itype=itype,
-            )
 
     # `group` should raise error when called with `up_to` < 1.
     for size in [-1, 0]:
@@ -963,11 +954,13 @@ def test_group(itype: IterableType, adapt, nostop_) -> None:
     ) == list(map(lambda e: [e], ints_src))
     # `group` with `by` argument should not yield empty groups even though `every` if smaller than upstream's frequency
     assert to_list(
-        stream(map(slow_identity, ints_src)).group(
+        stream(map(slow_identity, ints_src))
+        .group(
             up_to=100,
             every=datetime.timedelta(seconds=slow_identity_duration / 1000),
             by=adapt(lambda _: None),
-        ),
+        )
+        .map(itemgetter(1)),
         itype=itype,
     ) == list(map(lambda e: [e], ints_src))
     # `group` should yield upstream elements in a two-element group if `every` inferior to twice the upstream yield period
@@ -987,9 +980,9 @@ def test_group(itype: IterableType, adapt, nostop_) -> None:
     groupby_stream_iter: Union[
         Iterator[Tuple[int, List[int]]], AsyncIterator[Tuple[int, List[int]]]
     ] = bi_iterable_to_iter(
-        stream(ints_src).groupby(adapt(lambda n: n % 2), up_to=2), itype=itype
+        stream(ints_src).group(by=adapt(lambda n: n % 2), up_to=2), itype=itype
     )
-    # `groupby` must cogroup elements.
+    # `group` `by` must cogroup elements.
     assert [
         anext_or_next(groupby_stream_iter),
         anext_or_next(groupby_stream_iter),
@@ -997,7 +990,8 @@ def test_group(itype: IterableType, adapt, nostop_) -> None:
 
     # test by
     stream_iter = bi_iterable_to_iter(
-        stream(ints_src).group(up_to=2, by=adapt(lambda n: n % 2)), itype=itype
+        stream(ints_src).group(up_to=2, by=adapt(lambda n: n % 2)).map(itemgetter(1)),
+        itype=itype,
     )
     # `group` called with a `by` function must cogroup elements.
     assert [anext_or_next(stream_iter), anext_or_next(stream_iter)] == [
@@ -1007,25 +1001,33 @@ def test_group(itype: IterableType, adapt, nostop_) -> None:
     # `group` called with a `by` function and a `up_to` should yield the first batch becoming full.
     assert anext_or_next(
         bi_iterable_to_iter(
-            stream(src_raising_at_exhaustion()).group(
+            stream(src_raising_at_exhaustion())
+            .group(
                 up_to=10,
                 by=adapt(lambda n: n % 4 != 0),
-            ),
+            )
+            .map(itemgetter(1)),
             itype=itype,
         ),
     ) == [1, 2, 3, 5, 6, 7, 9, 10, 11, 13]
     # `group` called with a `by` function and an infinite size must cogroup elements and yield groups starting with the group containing the oldest element.
-    assert to_list(stream(ints_src).group(by=adapt(lambda n: n % 2)), itype=itype) == [
+    assert to_list(
+        stream(ints_src).group(by=adapt(lambda n: n % 2)).map(itemgetter(1)),
+        itype=itype,
+    ) == [
         list(range(0, N, 2)),
         list(range(1, N, 2)),
     ]
     # `group` called with a `by` function and reaching exhaustion must cogroup elements and yield uncomplete groups starting with the group containing the oldest element, even though it's not the largest.
     assert to_list(
-        stream(range(10)).group(by=adapt(lambda n: n % 4 == 0)), itype=itype
+        stream(range(10)).group(by=adapt(lambda n: n % 4 == 0)).map(itemgetter(1)),
+        itype=itype,
     ) == [[0, 4, 8], [1, 2, 3, 5, 6, 7, 9]]
 
     stream_iter = bi_iterable_to_iter(
-        stream(src_raising_at_exhaustion()).group(by=adapt(lambda n: n % 2)),
+        stream(src_raising_at_exhaustion())
+        .group(by=adapt(lambda n: n % 2))
+        .map(itemgetter(1)),
         itype=itype,
     )
     # `group` called with a `by` function and encountering an exception must cogroup elements and yield uncomplete groups starting with the group containing the oldest element.
@@ -1039,20 +1041,24 @@ def test_group(itype: IterableType, adapt, nostop_) -> None:
     # test seconds + by
     # `group` called with a `by` function must cogroup elements and yield the largest groups when `seconds` is reached event though it's not the oldest.
     assert to_list(
-        stream(map(slow_identity, range(10))).group(
+        stream(map(slow_identity, range(10)))
+        .group(
             every=datetime.timedelta(seconds=slow_identity_duration * 2.9),
             by=adapt(lambda n: n % 4 == 0),
-        ),
+        )
+        .map(itemgetter(1)),
         itype=itype,
     ) == [[1, 2], [0, 4], [3, 5, 6, 7], [8], [9]]
 
     stream_iter = bi_iterable_to_iter(
-        stream(ints_src).group(
+        stream(ints_src)
+        .group(
             up_to=3,
             by=nostop_(
                 adapt(lambda n: throw(stopiteration_type(itype)) if n == 2 else n)
             ),
-        ),
+        )
+        .map(itemgetter(1)),
         itype=itype,
     )
     # `group` should yield incomplete groups when `by` raises
@@ -1549,6 +1555,7 @@ def test_pipe(itype: IterableType) -> None:
 
 def test_eq() -> None:
     threads = ThreadPoolExecutor(max_workers=10)
+    second_item = itemgetter(1)
     big_stream = (
         stream(ints_src)
         .catch((TypeError, ValueError), replace=identity, where=identity)
@@ -1558,13 +1565,13 @@ def test_eq() -> None:
         .do(identity, concurrency=3)
         .do(async_identity, concurrency=3)
         .group(3, by=bool)
+        .map(second_item)
         .flatten(concurrency=3)
         .group(3, by=async_identity)
+        .map(second_item)
         .map(iter)
         .map(sync_to_async_iter)
         .flatten(concurrency=3)
-        .groupby(bool)
-        .groupby(async_identity)
         .map(identity, concurrency=threads)
         .map(async_identity)
         .observe("foo")
@@ -1584,13 +1591,13 @@ def test_eq() -> None:
         .do(identity, concurrency=3)
         .do(async_identity, concurrency=3)
         .group(3, by=bool)
+        .map(second_item)
         .flatten(concurrency=3)
         .group(3, by=async_identity)
+        .map(second_item)
         .map(iter)
         .map(sync_to_async_iter)
         .flatten(concurrency=3)
-        .groupby(bool)
-        .groupby(async_identity)
         .map(identity, concurrency=threads)
         .map(async_identity)
         .observe("foo")
@@ -1611,13 +1618,13 @@ def test_eq() -> None:
         .do(identity, concurrency=3)
         .do(async_identity, concurrency=3)
         .group(3, by=bool)
+        .map(second_item)
         .flatten(concurrency=3)
         .group(3, by=async_identity)
+        .map(second_item)
         .map(iter)
         .map(sync_to_async_iter)
         .flatten(concurrency=3)
-        .groupby(bool)
-        .groupby(async_identity)
         .map(identity, concurrency=threads)
         .map(async_identity)
         .observe("foo")
@@ -1638,13 +1645,13 @@ def test_eq() -> None:
         .do(identity, concurrency=3)
         .do(async_identity, concurrency=3)
         .group(3, by=bool)
+        .map(second_item)
         .flatten(concurrency=3)
         .group(3, by=async_identity)
+        .map(second_item)
         .map(iter)
         .map(sync_to_async_iter)
         .flatten(concurrency=3)
-        .groupby(bool)
-        .groupby(async_identity)
         .map(identity, concurrency=threads)
         .map(async_identity)
         .observe("foo")
@@ -1666,8 +1673,8 @@ def test_ref_cycles(itype: IterableType) -> None:
         stream("123_5")
         .map(async_int)
         .map(str)
-        .group(1)
-        .groupby(len)
+        .group(1, by=len)
+        .map(star(lambda _, group: group))
         .catch(Exception, do=errors.append)
     )
     to_list(ints, itype=itype)

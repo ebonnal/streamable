@@ -6,7 +6,6 @@ from streamable._stream import (
     DoStream,
     FilterStream,
     FlattenStream,
-    GroupbyStream,
     GroupStream,
     MapStream,
     ObserveStream,
@@ -56,13 +55,7 @@ class ToStringVisitor(Visitor[str], ABC):
 
     def visit_group_stream(self, stream: GroupStream) -> str:
         self.methods_reprs.append(
-            f"group(up_to={self.to_string(stream._up_to)}, by={self.to_string(stream._by)}, every={self.to_string(stream._every)})"
-        )
-        return stream.upstream.accept(self)
-
-    def visit_groupby_stream(self, stream: GroupbyStream) -> str:
-        self.methods_reprs.append(
-            f"groupby({self.to_string(stream._by)}, up_to={self.to_string(stream._up_to)}, every={self.to_string(stream._every)})"
+            f"group(up_to={self.to_string(stream._up_to)}, every={self.to_string(stream._every)}, by={self.to_string(stream._by)})"
         )
         return stream.upstream.accept(self)
 

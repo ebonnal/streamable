@@ -192,15 +192,6 @@ ints_by_5: stream[list[int]] = ints.group(5)
 assert list(ints_by_5) == [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]]
 ```
 
-... `by` a given key:
-
-
-```python
-ints_by_parity: stream[list[int]] = ints.group(by=lambda n: n % 2)
-
-assert list(ints_by_parity) == [[0, 2, 4, 6, 8], [1, 3, 5, 7, 9]]
-```
-
 ... `every` given time interval:
 
 
@@ -216,39 +207,28 @@ ints_within_1_sec: stream[list[int]] = (
 assert list(ints_within_1_sec) == [[0, 1, 2], [3, 4], [5, 6], [7, 8], [9]]
 ```
 
-You can mix the `up_to`/`by`/`every` parameters:
+... `by` a given key, yielding `(key, group)` pairs:
 
-
-```python
-ints_by_parity_by_2: stream[list[int]] = (
-    ints
-    .group(by=lambda n: n % 2, up_to=2)
-)
-
-assert list(ints_by_parity_by_2) == [[0, 2], [1, 3], [4, 6], [5, 7], [8], [9]]
-```
-
-## ▼ `.groupby`
-
-Like `.group`, but yields `(key, group)` pairs:
 
 ```python
 ints_by_parity: stream[tuple[str, list[int]]] = (
     ints
-    .groupby(lambda n: "odd" if n % 2 else "even")
+    .group(by=lambda n: "odd" if n % 2 else "even")
 )
 
 assert list(ints_by_parity) == [("even", [0, 2, 4, 6, 8]), ("odd", [1, 3, 5, 7, 9])]
 ```
+
+You can mix the `up_to`/`every`/`by` parameters.
 
 ## ▼ `.flatten`
 
 Ungroups elements assuming that they are `Iterable` or `AsyncIterable`:
 
 ```python
-even_then_odd_ints: stream[int] = ints_by_parity.flatten()
+flattened_grouped_ints: stream[int] = ints.group(2).flatten()
 
-assert list(even_then_odd_ints) == [0, 2, 4, 6, 8, 1, 3, 5, 7, 9]
+assert list(flattened_grouped_ints) == list(ints)
 ```
 
 ### concurrency
