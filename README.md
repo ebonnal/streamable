@@ -326,7 +326,7 @@ inverses: stream[float] = (
 assert list(inverses) == [float("inf"), 1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
 ```
 
-Only catch the exception `when` it satisfy a condition:
+Only catch the exception if it satisfies a `where` condition:
 
 ```python
 import httpx
@@ -334,7 +334,7 @@ import httpx
 status_codes_ignoring_resolution_errors: stream[int] = (
     stream(["https://github.com", "https://foo.bar", "https://github.com/foo/bar"])
     .map(httpx.get, concurrency=2)
-    .catch(httpx.ConnectError, when=lambda exc: "not known" in str(exc))
+    .catch(httpx.ConnectError, where=lambda exc: "not known" in str(exc))
     .map(lambda response: response.status_code)
 )
 

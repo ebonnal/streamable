@@ -1236,11 +1236,11 @@ def test_catch(itype: IterableType, adapt) -> None:
     with pytest.raises(stopiteration_type(itype)):
         anext_or_next(iterator)
 
-    # `catch` does not catch if `when` not satisfied
+    # `catch` does not catch if `where` not satisfied
     with pytest.raises(TypeError):
         to_list(
             stream(map(throw, [ValueError, TypeError])).catch(
-                Exception, when=adapt(lambda exc: "ValueError" in repr(exc))
+                Exception, where=adapt(lambda exc: "ValueError" in repr(exc))
             ),
             itype=itype,
         )
@@ -1277,7 +1277,7 @@ def test_catch(itype: IterableType, adapt) -> None:
             )
         ).catch(
             (ValueError, TestError, ZeroDivisionError),
-            when=adapt(lambda exc: errors_counter.update([type(exc)]) is None),
+            where=adapt(lambda exc: errors_counter.update([type(exc)]) is None),
         ),
         itype=itype,
     ) == list(map(lambda n: 1 / n, range(2, 10, 2)))
@@ -1286,7 +1286,7 @@ def test_catch(itype: IterableType, adapt) -> None:
 
     errors: List[Exception] = []
     # test sync/async combinations
-    for when, do in (
+    for where, do in (
         (identity, adapt(errors.append)),
         (adapt(identity), errors.append),
     ):
@@ -1295,7 +1295,7 @@ def test_catch(itype: IterableType, adapt) -> None:
         assert to_list(
             stream([0, 1, 0, 1, 0])
             .map(lambda n: round(1 / n, 2))
-            .catch(ZeroDivisionError, when=when, do=do),
+            .catch(ZeroDivisionError, where=where, do=do),
             itype=itype,
         ) == [1, 1]
         assert len(errors) == 3
@@ -1551,8 +1551,8 @@ def test_eq() -> None:
     threads = ThreadPoolExecutor(max_workers=10)
     big_stream = (
         stream(ints_src)
-        .catch((TypeError, ValueError), replace=identity, when=identity)
-        .catch((TypeError, ValueError), replace=async_identity, when=async_identity)
+        .catch((TypeError, ValueError), replace=identity, where=identity)
+        .catch((TypeError, ValueError), replace=async_identity, where=async_identity)
         .filter(identity)
         .filter(async_identity)
         .do(identity, concurrency=3)
@@ -1577,8 +1577,8 @@ def test_eq() -> None:
 
     assert big_stream == (
         stream(ints_src)
-        .catch((TypeError, ValueError), replace=identity, when=identity)
-        .catch((TypeError, ValueError), replace=async_identity, when=async_identity)
+        .catch((TypeError, ValueError), replace=identity, where=identity)
+        .catch((TypeError, ValueError), replace=async_identity, where=async_identity)
         .filter(identity)
         .filter(async_identity)
         .do(identity, concurrency=3)
@@ -1602,9 +1602,9 @@ def test_eq() -> None:
     )
     assert big_stream != (
         stream(list(ints_src))  # not same source
-        .catch((TypeError, ValueError), replace=lambda e: 2, when=identity)
+        .catch((TypeError, ValueError), replace=lambda e: 2, where=identity)
         .catch(
-            (TypeError, ValueError), replace=asyncify(lambda e: 2), when=async_identity
+            (TypeError, ValueError), replace=asyncify(lambda e: 2), where=async_identity
         )
         .filter(identity)
         .filter(async_identity)
@@ -1629,9 +1629,9 @@ def test_eq() -> None:
     )
     assert big_stream != (
         stream(ints_src)
-        .catch((TypeError, ValueError), replace=lambda e: 2, when=identity)
+        .catch((TypeError, ValueError), replace=lambda e: 2, where=identity)
         .catch(
-            (TypeError, ValueError), replace=asyncify(lambda e: 2), when=async_identity
+            (TypeError, ValueError), replace=asyncify(lambda e: 2), where=async_identity
         )
         .filter(identity)
         .filter(async_identity)

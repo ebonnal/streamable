@@ -67,14 +67,14 @@ class CatchIterator(Iterator[Union[T, U]]):
         self,
         iterator: Iterator[T],
         errors: Union[Type[Exception], Tuple[Type[Exception], ...]],
-        when: Optional[Callable[[Exception], Any]],
+        where: Optional[Callable[[Exception], Any]],
         replace: Optional[Callable[[Exception], U]],
         do: Optional[Callable[[Exception], Any]],
         stop: bool,
     ) -> None:
         self.iterator = iterator
         self.errors = errors
-        self.when = when
+        self.where = where
         self.replace = replace
         self.do = do
         self.stop = stop
@@ -91,7 +91,7 @@ class CatchIterator(Iterator[Union[T, U]]):
             except self.errors as e:
                 if self.stop:
                     self._stopped = True
-                if not self.when or self.when(e):
+                if not self.where or self.where(e):
                     if self.do:
                         self.do(e)
                     if self.replace:

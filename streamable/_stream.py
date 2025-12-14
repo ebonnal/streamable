@@ -238,7 +238,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         self,
         errors: Union[Type[Exception], Tuple[Type[Exception], ...]],
         *,
-        when: Optional[Callable[[Exception], Coroutine[Any, Any, Any]]] = None,
+        where: Optional[Callable[[Exception], Coroutine[Any, Any, Any]]] = None,
         do: Optional[Callable[[Exception], Coroutine[Any, Any, Any]]] = None,
         replace: Optional[Callable[[Exception], Coroutine[Any, Any, U]]] = None,
         stop: bool = False,
@@ -249,7 +249,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         self,
         errors: Union[Type[Exception], Tuple[Type[Exception], ...]],
         *,
-        when: Optional[Callable[[Exception], Any]] = None,
+        where: Optional[Callable[[Exception], Any]] = None,
         do: Optional[Callable[[Exception], Any]] = None,
         replace: Optional[Callable[[Exception], U]] = None,
         stop: bool = False,
@@ -259,7 +259,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         self,
         errors: Union[Type[Exception], Tuple[Type[Exception], ...]],
         *,
-        when: Union[
+        where: Union[
             None,
             Callable[[Exception], Any],
             Callable[[Exception], Coroutine[Any, Any, Any]],
@@ -277,14 +277,14 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         stop: bool = False,
     ) -> "stream[Union[T, U]]":
         """
-        Catches the upstream exceptions if they are instances of ``errors`` type and they satisfy the ``when`` predicate.
+        Catches the upstream exceptions if they are instances of ``errors`` type and they satisfy the ``where`` predicate.
         When an exception is caught you can ``do`` an effect and/or yield a replacement value ``replace(exc)``.
 
-        The order of the calls is ``when`` -> ``do`` -> ``replace``.
+        The order of the calls is ``where`` -> ``do`` -> ``replace``.
 
         Args:
             errors (``Type[Exception] | Tuple[Type[Exception], ...]``): The exception types to catch.
-            when (``Callable[[Exception], Any] | Callable[[Exception], Coroutine[Any, Any, Any]] | None``, optional): An additional condition that must be satisfied to catch the exception, i.e. ``when(exc)`` must be truthy. (default: no additional condition)
+            where (``Callable[[Exception], Any] | Callable[[Exception], Coroutine[Any, Any, Any]] | None``, optional): An additional condition that must be satisfied to catch the exception, i.e. ``where(exc)`` must be truthy. (default: no additional condition)
             do (``Callable[[Exception], Any] | Callable[[Exception], Coroutine[Any, Any, Any]] | None``, optional): Side effect to apply when an exception is caught (default: no side effect)
             replace (``Callable[[Exception], U] | Callable[[Exception], Coroutine[Any, Any, U]] | None``, optional): Replacement value yielded when an exception is caught. (default: do not yield any replacement value)
             stop (``bool``, optional): If True, catching an exception will stop the iteration. (default: iteration continues after an exception is caught)
@@ -295,7 +295,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         return CatchStream(
             self,
             errors,
-            when=when,
+            where=where,
             replace=replace,
             do=do,
             stop=stop,
@@ -804,13 +804,13 @@ class DownStream(stream[U], Generic[T, U]):
 
 
 class CatchStream(DownStream[T, Union[T, U]]):
-    __slots__ = ("_errors", "_when", "_replace", "_do", "_stop")
+    __slots__ = ("_errors", "_where", "_replace", "_do", "_stop")
 
     def __init__(
         self,
         upstream: stream[T],
         errors: Union[Type[Exception], Tuple[Type[Exception], ...]],
-        when: Union[
+        where: Union[
             None,
             Callable[[Exception], Any],
             Callable[[Exception], Coroutine[Any, Any, Any]],
@@ -829,7 +829,7 @@ class CatchStream(DownStream[T, Union[T, U]]):
     ) -> None:
         super().__init__(upstream)
         self._errors = errors
-        self._when = when
+        self._where = where
         self._replace = replace
         self._do = do
         self._stop = stop

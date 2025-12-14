@@ -51,7 +51,7 @@ def catch(
     aiterator: AsyncIterator[T],
     errors: Union[Type[Exception], Tuple[Type[Exception], ...]],
     *,
-    when: Optional[
+    where: Optional[
         Union[
             Callable[[Exception], Any], Callable[[Exception], Coroutine[Any, Any, Any]]
         ]
@@ -69,7 +69,7 @@ def catch(
     return CatchAsyncIterator(
         aiterator,
         errors,
-        when=when if not when or iscoroutinefunction(when) else asyncify(when),
+        where=where if not where or iscoroutinefunction(where) else asyncify(where),
         replace=replace
         if not replace or iscoroutinefunction(replace)
         else asyncify(replace),

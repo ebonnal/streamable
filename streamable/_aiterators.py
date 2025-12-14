@@ -60,14 +60,14 @@ class CatchAsyncIterator(AsyncIterator[Union[T, U]]):
         self,
         iterator: AsyncIterator[T],
         errors: Union[Type[Exception], Tuple[Type[Exception], ...]],
-        when: Optional[Callable[[Exception], Coroutine[Any, Any, Any]]],
+        where: Optional[Callable[[Exception], Coroutine[Any, Any, Any]]],
         replace: Optional[Callable[[Exception], Coroutine[Any, Any, U]]],
         do: Optional[Callable[[Exception], Coroutine[Any, Any, Any]]],
         stop: bool,
     ) -> None:
         self.iterator = iterator
         self.errors = errors
-        self.when = when
+        self.where = where
         self.replace = replace
         self.do = do
         self.stop = stop
@@ -84,7 +84,7 @@ class CatchAsyncIterator(AsyncIterator[Union[T, U]]):
             except self.errors as e:
                 if self.stop:
                     self._stopped = True
-                if not self.when or await self.when(e):
+                if not self.where or await self.where(e):
                     if self.do:
                         await self.do(e)
                     if self.replace:

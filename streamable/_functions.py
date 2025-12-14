@@ -36,7 +36,7 @@ def catch(
     iterator: Iterator[T],
     errors: Union[Type[Exception], Tuple[Type[Exception], ...]],
     *,
-    when: Optional[
+    where: Optional[
         Union[
             Callable[[Exception], Any], Callable[[Exception], Coroutine[Any, Any, Any]]
         ]
@@ -54,7 +54,7 @@ def catch(
     return _iterators.CatchIterator(
         iterator,
         errors,
-        when=syncify(loop_getter(), when) if iscoroutinefunction(when) else when,
+        where=syncify(loop_getter(), where) if iscoroutinefunction(where) else where,
         replace=syncify(loop_getter(), replace)
         if iscoroutinefunction(replace)
         else replace,

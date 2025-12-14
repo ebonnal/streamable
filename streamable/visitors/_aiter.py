@@ -41,7 +41,7 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
         return _afunctions.catch(
             stream.upstream.accept(cast(AsyncIteratorVisitor[Union[T, U]], self)),
             stream._errors,
-            when=stream._when,
+            where=stream._where,
             replace=stream._replace,
             do=stream._do,
             stop=stream._stop,

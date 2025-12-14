@@ -29,7 +29,7 @@ class EqualityVisitor(Visitor[bool]):
             self.type_eq(stream)
             and stream.upstream.accept(EqualityVisitor(self.other.upstream))
             and stream._errors == self.other._errors
-            and stream._when == self.other._when
+            and stream._where == self.other._where
             and stream._replace == self.other._replace
             and stream._stop == self.other._stop
         )

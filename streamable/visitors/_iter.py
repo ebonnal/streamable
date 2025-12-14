@@ -54,7 +54,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
             self._get_loop,
             stream.upstream.accept(cast(IteratorVisitor[Union[T, U]], self)),
             stream._errors,
-            when=stream._when,
+            where=stream._where,
             replace=stream._replace,
             do=stream._do,
             stop=stream._stop,
