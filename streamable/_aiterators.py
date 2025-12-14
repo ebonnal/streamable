@@ -82,9 +82,9 @@ class CatchAsyncIterator(AsyncIterator[Union[T, U]]):
             except StopAsyncIteration:
                 raise
             except self.errors as e:
-                if self.stop:
-                    self._stopped = True
                 if not self.where or await self.where(e):
+                    if self.stop:
+                        self._stopped = True
                     if self.do:
                         await self.do(e)
                     if self.replace:

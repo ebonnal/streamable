@@ -1311,6 +1311,14 @@ def test_catch(itype: IterableType, adapt) -> None:
         stream("01-3").map(int).catch(ValueError, stop=True),
         itype,
     ) == [0, 1]
+    # test `stop` on exception not satisfying `where`
+    assert to_list(
+        stream("01-3")
+        .map(int)
+        .catch(ValueError, where=lambda exc: False, stop=True)
+        .catch(ValueError),
+        itype,
+    ) == [0, 1, 3]
     # test `stop` on exception, with replacement as last elem
     assert to_list(
         stream("01-3").map(int).catch(ValueError, stop=True, replace=lambda exc: -1),

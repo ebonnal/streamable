@@ -89,9 +89,9 @@ class CatchIterator(Iterator[Union[T, U]]):
             except StopIteration:
                 raise
             except self.errors as e:
-                if self.stop:
-                    self._stopped = True
                 if not self.where or self.where(e):
+                    if self.stop:
+                        self._stopped = True
                     if self.do:
                         self.do(e)
                     if self.replace:
