@@ -230,7 +230,7 @@ assert list(ints_by_parity_by_2) == [[0, 2], [1, 3], [4, 6], [5, 7], [8], [9]]
 
 ## ▼ `.groupby`
 
-Like `.group`, but groups into `(key, elements)` tuples:
+Like `.group`, but yields `(key, group)` pairs:
 
 ```python
 ints_by_parity: stream[tuple[str, list[int]]] = (
