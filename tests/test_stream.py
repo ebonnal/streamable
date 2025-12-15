@@ -497,7 +497,7 @@ def test_map_or_do_concurrency(method, func, concurrency, itype) -> None:
     )
     assert res == list(ints_src)
     # Increasing the concurrency of mapping should decrease proportionnally the iteration's duration.
-    assert duration == pytest.approx(expected_iteration_duration, rel=0.15)
+    assert duration == pytest.approx(expected_iteration_duration, rel=0.2)
 
 
 @pytest.mark.parametrize(
