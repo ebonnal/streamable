@@ -224,30 +224,21 @@ class GroupbyIterator(_BaseGroupIterator[T], Iterator[Tuple[U, List[T]]]):
                 return key, self._groups_by.pop(key)
         return None
 
-    def _pop_first_group(self) -> Tuple[U, List[T]]:
+    def _pop_oldest_group(self) -> Tuple[U, List[T]]:
         first_key: U = self._groups_by.__iter__().__next__()
         return first_key, self._groups_by.pop(first_key)
-
-    def _pop_largest_group(self) -> Tuple[U, List[T]]:
-        largest_group_key: Any = self._groups_by.__iter__().__next__()
-
-        for key, group in self._groups_by.items():
-            if len(group) > len(self._groups_by[largest_group_key]):
-                largest_group_key = key
-
-        return largest_group_key, self._groups_by.pop(largest_group_key)
 
     def __next__(self) -> Tuple[U, List[T]]:
         self._init_last_group_time()
         if self._is_exhausted:
             if self._groups_by:
-                return self._pop_first_group()
+                return self._pop_oldest_group()
             raise StopIteration
 
         if self._to_raise:
             if self._groups_by:
                 self._remember_group_time()
-                return self._pop_first_group()
+                return self._pop_oldest_group()
             try:
                 raise self._to_raise
             finally:
@@ -262,7 +253,7 @@ class GroupbyIterator(_BaseGroupIterator[T], Iterator[Tuple[U, List[T]]]):
                 full_group = self._pop_full_group()
 
             self._remember_group_time()
-            return full_group or self._pop_largest_group()
+            return full_group or self._pop_oldest_group()
 
         except StopIteration:
             self._is_exhausted = True

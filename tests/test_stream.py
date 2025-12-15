@@ -1060,6 +1060,45 @@ def test_group(itype: IterableType, adapt) -> None:
         assert anext_or_next(stream_iter) == [3]
 
 
+@pytest.mark.parametrize(
+    "itype, adapt",
+    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
+)
+def test_group_yield_order(itype, adapt):
+    # test `group` `by` FIFO yield on exhaustion
+    assert to_list(
+        stream([1, 2, 3, 3, 2, 1]).group(by=adapt(identity)), itype=itype
+    ) == [(1, [1, 1]), (2, [2, 2]), (3, [3, 3])]
+
+    # test `group` `by` FIFO yield on upstream exception
+    assert to_list(
+        stream([1, 2, 2, 0, 3, 1, 3, 2, 2, 3])
+        .do(adapt(lambda n: 1 / n))
+        .group(by=adapt(identity))
+        .catch(ZeroDivisionError),
+        itype=itype,
+    ) == [(1, [1]), (2, [2, 2]), (3, [3, 3, 3]), (1, [1]), (2, [2, 2])]
+
+    # test `group` `by` FIFO yield on `by` exception
+    assert to_list(
+        stream([1, 2, 2, 0, 3, 1, 3, 2, 2, 3])
+        .group(by=adapt(lambda n: 1 / n))
+        .catch(ZeroDivisionError),
+        itype=itype,
+    ) == [(1, [1]), (1 / 2, [2, 2]), (1 / 3, [3, 3, 3]), (1, [1]), (1 / 2, [2, 2])]
+
+    # test `group` `by` FIFO yield on `every` elapsed
+    assert to_list(
+        stream(map(slow_identity, [1, 2, 2, 2, 2, 3, 3, 1, 3]))
+        .group(
+            by=adapt(identity),
+            every=datetime.timedelta(seconds=2.9 * slow_identity_duration),
+        )
+        .catch(ZeroDivisionError),
+        itype=itype,
+    ) == [(1, [1]), (2, [2, 2, 2, 2]), (3, [3, 3, 3]), (1, [1])]
+
+
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_throttle(itype: IterableType) -> None:
     # `throttle` should raise error when called with negative `per`.

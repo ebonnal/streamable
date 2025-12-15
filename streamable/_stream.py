@@ -537,18 +537,24 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         ] = None,
     ) -> "Union[stream[List[T]], stream[Tuple[U, List[T]]]]":
         """
-        Groups upstream elements into lists. Yields ``(key, group)`` pairs if ``by`` is specified.
+        Groups upstream elements into lists.
 
-        A group is yielded when any of the following conditions is met:
+        - if the group reaches ``up_to`` elements, it is yielded
+        - if the ``every`` time interval elapsed since the last group was yielded, the group is yielded
+        - if the upstream is exhausted, the group is yielded
+        - if the upstream raises an exception, the group is yielded, and the exception is reraised when downstream requests the next group
 
-        - it contains ``up_to`` elements
-        - the ``every`` time interval elapsed since the last group was yielded
-        - the upstream is exhausted.
+        If ``by`` is specified, elements are accumulated in multiple groups, one per key, and ``(key, group)`` pairs are yielded.
+
+        - if a group reaches ``up_to`` elements it is yielded
+        - if the ``every`` time interval elapsed, the group containing the oldest element is yielded (i.e. FIFO)
+        - if the upstream is exhausted, all groups are yielded (FIFO)
+        - if the upstream raises an exception, all groups are yielded (FIFO), and the exception is reraised when downstream requests the next group
 
         Args:
             up_to (``int | None``, optional): The maximum size of the group. (default: no size limit)
             every (``datetime.timedelta | None``, optional): Yields a group if this time interval has elapsed since the last group was yielded. (default: no time limit)
-            by (``Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]] | None``, optional): If specified, groups will only contain elements sharing the same ``by(elem)`` value. (default: does not co-group elements)
+            by (``Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]] | None``, optional): If specified, groups will only contain elements sharing the same ``by(elem)`` value, and ``(key, group)`` pairs are yielded. (default: does not co-group elements)
         Returns:
             ``stream[list[T]]``: A stream of upstream elements grouped into lists.
         """
