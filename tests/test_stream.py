@@ -39,7 +39,7 @@ import pytest
 
 from streamable import stream
 from streamable._utils._async import awaitable_to_coroutine
-from streamable._utils._func import anostop, asyncify, nostop, star
+from streamable._utils._func import asyncify, star
 from streamable._utils._iter import sync_to_async_iter, sync_to_bi_iterable
 from tests.utils import (
     ITERABLE_TYPES,
@@ -429,47 +429,37 @@ def test_do(concurrency, itype) -> None:
 
 
 @pytest.mark.parametrize(
-    "raised_exc, caught_exc, concurrency, method, throw_func, throw_for_odd_func, nostop, itype",
+    "concurrency, method, throw_func, throw_for_odd_func, itype",
     [
         [
-            raised_exc,
-            caught_exc,
             concurrency,
             method,
             throw_func_,
             throw_for_odd_func_,
-            nostop_,
             itype,
         ]
-        for raised_exc, caught_exc in [
-            (TestError, TestError),
-            (StopIteration, RuntimeError),
-        ]
         for concurrency in [1, 2]
-        for method, throw_func_, throw_for_odd_func_, nostop_ in [
-            (stream.do, throw_func, throw_for_odd_func, nostop),
-            (stream.do, async_throw_func, async_throw_for_odd_func, anostop),
-            (stream.map, throw_func, throw_for_odd_func, nostop),
-            (stream.map, async_throw_func, async_throw_for_odd_func, anostop),
+        for method, throw_func_, throw_for_odd_func_ in [
+            (stream.do, throw_func, throw_for_odd_func),
+            (stream.do, async_throw_func, async_throw_for_odd_func),
+            (stream.map, throw_func, throw_for_odd_func),
+            (stream.map, async_throw_func, async_throw_for_odd_func),
         ]
         for itype in ITERABLE_TYPES
     ],
 )
 def test_map_or_do_with_exception(
-    raised_exc: Type[Exception],
-    caught_exc: Type[Exception],
     concurrency: int,
     method: Callable[[stream, Callable[[Any], int], int], stream],
     throw_func: Callable[[Type[Exception]], Callable[[Any], int]],
     throw_for_odd_func: Callable[[Type[Exception]], Callable[[Any], int]],
-    nostop: Callable[[Any], Callable[[Any], int]],
     itype: IterableType,
 ) -> None:
     rasing_stream: stream[int] = method(
-        stream(iter(ints_src)), nostop(throw_func(raised_exc)), concurrency=concurrency
+        stream(iter(ints_src)), throw_func(TestError), concurrency=concurrency
     )  # type: ignore
     # At any concurrency, `map` and `do` must raise.
-    with pytest.raises(caught_exc):
+    with pytest.raises(TestError):
         to_list(rasing_stream, itype=itype)
     # Only `concurrency` upstream elements should be initially pulled for processing (0 if `concurrency=1`), and 1 more should be pulled for each call to `next`.
     assert next(cast(Iterator[int], rasing_stream.source)) == (
@@ -479,9 +469,9 @@ def test_map_or_do_with_exception(
     assert to_list(
         method(
             stream(ints_src),
-            nostop(throw_for_odd_func(raised_exc)),
+            throw_for_odd_func(TestError),
             concurrency=concurrency,  # type: ignore
-        ).catch(caught_exc),
+        ).catch(TestError),
         itype=itype,
     ) == list(even_src)
 
@@ -899,14 +889,10 @@ def test_take(itype: IterableType, adapt) -> None:
 
 
 @pytest.mark.parametrize(
-    "itype, adapt, nostop_",
-    (
-        (itype, adapt, nostop_)
-        for adapt, nostop_ in ((identity, nostop), (asyncify, anostop))
-        for itype in ITERABLE_TYPES
-    ),
+    "itype, adapt",
+    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
 )
-def test_group(itype: IterableType, adapt, nostop_) -> None:
+def test_group(itype: IterableType, adapt) -> None:
     # `group` should raise error when called with `seconds` <= 0.
     for seconds in [-1, 0]:
         with pytest.raises(
@@ -1063,9 +1049,7 @@ def test_group(itype: IterableType, adapt, nostop_) -> None:
         stream(ints_src)
         .group(
             up_to=3,
-            by=nostop_(
-                adapt(lambda n: throw(stopiteration_type(itype)) if n == 2 else n)
-            ),
+            by=adapt(lambda n: throw(stopiteration_type(itype)) if n == 2 else n),
         )
         .map(itemgetter(1)),
         itype=itype,

@@ -20,35 +20,6 @@ T = TypeVar("T")
 R = TypeVar("R")
 
 
-def _get_name(obj: Any) -> str:
-    return getattr(obj, "__name__", obj.__class__.__name__)
-
-
-def _nostop(func: Callable[[T], R], arg: T) -> R:
-    try:
-        return func(arg)
-    except (StopIteration, StopAsyncIteration) as e:
-        raise RuntimeError(f"{_get_name(func)} raised {e.__class__.__name__}") from e
-
-
-def nostop(func: Callable[[T], R]) -> Callable[[T], R]:
-    return partial(_nostop, func)
-
-
-def anostop(
-    async_func: Callable[[T], Coroutine[Any, Any, R]],
-) -> Callable[[T], Coroutine[Any, Any, R]]:
-    async def wrap(elem: T) -> R:
-        try:
-            return await async_func(elem)
-        except (StopIteration, StopAsyncIteration) as e:
-            raise RuntimeError(
-                f"{_get_name(async_func)} raised {e.__class__.__name__}"
-            ) from e
-
-    return wrap
-
-
 class _Sidify(Generic[T]):
     def __init__(self, func: Callable[[T], Any]) -> None:
         self.func = func
