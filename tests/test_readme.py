@@ -368,7 +368,7 @@ def test_etl_example(tmp_path: Path) -> None:  # pragma: no cover
     import httpx
     from streamable import stream
 
-    with open("./quadruped_pokemons.csv", mode="w") as file:
+    with open(tmp_path / "quadruped_pokemons.csv", mode="w") as file:
         fields = ["id", "name", "is_legendary", "base_happiness", "capture_rate"]
         writer = csv.DictWriter(file, fields, extrasaction="ignore")
         writer.writeheader()
@@ -408,7 +408,7 @@ async def test_async_etl_example(tmp_path: Path) -> None:  # pragma: no cover
     import httpx
     from streamable import stream
 
-    with open("./quadruped_pokemons.csv", mode="w") as file:
+    with open(tmp_path / "quadruped_pokemons.csv", mode="w") as file:
         fields = ["id", "name", "is_legendary", "base_happiness", "capture_rate"]
         writer = csv.DictWriter(file, fields, extrasaction="ignore")
         writer.writeheader()
