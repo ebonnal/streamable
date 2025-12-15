@@ -1045,25 +1045,19 @@ def test_group(itype: IterableType, adapt) -> None:
         itype=itype,
     ) == [[1, 2], [0, 4], [3, 5, 6, 7], [8], [9]]
 
-    stream_iter = bi_iterable_to_iter(
-        stream(ints_src)
-        .group(
-            up_to=3,
-            by=adapt(lambda n: throw(stopiteration_type(itype)) if n == 2 else n),
+    failing_parity = adapt(lambda n: throw(TestError) if n == 2 else n)
+    for stream_ in (stream(ints_src), stream(ints_src).map(failing_parity)):
+        stream_iter = bi_iterable_to_iter(
+            stream_.group(up_to=3, by=failing_parity).map(itemgetter(1)),
+            itype=itype,
         )
-        .map(itemgetter(1)),
-        itype=itype,
-    )
-    # `group` should yield incomplete groups when `by` raises
-    assert [anext_or_next(stream_iter), anext_or_next(stream_iter)] == [[0], [1]]
-    # `group` should raise and skip `elem` if `by(elem)` raises
-    with pytest.raises(
-        RuntimeError,
-        match=stopiteration_type(itype).__name__,
-    ):
-        anext_or_next(stream_iter)
-    # `group` should continue yielding after `by`'s exception has been raised.
-    assert anext_or_next(stream_iter) == [3]
+        # `group` should yield incomplete groups when `by` or upstream raises
+        assert [anext_or_next(stream_iter), anext_or_next(stream_iter)] == [[0], [1]]
+        # `group` should raise and skip `elem` if `by(elem)` raises
+        with pytest.raises(TestError):
+            anext_or_next(stream_iter)
+        # `group` should continue yielding after `by`'s exception has been raised.
+        assert anext_or_next(stream_iter) == [3]
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
