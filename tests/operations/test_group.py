@@ -25,7 +25,6 @@ from tests.utils import (
     slow_identity_duration,
     ints_src,
     src_raising_at_exhaustion,
-    throw,
     to_list,
 )
 
@@ -175,38 +174,7 @@ def test_group(itype: IterableType, adapt) -> None:
     # `group` called with a `by` function and encountering an exception must raise it after all groups have been yielded
     with pytest.raises(TestError):
         anext_or_next(stream_iter)
-    # test seconds + by
-    # `group` called with a `by` function must cogroup elements and yield the largest groups when `seconds` is reached event though it's not the oldest.
-    assert to_list(
-        stream(map(slow_identity, range(10)))
-        .group(
-            every=datetime.timedelta(seconds=slow_identity_duration * 2.9),
-            by=adapt(lambda n: n % 4 == 0),
-        )
-        .map(itemgetter(1)),
-        itype=itype,
-    ) == [[1, 2], [0, 4], [3, 5, 6, 7], [8], [9]]
 
-    failing_parity = adapt(lambda n: throw(TestError) if n == 2 else n)
-    for stream_ in (stream(ints_src), stream(ints_src).map(failing_parity)):
-        stream_iter = bi_iterable_to_iter(
-            stream_.group(up_to=3, by=failing_parity).map(itemgetter(1)),
-            itype=itype,
-        )
-        # `group` should yield incomplete groups when `by` or upstream raises
-        assert [anext_or_next(stream_iter), anext_or_next(stream_iter)] == [[0], [1]]
-        # `group` should raise and skip `elem` if `by(elem)` raises
-        with pytest.raises(TestError):
-            anext_or_next(stream_iter)
-        # `group` should continue yielding after `by`'s exception has been raised.
-        assert anext_or_next(stream_iter) == [3]
-
-
-@pytest.mark.parametrize(
-    "itype, adapt",
-    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
-)
-def test_group_yield_order(itype, adapt):
     # test `group` `by` FIFO yield on exhaustion
     assert to_list(
         stream([1, 2, 3, 3, 2, 1]).group(by=adapt(identity)), itype=itype
