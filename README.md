@@ -51,9 +51,7 @@ pokemons: stream[str] = (
 ```
 
 
-***... or the `async` way:***
-
-All operations ***also accept async functions***, you can pass `httpx.AsyncClient().get` to `.map` and the concurrency will happen via the event loop instead of threads.
+Operations also accept `async` functions: simply pass `httpx.AsyncClient().get` to `.map` and the concurrency will happen via the event loop instead of threads.
 
 # 5. iterate
 
