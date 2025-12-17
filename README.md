@@ -2,9 +2,7 @@
 
 > ***fluent concurrent sync/async streams***
 
-`stream[T]` enriches any `Iterable[T]` or `AsyncIterable[T]` with a small set of chainable lazy operations for elegant data manipulation, including thread/coroutine concurrency, batching, rate limiting, and error handling.
-
-A `stream[T]` is both an `Iterable[T]` and an `AsyncIterable[T]`: a convenient bridge between the sync and async worlds.
+`stream[T]` enriches any `Iterable[T]` (or `AsyncIterable[T]`) with a small set of chainable lazy operations for elegant data manipulation, including concurrency, batching, rate limiting and error handling.
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/release/python-360/)
 [![coverage](https://codecov.io/gh/ebonnal/streamable/graph/badge.svg?token=S62T0JQK9N)](https://codecov.io/gh/ebonnal/streamable)
@@ -28,7 +26,7 @@ from streamable import stream
 
 # 3. init
 
-Create a `stream[T]` decorating an `Iterable[T]` or `AsyncIterable[T]` source:
+Create a `stream[T]` decorating an `Iterable[T]` (or `AsyncIterable[T]`):
 
 ```python
 ints: stream[int] = stream(range(10))
@@ -36,7 +34,7 @@ ints: stream[int] = stream(range(10))
 
 # 4. operate
 
-Chain ***lazy*** operations (only evaluated during iteration), each returning a new `stream`:
+Chain ***lazy*** [operations](https://streamable.readthedocs.io/en/latest/api.html) (only evaluated during iteration), each returning a new `stream`:
 
 ```python
 import httpx
@@ -44,6 +42,7 @@ import httpx
 pokemons: stream[str] = (
     ints
     .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
+    .throttle(5, per=timedelta(seconds=1))
     .map(httpx.Client().get, concurrency=2)
     .do(httpx.Response.raise_for_status)
     .map(lambda poke: poke.json()["name"])
@@ -52,26 +51,27 @@ pokemons: stream[str] = (
 ```
 
 
-***... or the `async` way!***
+***... or the `async` way:***
 
-All ***operations also accept async functions***: you can pass `httpx.AsyncClient().get` to `.map` and the concurrency will happen via the event loop instead of threads.
-
-[visit the documentation](https://streamable.readthedocs.io/en/latest/api.html)
+All operations ***also accept async functions***, you can pass `httpx.AsyncClient().get` to `.map` and the concurrency will happen via the event loop instead of threads.
 
 # 5. iterate
 
-A `stream` is ***both*** `Iterable` and `AsyncIterable`:
+A `stream[T]` is `Iterable[T]`:
 
 ```python
 >>> list(pokemons)
 ['bulbasaur', 'ivysaur', 'venusaur', 'charmander', 'charmeleon', 'charizard', 'squirtle', 'wartortle', 'blastoise']
+
 >>> [poke for poke in pokemons]
-['bulbasaur', 'ivysaur', 'venusaur', 'charmander', 'charmeleon', 'charizard', 'squirtle', 'wartortle', 'blastoise']
->>> [poke async for poke in pokemons]
 ['bulbasaur', 'ivysaur', 'venusaur', 'charmander', 'charmeleon', 'charizard', 'squirtle', 'wartortle', 'blastoise']
 ```
 
-Elements are processed ***on-the-fly*** as the iteration advances.
+... and `AsyncIterable[T]`:
+```python
+>>> [poke async for poke in pokemons]
+['bulbasaur', 'ivysaur', 'venusaur', 'charmander', 'charmeleon', 'charizard', 'squirtle', 'wartortle', 'blastoise']
+```
 
 
 # 📒 Operations ([API Reference](https://streamable.readthedocs.io/en/latest/api.html))
@@ -88,9 +88,9 @@ Elements are processed ***on-the-fly*** as the iteration advances.
   - [`.throttle`](#-throttle) the rate of iteration
   - [`.observe`](#-observe) the iteration progress
 
-All the ***operations that take a function accept both sync and async functions***, you can freely mix them within the same `stream`. It can then be consumed either as an `Iterable` or as an `AsyncIterable`. When a stream involving async functions is consumed as an `Iterable`, a temporary `asyncio` event loop is attached to it.
+All ***operations accept both sync and async functions***, you can freely mix them within the same `stream`. It can then be consumed either as an `Iterable` or as an `AsyncIterable`. When a stream involving async functions is consumed as an `Iterable`, a temporary `asyncio` event loop is attached to it.
 
-A `stream` exposes a minimalist yet expressive set of operations to manipulate its elements, but creating its source or consuming it is not its responsibility, it's meant to be combined with standard and specialized libraries (`csv`, `json`, `pyarrow`, `psycopg2`, `boto3`, `requests`, `httpx`, ...).
+A `stream` exposes a minimalist yet expressive set of operations to manipulate its elements, but creating its source or consuming it is not its responsibility, it's meant to be combined with standard and specialized libraries (`csv`, `json`, `pyarrow`, `psycopg2`, `boto3`, `requests`, `httpx`, `polars` ...).
 
 ## ▼ `.map`
 
@@ -130,7 +130,7 @@ assert list(pokemons) == ['bulbasaur', 'ivysaur', 'venusaur']
 
 #### via `async` coroutines
 
-If you set a `concurrency > 1` and you provided an coroutine function, elements will be transformed concurrently via the event loop.
+If you set a `concurrency > 1` and you provided an async function, elements will be transformed concurrently via the event loop.
 
 
 ```python
