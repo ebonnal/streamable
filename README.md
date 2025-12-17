@@ -140,9 +140,9 @@ pokemons: stream[str] = (
     .map(httpx.AsyncClient().get, concurrency=3)
     .map(lambda poke: poke.json()["name"])
 )
-# within async context: consume as AsyncIterable
+# consume as AsyncIterable
 assert [name async for name in pokemons] == ['bulbasaur', 'ivysaur', 'venusaur']
-# within sync context: consume as Iterable (concurrency will happen in dedicated event loop)
+# consume as Iterable (concurrency will happen in dedicated event loop)
 assert [name for name in pokemons] == ['bulbasaur', 'ivysaur', 'venusaur']
 ```
 
