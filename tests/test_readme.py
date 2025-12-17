@@ -361,6 +361,12 @@ def test_non_stopping_exceptions_example() -> None:
     assert collected_casted_ints == [0, 1, 2, 3, 5, 6, 7, 8, 9]
 
 
+def test_pipe(tmp_path: Path) -> None:
+    import polars as pl
+
+    pokemons.pipe(pl.DataFrame, schema=["name"]).write_csv(tmp_path / "ints.parquet")
+
+
 def test_etl_example(tmp_path: Path) -> None:  # pragma: no cover
     import csv
     from datetime import timedelta
