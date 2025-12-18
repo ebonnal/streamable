@@ -512,7 +512,7 @@ odd_int_strings = stream(range(1_000_000)).filter(lambda n: n % 2).map(str)
 map(str, filter(lambda n: n % 2, range(1_000_000)))
 ```
 
-Operations have been [implemented](https://github.com/ebonnal/streamable/blob/main/streamable/_iterators.py) with speed in mind. If you have any ideas for improvement, whether performance-related or not, an issue, PR, or discussion would be very much appreciated! ([CONTRIBUTING.md](CONTRIBUTING.md))
+Operations have been [implemented](https://github.com/ebonnal/streamable/blob/main/streamable/_iterators.py) with speed in mind, issues and PRs are very welcome!
 
 
 ## ⭐ highlights from the community
