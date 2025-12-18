@@ -267,9 +267,7 @@ def test_distinct_example() -> None:
 
 
 def test_observe_example() -> None:
-    observed_ints: stream[int] = ints.throttle(2, per=timedelta(seconds=1)).observe(
-        "ints"
-    )
+    observed_ints: stream[int] = ints.observe("ints")
     assert list(observed_ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 

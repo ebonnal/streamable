@@ -362,22 +362,18 @@ assert list(three_ints_per_second) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 Logs the progress of iteration:
 
 ```python
-observed_ints: stream[int] = (
-    ints
-    .throttle(2, per=timedelta(seconds=1))
-    .observe("ints")
-)
+observed_ints: stream[int] = ints.observe("ints")
 assert list(observed_ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 
 logs:
 
 ```
-{"@timestamp":...,"log.level":"INFO","elapsed":"0:00:00.000012","label":"ints","errors":0,"emissions":1}
-{"@timestamp":...,"log.level":"INFO","elapsed":"0:00:00.000063","label":"ints","errors":0,"emissions":2}
-{"@timestamp":...,"log.level":"INFO","elapsed":"0:00:01.005173","label":"ints","errors":0,"emissions":4}
-{"@timestamp":...,"log.level":"INFO","elapsed":"0:00:03.002394","label":"ints","errors":0,"emissions":8}
-{"@timestamp":...,"log.level":"INFO","elapsed":"0:00:04.005194","label":"ints","errors":0,"emissions":10}
+{"@timestamp":...,"log.level":"INFO","elapsed":"0:00:00.000010","label":"ints","errors":0,"emissions":1}
+{"@timestamp":...,"log.level":"INFO","elapsed":"0:00:00.000057","label":"ints","errors":0,"emissions":2}
+{"@timestamp":...,"log.level":"INFO","elapsed":"0:00:00.000078","label":"ints","errors":0,"emissions":4}
+{"@timestamp":...,"log.level":"INFO","elapsed":"0:00:00.000093","label":"ints","errors":0,"emissions":8}
+{"@timestamp":...,"log.level":"INFO","elapsed":"0:00:00.000104","label":"ints","errors":0,"emissions":10}
 ```
 
 It follows [ECS format](https://www.elastic.co/docs/reference/ecs) but you can specify your own via the `format` parameter.
