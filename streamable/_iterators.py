@@ -148,25 +148,23 @@ class _BaseGroupIterator(Generic[T]):
     ) -> None:
         self.iterator = iterator
         self.up_to = up_to or cast(int, float("inf"))
-        self.every = every
-        self._interval_seconds = every.total_seconds() if every else float("inf")
+        self._every_seconds = every.total_seconds() if every else None
         self._to_raise: Optional[Exception] = None
-        self._last_group_yielded_at: float = 0
+        self._last_yield_at: float = 0
 
-    def _interval_seconds_have_elapsed(self) -> bool:
-        if not self.every:
+    def _every_seconds_elapsed(self) -> bool:
+        if self._every_seconds is None:
             return False
-        return (
-            time.perf_counter() - self._last_group_yielded_at
-        ) >= self._interval_seconds
+        elapsed = time.perf_counter() - self._last_yield_at
+        return elapsed >= self._every_seconds
 
     def _remember_group_time(self) -> None:
-        if self.every:
-            self._last_group_yielded_at = time.perf_counter()
+        if self._every_seconds is not None:
+            self._last_yield_at = time.perf_counter()
 
     def _init_last_group_time(self) -> None:
-        if self.every and not self._last_group_yielded_at:
-            self._last_group_yielded_at = time.perf_counter()
+        if self._every_seconds is not None and not self._last_yield_at:
+            self._last_yield_at = time.perf_counter()
 
 
 class GroupIterator(_BaseGroupIterator[T], Iterator[List[T]]):
@@ -188,7 +186,7 @@ class GroupIterator(_BaseGroupIterator[T], Iterator[List[T]]):
                 self._to_raise = None
         try:
             while len(self._current_group) < self.up_to and (
-                not self._interval_seconds_have_elapsed() or not self._current_group
+                not self._every_seconds_elapsed() or not self._current_group
             ):
                 self._current_group.append(self.iterator.__next__())
         except Exception as e:
@@ -212,31 +210,31 @@ class GroupbyIterator(_BaseGroupIterator[T], Iterator[Tuple[U, List[T]]]):
         super().__init__(iterator, up_to, every)
         self.by = by
         self._is_exhausted = False
-        self._groups_by: DefaultDict[U, List[T]] = defaultdict(list)
+        self._current_groups: DefaultDict[U, List[T]] = defaultdict(list)
 
     def _group_next_elem(self) -> None:
         elem = self.iterator.__next__()
-        self._groups_by[self.by(elem)].append(elem)
+        self._current_groups[self.by(elem)].append(elem)
 
     def _pop_full_group(self) -> Optional[Tuple[U, List[T]]]:
-        for key, group in self._groups_by.items():
+        for key, group in self._current_groups.items():
             if len(group) >= self.up_to:
-                return key, self._groups_by.pop(key)
+                return key, self._current_groups.pop(key)
         return None
 
     def _pop_oldest_group(self) -> Tuple[U, List[T]]:
-        first_key: U = self._groups_by.__iter__().__next__()
-        return first_key, self._groups_by.pop(first_key)
+        first_key: U = self._current_groups.__iter__().__next__()
+        return first_key, self._current_groups.pop(first_key)
 
     def __next__(self) -> Tuple[U, List[T]]:
         self._init_last_group_time()
         if self._is_exhausted:
-            if self._groups_by:
+            if self._current_groups:
                 return self._pop_oldest_group()
             raise StopIteration
 
         if self._to_raise:
-            if self._groups_by:
+            if self._current_groups:
                 self._remember_group_time()
                 return self._pop_oldest_group()
             try:
@@ -248,7 +246,7 @@ class GroupbyIterator(_BaseGroupIterator[T], Iterator[Tuple[U, List[T]]]):
             self._group_next_elem()
 
             full_group: Optional[Tuple[U, List[T]]] = self._pop_full_group()
-            while not full_group and not self._interval_seconds_have_elapsed():
+            while not full_group and not self._every_seconds_elapsed():
                 self._group_next_elem()
                 full_group = self._pop_full_group()
 
