@@ -19,24 +19,6 @@ class SyncAsyncIterable(Iterable[T], AsyncIterable[T]):
     pass
 
 
-class SyncAsyncIterator(Iterator[T], AsyncIterator[T]):
-    pass
-
-
-class SyncToBiIterable(SyncAsyncIterable[T]):
-    def __init__(self, iterable: Iterable[T]):
-        self.iterable = iterable
-
-    def __iter__(self) -> Iterator[T]:
-        return self.iterable.__iter__()
-
-    def __aiter__(self) -> AsyncIterator[T]:
-        return SyncToAsyncIterator(self.iterable.__iter__())
-
-
-sync_to_bi_iterable: Callable[[Iterable[T]], SyncAsyncIterable[T]] = SyncToBiIterable
-
-
 class SyncToAsyncIterator(AsyncIterator[T]):
     def __init__(self, iterator: Iterator[T]):
         self.iterator = iterator

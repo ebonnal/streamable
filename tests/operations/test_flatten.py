@@ -13,7 +13,7 @@ from typing import (
 import pytest
 
 from streamable import stream
-from streamable._utils._iter import sync_to_async_iter, sync_to_bi_iterable
+from streamable._utils._iter import sync_to_async_iter
 from tests.utils import (
     ITERABLE_TYPES,
     N,
@@ -28,6 +28,7 @@ from tests.utils import (
     ints_src,
     timestream,
     to_list,
+    sync_to_bi_iterable,
 )
 
 

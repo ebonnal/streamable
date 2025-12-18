@@ -212,3 +212,17 @@ def range_raising_at_exhaustion(
 
 def src_raising_at_exhaustion() -> Iterator[int]:
     return range_raising_at_exhaustion(0, N, 1, TestError())
+
+
+class SyncToBiIterable(SyncAsyncIterable[T]):
+    def __init__(self, iterable: Iterable[T]):
+        self.iterable = iterable
+
+    def __iter__(self) -> Iterator[T]:
+        return self.iterable.__iter__()
+
+    def __aiter__(self) -> AsyncIterator[T]:
+        return SyncToAsyncIterator(self.iterable.__iter__())
+
+
+sync_to_bi_iterable: Callable[[Iterable[T]], SyncAsyncIterable[T]] = SyncToBiIterable
