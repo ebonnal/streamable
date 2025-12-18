@@ -76,7 +76,7 @@ class CatchAsyncIterator(AsyncIterator[Union[T, U]]):
     async def __anext__(self) -> Union[T, U]:
         while True:
             if self._stopped:
-                raise StopAsyncIteration()
+                raise StopAsyncIteration
             try:
                 return await self.iterator.__anext__()
             except StopAsyncIteration:
@@ -262,17 +262,13 @@ class GroupbyAsyncIterator(
 class CountSkipAsyncIterator(AsyncIterator[T]):
     def __init__(self, iterator: AsyncIterator[T], count: int) -> None:
         self.iterator = iterator
-        self.count = count
-        self._n_skipped = 0
-        self._done_skipping = False
+        self._remaining_to_skip = count
 
     async def __anext__(self) -> T:
-        if not self._done_skipping:
-            while self._n_skipped < self.count:
-                await self.iterator.__anext__()
-                # do not count exceptions as skipped elements
-                self._n_skipped += 1
-            self._done_skipping = True
+        while self._remaining_to_skip > 0:
+            await self.iterator.__anext__()
+            # do not count exceptions as skipped elements
+            self._remaining_to_skip -= 1
         return await self.iterator.__anext__()
 
 
@@ -282,14 +278,14 @@ class PredicateSkipAsyncIterator(AsyncIterator[T]):
     ) -> None:
         self.iterator = iterator
         self.until = until
-        self._done_skipping = False
+        self._satisfied = False
 
     async def __anext__(self) -> T:
         elem = await self.iterator.__anext__()
-        if not self._done_skipping:
+        if not self._satisfied:
             while not await self.until(elem):
                 elem = await self.iterator.__anext__()
-            self._done_skipping = True
+            self._satisfied = True
         return elem
 
 
@@ -301,14 +297,13 @@ class PredicateSkipAsyncIterator(AsyncIterator[T]):
 class CountTakeAsyncIterator(AsyncIterator[T]):
     def __init__(self, iterator: AsyncIterator[T], count: int) -> None:
         self.iterator = iterator
-        self.count = count
-        self._current_count = 0
+        self._remaining_to_take = count
 
     async def __anext__(self) -> T:
-        if self._current_count == self.count:
-            raise StopAsyncIteration()
+        if self._remaining_to_take <= 0:
+            raise StopAsyncIteration
         elem = await self.iterator.__anext__()
-        self._current_count += 1
+        self._remaining_to_take -= 1
         return elem
 
 
@@ -322,11 +317,11 @@ class PredicateTakeAsyncIterator(AsyncIterator[T]):
 
     async def __anext__(self) -> T:
         if self._satisfied:
-            raise StopAsyncIteration()
+            raise StopAsyncIteration
         elem = await self.iterator.__anext__()
         if await self.until(elem):
             self._satisfied = True
-            raise StopAsyncIteration()
+            raise StopAsyncIteration
         return elem
 
 

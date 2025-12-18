@@ -83,7 +83,7 @@ class CatchIterator(Iterator[Union[T, U]]):
     def __next__(self) -> Union[T, U]:
         while True:
             if self._stopped:
-                raise StopIteration()
+                raise StopIteration
             try:
                 return self.iterator.__next__()
             except StopIteration:
@@ -272,17 +272,13 @@ class GroupbyIterator(_BaseGroupIterator[T], Iterator[Tuple[U, List[T]]]):
 class CountSkipIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], count: int) -> None:
         self.iterator = iterator
-        self.count = count
-        self._n_skipped = 0
-        self._done_skipping = False
+        self._remaining_to_skip = count
 
     def __next__(self) -> T:
-        if not self._done_skipping:
-            while self._n_skipped < self.count:
-                self.iterator.__next__()
-                # do not count exceptions as skipped elements
-                self._n_skipped += 1
-            self._done_skipping = True
+        while self._remaining_to_skip > 0:
+            self.iterator.__next__()
+            # do not count exceptions as skipped elements
+            self._remaining_to_skip -= 1
         return self.iterator.__next__()
 
 
@@ -290,14 +286,14 @@ class PredicateSkipIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], until: Callable[[T], Any]) -> None:
         self.iterator = iterator
         self.until = until
-        self._done_skipping = False
+        self._satisfied = False
 
     def __next__(self) -> T:
         elem = self.iterator.__next__()
-        if not self._done_skipping:
+        if not self._satisfied:
             while not self.until(elem):
                 elem = self.iterator.__next__()
-            self._done_skipping = True
+            self._satisfied = True
         return elem
 
 
@@ -309,14 +305,13 @@ class PredicateSkipIterator(Iterator[T]):
 class CountTakeIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], count: int) -> None:
         self.iterator = iterator
-        self.count = count
-        self._current_count = 0
+        self._remaining_to_take = count
 
     def __next__(self) -> T:
-        if self._current_count == self.count:
-            raise StopIteration()
+        if self._remaining_to_take <= 0:
+            raise StopIteration
         elem = self.iterator.__next__()
-        self._current_count += 1
+        self._remaining_to_take -= 1
         return elem
 
 
@@ -328,11 +323,11 @@ class PredicateTakeIterator(Iterator[T]):
 
     def __next__(self) -> T:
         if self._satisfied:
-            raise StopIteration()
+            raise StopIteration
         elem = self.iterator.__next__()
         if self.until(elem):
             self._satisfied = True
-            raise StopIteration()
+            raise StopIteration
         return elem
 
 

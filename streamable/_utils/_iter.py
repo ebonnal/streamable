@@ -45,7 +45,7 @@ class SyncToAsyncIterator(AsyncIterator[T]):
         try:
             return self.iterator.__next__()
         except StopIteration as e:
-            raise StopAsyncIteration() from e
+            raise StopAsyncIteration from e
 
 
 sync_to_async_iter: Callable[[Iterator[T]], AsyncIterator[T]] = SyncToAsyncIterator
@@ -64,7 +64,7 @@ class AsyncToSyncIterator(Iterator[T], CloseEventLoopMixin):
         try:
             return self.loop.run_until_complete(self.aiterator.__anext__())
         except StopAsyncIteration as e:
-            raise StopIteration() from e
+            raise StopIteration from e
 
 
 async_to_sync_iter: Callable[
