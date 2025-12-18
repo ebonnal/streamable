@@ -176,18 +176,20 @@ def test_group(itype: IterableType, adapt) -> None:
         anext_or_next(stream_iter)
 
     # test `group` `by` FIFO yield on exhaustion
-    assert to_list(
-        stream([1, 2, 3, 3, 2, 1]).group(by=adapt(identity)), itype=itype
-    ) == [(1, [1, 1]), (2, [2, 2]), (3, [3, 3])]
+    assert to_list(stream([1, 2, 3, 3, 2, 1]).group(by=adapt(str)), itype=itype) == [
+        ("1", [1, 1]),
+        ("2", [2, 2]),
+        ("3", [3, 3]),
+    ]
 
     # test `group` `by` FIFO yield on upstream exception
     assert to_list(
         stream([1, 2, 2, 0, 3, 1, 3, 2, 2, 3])
         .do(adapt(lambda n: 1 / n))
-        .group(by=adapt(identity))
+        .group(by=adapt(str))
         .catch(ZeroDivisionError),
         itype=itype,
-    ) == [(1, [1]), (2, [2, 2]), (3, [3, 3, 3]), (1, [1]), (2, [2, 2])]
+    ) == [("1", [1]), ("2", [2, 2]), ("3", [3, 3, 3]), ("1", [1]), ("2", [2, 2])]
 
     # test `group` `by` FIFO yield on `by` exception
     assert to_list(
@@ -201,9 +203,9 @@ def test_group(itype: IterableType, adapt) -> None:
     assert to_list(
         stream(map(slow_identity, [1, 2, 2, 2, 2, 3, 3, 1, 3]))
         .group(
-            by=adapt(identity),
+            by=adapt(str),
             every=datetime.timedelta(seconds=2.9 * slow_identity_duration),
         )
         .catch(ZeroDivisionError),
         itype=itype,
-    ) == [(1, [1]), (2, [2, 2, 2, 2]), (3, [3, 3, 3]), (1, [1])]
+    ) == [("1", [1]), ("2", [2, 2, 2, 2]), ("3", [3, 3, 3]), ("1", [1])]
