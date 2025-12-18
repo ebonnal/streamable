@@ -128,7 +128,7 @@ def test_iter(itype: IterableType) -> None:
     # Getting an Iterator from a Stream with a source not being a Union[Callable[[], Iterator], ITerable] must raise TypeError.
     with pytest.raises(
         TypeError,
-        match=r"`source` must be Iterable or AsyncIterable or Callable but got <class 'int'>",
+        match=r"`source` must be Iterable or AsyncIterable or Callable but got 1",
     ):
         bi_iterable_to_iter(stream(1), itype=itype)  # type: ignore
 

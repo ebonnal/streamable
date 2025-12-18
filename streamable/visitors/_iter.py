@@ -147,5 +147,5 @@ class IteratorVisitor(Visitor[Iterator[T]]):
             else:
                 return fn_to_iter(stream.source)
         raise TypeError(
-            f"`source` must be Iterable or AsyncIterable or Callable but got {type(stream.source)}"
+            f"`source` must be Iterable or AsyncIterable or Callable but got {stream.source}"
         )
