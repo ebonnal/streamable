@@ -20,7 +20,7 @@ from streamable.visitors import Visitor
 
 class ToStringVisitor(Visitor[str], ABC):
     def __init__(self, max_len: int = 80) -> None:
-        self.methods_reprs: List[str] = []
+        self.operation_reprs: List[str] = []
         self.max_len = max_len
 
     @staticmethod
@@ -32,71 +32,72 @@ class ToStringVisitor(Visitor[str], ABC):
             errors = f"({', '.join(map(self.to_string, stream._errors))})"
         else:
             errors = self.to_string(stream._errors)
-        self.methods_reprs.append(
+        self.operation_reprs.append(
             f"catch({errors}, where={self.to_string(stream._where)}, do={self.to_string(stream._do)}, replace={self.to_string(stream._replace)}, stop={self.to_string(stream._stop)})"
         )
         return stream.upstream.accept(self)
 
     def visit_filter_stream(self, stream: FilterStream) -> str:
-        self.methods_reprs.append(f"filter({self.to_string(stream._where)})")
+        self.operation_reprs.append(f"filter({self.to_string(stream._where)})")
         return stream.upstream.accept(self)
 
     def visit_flatten_stream(self, stream: FlattenStream) -> str:
-        self.methods_reprs.append(
+        self.operation_reprs.append(
             f"flatten(concurrency={self.to_string(stream._concurrency)})"
         )
         return stream.upstream.accept(self)
 
     def visit_do_stream(self, stream: DoStream) -> str:
-        self.methods_reprs.append(
+        self.operation_reprs.append(
             f"do({self.to_string(stream._effect)}, concurrency={self.to_string(stream._concurrency)}, ordered={self.to_string(stream._ordered)})"
         )
         return stream.upstream.accept(self)
 
     def visit_group_stream(self, stream: GroupStream) -> str:
-        self.methods_reprs.append(
+        self.operation_reprs.append(
             f"group(up_to={self.to_string(stream._up_to)}, every={self.to_string(stream._every)}, by={self.to_string(stream._by)})"
         )
         return stream.upstream.accept(self)
 
     def visit_map_stream(self, stream: MapStream) -> str:
-        self.methods_reprs.append(
+        self.operation_reprs.append(
             f"map({self.to_string(stream._into)}, concurrency={self.to_string(stream._concurrency)}, ordered={self.to_string(stream._ordered)})"
         )
         return stream.upstream.accept(self)
 
     def visit_observe_stream(self, stream: ObserveStream) -> str:
-        self.methods_reprs.append(
+        self.operation_reprs.append(
             f"""observe({self.to_string(stream._label)}, every={self.to_string(stream._every)}, format={self.to_string(stream._format)})"""
         )
         return stream.upstream.accept(self)
 
     def visit_skip_stream(self, stream: SkipStream) -> str:
-        self.methods_reprs.append(f"skip(until={self.to_string(stream._until)})")
+        self.operation_reprs.append(f"skip(until={self.to_string(stream._until)})")
         return stream.upstream.accept(self)
 
     def visit_take_stream(self, stream: TakeStream) -> str:
-        self.methods_reprs.append(f"take(until={self.to_string(stream._until)})")
+        self.operation_reprs.append(f"take(until={self.to_string(stream._until)})")
         return stream.upstream.accept(self)
 
     def visit_throttle_stream(self, stream: ThrottleStream) -> str:
-        self.methods_reprs.append(
+        self.operation_reprs.append(
             f"throttle({self.to_string(stream._up_to)}, per={self.to_string(stream._per)})"
         )
         return stream.upstream.accept(self)
 
     def visit_stream(self, stream: stream) -> str:
         source_stream = f"stream({self.to_string(stream.source)})"
-        depth = len(self.methods_reprs) + 1
+        depth = len(self.operation_reprs) + 1
         if depth == 1:
             return source_stream
-        one_liner_repr = f"{source_stream}.{'.'.join(reversed(self.methods_reprs))}"
+        one_liner_repr = f"{source_stream}.{'.'.join(reversed(self.operation_reprs))}"
         if len(one_liner_repr) <= self.max_len:
             return one_liner_repr
-        methods_block = "".join(
-            map(lambda r: f"    .{r}\n", reversed(self.methods_reprs))
+        operations_repr = "".join(
+            f"    .{operation_repr}\n"
+            for operation_repr in reversed(self.operation_reprs)
         )
-        return f"(\n    {source_stream}\n{methods_block})"
+        return f"(\n    {source_stream}\n{operations_repr})"
 
 
 class ReprVisitor(ToStringVisitor):
