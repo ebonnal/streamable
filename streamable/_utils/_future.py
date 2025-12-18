@@ -57,7 +57,7 @@ class FIFOFutureResultCollection(FutureResultCollection[T]):
         return self._futures.append(future)
 
 
-class FDFObackFutureResultCollection(FutureResultCollection[T]):
+class FDFOFutureResultCollection(FutureResultCollection[T]):
     def __init__(self) -> None:
         self._n_futures = 0
         self._results: "Union[Queue[T], asyncio.Queue[T]]"
@@ -82,7 +82,7 @@ class ExecutorFIFOFutureResultCollection(FIFOFutureResultCollection[T]):
         return self._futures.popleft().result()
 
 
-class ExecutorFDFOFutureResultCollection(FDFObackFutureResultCollection[T]):
+class ExecutorFDFOFutureResultCollection(FDFOFutureResultCollection[T]):
     """
     First Done First Out
     """
@@ -113,7 +113,7 @@ class AsyncFIFOFutureResultCollection(FIFOFutureResultCollection[T]):
         return await cast(Awaitable[T], self._futures.popleft())
 
 
-class AsyncFDFOFutureResultCollection(FDFObackFutureResultCollection[T]):
+class AsyncFDFOFutureResultCollection(FDFOFutureResultCollection[T]):
     """
     First Done First Out
     """
