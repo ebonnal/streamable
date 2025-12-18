@@ -29,18 +29,25 @@ class _Sidify(Generic[T]):
         return arg
 
 
-def sidify(func: Callable[[T], Any]) -> Callable[[T], T]:
-    return _Sidify(func)
-
-
-def async_sidify(
+@overload
+def sidify(
     func: Callable[[T], Coroutine],
-) -> Callable[[T], Coroutine[Any, Any, T]]:
-    async def wrap(arg: T) -> T:
-        await func(arg)
-        return arg
+) -> Callable[[T], Coroutine[Any, Any, T]]: ...
 
-    return wrap
+
+@overload
+def sidify(func: Callable[[T], Any]) -> Callable[[T], T]: ...
+
+
+def sidify(func: Callable[[T], Any]) -> Callable[[T], Union[T, Coroutine[Any, Any, T]]]:
+    if iscoroutinefunction(func):
+
+        async def wrap(arg: T) -> T:
+            await cast(Callable[[T], Coroutine[Any, Any, T]], func)(arg)
+            return arg
+
+        return wrap
+    return _Sidify(func)
 
 
 class _Star(Generic[R]):

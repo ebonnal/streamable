@@ -27,10 +27,7 @@ from streamable._stream import (
     ThrottleStream,
     TakeStream,
 )
-from streamable._utils._func import (
-    async_sidify,
-    sidify,
-)
+from streamable._utils._func import sidify
 from streamable._utils._iter import afn_to_iter, async_to_sync_iter, fn_to_iter
 from streamable.visitors import Visitor
 
@@ -79,9 +76,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         return self.visit_map_stream(
             MapStream(
                 stream.upstream,
-                async_sidify(stream._effect)
-                if iscoroutinefunction(stream._effect)
-                else sidify(stream._effect),
+                sidify(stream._effect),
                 stream._concurrency,
                 stream._ordered,
             )
