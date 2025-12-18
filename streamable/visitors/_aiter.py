@@ -102,17 +102,17 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
             until=stream._until,
         )
 
+    def visit_take_stream(self, stream: TakeStream[T]) -> AsyncIterator[T]:
+        return _afunctions.take(
+            stream.upstream.accept(self),
+            until=stream._until,
+        )
+
     def visit_throttle_stream(self, stream: ThrottleStream[T]) -> AsyncIterator[T]:
         return _afunctions.throttle(
             stream.upstream.accept(self),
             stream._up_to,
             per=stream._per,
-        )
-
-    def visit_take_stream(self, stream: TakeStream[T]) -> AsyncIterator[T]:
-        return _afunctions.take(
-            stream.upstream.accept(self),
-            until=stream._until,
         )
 
     def visit_stream(self, stream: stream[T]) -> AsyncIterator[T]:

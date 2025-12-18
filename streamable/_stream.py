@@ -678,36 +678,6 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             validate_int(until, gte=0, name="until")
         return SkipStream(self, until)
 
-    def throttle(
-        self,
-        up_to: int,
-        *,
-        per: datetime.timedelta,
-    ) -> "stream[T]":
-        """
-        Limits the speed of iteration to yield at most ``up_to`` elements (or exceptions) ``per`` time interval.
-
-        .. code-block:: python
-
-            # limits the number of requests made to 50 per minute:
-            from datetime import timedelta
-            (
-                Stream(urls)
-                .throttle(50, per=timedelta(minutes=1))
-                .map(requests.get, concurrency=4)
-            )
-
-        Args:
-            up_to (``int``, optional): Maximum number of elements (or exceptions) that must be yielded within the given time interval.
-            per (``datetime.timedelta``, optional): The time interval during which maximum ``up_to`` elements (or exceptions) will be yielded.
-
-        Returns:
-            ``stream[T]``: A stream yielding at most ``up_to`` upstream elements (or exceptions) ``per`` time interval.
-        """
-        validate_int(up_to, gte=1, name="up_to")
-        validate_positive_timedelta(per, name="per")
-        return ThrottleStream(self, up_to, per)
-
     @overload
     def take(
         self, *, until: Callable[[T], Coroutine[Any, Any, Any]]
@@ -742,6 +712,36 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         if isinstance(until, int):
             validate_int(until, gte=0, name="until")
         return TakeStream(self, until)
+
+    def throttle(
+        self,
+        up_to: int,
+        *,
+        per: datetime.timedelta,
+    ) -> "stream[T]":
+        """
+        Limits the speed of iteration to yield at most ``up_to`` elements (or exceptions) ``per`` time interval.
+
+        .. code-block:: python
+
+            # limits the number of requests made to 50 per minute:
+            from datetime import timedelta
+            (
+                Stream(urls)
+                .throttle(50, per=timedelta(minutes=1))
+                .map(requests.get, concurrency=4)
+            )
+
+        Args:
+            up_to (``int``, optional): Maximum number of elements (or exceptions) that must be yielded within the given time interval.
+            per (``datetime.timedelta``, optional): The time interval during which maximum ``up_to`` elements (or exceptions) will be yielded.
+
+        Returns:
+            ``stream[T]``: A stream yielding at most ``up_to`` upstream elements (or exceptions) ``per`` time interval.
+        """
+        validate_int(up_to, gte=1, name="up_to")
+        validate_positive_timedelta(per, name="per")
+        return ThrottleStream(self, up_to, per)
 
 
 class DownStream(stream[U], Generic[T, U]):
@@ -938,23 +938,6 @@ class SkipStream(DownStream[T, T]):
         return visitor.visit_skip_stream(self)
 
 
-class ThrottleStream(DownStream[T, T]):
-    __slots__ = ("_up_to", "_per")
-
-    def __init__(
-        self,
-        upstream: stream[T],
-        up_to: Optional[int],
-        per: Optional[datetime.timedelta],
-    ) -> None:
-        super().__init__(upstream)
-        self._up_to = up_to
-        self._per = per
-
-    def accept(self, visitor: "Visitor[V]") -> V:
-        return visitor.visit_throttle_stream(self)
-
-
 class TakeStream(DownStream[T, T]):
     __slots__ = "_until"
 
@@ -972,3 +955,20 @@ class TakeStream(DownStream[T, T]):
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_take_stream(self)
+
+
+class ThrottleStream(DownStream[T, T]):
+    __slots__ = ("_up_to", "_per")
+
+    def __init__(
+        self,
+        upstream: stream[T],
+        up_to: int,
+        per: datetime.timedelta,
+    ) -> None:
+        super().__init__(upstream)
+        self._up_to = up_to
+        self._per = per
+
+    def accept(self, visitor: "Visitor[V]") -> V:
+        return visitor.visit_throttle_stream(self)

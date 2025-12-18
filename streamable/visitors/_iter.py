@@ -123,18 +123,18 @@ class IteratorVisitor(Visitor[Iterator[T]]):
             until=stream._until,
         )
 
-    def visit_throttle_stream(self, stream: ThrottleStream[T]) -> Iterator[T]:
-        return _functions.throttle(
-            stream.upstream.accept(self),
-            stream._up_to,
-            per=stream._per,
-        )
-
     def visit_take_stream(self, stream: TakeStream[T]) -> Iterator[T]:
         return _functions.take(
             self._get_loop,
             stream.upstream.accept(self),
             until=stream._until,
+        )
+
+    def visit_throttle_stream(self, stream: ThrottleStream[T]) -> Iterator[T]:
+        return _functions.throttle(
+            stream.upstream.accept(self),
+            stream._up_to,
+            per=stream._per,
         )
 
     def visit_stream(self, stream: stream[T]) -> Iterator[T]:

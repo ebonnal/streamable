@@ -75,14 +75,14 @@ class ToStringVisitor(Visitor[str], ABC):
         self.methods_reprs.append(f"skip(until={self.to_string(stream._until)})")
         return stream.upstream.accept(self)
 
+    def visit_take_stream(self, stream: TakeStream) -> str:
+        self.methods_reprs.append(f"take(until={self.to_string(stream._until)})")
+        return stream.upstream.accept(self)
+
     def visit_throttle_stream(self, stream: ThrottleStream) -> str:
         self.methods_reprs.append(
             f"throttle({self.to_string(stream._up_to)}, per={self.to_string(stream._per)})"
         )
-        return stream.upstream.accept(self)
-
-    def visit_take_stream(self, stream: TakeStream) -> str:
-        self.methods_reprs.append(f"take(until={self.to_string(stream._until)})")
         return stream.upstream.accept(self)
 
     def visit_stream(self, stream: stream) -> str:

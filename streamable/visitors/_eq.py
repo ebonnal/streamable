@@ -90,19 +90,19 @@ class EqualityVisitor(Visitor[bool]):
             and stream._until == self.other._until
         )
 
+    def visit_take_stream(self, stream: TakeStream) -> bool:
+        return (
+            self.type_eq(stream)
+            and stream.upstream.accept(EqualityVisitor(self.other.upstream))
+            and stream._until == self.other._until
+        )
+
     def visit_throttle_stream(self, stream: ThrottleStream) -> bool:
         return (
             self.type_eq(stream)
             and stream.upstream.accept(EqualityVisitor(self.other.upstream))
             and stream._up_to == self.other._up_to
             and stream._per == self.other._per
-        )
-
-    def visit_take_stream(self, stream: TakeStream) -> bool:
-        return (
-            self.type_eq(stream)
-            and stream.upstream.accept(EqualityVisitor(self.other.upstream))
-            and stream._until == self.other._until
         )
 
     def visit_stream(self, stream: stream) -> bool:

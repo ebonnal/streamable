@@ -151,17 +151,6 @@ def skip(
     return _iterators.PredicateSkipIterator(iterator, syncify(loop_getter(), until))
 
 
-def throttle(
-    iterator: Iterator[T],
-    count: Optional[int],
-    *,
-    per: Optional[datetime.timedelta] = None,
-) -> Iterator[T]:
-    if count and per:
-        iterator = _iterators.ThrottleIterator(iterator, count, per)
-    return iterator
-
-
 def take(
     loop_getter: Callable[[], asyncio.AbstractEventLoop],
     iterator: Iterator[T],
@@ -170,3 +159,12 @@ def take(
     if isinstance(until, int):
         return _iterators.CountTakeIterator(iterator, until)
     return _iterators.PredicateTakeIterator(iterator, syncify(loop_getter(), until))
+
+
+def throttle(
+    iterator: Iterator[T],
+    count: int,
+    *,
+    per: datetime.timedelta,
+) -> Iterator[T]:
+    return _iterators.ThrottleIterator(iterator, count, per)

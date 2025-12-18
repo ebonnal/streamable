@@ -143,17 +143,6 @@ def skip(
     return _aiterators.PredicateSkipAsyncIterator(aiterator, asyncify(until))
 
 
-def throttle(
-    aiterator: AsyncIterator[T],
-    count: Optional[int],
-    *,
-    per: Optional[datetime.timedelta] = None,
-) -> AsyncIterator[T]:
-    if count and per:
-        aiterator = _aiterators.ThrottleAsyncIterator(aiterator, count, per)
-    return aiterator
-
-
 def take(
     aiterator: AsyncIterator[T],
     until: Union[int, Callable[[T], Any], Callable[[T], Coroutine[Any, Any, Any]]],
@@ -161,3 +150,12 @@ def take(
     if isinstance(until, int):
         return _aiterators.CountTakeAsyncIterator(aiterator, until)
     return _aiterators.PredicateTakeAsyncIterator(aiterator, asyncify(until))
+
+
+def throttle(
+    aiterator: AsyncIterator[T],
+    count: int,
+    *,
+    per: datetime.timedelta,
+) -> AsyncIterator[T]:
+    return _aiterators.ThrottleAsyncIterator(aiterator, count, per)
