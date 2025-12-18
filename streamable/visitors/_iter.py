@@ -48,7 +48,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
     def visit_catch_stream(self, stream: CatchStream[T, U]) -> Iterator[Union[T, U]]:
         return _functions.catch(
             self._get_loop,
-            stream.upstream.accept(cast(IteratorVisitor[Union[T, U]], self)),
+            stream.upstream.accept(self),
             stream._errors,
             where=stream._where,
             replace=stream._replace,
@@ -82,12 +82,12 @@ class IteratorVisitor(Visitor[Iterator[T]]):
             )
         )
 
-    def visit_group_stream(self, stream: GroupStream[U]) -> Iterator[T]:
+    def visit_group_stream(self, stream: GroupStream[T]) -> Iterator[T]:
         return cast(
             Iterator[T],
             _functions.group(
                 self._get_loop,
-                stream.upstream.accept(cast(IteratorVisitor[U], self)),
+                stream.upstream.accept(self),
                 stream._up_to,
                 every=stream._every,
                 by=stream._by,

@@ -38,7 +38,7 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
         self, stream: CatchStream[T, U]
     ) -> AsyncIterator[Union[T, U]]:
         return _afunctions.catch(
-            stream.upstream.accept(cast(AsyncIteratorVisitor[Union[T, U]], self)),
+            stream.upstream.accept(self),
             stream._errors,
             where=stream._where,
             replace=stream._replace,
@@ -67,11 +67,11 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
             )
         )
 
-    def visit_group_stream(self, stream: GroupStream[U]) -> AsyncIterator[T]:
+    def visit_group_stream(self, stream: GroupStream[T]) -> AsyncIterator[T]:
         return cast(
             AsyncIterator[T],
             _afunctions.group(
-                stream.upstream.accept(cast(AsyncIteratorVisitor[U], self)),
+                stream.upstream.accept(self),
                 stream._up_to,
                 every=stream._every,
                 by=stream._by,
