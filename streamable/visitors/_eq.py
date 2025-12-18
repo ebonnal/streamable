@@ -29,6 +29,7 @@ class EqualityVisitor(Visitor[bool]):
             and stream.upstream.accept(EqualityVisitor(self.other.upstream))
             and stream._errors == self.other._errors
             and stream._where == self.other._where
+            and stream._do == self.other._do
             and stream._replace == self.other._replace
             and stream._stop == self.other._stop
         )
@@ -51,8 +52,8 @@ class EqualityVisitor(Visitor[bool]):
         return (
             self.type_eq(stream)
             and stream.upstream.accept(EqualityVisitor(self.other.upstream))
-            and stream._concurrency == self.other._concurrency
             and stream._effect == self.other._effect
+            and stream._concurrency == self.other._concurrency
             and stream._ordered == self.other._ordered
         )
 
@@ -60,17 +61,17 @@ class EqualityVisitor(Visitor[bool]):
         return (
             self.type_eq(stream)
             and stream.upstream.accept(EqualityVisitor(self.other.upstream))
-            and stream._by == self.other._by
             and stream._up_to == self.other._up_to
             and stream._every == self.other._every
+            and stream._by == self.other._by
         )
 
     def visit_map_stream(self, stream: MapStream) -> bool:
         return (
             self.type_eq(stream)
             and stream.upstream.accept(EqualityVisitor(self.other.upstream))
-            and stream._concurrency == self.other._concurrency
             and stream._into == self.other._into
+            and stream._concurrency == self.other._concurrency
             and stream._ordered == self.other._ordered
         )
 
