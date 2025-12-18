@@ -292,19 +292,15 @@ assert list(ints_after_five) == [5, 6, 7, 8, 9]
 
 ## ▼ `.catch`
 
-Catches a given type of exception, and optionally `replace` it:
+Catches a given type(s) of exception:
 
 ```python
-inverses: stream[float] = (
-    ints
-    .map(lambda n: round(1 / n, 2))
-    .catch(ZeroDivisionError, replace=lambda exc: float("inf"))
-)
+inverses: stream[float] = ints.map(lambda n: round(1 / n, 2)).catch(ZeroDivisionError)
 
-assert list(inverses) == [float("inf"), 1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
+assert list(inverses) == [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
 ```
 
-Only catch the exception if it satisfies a `where` condition:
+`where` a condition is satisfied:
 
 ```python
 import httpx
@@ -321,7 +317,6 @@ assert list(status_codes_ignoring_resolution_errors) == [200, 404]
 
 `do` a side effect on catch:
 
-
 ```python
 errors: List[Exception] = []
 inverses: stream[float] = (
@@ -331,6 +326,18 @@ inverses: stream[float] = (
 )
 assert list(inverses) == [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
 assert len(errors) == 1
+```
+
+`replace` with another value:
+
+```python
+inverses: stream[float] = (
+    ints
+    .map(lambda n: round(1 / n, 2))
+    .catch(ZeroDivisionError, replace=lambda exc: float("inf"))
+)
+
+assert list(inverses) == [float("inf"), 1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
 ```
 
 You can mix these parameters.
@@ -349,7 +356,6 @@ three_ints_per_second: stream[int] = ints.throttle(3, per=timedelta(seconds=1))
 # collects the 10 ints in 3 seconds
 assert list(three_ints_per_second) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
-
 
 ## ▼ `.observe`
 

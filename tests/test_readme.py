@@ -195,21 +195,10 @@ def test_flatten_example() -> None:
 
 def test_catch_example() -> None:
     inverses: stream[float] = ints.map(lambda n: round(1 / n, 2)).catch(
-        ZeroDivisionError, replace=lambda e: float("inf")
+        ZeroDivisionError
     )
 
-    assert list(inverses) == [
-        float("inf"),
-        1.0,
-        0.5,
-        0.33,
-        0.25,
-        0.2,
-        0.17,
-        0.14,
-        0.12,
-        0.11,
-    ]
+    assert list(inverses) == [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
 
     import httpx
 
@@ -228,6 +217,23 @@ def test_catch_example() -> None:
     )
     assert list(inverses_) == [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
     assert len(errors) == 1
+
+    inverses = ints.map(lambda n: round(1 / n, 2)).catch(
+        ZeroDivisionError, replace=lambda e: float("inf")
+    )
+
+    assert list(inverses) == [
+        float("inf"),
+        1.0,
+        0.5,
+        0.33,
+        0.25,
+        0.2,
+        0.17,
+        0.14,
+        0.12,
+        0.11,
+    ]
 
 
 def test_take_example() -> None:
