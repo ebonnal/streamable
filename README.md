@@ -385,7 +385,7 @@ To emit a log ***every `n` seconds***, set `every=timedelta(seconds=n)`.
 Logs are emitted by `logging.getLogger("streamable")`.
 
 
-## ▼`+` (concat)
+## ▼ `+` (concat)
 
 Concatenates streams:
 
