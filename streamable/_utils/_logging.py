@@ -5,15 +5,9 @@ from typing import Optional
 _logger: Optional[logging.Logger] = None
 
 
-class SubjectEscapingFormatter(logging.Formatter):
-    @staticmethod
-    def _escape(value: str) -> str:
-        escaped = value.replace("\\", "\\\\").replace('"', '\\"')
-        return f'"{escaped}"'
-
-    def format(self, record: logging.LogRecord) -> str:
-        record.subject = self._escape(getattr(record, "subject"))
-        return super().format(record)
+def logfmt_str_escape(value: str) -> str:
+    escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+    return f'"{escaped}"'
 
 
 def get_logger() -> logging.Logger:
@@ -22,9 +16,8 @@ def get_logger() -> logging.Logger:
         _logger = logging.getLogger("streamable")
         _logger.propagate = False
         _handler = logging.StreamHandler()
-        _formatter = SubjectEscapingFormatter(
-            "%(asctime)s %(levelname)s stream=%(subject)s elapsed=%(elapsed)s errors=%(errors)s emissions=%(emissions)s",
-            "%Y-%m-%dT%H:%M:%SZ",
+        _formatter = logging.Formatter(
+            "%(asctime)s %(levelname)s %(message)s", "%Y-%m-%dT%H:%M:%SZ"
         )
         _formatter.converter = time.gmtime
         _handler.setFormatter(_formatter)

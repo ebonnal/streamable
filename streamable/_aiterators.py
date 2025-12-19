@@ -32,7 +32,7 @@ from typing import (
 from streamable._utils._async import empty_aiter
 from streamable._utils._contextmanager import noop_context_manager
 from streamable._utils._error import ExceptionContainer
-from streamable._utils._logging import get_logger
+from streamable._utils._logging import get_logger, logfmt_str_escape
 
 from streamable._utils._future import (
     AsyncFDFOFutureResultCollection,
@@ -368,16 +368,31 @@ class FilterAsyncIterator(AsyncIterator[T]):
 
 
 class ObserveAsyncIterator(AsyncIterator[T]):
-    def __init__(self, iterator: AsyncIterator[T], subject: str) -> None:
+    _FORMAT = "stream={subject} elapsed={elapsed} errors={errors} emissions={emissions}"
+
+    def __init__(
+        self,
+        iterator: AsyncIterator[T],
+        subject: str,
+        how: Optional[Callable[[str], Any]],
+    ) -> None:
         self.iterator = iterator
-        self.subject = subject
+        self.subject = logfmt_str_escape(subject)
+        self.how = how or get_logger().info
         self._emissions = 0
         self._errors = 0
         self._nexts_logged = 0
         self._emissions_logged = 0
         self._errors_logged = 0
         self.__start_point: Optional[datetime.datetime] = None
-        self._logger = get_logger()
+
+    def _message(self) -> str:
+        return self._FORMAT.format(
+            subject=self.subject,
+            elapsed=self._time_point() - self._start_point(),
+            errors=self._errors,
+            emissions=self._emissions,
+        )
 
     @staticmethod
     def _time_point() -> datetime.datetime:
@@ -389,16 +404,7 @@ class ObserveAsyncIterator(AsyncIterator[T]):
         return self.__start_point
 
     def _log(self) -> None:
-        self._logger.info(
-            None,
-            extra={
-                "timestamp": datetime.datetime.now().isoformat() + "Z",
-                "elapsed": self._time_point() - self._start_point(),
-                "subject": self.subject,
-                "errors": self._errors,
-                "emissions": self._emissions,
-            },
-        )
+        self.how(self._message())
         self._nexts_logged = self._emissions + self._errors
 
     @abstractmethod
@@ -433,9 +439,10 @@ class PowerObserveAsyncIterator(ObserveAsyncIterator[T]):
         self,
         iterator: AsyncIterator[T],
         subject: str,
+        how: Optional[Callable[[str], Any]] = None,
         base: int = 2,
     ) -> None:
-        super().__init__(iterator, subject)
+        super().__init__(iterator, subject, how)
         self.base = base
 
     def _should_emit_yield_log(self) -> bool:
@@ -446,8 +453,14 @@ class PowerObserveAsyncIterator(ObserveAsyncIterator[T]):
 
 
 class EveryIntObserveAsyncIterator(ObserveAsyncIterator[T]):
-    def __init__(self, iterator: AsyncIterator[T], subject: str, every: int) -> None:
-        super().__init__(iterator, subject)
+    def __init__(
+        self,
+        iterator: AsyncIterator[T],
+        subject: str,
+        every: int,
+        how: Optional[Callable[[str], Any]],
+    ) -> None:
+        super().__init__(iterator, subject, how)
         self.every = every
 
     def _should_emit_yield_log(self) -> bool:
@@ -465,8 +478,9 @@ class EveryIntervalObserveAsyncIterator(ObserveAsyncIterator[T]):
         iterator: AsyncIterator[T],
         subject: str,
         every: datetime.timedelta,
+        how: Optional[Callable[[str], Any]],
     ) -> None:
-        super().__init__(iterator, subject)
+        super().__init__(iterator, subject, how)
         self._every_seconds: float = every.total_seconds()
         self._last_log_time: Optional[float] = None
 

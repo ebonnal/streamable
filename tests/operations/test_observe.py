@@ -11,7 +11,7 @@ from unittest.mock import patch
 import pytest
 
 from streamable import stream
-from streamable._utils._logging import SubjectEscapingFormatter
+from streamable._utils._logging import logfmt_str_escape
 from tests.utils import (
     ITERABLE_TYPES,
     IterableType,
@@ -43,10 +43,19 @@ def test_observe(itype: IterableType) -> None:
         errors: int
         yields: int
 
+        @staticmethod
+        def from_logfmt(logfmt_str: str) -> "Log":
+            """Parses a logfmt string into a Log instance."""
+            parts = dict(part.split("=", 1) for part in logfmt_str.split())
+            return Log(
+                errors=int(parts["errors"]),
+                yields=int(parts["emissions"]),
+            )
+
     logs: List[Log] = []
     with patch(
         "logging.Logger.info",
-        lambda self, msg, extra: logs.append(Log(extra["errors"], extra["emissions"])),
+        lambda self, msg: logs.append(Log.from_logfmt(msg)),
     ):
         #################
         # every == None #
@@ -203,7 +212,29 @@ def test_observe(itype: IterableType) -> None:
 
 
 def test_escape():
-    assert SubjectEscapingFormatter._escape("ints") == '"ints"'
-    assert SubjectEscapingFormatter._escape("in ts") == '"in ts"'
-    assert SubjectEscapingFormatter._escape("in\\ts") == r'"in\\ts"'
-    assert SubjectEscapingFormatter._escape('"ints"') == r'"\"ints\""'
+    assert logfmt_str_escape("ints") == '"ints"'
+    assert logfmt_str_escape("in ts") == '"in ts"'
+    assert logfmt_str_escape("in\\ts") == r'"in\\ts"'
+    assert logfmt_str_escape('"ints"') == r'"\"ints\""'
+
+
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_observe_how(itype) -> None:
+    observed: List[str] = []
+    ints = list(range(8))
+    assert (
+        to_list(
+            stream(ints).observe(
+                "ints", every=2, how=lambda msg: observed.append(msg[-20:])
+            ),
+            itype,
+        )
+        == ints
+    )
+    assert observed == [
+        "errors=0 emissions=1",
+        "errors=0 emissions=2",
+        "errors=0 emissions=4",
+        "errors=0 emissions=6",
+        "errors=0 emissions=8",
+    ]

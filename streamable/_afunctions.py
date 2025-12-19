@@ -123,12 +123,13 @@ def observe(
     aiterator: AsyncIterator[T],
     subject: str,
     every: Optional[Union[int, datetime.timedelta]],
+    how: Optional[Callable[[str], Any]] = None,
 ) -> AsyncIterator[T]:
     if every is None:
-        return _aiterators.PowerObserveAsyncIterator(aiterator, subject)
+        return _aiterators.PowerObserveAsyncIterator(aiterator, subject, how)
     elif isinstance(every, int):
-        return _aiterators.EveryIntObserveAsyncIterator(aiterator, subject, every)
-    return _aiterators.EveryIntervalObserveAsyncIterator(aiterator, subject, every)
+        return _aiterators.EveryIntObserveAsyncIterator(aiterator, subject, every, how)
+    return _aiterators.EveryIntervalObserveAsyncIterator(aiterator, subject, every, how)
 
 
 def skip(

@@ -615,6 +615,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         subject: str = "",
         *,
         every: Optional[Union[int, datetime.timedelta]] = None,
+        how: Optional[Callable[[str], Any]] = None,
     ) -> "stream[T]":
         """
         Logs the progress of iteration over this stream: the time elapsed since the iteration started, the count of emitted elements and errors.
@@ -629,6 +630,8 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
               - ``int``: ... the number of yielded elements (or errors) reaches `every`.
               - ``timedelta``: ... `every` has elapsed since the last log.
 
+            how (``Callable[[str], Any]``): Specify what to do with the iteration progress message, ``how(message)`` will be periodically called according to ``every``. (default: logs the message via ``logging.getLogger("streamable").info``)
+
         Returns:
             ``stream[T]``: A stream of upstream elements with progress logging during iteration.
         """
@@ -636,7 +639,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             validate_int(every, gte=1, name="every")
         elif isinstance(every, datetime.timedelta):
             validate_positive_timedelta(every, name="every")
-        return ObserveStream(self, subject, every)
+        return ObserveStream(self, subject, every, how)
 
     @overload
     def skip(
@@ -886,17 +889,19 @@ class MapStream(DownStream[T, U]):
 
 
 class ObserveStream(DownStream[T, T]):
-    __slots__ = ("_subject", "_every")
+    __slots__ = ("_subject", "_every", "_how")
 
     def __init__(
         self,
         upstream: stream[T],
         subject: str,
         every: Optional[Union[int, datetime.timedelta]],
+        how: Optional[Callable[[str], Any]],
     ) -> None:
         super().__init__(upstream)
         self._subject = subject
         self._every = every
+        self._how = how
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_observe_stream(self)

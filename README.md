@@ -376,13 +376,22 @@ logs:
 2025-12-19T22:18:23Z INFO stream="ints" elapsed=0:00:00.000268 errors=0 emissions=10
 ```
 
-A new log is emitted when the number of yielded elements (or errors) ***reaches powers of 2***.
+A new log is emitted when the number of yielded elements (or errors) ***reaches powers of 2*** by default, but you can set it to be `every` *n* elements (or errors) or `every` time interval:
+```python
+# observe every 1k emissions (or errors)
+observed_ints = ints.observe("ints", every=1000)
+# observe every 5 seconds
+observed_ints = ints.observe("ints", every=timedelta(seconds=5))
+```
 
-To emit a log ***every `n` elements***, set `every=n`.
+Observations are logged via `logging.getLogger("streamable")` by default, but you can specify `how` you want to process these messages:
 
-To emit a log ***every `n` seconds***, set `every=timedelta(seconds=n)`.
-
-Logs are emitted by `logging.getLogger("streamable")`.
+```python
+observed_ints = ints.observe("ints", how=my_logger.info)
+observed_ints = ints.observe("ints", how=logs.append)
+observed_ints = ints.observe("ints", how=print)
+observed_ints = ints.observe("ints", how=lambda msg: ...)
+```
 
 
 ## ▼ `+` (concat)
