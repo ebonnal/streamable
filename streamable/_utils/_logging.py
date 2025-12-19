@@ -1,7 +1,19 @@
 import logging
+import time
 from typing import Optional
 
 _logger: Optional[logging.Logger] = None
+
+
+class SubjectEscapingFormatter(logging.Formatter):
+    @staticmethod
+    def _escape(value: str) -> str:
+        escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+        return f'"{escaped}"'
+
+    def format(self, record: logging.LogRecord) -> str:
+        record.subject = self._escape(getattr(record, "subject"))
+        return super().format(record)
 
 
 def get_logger() -> logging.Logger:
@@ -10,11 +22,12 @@ def get_logger() -> logging.Logger:
         _logger = logging.getLogger("streamable")
         _logger.propagate = False
         _handler = logging.StreamHandler()
-        _formatter = logging.Formatter("%(message)s")
+        _formatter = SubjectEscapingFormatter(
+            "%(asctime)s %(levelname)s stream=%(subject)s elapsed=%(elapsed)s errors=%(errors)s emissions=%(emissions)s",
+            "%Y-%m-%dT%H:%M:%SZ",
+        )
+        _formatter.converter = time.gmtime
         _handler.setFormatter(_formatter)
         _logger.addHandler(_handler)
         _logger.setLevel(logging.INFO)
     return _logger
-
-
-ECS_LOG_FORMAT = """{{"@timestamp":"{timestamp}","log.level":"INFO","elapsed":"{elapsed}","label":"{label}","errors":{errors},"emissions":{emissions}}}"""

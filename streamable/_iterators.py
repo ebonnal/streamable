@@ -36,7 +36,7 @@ from streamable._utils._async import (
 )
 from streamable._utils._contextmanager import noop_context_manager
 from streamable._utils._error import ExceptionContainer
-from streamable._utils._logging import ECS_LOG_FORMAT, get_logger
+from streamable._utils._logging import get_logger
 
 from streamable._utils._future import (
     AsyncFDFOFutureResultCollection,
@@ -335,11 +335,9 @@ class PredicateTakeIterator(Iterator[T]):
 
 
 class ObserveIterator(Iterator[T]):
-    def __init__(
-        self, iterator: Iterator[T], label: str, format: Optional[str]
-    ) -> None:
+    def __init__(self, iterator: Iterator[T], subject: str) -> None:
         self.iterator = iterator
-        self.label = label
+        self.subject = subject
         self._emissions = 0
         self._errors = 0
         self._nexts_logged = 0
@@ -347,7 +345,6 @@ class ObserveIterator(Iterator[T]):
         self._errors_logged = 0
         self.__start_point: Optional[datetime.datetime] = None
         self._logger = get_logger()
-        self._format = format or ECS_LOG_FORMAT
 
     @staticmethod
     def _time_point() -> datetime.datetime:
@@ -359,14 +356,16 @@ class ObserveIterator(Iterator[T]):
         return self.__start_point
 
     def _log(self) -> None:
-        log = self._format.format(
-            timestamp=datetime.datetime.now().isoformat() + "Z",
-            elapsed=self._time_point() - self._start_point(),
-            label=self.label,
-            errors=self._errors,
-            emissions=self._emissions,
+        self._logger.info(
+            None,
+            extra={
+                "timestamp": datetime.datetime.now().isoformat() + "Z",
+                "elapsed": self._time_point() - self._start_point(),
+                "subject": self.subject,
+                "errors": self._errors,
+                "emissions": self._emissions,
+            },
         )
-        self._logger.info(log)
         self._nexts_logged = self._emissions + self._errors
 
     @abstractmethod
@@ -397,10 +396,8 @@ class ObserveIterator(Iterator[T]):
 
 
 class PowerObserveIterator(ObserveIterator[T]):
-    def __init__(
-        self, iterator: Iterator[T], label: str, format: Optional[str], base: int = 2
-    ) -> None:
-        super().__init__(iterator, label, format)
+    def __init__(self, iterator: Iterator[T], subject: str, base: int = 2) -> None:
+        super().__init__(iterator, subject)
         self.base = base
 
     def _should_emit_yield_log(self) -> bool:
@@ -411,10 +408,8 @@ class PowerObserveIterator(ObserveIterator[T]):
 
 
 class EveryIntObserveIterator(ObserveIterator[T]):
-    def __init__(
-        self, iterator: Iterator[T], label: str, format: Optional[str], every: int
-    ) -> None:
-        super().__init__(iterator, label, format)
+    def __init__(self, iterator: Iterator[T], subject: str, every: int) -> None:
+        super().__init__(iterator, subject)
         self.every = every
 
     def _should_emit_yield_log(self) -> bool:
@@ -430,11 +425,10 @@ class EveryIntervalObserveIterator(ObserveIterator[T]):
     def __init__(
         self,
         iterator: Iterator[T],
-        label: str,
-        format: Optional[str],
+        subject: str,
         every: datetime.timedelta,
     ) -> None:
-        super().__init__(iterator, label, format)
+        super().__init__(iterator, subject)
         self._every_seconds: float = every.total_seconds()
         self._last_log_time: Optional[float] = None
 

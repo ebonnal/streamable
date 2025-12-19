@@ -1,5 +1,4 @@
 import datetime
-import json
 from typing import (
     Iterable,
     List,
@@ -12,6 +11,7 @@ from unittest.mock import patch
 import pytest
 
 from streamable import stream
+from streamable._utils._logging import SubjectEscapingFormatter
 from tests.utils import (
     ITERABLE_TYPES,
     IterableType,
@@ -23,10 +23,6 @@ from tests.utils import (
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_observe(itype: IterableType) -> None:
-    # custom log format (partial, not containing {elapsed} placeholder)
-    format = "{timestamp}: INFO: {emissions} {label} emitted with {errors} errors"
-    to_list(stream(range(10)).observe("ints", format=format), itype=itype)
-
     def inverse(
         chars: Iterable[str], every: Optional[Union[int, datetime.timedelta]] = None
     ) -> stream[float]:
@@ -50,9 +46,7 @@ def test_observe(itype: IterableType) -> None:
     logs: List[Log] = []
     with patch(
         "logging.Logger.info",
-        lambda self, msg: logs.append(
-            Log(json.loads(msg)["errors"], json.loads(msg)["emissions"])
-        ),
+        lambda self, msg, extra: logs.append(Log(extra["errors"], extra["emissions"])),
     ):
         #################
         # every == None #
@@ -206,3 +200,10 @@ def test_observe(itype: IterableType) -> None:
         )
         # `observe` with `every` slightly under slow_identity_duration should emit one log per yield/error
         assert len(digits) == len(logs)
+
+
+def test_escape():
+    assert SubjectEscapingFormatter._escape("ints") == '"ints"'
+    assert SubjectEscapingFormatter._escape("in ts") == '"in ts"'
+    assert SubjectEscapingFormatter._escape("in\\ts") == r'"in\\ts"'
+    assert SubjectEscapingFormatter._escape('"ints"') == r'"\"ints\""'

@@ -612,10 +612,9 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
     def observe(
         self,
-        label: str = "",
+        subject: str = "",
         *,
         every: Optional[Union[int, datetime.timedelta]] = None,
-        format: Optional[str] = None,
     ) -> "stream[T]":
         """
         Logs the progress of iteration over this stream: the time elapsed since the iteration started, the count of emitted elements and errors.
@@ -623,14 +622,12 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         A log is emitted `every` interval (number of elements or time interval), or when the number of yielded elements (or errors) reaches powers of 2 if `every is None`.
 
         Args:
-            label (``str``): Name for the yielded objects ("cats", "dogs", ...).
+            subject (``str``): Describes the yielded objects ("cats", "dogs", ...).
             every (``int | timedelta | None``): When an upstream element is pulled, a log is emitted if ...
 
               - ``None`` (default): ... the number of yielded elements (or errors) reaches a power of 2.
               - ``int``: ... the number of yielded elements (or errors) reaches `every`.
               - ``timedelta``: ... `every` has elapsed since the last log.
-
-            format (``str | None``): The format of the logs, a string that can contain these placeholders: ``{timestamp}``, ``{elapsed}``, ``{label}``, ``{errors}``, ``{emissions}``, example ``format="{timestamp} INFO {emissions} {label} emitted with {errors} errors"``. (default: ECS format https://www.elastic.co/docs/reference/ecs).
 
         Returns:
             ``stream[T]``: A stream of upstream elements with progress logging during iteration.
@@ -639,7 +636,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             validate_int(every, gte=1, name="every")
         elif isinstance(every, datetime.timedelta):
             validate_positive_timedelta(every, name="every")
-        return ObserveStream(self, label, every, format)
+        return ObserveStream(self, subject, every)
 
     @overload
     def skip(
@@ -889,19 +886,17 @@ class MapStream(DownStream[T, U]):
 
 
 class ObserveStream(DownStream[T, T]):
-    __slots__ = ("_label", "_every", "_format")
+    __slots__ = ("_subject", "_every")
 
     def __init__(
         self,
         upstream: stream[T],
-        label: str,
+        subject: str,
         every: Optional[Union[int, datetime.timedelta]],
-        format: Optional[str],
     ) -> None:
         super().__init__(upstream)
-        self._label = label
+        self._subject = subject
         self._every = every
-        self._format = format
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_observe_stream(self)

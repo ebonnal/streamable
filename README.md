@@ -369,14 +369,12 @@ assert list(observed_ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 logs:
 
 ```
-{"@timestamp":...,"log.level":"INFO","elapsed":"0:00:00.000010","label":"ints","errors":0,"emissions":1}
-{"@timestamp":...,"log.level":"INFO","elapsed":"0:00:00.000057","label":"ints","errors":0,"emissions":2}
-{"@timestamp":...,"log.level":"INFO","elapsed":"0:00:00.000078","label":"ints","errors":0,"emissions":4}
-{"@timestamp":...,"log.level":"INFO","elapsed":"0:00:00.000093","label":"ints","errors":0,"emissions":8}
-{"@timestamp":...,"log.level":"INFO","elapsed":"0:00:00.000104","label":"ints","errors":0,"emissions":10}
+2025-12-19T22:18:23Z INFO stream="ints" elapsed=0:00:00.000015 errors=0 emissions=1
+2025-12-19T22:18:23Z INFO stream="ints" elapsed=0:00:00.000207 errors=0 emissions=2
+2025-12-19T22:18:23Z INFO stream="ints" elapsed=0:00:00.000234 errors=0 emissions=4
+2025-12-19T22:18:23Z INFO stream="ints" elapsed=0:00:00.000250 errors=0 emissions=8
+2025-12-19T22:18:23Z INFO stream="ints" elapsed=0:00:00.000268 errors=0 emissions=10
 ```
-
-It follows [ECS format](https://www.elastic.co/docs/reference/ecs) but you can specify your own via the `format` parameter.
 
 A new log is emitted when the number of yielded elements (or errors) ***reaches powers of 2***.
 

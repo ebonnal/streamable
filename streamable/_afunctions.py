@@ -121,17 +121,14 @@ def map(
 
 def observe(
     aiterator: AsyncIterator[T],
-    label: str,
+    subject: str,
     every: Optional[Union[int, datetime.timedelta]],
-    format: Optional[str],
 ) -> AsyncIterator[T]:
     if every is None:
-        return _aiterators.PowerObserveAsyncIterator(aiterator, label, format)
+        return _aiterators.PowerObserveAsyncIterator(aiterator, subject)
     elif isinstance(every, int):
-        return _aiterators.EveryIntObserveAsyncIterator(aiterator, label, format, every)
-    return _aiterators.EveryIntervalObserveAsyncIterator(
-        aiterator, label, format, every
-    )
+        return _aiterators.EveryIntObserveAsyncIterator(aiterator, subject, every)
+    return _aiterators.EveryIntervalObserveAsyncIterator(aiterator, subject, every)
 
 
 def skip(
