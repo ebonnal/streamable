@@ -458,11 +458,11 @@ class ThrottleIterator(Iterator[T]):
     def __init__(
         self,
         iterator: Iterator[T],
-        max_emissions: int,
+        up_to: int,
         period: datetime.timedelta,
     ) -> None:
         self.iterator = iterator
-        self.max_emissions = max_emissions
+        self.up_to = up_to
         self._period_seconds = period.total_seconds()
         self._period_index: int = -1
         self._emissions_in_period = 0
@@ -488,11 +488,9 @@ class ThrottleIterator(Iterator[T]):
 
         if self._period_index != period_index:
             self._period_index = period_index
-            self._emissions_in_period = max(
-                0, self._emissions_in_period - self.max_emissions
-            )
+            self._emissions_in_period = max(0, self._emissions_in_period - self.up_to)
 
-        if self._emissions_in_period >= self.max_emissions:
+        if self._emissions_in_period >= self.up_to:
             time.sleep((ceil(num_periods) - num_periods) * self._period_seconds)
         self._emissions_in_period += 1
 
