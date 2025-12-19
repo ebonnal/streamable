@@ -416,12 +416,14 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         *,
         concurrency: int = 1,
     ) -> "stream[U]": ...
+
     @overload
     def flatten(
         self: "stream[Union[Iterable[U], AsyncIterable[U]]]",
         *,
         concurrency: int = 1,
     ) -> "stream[U]": ...
+
     @overload
     def flatten(
         self: "stream[Union[Iterator[U], AsyncIterator[U]]]",
@@ -646,6 +648,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
     @overload
     def skip(self, *, until: Callable[[T], Any]) -> "stream[T]": ...
+
     @overload
     def skip(self, until: int) -> "stream[T]": ...
 
@@ -716,16 +719,6 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
     ) -> "stream[T]":
         """
         Limits the speed of iteration to yield at most ``up_to`` elements (or exceptions) ``per`` time interval.
-
-        .. code-block:: python
-
-            # limits the number of requests made to 50 per minute:
-            from datetime import timedelta
-            (
-                Stream(urls)
-                .throttle(50, per=timedelta(minutes=1))
-                .map(requests.get, concurrency=4)
-            )
 
         Args:
             up_to (``int``, optional): Maximum number of elements (or exceptions) that must be yielded within the given time interval.
