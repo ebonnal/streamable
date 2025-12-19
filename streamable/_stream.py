@@ -33,13 +33,17 @@ from streamable._utils._validation import (
     validate_positive_timedelta,
     validate_int,
 )
+from streamable.visitors import Visitor
+from streamable.visitors._iter import IteratorVisitor
+from streamable.visitors._aiter import AsyncIteratorVisitor
+from streamable.visitors._eq import EqualityVisitor
+from streamable.visitors._repr import ReprVisitor
+from streamable.visitors._repr import StrVisitor
 
 if TYPE_CHECKING:  # pragma: no cover
     import builtins
 
     from typing_extensions import Concatenate, ParamSpec
-
-    from streamable.visitors import Visitor
 
     P = ParamSpec("P")
 
@@ -143,13 +147,9 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         return self._source
 
     def __iter__(self) -> Iterator[T]:
-        from streamable.visitors._iter import IteratorVisitor
-
         return self.accept(IteratorVisitor[T]())
 
     def __aiter__(self) -> AsyncIterator[T]:
-        from streamable.visitors._aiter import AsyncIteratorVisitor
-
         return self.accept(AsyncIteratorVisitor[T]())
 
     def __eq__(self, other: Any) -> bool:
@@ -159,18 +159,13 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         Returns:
             ``bool``: True if this stream is equal to ``other``.
         """
-        from streamable.visitors._eq import EqualityVisitor
 
         return self.accept(EqualityVisitor(other))
 
     def __repr__(self) -> str:
-        from streamable.visitors._repr import ReprVisitor
-
         return self.accept(ReprVisitor())
 
     def __str__(self) -> str:
-        from streamable.visitors._repr import StrVisitor
-
         return self.accept(StrVisitor())
 
     def __call__(self) -> "stream[T]":
