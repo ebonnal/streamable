@@ -53,9 +53,9 @@ def catch(
     return _iterators.CatchIterator(
         iterator,
         errors,
-        where=syncify(loop_getter(), where),
-        replace=syncify(loop_getter(), replace),
-        do=syncify(loop_getter(), do),
+        where=syncify(loop_getter, where),
+        replace=syncify(loop_getter, replace),
+        do=syncify(loop_getter, do),
         stop=stop,
     )
 
@@ -65,7 +65,7 @@ def filter(
     where: Union[Callable[[T], Any], Callable[[T], Coroutine[Any, Any, Any]]],
     iterator: Iterator[T],
 ) -> Iterator[T]:
-    return builtins.filter(syncify(loop_getter(), where), iterator)
+    return builtins.filter(syncify(loop_getter, where), iterator)
 
 
 def flatten(
@@ -95,7 +95,7 @@ def group(
         return _iterators.GroupIterator(iterator, up_to, every)
     return _iterators.GroupbyIterator(
         iterator,
-        by=syncify(loop_getter(), by),
+        by=syncify(loop_getter, by),
         up_to=up_to,
         every=every,
     )
@@ -110,7 +110,7 @@ def map(
     ordered: bool = True,
 ) -> Iterator[U]:
     if concurrency == 1:
-        return builtins.map(syncify(loop_getter(), into), iterator)
+        return builtins.map(syncify(loop_getter, into), iterator)
     if iscoroutinefunction(into):
         return _iterators.ConcurrentAMapIterator(
             loop_getter(),
@@ -139,14 +139,14 @@ def observe(
 ) -> Iterator[T]:
     if every is None:
         return _iterators.PowerObserveIterator(
-            iterator, subject, syncify(loop_getter(), how)
+            iterator, subject, syncify(loop_getter, how)
         )
     elif isinstance(every, int):
         return _iterators.EveryIntObserveIterator(
-            iterator, subject, every, syncify(loop_getter(), how)
+            iterator, subject, every, syncify(loop_getter, how)
         )
     return _iterators.EveryIntervalObserveIterator(
-        iterator, subject, every, syncify(loop_getter(), how)
+        iterator, subject, every, syncify(loop_getter, how)
     )
 
 
@@ -157,7 +157,7 @@ def skip(
 ) -> Iterator[T]:
     if isinstance(until, int):
         return _iterators.CountSkipIterator(iterator, until)
-    return _iterators.PredicateSkipIterator(iterator, syncify(loop_getter(), until))
+    return _iterators.PredicateSkipIterator(iterator, syncify(loop_getter, until))
 
 
 def take(
@@ -167,7 +167,7 @@ def take(
 ) -> Iterator[T]:
     if isinstance(until, int):
         return _iterators.CountTakeIterator(iterator, until)
-    return _iterators.PredicateTakeIterator(iterator, syncify(loop_getter(), until))
+    return _iterators.PredicateTakeIterator(iterator, syncify(loop_getter, until))
 
 
 def throttle(

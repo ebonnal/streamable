@@ -132,32 +132,32 @@ class _Syncify(Generic[T, R], CloseEventLoopMixin):
 
 @overload
 def syncify(
-    loop: asyncio.AbstractEventLoop,
+    loop_getter: Callable[[], asyncio.AbstractEventLoop],
     async_func: Callable[[T], Coroutine[Any, Any, R]],
 ) -> Callable[[T], R]: ...
 
 
 @overload
 def syncify(
-    loop: asyncio.AbstractEventLoop,
+    loop_getter: Callable[[], asyncio.AbstractEventLoop],
     async_func: Callable[[T], R],
 ) -> Callable[[T], R]: ...
 
 
 @overload
 def syncify(
-    loop: asyncio.AbstractEventLoop,
+    loop_getter: Callable[[], asyncio.AbstractEventLoop],
     async_func: None,
 ) -> None: ...
 
 
 def syncify(
-    loop: asyncio.AbstractEventLoop,
+    loop_getter: Callable[[], asyncio.AbstractEventLoop],
     async_func: Union[None, Callable[[T], Coroutine[Any, Any, R]], Callable[[T], R]],
 ) -> Optional[Callable[[T], R]]:
     if not async_func or not iscoroutinefunction(async_func):
         return cast(Optional[Callable[[T], R]], async_func)
-    return _Syncify(loop, async_func)
+    return _Syncify(loop_getter(), async_func)
 
 
 async def _async_call(func: Callable[[T], R], o: T) -> R:
