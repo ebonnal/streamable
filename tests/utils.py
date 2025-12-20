@@ -75,12 +75,6 @@ def bi_iterable_to_iter(
     return iter(iterable)
 
 
-def to_async_iter(iterable: Union[Iterable[T], AsyncIterable[T]]) -> AsyncIterator[T]:
-    if isinstance(iterable, Iterable):
-        iterable = SyncToAsyncIterator(iterable.__iter__())
-    return iterable.__aiter__()
-
-
 def anext_or_next(it: Union[Iterator[T], AsyncIterator[T]]) -> T:
     if isinstance(it, AsyncIterator):
         return asyncio.run(awaitable_to_coroutine(it.__anext__()))

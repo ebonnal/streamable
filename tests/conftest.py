@@ -9,7 +9,7 @@ import respx
 from streamable import stream
 from streamable._utils._func import star
 from streamable._utils._iter import (
-    sync_to_async_iter,
+    async_iter,
 )
 from tests.utils import (
     async_identity,
@@ -50,7 +50,7 @@ def complex_stream() -> stream:
         .map(star(lambda key, group: group))
         .observe("groups", how=print)
         .flatten(concurrency=4)
-        .map(sync_to_async_iter)
+        .map(async_iter)
         .flatten(concurrency=4)
         .map(lambda _: 0)
         .throttle(64, per=datetime.timedelta(seconds=1))
@@ -89,7 +89,7 @@ def complex_stream_str() -> str:
     .map(star(<lambda>), concurrency=1, ordered=True)
     .observe('groups', every=None, how=print)
     .flatten(concurrency=4)
-    .map(SyncToAsyncIterator, concurrency=1, ordered=True)
+    .map(async_iter, concurrency=1, ordered=True)
     .flatten(concurrency=4)
     .map(<lambda>, concurrency=1, ordered=True)
     .throttle(64, per=datetime.timedelta(seconds=1))

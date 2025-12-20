@@ -13,12 +13,11 @@ from typing import (
 import pytest
 
 from streamable import stream
-from streamable._utils._iter import sync_to_async_iter
+from streamable._utils._iter import async_iter
 from tests.utils import (
     ITERABLE_TYPES,
     N,
     alist,
-    to_async_iter,
     anext_or_next,
     async_slow_identity,
     bi_iterable_to_iter,
@@ -44,7 +43,7 @@ def test_flatten_typing() -> None:
     )
 
     flattened_asynciter_stream: stream[str] = (  # noqa: F841
-        stream("abc").map(iter).map(sync_to_async_iter).flatten()
+        stream("abc").map(iter).map(async_iter).flatten()
     )
     flattened_range_stream: stream[int] = (  # noqa: F841
         stream((ints_src, ints_src)).flatten()
@@ -57,7 +56,7 @@ def test_flatten_typing() -> None:
         (concurrency, itype, to_iter)
         for concurrency in (1, 2)
         for itype in ITERABLE_TYPES
-        for to_iter in (identity, to_async_iter)
+        for to_iter in (identity, async_iter)
     ],
 )
 def test_flatten(concurrency, itype, to_iter) -> None:

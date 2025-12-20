@@ -22,7 +22,7 @@ import pytest
 from streamable import stream
 from streamable._utils._async import awaitable_to_coroutine
 from streamable._utils._func import asyncify, star
-from streamable._utils._iter import sync_to_async_iter
+from streamable._utils._iter import async_iter
 from tests.utils import (
     ITERABLE_TYPES,
     IterableType,
@@ -69,11 +69,11 @@ def test_init() -> None:
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_async_src(itype) -> None:
     # a stream with an async source must be collectable as an Iterable or as AsyncIterable
-    assert to_list(stream(sync_to_async_iter(iter(ints_src))), itype) == list(ints_src)
+    assert to_list(stream(async_iter(iter(ints_src))), itype) == list(ints_src)
     # a stream with an async source must be collectable as an Iterable or as AsyncIterable
-    assert to_list(
-        stream(sync_to_async_iter(iter(ints_src)).__aiter__()), itype
-    ) == list(ints_src)
+    assert to_list(stream(async_iter(iter(ints_src)).__aiter__()), itype) == list(
+        ints_src
+    )
 
 
 def test_repr(complex_stream: stream, complex_stream_str: str) -> None:
@@ -252,7 +252,7 @@ def test_eq() -> None:
         .group(3, by=async_identity)
         .map(second_item)
         .map(iter)
-        .map(sync_to_async_iter)
+        .map(async_iter)
         .flatten(concurrency=3)
         .map(identity, concurrency=threads)
         .map(async_identity)
@@ -278,7 +278,7 @@ def test_eq() -> None:
         .group(3, by=async_identity)
         .map(second_item)
         .map(iter)
-        .map(sync_to_async_iter)
+        .map(async_iter)
         .flatten(concurrency=3)
         .map(identity, concurrency=threads)
         .map(async_identity)
@@ -305,7 +305,7 @@ def test_eq() -> None:
         .group(3, by=async_identity)
         .map(second_item)
         .map(iter)
-        .map(sync_to_async_iter)
+        .map(async_iter)
         .flatten(concurrency=3)
         .map(identity, concurrency=threads)
         .map(async_identity)
@@ -332,7 +332,7 @@ def test_eq() -> None:
         .group(3, by=async_identity)
         .map(second_item)
         .map(iter)
-        .map(sync_to_async_iter)
+        .map(async_iter)
         .flatten(concurrency=3)
         .map(identity, concurrency=threads)
         .map(async_identity)

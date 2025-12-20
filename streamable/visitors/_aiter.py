@@ -14,7 +14,7 @@ from typing import (
 
 from streamable import _afunctions
 from streamable._utils._func import sidify
-from streamable._utils._iter import afn_to_aiter, fn_to_aiter, sync_to_async_iter
+from streamable._utils._iter import afn_to_aiter, fn_to_aiter, async_iter
 from streamable.visitors import Visitor
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -116,10 +116,8 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
         )
 
     def visit_stream(self, stream: "stream[T]") -> AsyncIterator[T]:
-        if isinstance(stream.source, Iterable):
-            return sync_to_async_iter(stream.source.__iter__())
-        if isinstance(stream.source, AsyncIterable):
-            return stream.source.__aiter__()
+        if isinstance(stream.source, (Iterable, AsyncIterable)):
+            return async_iter(stream.source)
         if callable(stream.source):
             if iscoroutinefunction(stream.source):
                 return afn_to_aiter(

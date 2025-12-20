@@ -8,6 +8,7 @@ from typing import (
     Iterable,
     Iterator,
     TypeVar,
+    Union,
 )
 
 from streamable._utils._async import CloseEventLoopMixin
@@ -30,7 +31,10 @@ class SyncToAsyncIterator(AsyncIterator[T]):
             raise StopAsyncIteration from e
 
 
-sync_to_async_iter: Callable[[Iterator[T]], AsyncIterator[T]] = SyncToAsyncIterator
+def async_iter(iterator: Union[Iterable[T], AsyncIterable[T]]) -> AsyncIterator[T]:
+    if isinstance(iterator, AsyncIterable):
+        return iterator.__aiter__()
+    return SyncToAsyncIterator(iterator.__iter__())
 
 
 class AsyncToSyncIterator(Iterator[T], CloseEventLoopMixin):
@@ -49,9 +53,13 @@ class AsyncToSyncIterator(Iterator[T], CloseEventLoopMixin):
             raise StopIteration from e
 
 
-async_to_sync_iter: Callable[
-    [asyncio.AbstractEventLoop, AsyncIterator[T]], Iterator[T]
-] = AsyncToSyncIterator
+def sync_iter(
+    loop_getter: Callable[[], asyncio.AbstractEventLoop],
+    iterator: Union[AsyncIterable[T], Iterable[T]],
+) -> Iterator[T]:
+    if isinstance(iterator, Iterable):
+        return iterator.__iter__()
+    return AsyncToSyncIterator(loop_getter(), iterator.__aiter__())
 
 
 class _FnIterator(Iterator[T]):
