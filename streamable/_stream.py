@@ -807,7 +807,7 @@ class FilterStream(DownStream[T, T]):
 
 
 class FlattenStream(DownStream[Union[Iterable[T], AsyncIterable[T]], T]):
-    __slots__ = ("_concurrency", "_async")
+    __slots__ = ("_concurrency",)
 
     def __init__(
         self,
