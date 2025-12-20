@@ -54,7 +54,7 @@ def test_init() -> None:
         .do(identity)
         .do(async_identity)
         .catch(Exception)
-        .observe()
+        .observe("foo")
         .throttle(1, per=datetime.timedelta(seconds=1))
         .source
     ) is ints_src

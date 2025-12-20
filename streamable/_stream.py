@@ -612,7 +612,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
     def observe(
         self,
-        subject: str = "",
+        subject: str,
         *,
         every: Optional[Union[int, datetime.timedelta]] = None,
         how: Optional[Callable[[str], Any]] = None,
