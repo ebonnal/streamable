@@ -34,7 +34,7 @@ class FutureResult(Future, Awaitable[T]):
         return self.result()
 
 
-class FutureResultCollection(Iterator[T], AsyncIterator[T], Sized, ABC):
+class FutureResultCollection(Iterator[T], AsyncIterator[T], Sized):
     """
     Iterator over added futures' results. Supports adding new futures after iteration started.
     """
@@ -58,9 +58,10 @@ class FIFOFutureResultCollection(FutureResultCollection[T]):
 
 
 class FDFOFutureResultCollection(FutureResultCollection[T]):
+    _results: "Union[Queue[T], asyncio.Queue[T]]"
+    
     def __init__(self) -> None:
         self._n_futures = 0
-        self._results: "Union[Queue[T], asyncio.Queue[T]]"
 
     def __len__(self) -> int:
         return self._n_futures
