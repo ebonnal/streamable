@@ -129,16 +129,25 @@ def map(
 
 
 def observe(
+    loop_getter: Callable[[], asyncio.AbstractEventLoop],
     iterator: Iterator[T],
     subject: str,
     every: Optional[Union[int, datetime.timedelta]],
-    how: Optional[Callable[[str], Any]] = None,
+    how: Optional[
+        Union[Callable[[str], Any], Callable[[str], Coroutine[Any, Any, Any]]]
+    ] = None,
 ) -> Iterator[T]:
     if every is None:
-        return _iterators.PowerObserveIterator(iterator, subject, how)
+        return _iterators.PowerObserveIterator(
+            iterator, subject, syncify(loop_getter(), how)
+        )
     elif isinstance(every, int):
-        return _iterators.EveryIntObserveIterator(iterator, subject, every, how)
-    return _iterators.EveryIntervalObserveIterator(iterator, subject, every, how)
+        return _iterators.EveryIntObserveIterator(
+            iterator, subject, every, syncify(loop_getter(), how)
+        )
+    return _iterators.EveryIntervalObserveIterator(
+        iterator, subject, every, syncify(loop_getter(), how)
+    )
 
 
 def skip(

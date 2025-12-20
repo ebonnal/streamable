@@ -610,12 +610,32 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             validate_concurrency_executor(concurrency, into, fn_name="into")
         return MapStream(self, into, concurrency, ordered)
 
+    @overload
+    def observe(
+        self,
+        subject: str,
+        *,
+        every: Optional[Union[int, datetime.timedelta]] = None,
+        how: Optional[Callable[[str], Coroutine[Any, Any, Any]]] = None,
+    ) -> "stream[T]": ...
+
+    @overload
     def observe(
         self,
         subject: str,
         *,
         every: Optional[Union[int, datetime.timedelta]] = None,
         how: Optional[Callable[[str], Any]] = None,
+    ) -> "stream[T]": ...
+
+    def observe(
+        self,
+        subject: str,
+        *,
+        every: Optional[Union[int, datetime.timedelta]] = None,
+        how: Optional[
+            Union[Callable[[str], Any], Callable[[str], Coroutine[Any, Any, Any]]]
+        ] = None,
     ) -> "stream[T]":
         """
         Logs the progress of iteration over this stream: the time elapsed since the iteration started, the count of emitted elements and errors.
@@ -630,7 +650,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
               - ``int``: ... the number of yielded elements (or errors) reaches `every`.
               - ``timedelta``: ... `every` has elapsed since the last log.
 
-            how (``Callable[[str], Any]``): Specify what to do with the iteration progress message, ``how(message)`` will be periodically called according to ``every``. (default: logs the message via ``logging.getLogger("streamable").info``)
+            how (``Callable[[str], Any] | Callable[[str], Coroutine[Any, Any, Any]] | None``): Specify what to do with the iteration progress message, ``how(message)`` will be periodically called according to ``every``. (default: calls ``logging.getLogger("streamable").info``)
 
         Returns:
             ``stream[T]``: A stream of upstream elements with progress logging during iteration.
@@ -896,7 +916,9 @@ class ObserveStream(DownStream[T, T]):
         upstream: stream[T],
         subject: str,
         every: Optional[Union[int, datetime.timedelta]],
-        how: Optional[Callable[[str], Any]],
+        how: Optional[
+            Union[Callable[[str], Any], Callable[[str], Coroutine[Any, Any, Any]]]
+        ],
     ) -> None:
         super().__init__(upstream)
         self._subject = subject

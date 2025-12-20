@@ -11,11 +11,13 @@ from unittest.mock import patch
 import pytest
 
 from streamable import stream
+from streamable._tools._func import asyncify
 from streamable._tools._logging import logfmt_str_escape
 from tests.utils import (
     ITERABLE_TYPES,
     IterableType,
     slow_identity,
+    identity,
     slow_identity_duration,
     to_list,
 )
@@ -218,14 +220,17 @@ def test_escape():
     assert logfmt_str_escape('"ints"') == r'"\"ints\""'
 
 
-@pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_observe_how(itype) -> None:
+@pytest.mark.parametrize(
+    "itype, adapt",
+    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
+)
+def test_observe_how(itype: IterableType, adapt) -> None:
     observed: List[str] = []
     ints = list(range(8))
     assert (
         to_list(
             stream(ints).observe(
-                "ints", every=2, how=lambda msg: observed.append(msg[-20:])
+                "ints", every=2, how=adapt(lambda msg: observed.append(msg[-20:]))
             ),
             itype,
         )

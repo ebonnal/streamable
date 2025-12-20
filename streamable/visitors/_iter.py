@@ -108,6 +108,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
 
     def visit_observe_stream(self, stream: "ObserveStream[T]") -> Iterator[T]:
         return _functions.observe(
+            self._get_loop,
             stream.upstream.accept(self),
             stream._subject,
             stream._every,
