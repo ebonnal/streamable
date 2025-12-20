@@ -18,8 +18,8 @@ from typing import (
 )
 
 from streamable._stream import stream
-from streamable._utils._async import awaitable_to_coroutine
-from streamable._utils._iter import (
+from streamable._tools._async import awaitable_to_coroutine
+from streamable._tools._iter import (
     SyncAsyncIterable,
     SyncToAsyncIterator,
 )

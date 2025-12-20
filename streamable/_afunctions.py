@@ -19,7 +19,7 @@ from typing import (
 )
 
 from streamable import _aiterators
-from streamable._utils._func import asyncify
+from streamable._tools._func import asyncify
 
 with suppress(ImportError):
     pass

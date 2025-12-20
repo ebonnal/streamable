@@ -27,8 +27,8 @@ from typing import (
     overload,
 )
 
-from streamable._utils._iter import SyncAsyncIterable
-from streamable._utils._validation import (
+from streamable._tools._iter import SyncAsyncIterable
+from streamable._tools._validation import (
     validate_concurrency_executor,
     validate_positive_timedelta,
     validate_int,

@@ -16,8 +16,8 @@ from typing import (
 
 from streamable import _functions
 
-from streamable._utils._func import sidify
-from streamable._utils._iter import afn_to_iter, fn_to_iter, sync_iter
+from streamable._tools._func import sidify
+from streamable._tools._iter import afn_to_iter, fn_to_iter, sync_iter
 from streamable.visitors import Visitor
 
 if TYPE_CHECKING:  # pragma: no cover

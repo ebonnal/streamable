@@ -4,7 +4,7 @@ import sys
 import pytest
 
 from streamable import stream
-from streamable._utils._func import asyncify
+from streamable._tools._func import asyncify
 from tests.utils import (
     ITERABLE_TYPES,
     IterableType,

@@ -31,14 +31,14 @@ from typing import (
     Union,
     cast,
 )
-from streamable._utils._async import (
+from streamable._tools._async import (
     CloseEventLoopMixin,
 )
-from streamable._utils._contextmanager import noop_context_manager
-from streamable._utils._error import ExceptionContainer
-from streamable._utils._logging import get_logger, logfmt_str_escape
+from streamable._tools._contextmanager import noop_context_manager
+from streamable._tools._error import ExceptionContainer
+from streamable._tools._logging import get_logger, logfmt_str_escape
 
-from streamable._utils._future import (
+from streamable._tools._future import (
     AsyncFDFOFutureResultCollection,
     ExecutorFDFOFutureResultCollection,
     AsyncFIFOFutureResultCollection,
@@ -48,7 +48,7 @@ from streamable._utils._future import (
 )
 
 if sys.version_info < (3, 10):  # pragma: no cover
-    from streamable._utils._async import anext
+    from streamable._tools._async import anext
 
 with suppress(ImportError):
     pass

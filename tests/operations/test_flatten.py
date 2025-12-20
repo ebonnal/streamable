@@ -13,7 +13,7 @@ from typing import (
 import pytest
 
 from streamable import stream
-from streamable._utils._iter import async_iter
+from streamable._tools._iter import async_iter
 from tests.utils import (
     ITERABLE_TYPES,
     N,

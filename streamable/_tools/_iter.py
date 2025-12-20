@@ -11,7 +11,7 @@ from typing import (
     Union,
 )
 
-from streamable._utils._async import CloseEventLoopMixin
+from streamable._tools._async import CloseEventLoopMixin
 
 T = TypeVar("T")
 

@@ -20,9 +20,9 @@ from typing import (
 import pytest
 
 from streamable import stream
-from streamable._utils._async import awaitable_to_coroutine
-from streamable._utils._func import asyncify, star
-from streamable._utils._iter import async_iter
+from streamable._tools._async import awaitable_to_coroutine
+from streamable._tools._func import asyncify, star
+from streamable._tools._iter import async_iter
 from tests.utils import (
     ITERABLE_TYPES,
     IterableType,

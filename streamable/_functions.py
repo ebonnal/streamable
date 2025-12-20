@@ -21,7 +21,7 @@ from typing import (
 )
 
 from streamable import _iterators
-from streamable._utils._func import syncify
+from streamable._tools._func import syncify
 
 with suppress(ImportError):
     pass

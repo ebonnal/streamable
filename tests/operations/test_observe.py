@@ -11,7 +11,7 @@ from unittest.mock import patch
 import pytest
 
 from streamable import stream
-from streamable._utils._logging import logfmt_str_escape
+from streamable._tools._logging import logfmt_str_escape
 from tests.utils import (
     ITERABLE_TYPES,
     IterableType,

@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, List
 
-from streamable._utils._func import _Star
+from streamable._tools._func import _Star
 from streamable.visitors import Visitor
 
 if TYPE_CHECKING:  # pragma: no cover

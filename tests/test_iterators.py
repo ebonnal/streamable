@@ -7,8 +7,8 @@ from streamable._aiterators import (
     _ConcurrentAMapAsyncIterable,
     _RaisingAsyncIterator,
 )
-from streamable._utils._async import awaitable_to_coroutine
-from streamable._utils._iter import async_iter
+from streamable._tools._async import awaitable_to_coroutine
+from streamable._tools._iter import async_iter
 from tests.utils import async_identity, identity, ints_src
 
 

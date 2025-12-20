@@ -1,5 +1,5 @@
 import asyncio
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from collections import deque
 from concurrent.futures import Future
 from contextlib import suppress
@@ -19,7 +19,7 @@ from typing import (
 
 
 with suppress(ImportError):
-    from streamable._utils._queue import Queue
+    from streamable._tools._queue import Queue
 
 T = TypeVar("T")
 
@@ -59,7 +59,7 @@ class FIFOFutureResultCollection(FutureResultCollection[T]):
 
 class FDFOFutureResultCollection(FutureResultCollection[T]):
     _results: "Union[Queue[T], asyncio.Queue[T]]"
-    
+
     def __init__(self) -> None:
         self._n_futures = 0
 
