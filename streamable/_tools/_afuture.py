@@ -12,7 +12,7 @@ from typing import (
 T = TypeVar("T")
 
 
-class FutureResult(Future[T]):
+class FutureResult(Future):
     def __init__(self, result: T):
         super().__init__()
         self.set_result(result)
@@ -24,7 +24,7 @@ class FutureResultCollection(AsyncIterator[T], Sized):
     """
 
     @abstractmethod
-    def add(self, future: Future[T]) -> None: ...
+    def add(self, future: "Future[T]") -> None: ...
 
 
 class FIFOFutureResultCollection(FutureResultCollection[T]):
@@ -33,12 +33,12 @@ class FIFOFutureResultCollection(FutureResultCollection[T]):
     """
 
     def __init__(self) -> None:
-        self._futures: Deque[Future[T]] = deque()
+        self._futures: Deque["Future[T]"] = deque()
 
     def __len__(self) -> int:
         return len(self._futures)
 
-    def add(self, future: Future[T]) -> None:
+    def add(self, future: "Future[T]") -> None:
         return self._futures.append(future)
 
     async def __anext__(self) -> T:
@@ -57,10 +57,10 @@ class FDFOFutureResultCollection(FutureResultCollection[T]):
     def __len__(self) -> int:
         return self._n_futures
 
-    def _done_callback(self, future: Future[T]) -> None:
+    def _done_callback(self, future: "Future[T]") -> None:
         self._results.put_nowait(future.result())
 
-    def add(self, future: Future[T]) -> None:
+    def add(self, future: "Future[T]") -> None:
         future.add_done_callback(self._done_callback)
         self._n_futures += 1
 
