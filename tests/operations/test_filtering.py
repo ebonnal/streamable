@@ -1,5 +1,6 @@
 import builtins
 import sys
+from typing import Any, Callable
 
 import pytest
 
@@ -25,7 +26,9 @@ from tests.utils import (
     "itype, adapt",
     ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
 )
-def test_filter(itype: IterableType, adapt) -> None:
+def test_filter(
+    itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
+) -> None:
     def keep(x) -> int:
         return x % 2
 
@@ -47,7 +50,9 @@ def test_filter(itype: IterableType, adapt) -> None:
     "itype, adapt",
     ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
 )
-def test_skip(itype: IterableType, adapt) -> None:
+def test_skip(
+    itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
+) -> None:
     # `skip` must raise ValueError if `until` is negative
     with pytest.raises(ValueError, match="`until` must be >= 0 but got -1"):
         stream(ints_src).skip(-1)
@@ -68,7 +73,9 @@ def test_skip(itype: IterableType, adapt) -> None:
         )
         # `skip` must yield starting from the first element satisfying `until`
         assert (
-            to_list(stream(ints_src).skip(adapt(lambda n: n >= count)), itype=itype)
+            to_list(
+                stream(ints_src).skip(until=adapt(lambda n: n >= count)), itype=itype
+            )
             == list(ints_src)[count:]
         )
 
@@ -77,7 +84,9 @@ def test_skip(itype: IterableType, adapt) -> None:
     "itype, adapt",
     ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
 )
-def test_take(itype: IterableType, adapt) -> None:
+def test_take(
+    itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
+) -> None:
     # `take` must be ok with `until` >= stream length
     assert to_list(stream(ints_src).take(N * 2), itype=itype) == list(ints_src)
     # `take` must be ok with `until` >= 1

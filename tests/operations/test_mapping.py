@@ -50,7 +50,7 @@ from tests.utils import (
     "concurrency, itype",
     [(concurrency, itype) for concurrency in (1, 2) for itype in ITERABLE_TYPES],
 )
-def test_map(concurrency, itype) -> None:
+def test_map(concurrency: int, itype: IterableType) -> None:
     # At any concurrency the `map` method should act as the builtin map function, transforming elements while preserving input elements order.
     assert to_list(
         stream(ints_src).map(randomly_slowed(square), concurrency=concurrency),
@@ -65,7 +65,9 @@ def test_map(concurrency, itype) -> None:
         (stream.map, "into"),
     ],
 )
-def test_executor_concurrency_with_async_function(operation, fn_name):
+def test_executor_concurrency_with_async_function(
+    operation: Callable[..., Any], fn_name: str
+) -> None:
     with pytest.raises(
         TypeError,
         match=f"`concurrency` must be an int if `{fn_name}` is a coroutine function but got <concurrent.futures.thread.ThreadPoolExecutor object at .*",
@@ -88,7 +90,11 @@ def test_executor_concurrency_with_async_function(operation, fn_name):
         ]
     ],
 )
-def test_process_concurrency(ordered, order_mutation, itype) -> None:
+def test_process_concurrency(
+    ordered: bool,
+    order_mutation: Callable[[Iterable], Iterable],
+    itype: IterableType,
+) -> None:
     def local_identity(x):
         return x  # pragma: no cover
 
@@ -137,7 +143,9 @@ def test_process_concurrency(ordered, order_mutation, itype) -> None:
         for itype in ITERABLE_TYPES
     ],
 )
-def test_map_with_more_concurrency_than_elements(concurrency, n_elems, itype) -> None:
+def test_map_with_more_concurrency_than_elements(
+    concurrency: int, n_elems: int, itype: IterableType
+) -> None:
     # `map` method should act correctly when concurrency > number of elements.
     assert to_list(
         stream(range(n_elems)).map(str, concurrency=concurrency), itype=itype
@@ -157,7 +165,9 @@ def test_map_with_more_concurrency_than_elements(concurrency, n_elems, itype) ->
         if concurrency > 1 or ordered
     ],
 )
-def test_catched_error_upstream_of_map(itype, concurrency, ordered, expected) -> None:
+def test_catched_error_upstream_of_map(
+    itype: IterableType, concurrency: int, ordered: bool, expected: List[float]
+) -> None:
     # at any concurrency, map/do should not stop iteration when upstream raises
     assert (
         to_list(
@@ -201,11 +211,11 @@ def test_catched_error_upstream_of_map(itype, concurrency, ordered, expected) ->
 )
 def test_mapping_ordering(
     ordered: bool,
-    order_mutation: Callable[[Iterable[float]], Iterable[float]],
+    order_mutation: Callable[[Iterable], Iterable],
     expected_duration: float,
-    operation,
-    func,
-    itype,
+    operation: Callable[..., Any],
+    func: Callable[..., Any],
+    itype: IterableType,
 ) -> None:
     seconds = [0.3, 0.01, 0.01, 0.4]
     duration, res = timestream(
@@ -223,7 +233,7 @@ def test_mapping_ordering(
     "concurrency, itype",
     [(concurrency, itype) for concurrency in (1, 2) for itype in ITERABLE_TYPES],
 )
-def test_do(concurrency, itype) -> None:
+def test_do(concurrency: int, itype: IterableType) -> None:
     side_collection: Set[int] = set()
 
     def side_effect(x: int, func: Callable[[int], int]):
@@ -305,7 +315,12 @@ def test_map_or_do_with_exception(
         for itype in ITERABLE_TYPES
     ],
 )
-def test_map_or_do_concurrency(method, func, concurrency, itype) -> None:
+def test_map_or_do_concurrency(
+    method: Callable[..., Any],
+    func: Callable[..., Any],
+    concurrency: int,
+    itype: IterableType,
+) -> None:
     expected_iteration_duration = N * slow_identity_duration / concurrency
     duration, res = timestream(
         method(stream(ints_src), func, concurrency=concurrency), itype=itype
@@ -319,7 +334,7 @@ def test_map_or_do_concurrency(method, func, concurrency, itype) -> None:
     "concurrency, itype",
     [(concurrency, itype) for concurrency in (1, 100) for itype in ITERABLE_TYPES],
 )
-def test_map_async(concurrency, itype) -> None:
+def test_map_async(concurrency: int, itype: IterableType) -> None:
     # At any concurrency the `map` method should act as the builtin map function with async transforms, preserving input order.
     assert to_list(
         stream(ints_src).map(
@@ -333,7 +348,7 @@ def test_map_async(concurrency, itype) -> None:
     "concurrency, itype",
     [(concurrency, itype) for concurrency in (1, 100) for itype in ITERABLE_TYPES],
 )
-def test_do_async(concurrency, itype) -> None:
+def test_do_async(concurrency: int, itype: IterableType) -> None:
     # At any concurrency the `do` method must preserve input elements order.
     assert to_list(
         stream(ints_src).do(

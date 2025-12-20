@@ -1,5 +1,7 @@
 import datetime
 from typing import (
+    Any,
+    Callable,
     Iterable,
     List,
     NamedTuple,
@@ -224,7 +226,9 @@ def test_escape():
     "itype, adapt",
     ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
 )
-def test_observe_how(itype: IterableType, adapt) -> None:
+def test_observe_how(
+    itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
+) -> None:
     observed: List[str] = []
     ints = list(range(8))
     assert (

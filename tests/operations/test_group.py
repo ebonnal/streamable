@@ -1,7 +1,9 @@
 import datetime
 from operator import itemgetter
 from typing import (
+    Any,
     AsyncIterator,
+    Callable,
     Iterator,
     List,
     Tuple,
@@ -33,7 +35,9 @@ from tests.utils import (
     "itype, adapt",
     ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
 )
-def test_group(itype: IterableType, adapt) -> None:
+def test_group(
+    itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
+) -> None:
     # `group` should raise error when called with `seconds` <= 0.
     for seconds in [-1, 0]:
         with pytest.raises(

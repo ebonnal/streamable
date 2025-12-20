@@ -1,8 +1,10 @@
 from collections import Counter
 from functools import partial
 from typing import (
+    Any,
     AsyncIterable,
     AsyncIterator,
+    Callable,
     Iterable,
     Iterator,
     List,
@@ -16,6 +18,7 @@ from streamable import stream
 from streamable._tools._iter import async_iter
 from tests.utils import (
     ITERABLE_TYPES,
+    IterableType,
     N,
     alist,
     anext_or_next,
@@ -59,7 +62,11 @@ def test_flatten_typing() -> None:
         for to_iter in (identity, async_iter)
     ],
 )
-def test_flatten(concurrency, itype, to_iter) -> None:
+def test_flatten(
+    concurrency: int,
+    itype: IterableType,
+    to_iter: Callable[[Any], Any],
+) -> None:
     n_iterables = 32
     it = list(range(N // n_iterables))
     double_it = it + it
@@ -173,7 +180,7 @@ def test_flatten(concurrency, itype, to_iter) -> None:
 
 @pytest.mark.parametrize("itype", [AsyncIterable])
 @pytest.mark.asyncio
-async def test_flatten_within_async(itype):
+async def test_flatten_within_async(itype: IterableType) -> None:
     assert await alist(
         stream([stream(ints_src), stream(ints_src).__aiter__()]).flatten()
     ) == list(ints_src) + list(ints_src)
@@ -183,7 +190,9 @@ async def test_flatten_within_async(itype):
     "itype, concurrency",
     [(itype, concurrency) for itype in ITERABLE_TYPES for concurrency in (1, 2)],
 )
-def test_flatten_heterogeneous_sync_async_elements(itype, concurrency) -> None:
+def test_flatten_heterogeneous_sync_async_elements(
+    itype: IterableType, concurrency: int
+) -> None:
     async def aiterator() -> AsyncIterator[int]:
         yield 0
         yield 1
@@ -214,7 +223,11 @@ def test_flatten_heterogeneous_sync_async_elements(itype, concurrency) -> None:
         for itype in ITERABLE_TYPES
     ],
 )
-def test_flatten_concurrency(itype, slow, to_iter) -> None:
+def test_flatten_concurrency(
+    itype: IterableType,
+    slow: Callable[..., Any],
+    to_iter: Callable[..., Any],
+) -> None:
     concurrency = 2
     iterable_size = 5
     runtime, res = timestream(

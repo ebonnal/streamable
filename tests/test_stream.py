@@ -67,7 +67,7 @@ def test_init() -> None:
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_async_src(itype) -> None:
+def test_async_src(itype: IterableType) -> None:
     # a stream with an async source must be collectable as an Iterable or as AsyncIterable
     assert to_list(stream(async_iter(iter(ints_src))), itype) == list(ints_src)
     # a stream with an async source must be collectable as an Iterable or as AsyncIterable
@@ -134,7 +134,7 @@ def test_iter(itype: IterableType) -> None:
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_queue_source(itype) -> None:
+def test_queue_source(itype: IterableType) -> None:
     from queue import Queue, Empty
 
     ints_queue: Queue[int] = Queue()
@@ -157,7 +157,7 @@ def test_queue_source(itype) -> None:
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 @pytest.mark.asyncio
-async def test_aqueue_source(itype) -> None:
+async def test_aqueue_source(itype: IterableType) -> None:
     from asyncio import Queue, TimeoutError
 
     ints_queue: Queue[int] = Queue()

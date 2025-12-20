@@ -1,10 +1,6 @@
 import asyncio
 import pytest
 from streamable._tools._func import sidify, star
-from streamable._tools._future import (
-    ExecutorFIFOFutureResultCollection,
-    FutureResult,
-)
 
 
 def test_sidify() -> None:

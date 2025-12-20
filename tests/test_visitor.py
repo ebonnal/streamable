@@ -35,7 +35,7 @@ def test_visitor() -> None:
     visitor.visit_stream(cast(stream, ...))
 
 
-def test_depth_visitor_example():
+def test_depth_visitor_example() -> None:
     from streamable.visitors import Visitor
 
     class DepthVisitor(Visitor[int]):

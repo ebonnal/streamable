@@ -1,3 +1,5 @@
+from typing import Any, Callable, List
+
 import pytest
 
 from streamable import stream
@@ -19,7 +21,7 @@ from tests.utils import (
         (stream.flatten, []),
     ),
 )
-def test_validate_concurrency(method, args) -> None:
+def test_validate_concurrency(method: Callable[..., Any], args: List[Any]) -> None:
     # should be raising ValueError for concurrency=0.
     with pytest.raises(ValueError, match="`concurrency` must be >= 1 but got 0"):
         method(stream(ints_src), *args, concurrency=0)

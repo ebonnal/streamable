@@ -1,5 +1,7 @@
 from collections import Counter
 from typing import (
+    Any,
+    Callable,
     List,
     Type,
 )
@@ -27,7 +29,9 @@ from tests.utils import (
     "itype, adapt",
     ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
 )
-def test_catch(itype: IterableType, adapt) -> None:
+def test_catch(
+    itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
+) -> None:
     # `catch` should yield elements in exception-less scenarios
     assert to_list(stream(ints_src).catch(Exception), itype=itype) == list(ints_src)
 
