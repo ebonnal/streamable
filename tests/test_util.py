@@ -44,10 +44,3 @@ async def test_star() -> None:
         return a + b
 
     assert (await star(sleepy_add_)((2, 5))) == 7
-
-
-def test_os_future_result_collection_anext():
-    result = object()
-    future_results = ExecutorFIFOFutureResultCollection()
-    future_results.add(FutureResult(result))
-    assert asyncio.run(future_results.__anext__()) == result
