@@ -1,10 +1,11 @@
 import asyncio
+from asyncio.futures import Future
 import datetime
 import sys
 import time
 from abc import ABC, abstractmethod
 from collections import defaultdict, deque
-from concurrent.futures import Executor, Future, ThreadPoolExecutor
+from concurrent.futures import Executor, ThreadPoolExecutor
 from contextlib import suppress
 from math import ceil
 from typing import (
@@ -29,17 +30,16 @@ from typing import (
     cast,
 )
 
+from streamable._tools._afuture import (
+    FutureResult,
+    FutureResultCollection,
+    FDFOFutureResultCollection,
+    FIFOFutureResultCollection,
+)
 from streamable._tools._async import empty_aiter
 from streamable._tools._contextmanager import noop_context_manager
 from streamable._tools._error import ExceptionContainer
 from streamable._tools._logging import get_logger, logfmt_str_escape
-
-from streamable._tools._future import (
-    AsyncFDFOFutureResultCollection,
-    AsyncFIFOFutureResultCollection,
-    FutureResult,
-    FutureResultCollection,
-)
 
 if sys.version_info < (3, 10):  # pragma: no cover
     from streamable._tools._async import anext
@@ -602,8 +602,8 @@ class _BaseConcurrentMapAsyncIterable(
         self,
     ) -> FutureResultCollection[Union[U, ExceptionContainer]]:
         if self.ordered:
-            return AsyncFIFOFutureResultCollection(asyncio.get_running_loop())
-        return AsyncFDFOFutureResultCollection(asyncio.get_running_loop())
+            return FIFOFutureResultCollection()
+        return FDFOFutureResultCollection()
 
     async def _next_future(
         self,
@@ -665,11 +665,8 @@ class _ConcurrentMapAsyncIterable(_BaseConcurrentMapAsyncIterable[T, U]):
             return ExceptionContainer(e)
 
     def _launch_task(self, elem: T) -> "Future[Union[U, ExceptionContainer]]":
-        return cast(
-            "Future[Union[U, ExceptionContainer]]",
-            asyncio.get_running_loop().run_in_executor(
-                self.executor, self._safe_to, self.to, elem
-            ),
+        return asyncio.get_running_loop().run_in_executor(
+            self.executor, self._safe_to, self.to, elem
         )
 
 
@@ -717,10 +714,7 @@ class _ConcurrentAMapAsyncIterable(_BaseConcurrentMapAsyncIterable[T, U]):
             return ExceptionContainer(e)
 
     def _launch_task(self, elem: T) -> "Future[Union[U, ExceptionContainer]]":
-        return cast(
-            "Future[Union[U, ExceptionContainer]]",
-            asyncio.get_running_loop().create_task(self._safe_to(elem)),
-        )
+        return asyncio.get_running_loop().create_task(self._safe_to(elem))
 
 
 class ConcurrentAMapAsyncIterator(_RaisingAsyncIterator[U]):

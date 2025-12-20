@@ -5,7 +5,6 @@ from concurrent.futures import Future
 from contextlib import suppress
 import sys
 from typing import (
-    AsyncIterator,
     Awaitable,
     Deque,
     Generator,
@@ -34,16 +33,13 @@ class FutureResult(Future, Awaitable[T]):
         return self.result()
 
 
-class FutureResultCollection(Iterator[T], AsyncIterator[T], Sized):
+class FutureResultCollection(Iterator[T], Sized):
     """
     Iterator over added futures' results. Supports adding new futures after iteration started.
     """
 
     @abstractmethod
     def add(self, future: "Future[T]") -> None: ...
-
-    async def __anext__(self) -> T:
-        return self.__next__()
 
 
 class FIFOFutureResultCollection(FutureResultCollection[T]):
@@ -110,9 +106,6 @@ class AsyncFIFOFutureResultCollection(FIFOFutureResultCollection[T]):
     def __next__(self) -> T:
         return self.loop.run_until_complete(cast(Awaitable[T], self._futures.popleft()))
 
-    async def __anext__(self) -> T:
-        return await cast(Awaitable[T], self._futures.popleft())
-
 
 class AsyncFDFOFutureResultCollection(FDFOFutureResultCollection[T]):
     """
@@ -130,10 +123,5 @@ class AsyncFDFOFutureResultCollection(FDFOFutureResultCollection[T]):
 
     def __next__(self) -> T:
         result = self.loop.run_until_complete(self._results.get())
-        self._n_futures -= 1
-        return result
-
-    async def __anext__(self) -> T:
-        result = await self._results.get()
         self._n_futures -= 1
         return result
