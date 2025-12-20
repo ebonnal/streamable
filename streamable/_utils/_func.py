@@ -31,7 +31,7 @@ class _Sidify(Generic[T]):
 
 @overload
 def sidify(
-    func: Callable[[T], Coroutine],
+    func: Callable[[T], Coroutine[Any, Any, Any]],
 ) -> Callable[[T], Coroutine[Any, Any, T]]: ...
 
 
@@ -89,11 +89,11 @@ def star(func: Callable[[T1, T2, T3, T4, T5, T6, T7, T8], R]) -> Callable[[Tuple
 @overload
 def star(func: Callable[[T1, T2, T3, T4, T5, T6, T7, T8, T9], R]) -> Callable[[Tuple[T1, T2, T3, T4, T5, T6, T7, T8, T9]], R]: ...
 @overload
-def star(func: Callable[..., R]) -> Callable[[Tuple], R]: ...
+def star(func: Callable[..., R]) -> Callable[[Tuple[Any, ...]], R]: ...
 # fmt: on
 
 
-def star(func: Callable[..., R]) -> Callable[[Tuple], R]:
+def star(func: Callable[..., R]) -> Callable[[Tuple[Any, ...]], R]:
     """
     Transforms a function (sync or async) that takes several positional arguments into a function that takes a tuple.
 
@@ -109,11 +109,11 @@ def star(func: Callable[..., R]) -> Callable[[Tuple], R]:
     """
     if iscoroutinefunction(func):
 
-        async def __astarred__(args: Tuple) -> R:
+        async def __astarred__(args: Tuple[Any, ...]) -> R:
             return await func(*args)
 
         setattr(__astarred__, "__astarred__", func)
-        return cast(Callable[[Tuple], R], __astarred__)
+        return cast(Callable[[Tuple[Any, ...]], R], __astarred__)
     return _Star(func)
 
 
@@ -179,8 +179,8 @@ def asyncify(func: None) -> None: ...
 
 
 def asyncify(
-    func: Union[None, Coroutine[Any, Any, R], Callable[[T], R]],
-) -> Optional[Callable[[T], Coroutine[Any, Any, R]]]:
+    func: Union[None, Callable[[T], Any]],
+) -> Optional[Callable[[T], Coroutine[Any, Any, Any]]]:
     if not func or iscoroutinefunction(func):
         return cast(Optional[Callable[[T], Coroutine[Any, Any, R]]], func)
     return partial(_async_call, cast(Callable[[T], R], func))

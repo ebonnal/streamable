@@ -15,12 +15,13 @@ def get_logger() -> logging.Logger:
     if not _logger:
         _logger = logging.getLogger("streamable")
         _logger.propagate = False
-        _handler = logging.StreamHandler()
-        _formatter = logging.Formatter(
-            "%(asctime)s %(levelname)s %(message)s", "%Y-%m-%dT%H:%M:%SZ"
-        )
-        _formatter.converter = time.gmtime
-        _handler.setFormatter(_formatter)
-        _logger.addHandler(_handler)
-        _logger.setLevel(logging.INFO)
+        if not _logger.handlers:
+            _handler = logging.StreamHandler()
+            _formatter = logging.Formatter(
+                "%(asctime)s %(levelname)s %(message)s", "%Y-%m-%dT%H:%M:%SZ"
+            )
+            _formatter.converter = time.gmtime
+            _handler.setFormatter(_formatter)
+            _logger.addHandler(_handler)
+            _logger.setLevel(logging.INFO)
     return _logger

@@ -19,7 +19,7 @@ class ExceptionContainer(NamedTuple):
 
     @staticmethod
     def awrap(
-        afunc: Callable[[T], Union[Coroutine[Any, Any, U], Awaitable[U]]],
+        afunc: Callable[[T], Awaitable[U]],
     ) -> Callable[[T], Coroutine[Any, Any, Union[U, "ExceptionContainer"]]]:
         async def error_wrapping(_: T) -> Union[U, "ExceptionContainer"]:
             try:
