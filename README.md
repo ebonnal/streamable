@@ -221,7 +221,7 @@ You can mix the `up_to`/`every`/`by` parameters.
 
 ## ▼ `.flatten`
 
-Ungroups elements assuming that they are `Iterable` or `AsyncIterable`:
+Yields the elements from upstream elements, which must be `Iterable` (or `AsyncIterable`):
 
 ```python
 flattened_grouped_ints: stream[int] = ints.group(2).flatten()
@@ -318,7 +318,7 @@ assert list(status_codes_ignoring_resolution_errors) == [200, 404]
 `do` a side effect on catch:
 
 ```python
-errors: List[Exception] = []
+errors: list[Exception] = []
 inverses: stream[float] = (
     ints
     .map(lambda n: round(1 / n, 2))
@@ -399,7 +399,7 @@ observed_ints = ints.observe("ints", how=lambda msg: ...)
 Concatenates streams:
 
 ```python
-assert list(ints + ints) == [0, 1, 2, 3 ,4, 5, 6, 7, 8, 9, 0, 1, 2, 3 ,4, 5, 6, 7, 8, 9]
+assert list(ints + ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 
 ## ▼ `__call__` / `await`
