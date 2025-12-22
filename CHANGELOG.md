@@ -36,10 +36,10 @@
 - **BREAKING**: `groupby()` / `agroupby()` → merged into `group()`
   ```python
   # v1.6.6
-  stream.groupby(key=lambda x: x % 2)
+  ints.groupby(key=lambda x: x % 2)
   
   # v2.0.0
-  stream.group(by=lambda x: x % 2)
+  ints.group(by=lambda x: x % 2)
   ```
 
 #### Parameter Renames
@@ -49,14 +49,14 @@
   
   ```python
   # v1.6.6
-  stream.catch(
+  ints.catch(
       errors=ValueError,
       when=lambda e: "error" in str(e),
       replacement=42,
   )
   
   # v2.0.0
-  stream.catch(
+  ints.catch(
       errors=ValueError,
       where=lambda e: "error" in str(e),  # when → where
       replace=lambda e: 42,  # replacement → replace, now a callable
@@ -81,15 +81,15 @@
   
   ```python
   # v1.6.6
-  stream.map(fn, concurrency=2, via="thread")
+  ints.map(fn, concurrency=2, via="thread")
   # v2.0.0
-  stream.map(fn, concurrency=2)
+  ints.map(fn, concurrency=2)
   
   # v1.6.6
-  stream.map(fn, concurrency=2, via="process")
+  ints.map(fn, concurrency=2, via="process")
   # v2.0.0
   with ProcessPoolExecutor(max_workers=2) as processes:
-    stream.map(fn, concurrency=processes)
+    ints.map(fn, concurrency=processes)
   ```
 
 #### Removed Methods
