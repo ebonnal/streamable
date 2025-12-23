@@ -5,6 +5,7 @@ import datetime
 from contextlib import suppress
 from inspect import iscoroutinefunction
 from typing import (
+    TYPE_CHECKING,
     Any,
     AsyncIterable,
     Callable,
@@ -18,6 +19,9 @@ from typing import (
     Union,
     cast,
 )
+
+if TYPE_CHECKING:
+    from streamable._stream import stream
 
 from streamable import _iterators
 from streamable._tools._async import AsyncCallable
@@ -129,12 +133,22 @@ def observe(
     iterator: Iterator[T],
     subject: str,
     every: Union[None, int, datetime.timedelta],
+    do: Union[
+        Callable[["stream.Observation"], Any],
+        AsyncCallable["stream.Observation", Any],
+    ],
 ) -> Iterator[T]:
     if every is None:
-        return _iterators.PowerObserveIterator(iterator, subject, do=None)
+        return _iterators.PowerObserveIterator(
+            iterator, subject, syncify(loop_getter, do)
+        )
     elif isinstance(every, int):
-        return _iterators.EveryIntObserveIterator(iterator, subject, every, do=None)
-    return _iterators.EveryIntervalObserveIterator(iterator, subject, every, do=None)
+        return _iterators.EveryIntObserveIterator(
+            iterator, subject, every, syncify(loop_getter, do)
+        )
+    return _iterators.EveryIntervalObserveIterator(
+        iterator, subject, every, syncify(loop_getter, do)
+    )
 
 
 def skip(

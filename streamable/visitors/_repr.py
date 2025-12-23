@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import logging
 from typing import TYPE_CHECKING, Any, List
 
 from streamable._tools._func import _Star
@@ -68,8 +69,13 @@ class ToStringVisitor(Visitor[str], ABC):
         return stream.upstream.accept(self)
 
     def visit_observe_stream(self, stream: "ObserveStream") -> str:
+        do = (
+            f", do={self.to_string(stream._do)}"
+            if stream._do != logging.getLogger("streamable").info
+            else ""
+        )
         self.operation_reprs.append(
-            f"""observe({self.to_string(stream._subject)}, every={self.to_string(stream._every)})"""
+            f"""observe({self.to_string(stream._subject)}, every={self.to_string(stream._every)}{do})"""
         )
         return stream.upstream.accept(self)
 

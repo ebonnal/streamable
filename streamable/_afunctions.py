@@ -3,6 +3,7 @@ import datetime
 from contextlib import suppress
 from inspect import iscoroutinefunction
 from typing import (
+    TYPE_CHECKING,
     Any,
     AsyncIterable,
     AsyncIterator,
@@ -16,6 +17,9 @@ from typing import (
     Union,
     cast,
 )
+
+if TYPE_CHECKING:
+    from streamable._stream import stream
 
 from streamable import _aiterators
 from streamable._tools._async import AsyncCallable
@@ -119,15 +123,19 @@ def observe(
     aiterator: AsyncIterator[T],
     subject: str,
     every: Union[None, int, datetime.timedelta],
+    do: Union[
+        Callable[["stream.Observation"], Any],
+        AsyncCallable["stream.Observation", Any],
+    ],
 ) -> AsyncIterator[T]:
     if every is None:
-        return _aiterators.PowerObserveAsyncIterator(aiterator, subject, do=None)
+        return _aiterators.PowerObserveAsyncIterator(aiterator, subject, asyncify(do))
     elif isinstance(every, int):
         return _aiterators.EveryIntObserveAsyncIterator(
-            aiterator, subject, every, do=None
+            aiterator, subject, every, asyncify(do)
         )
     return _aiterators.EveryIntervalObserveAsyncIterator(
-        aiterator, subject, every, do=None
+        aiterator, subject, every, asyncify(do)
     )
 
 

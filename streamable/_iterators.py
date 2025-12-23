@@ -12,6 +12,7 @@ from concurrent.futures import Executor, Future, ThreadPoolExecutor
 from contextlib import suppress
 from math import ceil
 from typing import (
+    TYPE_CHECKING,
     Any,
     AsyncIterable,
     AsyncIterator,
@@ -23,7 +24,6 @@ from typing import (
     Iterable,
     Iterator,
     List,
-    NamedTuple,
     Optional,
     Tuple,
     Type,
@@ -32,13 +32,14 @@ from typing import (
     cast,
 )
 
+if TYPE_CHECKING:
+    from streamable._stream import stream
 from streamable._tools._async import (
     AsyncCallable,
     CloseEventLoopMixin,
 )
 from streamable._tools._contextmanager import noop_context_manager
 from streamable._tools._error import ExceptionContainer
-from streamable._tools._logging import get_logger, logfmt_str_escape
 
 from streamable._tools._future import (
     AsyncFDFOFutureResultCollection,
@@ -337,23 +338,15 @@ class PredicateTakeIterator(Iterator[T]):
 
 
 class ObserveIterator(Iterator[T]):
-    _FORMAT = "stream={subject} elapsed={elapsed} errors={errors} emissions={emissions}"
-
-    class Observation(NamedTuple):
-        subject: str
-        elapsed: datetime.timedelta
-        errors: int
-        emissions: int
-
     def __init__(
         self,
         iterator: Iterator[T],
         subject: str,
-        do: Optional[Callable[[Observation], Any]],
+        do: Callable[["stream.Observation"], Any],
     ) -> None:
         self.iterator = iterator
-        self.subject = logfmt_str_escape(subject)
-        self.do = do or self._log
+        self.subject = subject
+        self.do = do
         self._emissions = 0
         self._errors = 0
         self._nexts_logged = 0
@@ -361,11 +354,10 @@ class ObserveIterator(Iterator[T]):
         self._errors_logged = 0
         self.__start_point: Optional[datetime.datetime] = None
 
-    def _log(self, observation: Observation) -> None:
-        get_logger().info(self._FORMAT.format(**observation._asdict()))
+    def _observation(self) -> "stream.Observation":
+        from streamable._stream import stream
 
-    def _observation(self) -> Observation:
-        return self.Observation(
+        return stream.Observation(
             subject=self.subject,
             elapsed=self._time_point() - self._start_point(),
             errors=self._errors,
@@ -417,7 +409,7 @@ class PowerObserveIterator(ObserveIterator[T]):
         self,
         iterator: Iterator[T],
         subject: str,
-        do: Optional[Callable[[ObserveIterator.Observation], Any]],
+        do: Callable[["stream.Observation"], Any],
         base: int = 2,
     ) -> None:
         super().__init__(iterator, subject, do)
@@ -436,7 +428,7 @@ class EveryIntObserveIterator(ObserveIterator[T]):
         iterator: Iterator[T],
         subject: str,
         every: int,
-        do: Optional[Callable[[ObserveIterator.Observation], Any]],
+        do: Callable[["stream.Observation"], Any],
     ) -> None:
         super().__init__(iterator, subject, do)
         self.every = every
@@ -456,7 +448,7 @@ class EveryIntervalObserveIterator(ObserveIterator[T]):
         iterator: Iterator[T],
         subject: str,
         every: datetime.timedelta,
-        do: Optional[Callable[[ObserveIterator.Observation], Any]],
+        do: Callable[["stream.Observation"], Any],
     ) -> None:
         super().__init__(iterator, subject, do)
         self._every_seconds: float = every.total_seconds()

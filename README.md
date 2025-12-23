@@ -370,11 +370,11 @@ assert list(observed_ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 logs:
 
 ```
-2025-12-19T22:18:23Z INFO stream="ints" elapsed=0:00:00.000015 errors=0 emissions=1
-2025-12-19T22:18:23Z INFO stream="ints" elapsed=0:00:00.000207 errors=0 emissions=2
-2025-12-19T22:18:23Z INFO stream="ints" elapsed=0:00:00.000234 errors=0 emissions=4
-2025-12-19T22:18:23Z INFO stream="ints" elapsed=0:00:00.000250 errors=0 emissions=8
-2025-12-19T22:18:23Z INFO stream="ints" elapsed=0:00:00.000268 errors=0 emissions=10
+2025-12-23T16:43:07Z INFO observed=ints elapsed=0:00:00.000019 errors=0 emissions=1
+2025-12-23T16:43:07Z INFO observed=ints elapsed=0:00:00.001117 errors=0 emissions=2
+2025-12-23T16:43:07Z INFO observed=ints elapsed=0:00:00.001147 errors=0 emissions=4
+2025-12-23T16:43:07Z INFO observed=ints elapsed=0:00:00.001162 errors=0 emissions=8
+2025-12-23T16:43:07Z INFO observed=ints elapsed=0:00:00.001179 errors=0 emissions=10
 ```
 
 A new log is emitted when the number of yielded elements (or errors) ***reaches powers of 2*** by default, but you can set it to be `every` *n* elements (or errors) or `every` time interval:
@@ -385,7 +385,13 @@ observed_ints = ints.observe("ints", every=1000)
 observed_ints = ints.observe("ints", every=timedelta(seconds=5))
 ```
 
-Observations are logged via `logging.getLogger("streamable").info`.
+Observations are logged via `logging.getLogger("streamable").info` by default, but you can pass instead any function taking a `stream.Observation`:
+
+```python
+observed_ints = ints.observe("ints", do=other_logger.info)
+observed_ints = ints.observe("ints", do=logs.append)
+observed_ints = ints.observe("ints", do=print)
+```
 
 
 ## ▼ `+` (concat)
