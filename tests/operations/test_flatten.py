@@ -186,10 +186,8 @@ async def test_flatten_within_async(itype: IterableType) -> None:
     ) == list(ints_src) + list(ints_src)
 
 
-@pytest.mark.parametrize(
-    "itype, concurrency",
-    [(itype, concurrency) for itype in ITERABLE_TYPES for concurrency in (1, 2)],
-)
+@pytest.mark.parametrize("concurrency", [1, 2])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_flatten_heterogeneous_sync_async_elements(
     itype: IterableType, concurrency: int
 ) -> None:

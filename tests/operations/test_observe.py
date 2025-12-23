@@ -441,10 +441,8 @@ def test_observe_logging_every_timedelta_frequent(itype: IterableType) -> None:
 # ============================================================================
 
 
-@pytest.mark.parametrize(
-    "itype, adapt",
-    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
-)
+@pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_observe_how(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:

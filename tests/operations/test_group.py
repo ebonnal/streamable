@@ -34,10 +34,8 @@ from tests.utils import (
 # ============================================================================
 
 
-@pytest.mark.parametrize(
-    "itype, adapt",
-    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
-)
+@pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_group_raises_on_invalid_every(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
@@ -53,10 +51,8 @@ def test_group_raises_on_invalid_every(
             )
 
 
-@pytest.mark.parametrize(
-    "itype, adapt",
-    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
-)
+@pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_group_raises_on_invalid_up_to(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
@@ -71,10 +67,8 @@ def test_group_raises_on_invalid_up_to(
 # ============================================================================
 
 
-@pytest.mark.parametrize(
-    "itype, adapt",
-    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
-)
+@pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_group_by_size(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
@@ -91,10 +85,8 @@ def test_group_by_size(
     assert to_list(stream([]).group(up_to=2), itype=itype) == []
 
 
-@pytest.mark.parametrize(
-    "itype, adapt",
-    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
-)
+@pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_group_without_arguments(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
@@ -109,10 +101,8 @@ def test_group_without_arguments(
 # ============================================================================
 
 
-@pytest.mark.parametrize(
-    "itype, adapt",
-    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
-)
+@pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_group_with_exceptions(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
@@ -140,10 +130,8 @@ def test_group_with_exceptions(
 # ============================================================================
 
 
-@pytest.mark.parametrize(
-    "itype, adapt",
-    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
-)
+@pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_group_every_parameter(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
@@ -182,10 +170,8 @@ def test_group_every_parameter(
 # ============================================================================
 
 
-@pytest.mark.parametrize(
-    "itype, adapt",
-    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
-)
+@pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_group_by_key_basic(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
@@ -202,10 +188,8 @@ def test_group_by_key_basic(
     ] == [(0, [0, 2]), (1, [1, 3])]
 
 
-@pytest.mark.parametrize(
-    "itype, adapt",
-    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
-)
+@pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_group_by_key_with_up_to(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
@@ -233,10 +217,8 @@ def test_group_by_key_with_up_to(
     ) == [1, 2, 3, 5, 6, 7, 9, 10, 11, 13]
 
 
-@pytest.mark.parametrize(
-    "itype, adapt",
-    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
-)
+@pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_group_by_key_infinite_size(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
@@ -251,10 +233,8 @@ def test_group_by_key_infinite_size(
     ]
 
 
-@pytest.mark.parametrize(
-    "itype, adapt",
-    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
-)
+@pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_group_by_key_on_exhaustion(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
@@ -266,10 +246,8 @@ def test_group_by_key_on_exhaustion(
     ) == [[0, 4, 8], [1, 2, 3, 5, 6, 7, 9]]
 
 
-@pytest.mark.parametrize(
-    "itype, adapt",
-    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
-)
+@pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_group_by_key_with_exceptions(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
@@ -295,10 +273,8 @@ def test_group_by_key_with_exceptions(
 # ============================================================================
 
 
-@pytest.mark.parametrize(
-    "itype, adapt",
-    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
-)
+@pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_group_by_fifo_yield_on_exhaustion(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
@@ -311,10 +287,8 @@ def test_group_by_fifo_yield_on_exhaustion(
     ]
 
 
-@pytest.mark.parametrize(
-    "itype, adapt",
-    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
-)
+@pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_group_by_fifo_yield_on_upstream_exception(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
@@ -329,10 +303,8 @@ def test_group_by_fifo_yield_on_upstream_exception(
     ) == [("1", [1]), ("2", [2, 2]), ("3", [3, 3, 3]), ("1", [1]), ("2", [2, 2])]
 
 
-@pytest.mark.parametrize(
-    "itype, adapt",
-    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
-)
+@pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_group_by_fifo_yield_on_by_exception(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
@@ -346,10 +318,8 @@ def test_group_by_fifo_yield_on_by_exception(
     ) == [(1, [1]), (1 / 2, [2, 2]), (1 / 3, [3, 3, 3]), (1, [1]), (1 / 2, [2, 2])]
 
 
-@pytest.mark.parametrize(
-    "itype, adapt",
-    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
-)
+@pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_group_by_fifo_yield_on_every_elapsed(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:

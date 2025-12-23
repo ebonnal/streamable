@@ -48,10 +48,8 @@ from tests.utils import (
 # ============================================================================
 
 
-@pytest.mark.parametrize(
-    "concurrency, itype",
-    [(concurrency, itype) for concurrency in (1, 2) for itype in ITERABLE_TYPES],
-)
+@pytest.mark.parametrize("concurrency", [1, 2])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_map(concurrency: int, itype: IterableType) -> None:
     """At any concurrency the `map` method should act as the builtin map function, transforming elements while preserving input elements order."""
     assert to_list(
@@ -60,10 +58,8 @@ def test_map(concurrency: int, itype: IterableType) -> None:
     ) == list(map(square, ints_src))
 
 
-@pytest.mark.parametrize(
-    "concurrency, itype",
-    [(concurrency, itype) for concurrency in (1, 100) for itype in ITERABLE_TYPES],
-)
+@pytest.mark.parametrize("concurrency", [1, 100])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_map_async(concurrency: int, itype: IterableType) -> None:
     """At any concurrency the `map` method should act as the builtin map function with async transforms, preserving input order."""
     assert to_list(
@@ -79,10 +75,8 @@ def test_map_async(concurrency: int, itype: IterableType) -> None:
 # ============================================================================
 
 
-@pytest.mark.parametrize(
-    "concurrency, itype",
-    [(concurrency, itype) for concurrency in (1, 2) for itype in ITERABLE_TYPES],
-)
+@pytest.mark.parametrize("concurrency", [1, 2])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_do(concurrency: int, itype: IterableType) -> None:
     """At any concurrency the `do` method should return the upstream elements in order."""
     side_collection: Set[int] = set()
@@ -104,10 +98,8 @@ def test_do(concurrency: int, itype: IterableType) -> None:
     assert side_collection == set(map(square, ints_src))
 
 
-@pytest.mark.parametrize(
-    "concurrency, itype",
-    [(concurrency, itype) for concurrency in (1, 100) for itype in ITERABLE_TYPES],
-)
+@pytest.mark.parametrize("concurrency", [1, 100])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_do_async(concurrency: int, itype: IterableType) -> None:
     """At any concurrency the `do` method must preserve input elements order."""
     assert to_list(
@@ -403,10 +395,8 @@ def test_map_or_do_with_exception(
 # ============================================================================
 
 
-@pytest.mark.parametrize(
-    "concurrency, itype",
-    [(concurrency, itype) for concurrency in [2, 4] for itype in ITERABLE_TYPES],
-)
+@pytest.mark.parametrize("concurrency", [2, 4])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_partial_iteration_on_streams_using_concurrency(
     concurrency: int, itype: IterableType
 ) -> None:

@@ -33,10 +33,8 @@ from tests.utils import (
 # ============================================================================
 
 
-@pytest.mark.parametrize(
-    "itype, adapt",
-    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
-)
+@pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_filter(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
@@ -64,10 +62,8 @@ def test_filter(
 # ============================================================================
 
 
-@pytest.mark.parametrize(
-    "itype, adapt",
-    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
-)
+@pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_skip(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
@@ -104,10 +100,8 @@ def test_skip(
 # ============================================================================
 
 
-@pytest.mark.parametrize(
-    "itype, adapt",
-    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
-)
+@pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_take(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:

@@ -32,10 +32,8 @@ from tests.utils import (
 # ============================================================================
 
 
-@pytest.mark.parametrize(
-    "itype, adapt",
-    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
-)
+@pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_catch_yields_elements_without_exceptions(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
@@ -43,10 +41,8 @@ def test_catch_yields_elements_without_exceptions(
     assert to_list(stream(ints_src).catch(Exception), itype=itype) == list(ints_src)
 
 
-@pytest.mark.parametrize(
-    "itype, adapt",
-    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
-)
+@pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_catch_ignores_matching_exceptions(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
@@ -63,10 +59,8 @@ def test_catch_ignores_matching_exceptions(
     )
 
 
-@pytest.mark.parametrize(
-    "itype, adapt",
-    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
-)
+@pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_catch_raises_non_matching_exceptions(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
@@ -81,10 +75,8 @@ def test_catch_raises_non_matching_exceptions(
         to_list(stream_.catch(TestError), itype=itype)
 
 
-@pytest.mark.parametrize(
-    "itype, adapt",
-    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
-)
+@pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_catch_raises_first_non_caught_exception(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
@@ -110,10 +102,8 @@ def test_catch_raises_first_non_caught_exception(
         to_list(caught_erroring_stream, itype)
 
 
-@pytest.mark.parametrize(
-    "itype, adapt",
-    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
-)
+@pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_catch_handles_only_exceptions(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
@@ -125,10 +115,8 @@ def test_catch_handles_only_exceptions(
     assert to_list(only_caught_errors_stream, itype=itype) == []
 
 
-@pytest.mark.parametrize(
-    "itype, adapt",
-    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
-)
+@pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_catch_raises_stopiteration_on_only_exceptions(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
@@ -141,10 +129,8 @@ def test_catch_raises_stopiteration_on_only_exceptions(
         anext_or_next(bi_iterable_to_iter(only_caught_errors_stream, itype=itype))
 
 
-@pytest.mark.parametrize(
-    "itype, adapt",
-    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
-)
+@pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_catch_chained(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
@@ -163,10 +149,8 @@ def test_catch_chained(
 # ============================================================================
 
 
-@pytest.mark.parametrize(
-    "itype, adapt",
-    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
-)
+@pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_catch_where_clause(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
@@ -185,10 +169,8 @@ def test_catch_where_clause(
 # ============================================================================
 
 
-@pytest.mark.parametrize(
-    "itype, adapt",
-    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
-)
+@pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_catch_replace_with_non_none(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
@@ -202,10 +184,8 @@ def test_catch_replace_with_non_none(
     ) == [float("inf"), 1, 0.5, 0.25]
 
 
-@pytest.mark.parametrize(
-    "itype, adapt",
-    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
-)
+@pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_catch_replace_with_none(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
@@ -224,10 +204,8 @@ def test_catch_replace_with_none(
 # ============================================================================
 
 
-@pytest.mark.parametrize(
-    "itype, adapt",
-    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
-)
+@pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_catch_multiple_exception_types(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
@@ -261,10 +239,8 @@ def test_catch_multiple_exception_types(
 # ============================================================================
 
 
-@pytest.mark.parametrize(
-    "itype, adapt",
-    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
-)
+@pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_catch_do_side_effect(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
@@ -291,10 +267,8 @@ def test_catch_do_side_effect(
 # ============================================================================
 
 
-@pytest.mark.parametrize(
-    "itype, adapt",
-    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
-)
+@pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_catch_stop_on_exception(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
@@ -305,10 +279,8 @@ def test_catch_stop_on_exception(
     ) == [0, 1]
 
 
-@pytest.mark.parametrize(
-    "itype, adapt",
-    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
-)
+@pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_catch_stop_on_exception_not_satisfying_where(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
@@ -322,10 +294,8 @@ def test_catch_stop_on_exception_not_satisfying_where(
     ) == [0, 1, 3]
 
 
-@pytest.mark.parametrize(
-    "itype, adapt",
-    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
-)
+@pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_catch_stop_with_replacement(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
