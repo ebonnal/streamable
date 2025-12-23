@@ -85,7 +85,7 @@ def group(
     up_to: Optional[int] = None,
     *,
     every: Optional[datetime.timedelta] = None,
-    by: Optional[Union[Callable[[T], U], AsyncCallable[T, U]]] = None,
+    by: Union[None, Callable[[T], U], AsyncCallable[T, U]] = None,
 ) -> Union[Iterator[List[T]], Iterator[Tuple[U, List[T]]]]:
     if by is None:
         return _iterators.GroupIterator(iterator, up_to, every)
@@ -128,8 +128,8 @@ def observe(
     loop_getter: Callable[[], asyncio.AbstractEventLoop],
     iterator: Iterator[T],
     subject: str,
-    every: Optional[Union[int, datetime.timedelta]],
-    how: Optional[Union[Callable[[str], Any], AsyncCallable[str, Any]]] = None,
+    every: Union[None, int, datetime.timedelta],
+    how: Union[None, Callable[[str], Any], AsyncCallable[str, Any]] = None,
 ) -> Iterator[T]:
     if every is None:
         return _iterators.PowerObserveIterator(

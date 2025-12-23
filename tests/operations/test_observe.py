@@ -5,7 +5,7 @@ Observe logs iteration progress including errors and emissions at specified inte
 """
 
 import datetime
-from typing import Any, Callable, Iterable, List, NamedTuple, Optional, Union
+from typing import Any, Callable, Iterable, List, NamedTuple, Union
 from unittest.mock import patch
 
 import pytest
@@ -54,7 +54,7 @@ def test_observe_yields_upstream_elements(itype: IterableType) -> None:
     """Observe should yield upstream elements."""
 
     def inverse(
-        chars: Iterable[str], every: Optional[Union[int, datetime.timedelta]] = None
+        chars: Iterable[str], every: Union[None, int, datetime.timedelta] = None
     ) -> stream[float]:
         return (
             stream(chars)
@@ -80,7 +80,7 @@ def test_observe_logging_every_none_reraises(itype: IterableType) -> None:
     """Observe should reraise exceptions when every is None."""
 
     def inverse(
-        chars: Iterable[str], every: Optional[Union[int, datetime.timedelta]] = None
+        chars: Iterable[str], every: Union[None, int, datetime.timedelta] = None
     ) -> stream[float]:
         return (
             stream(chars)
@@ -115,7 +115,7 @@ def test_observe_logging_every_none_with_catch(itype: IterableType) -> None:
     """Observe should produce one last log on StopIteration when exceptions are caught."""
 
     def inverse(
-        chars: Iterable[str], every: Optional[Union[int, datetime.timedelta]] = None
+        chars: Iterable[str], every: Union[None, int, datetime.timedelta] = None
     ) -> stream[float]:
         return (
             stream(chars)
@@ -150,7 +150,7 @@ def test_observe_logging_every_none_skips_redundant(itype: IterableType) -> None
     """Observe should skip redundant last log on StopIteration."""
 
     def inverse(
-        chars: Iterable[str], every: Optional[Union[int, datetime.timedelta]] = None
+        chars: Iterable[str], every: Union[None, int, datetime.timedelta] = None
     ) -> stream[float]:
         return (
             stream(chars)
@@ -189,7 +189,7 @@ def test_observe_logging_every_2_reraises(itype: IterableType) -> None:
     """Observe should reraise exceptions when every is 2."""
 
     def inverse(
-        chars: Iterable[str], every: Optional[Union[int, datetime.timedelta]] = None
+        chars: Iterable[str], every: Union[None, int, datetime.timedelta] = None
     ) -> stream[float]:
         return (
             stream(chars)
@@ -227,7 +227,7 @@ def test_observe_logging_every_2_with_catch(itype: IterableType) -> None:
     """Observe should produce one last log on StopIteration when every is 2 and exceptions are caught."""
 
     def inverse(
-        chars: Iterable[str], every: Optional[Union[int, datetime.timedelta]] = None
+        chars: Iterable[str], every: Union[None, int, datetime.timedelta] = None
     ) -> stream[float]:
         return (
             stream(chars)
@@ -266,7 +266,7 @@ def test_observe_logging_every_2_skips_redundant(itype: IterableType) -> None:
     """Observe should skip redundant last log when every is 2."""
 
     def inverse(
-        chars: Iterable[str], every: Optional[Union[int, datetime.timedelta]] = None
+        chars: Iterable[str], every: Union[None, int, datetime.timedelta] = None
     ) -> stream[float]:
         return (
             stream(chars)
@@ -309,7 +309,7 @@ def test_observe_logging_every_timedelta_reraises(itype: IterableType) -> None:
     """Observe should reraise exceptions when every is a timedelta."""
 
     def inverse(
-        chars: Iterable[str], every: Optional[Union[int, datetime.timedelta]] = None
+        chars: Iterable[str], every: Union[None, int, datetime.timedelta] = None
     ) -> stream[float]:
         return (
             stream(chars)
@@ -340,7 +340,7 @@ def test_observe_logging_every_timedelta_with_catch(itype: IterableType) -> None
     """Observe should produce one last log on StopIteration when every is a timedelta and exceptions are caught."""
 
     def inverse(
-        chars: Iterable[str], every: Optional[Union[int, datetime.timedelta]] = None
+        chars: Iterable[str], every: Union[None, int, datetime.timedelta] = None
     ) -> stream[float]:
         return (
             stream(chars)
@@ -374,7 +374,7 @@ def test_observe_logging_every_timedelta_skips_redundant(itype: IterableType) ->
     """Observe should skip redundant last log when every is a timedelta."""
 
     def inverse(
-        chars: Iterable[str], every: Optional[Union[int, datetime.timedelta]] = None
+        chars: Iterable[str], every: Union[None, int, datetime.timedelta] = None
     ) -> stream[float]:
         return (
             stream(chars)
@@ -408,7 +408,7 @@ def test_observe_logging_every_timedelta_frequent(itype: IterableType) -> None:
     """Observe with `every` slightly under slow_identity_duration should emit one log per yield/error."""
 
     def inverse(
-        chars: Iterable[str], every: Optional[Union[int, datetime.timedelta]] = None
+        chars: Iterable[str], every: Union[None, int, datetime.timedelta] = None
     ) -> stream[float]:
         return (
             stream(chars)

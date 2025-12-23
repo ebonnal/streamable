@@ -763,12 +763,12 @@ class _ConcurrentFlattenAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]
     ) -> AsyncIterator[Union[T, ExceptionContainer]]:
         iterator_and_future_pairs: Deque[
             Tuple[
-                Optional[Union[Iterator[T], AsyncIterator[T]]],
+                Union[None, Iterator[T], AsyncIterator[T]],
                 Awaitable[Union[T, ExceptionContainer]],
             ]
         ] = deque()
         to_yield: Deque[Union[T, ExceptionContainer]] = deque(maxlen=1)
-        iterator_to_queue: Optional[Union[Iterator[T], AsyncIterator[T]]] = None
+        iterator_to_queue: Union[None, Iterator[T], AsyncIterator[T]] = None
         # wait, queue, yield (FIFO)
         while True:
             if iterator_and_future_pairs:

@@ -612,7 +612,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         self,
         subject: str,
         *,
-        every: Optional[Union[int, datetime.timedelta]] = None,
+        every: Union[None, int, datetime.timedelta] = None,
         how: Union[None, Callable[[str], Any], AsyncCallable[str, Any]] = None,
     ) -> "stream[T]":
         """
@@ -879,8 +879,8 @@ class ObserveStream(DownStream[T, T]):
         self,
         upstream: stream[T],
         subject: str,
-        every: Optional[Union[int, datetime.timedelta]],
-        how: Optional[Union[Callable[[str], Any], AsyncCallable[str, Any]]],
+        every: Union[None, int, datetime.timedelta],
+        how: Union[None, Callable[[str], Any], AsyncCallable[str, Any]],
     ) -> None:
         super().__init__(upstream)
         self._subject = subject

@@ -78,7 +78,7 @@ def group(
     up_to: Optional[int] = None,
     *,
     every: Optional[datetime.timedelta] = None,
-    by: Optional[Union[Callable[[T], U], AsyncCallable[T, U]]] = None,
+    by: Union[None, Callable[[T], U], AsyncCallable[T, U]] = None,
 ) -> Union[AsyncIterator[List[T]], AsyncIterator[Tuple[U, List[T]]]]:
     if by is None:
         return _aiterators.GroupAsyncIterator(aiterator, up_to, every)
@@ -118,8 +118,8 @@ def map(
 def observe(
     aiterator: AsyncIterator[T],
     subject: str,
-    every: Optional[Union[int, datetime.timedelta]],
-    how: Optional[Union[Callable[[str], Any], AsyncCallable[str, Any]]] = None,
+    every: Union[None, int, datetime.timedelta],
+    how: Union[None, Callable[[str], Any], AsyncCallable[str, Any]] = None,
 ) -> AsyncIterator[T]:
     if every is None:
         return _aiterators.PowerObserveAsyncIterator(aiterator, subject, asyncify(how))
