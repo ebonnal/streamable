@@ -27,7 +27,7 @@ class Log(NamedTuple):
         parts = dict(part.split("=", 1) for part in logfmt_str.split())
         return Log(
             errors=int(parts["errors"]),
-            yields=int(parts["emissions"]),
+            yields=int(parts["elements"]),
         )
 
 
@@ -293,7 +293,7 @@ def test_observe_do(
         )
         == ints
     )
-    assert [observation.emissions for observation in observations] == [1, 2, 4, 6, 8]
+    assert [observation.elements for observation in observations] == [1, 2, 4, 6, 8]
 
 
 # ============================================================================

@@ -621,18 +621,19 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             subject (``str``): Describes the stream's elements ("cats", "dogs", ...).
             elapsed (``datetime.timedelta``): The time elapsed since the iteration started.
             errors (``int``): The count of errors encountered.
-            emissions (``int``): The count of emitted elements.
+            elements (``int``): The count of emitted elements.
         """
 
         subject: str
         elapsed: datetime.timedelta
         errors: int
-        emissions: int
+        elements: int
 
         def __str__(self) -> str:
+            """Returns a logfmt string representation of the observation."""
             subject = logfmt_str_escape(self.subject)
             elapsed = logfmt_str_escape(str(self.elapsed))
-            return f"observed={subject} elapsed={elapsed} errors={self.errors} emissions={self.emissions}"
+            return f"observed={subject} elapsed={elapsed} errors={self.errors} elements={self.elements}"
 
     def observe(
         self,

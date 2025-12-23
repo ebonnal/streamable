@@ -370,16 +370,16 @@ assert list(observed_ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 logs:
 
 ```
-2025-12-23T16:43:07Z INFO observed=ints elapsed=0:00:00.000019 errors=0 emissions=1
-2025-12-23T16:43:07Z INFO observed=ints elapsed=0:00:00.001117 errors=0 emissions=2
-2025-12-23T16:43:07Z INFO observed=ints elapsed=0:00:00.001147 errors=0 emissions=4
-2025-12-23T16:43:07Z INFO observed=ints elapsed=0:00:00.001162 errors=0 emissions=8
-2025-12-23T16:43:07Z INFO observed=ints elapsed=0:00:00.001179 errors=0 emissions=10
+2025-12-23T16:43:07Z INFO observed=ints elapsed=0:00:00.000019 errors=0 elements=1
+2025-12-23T16:43:07Z INFO observed=ints elapsed=0:00:00.001117 errors=0 elements=2
+2025-12-23T16:43:07Z INFO observed=ints elapsed=0:00:00.001147 errors=0 elements=4
+2025-12-23T16:43:07Z INFO observed=ints elapsed=0:00:00.001162 errors=0 elements=8
+2025-12-23T16:43:07Z INFO observed=ints elapsed=0:00:00.001179 errors=0 elements=10
 ```
 
 A new log is emitted when the number of yielded elements (or errors) ***reaches powers of 2*** by default, but you can set it to be `every` *n* elements (or errors) or `every` time interval:
 ```python
-# observe every 1k emissions (or errors)
+# observe every 1k elements (or errors)
 observed_ints = ints.observe("ints", every=1000)
 # observe every 5 seconds
 observed_ints = ints.observe("ints", every=timedelta(seconds=5))
