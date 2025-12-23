@@ -1,14 +1,12 @@
+"""
+Tests for group operation.
+
+Group collects elements into batches based on size, time intervals, or key functions.
+"""
+
 import datetime
 from operator import itemgetter
-from typing import (
-    Any,
-    AsyncIterator,
-    Callable,
-    Iterator,
-    List,
-    Tuple,
-    Union,
-)
+from typing import Any, AsyncIterator, Callable, Iterator, List, Tuple, Union
 
 import pytest
 
@@ -31,14 +29,19 @@ from tests.utils import (
 )
 
 
+# ============================================================================
+# Validation Tests
+# ============================================================================
+
+
 @pytest.mark.parametrize(
     "itype, adapt",
     ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
 )
-def test_group(
+def test_group_raises_on_invalid_every(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
-    # `group` should raise error when called with `seconds` <= 0.
+    """Group should raise error when called with `every` <= 0."""
     for seconds in [-1, 0]:
         with pytest.raises(
             ValueError,
@@ -49,12 +52,33 @@ def test_group(
                 itype=itype,
             )
 
-    # `group` should raise error when called with `up_to` < 1.
+
+@pytest.mark.parametrize(
+    "itype, adapt",
+    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
+)
+def test_group_raises_on_invalid_up_to(
+    itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
+) -> None:
+    """Group should raise error when called with `up_to` < 1."""
     for size in [-1, 0]:
         with pytest.raises(ValueError):
             to_list(stream([1]).group(up_to=size), itype=itype)
 
-    # group size
+
+# ============================================================================
+# Basic Grouping Tests
+# ============================================================================
+
+
+@pytest.mark.parametrize(
+    "itype, adapt",
+    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
+)
+def test_group_by_size(
+    itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
+) -> None:
+    """Group should collect elements into batches of specified size."""
     assert to_list(stream(range(6)).group(up_to=4), itype=itype) == [
         [0, 1, 2, 3],
         [4, 5],
@@ -66,7 +90,34 @@ def test_group(
     ]
     assert to_list(stream([]).group(up_to=2), itype=itype) == []
 
-    # behavior with exceptions
+
+@pytest.mark.parametrize(
+    "itype, adapt",
+    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
+)
+def test_group_without_arguments(
+    itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
+) -> None:
+    """Group without arguments should group all elements together."""
+    assert anext_or_next(
+        bi_iterable_to_iter(stream(ints_src).group(), itype=itype)
+    ) == list(ints_src)
+
+
+# ============================================================================
+# Exception Handling Tests
+# ============================================================================
+
+
+@pytest.mark.parametrize(
+    "itype, adapt",
+    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
+)
+def test_group_with_exceptions(
+    itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
+) -> None:
+    """Group should handle exceptions correctly."""
+
     def f(i):
         return i / (110 - i)
 
@@ -83,7 +134,20 @@ def test_group(
     # ... and restarting a fresh group to yield after that.
     assert anext_or_next(stream_iterator) == list(map(f, range(111, 211)))
 
-    # behavior of the `every` parameter
+
+# ============================================================================
+# Time-Based Grouping Tests
+# ============================================================================
+
+
+@pytest.mark.parametrize(
+    "itype, adapt",
+    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
+)
+def test_group_every_parameter(
+    itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
+) -> None:
+    """Group should respect the `every` time interval parameter."""
     # `group` should not yield empty groups even though `every` if smaller than upstream's frequency
     assert to_list(
         stream(map(slow_identity, ints_src)).group(
@@ -112,11 +176,20 @@ def test_group(
         itype=itype,
     ) == list(map(lambda e: [e, e + 1], even_src))
 
-    # `group` without arguments should group the elements all together
-    assert anext_or_next(
-        bi_iterable_to_iter(stream(ints_src).group(), itype=itype)
-    ) == list(ints_src)
 
+# ============================================================================
+# Group By Key Tests
+# ============================================================================
+
+
+@pytest.mark.parametrize(
+    "itype, adapt",
+    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
+)
+def test_group_by_key_basic(
+    itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
+) -> None:
+    """Group by key function should cogroup elements."""
     groupby_stream_iter: Union[
         Iterator[Tuple[int, List[int]]], AsyncIterator[Tuple[int, List[int]]]
     ] = bi_iterable_to_iter(
@@ -128,7 +201,15 @@ def test_group(
         anext_or_next(groupby_stream_iter),
     ] == [(0, [0, 2]), (1, [1, 3])]
 
-    # test by
+
+@pytest.mark.parametrize(
+    "itype, adapt",
+    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
+)
+def test_group_by_key_with_up_to(
+    itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
+) -> None:
+    """Group by key with up_to should yield first batch becoming full."""
     stream_iter = bi_iterable_to_iter(
         stream(ints_src).group(up_to=2, by=adapt(lambda n: n % 2)).map(itemgetter(1)),
         itype=itype,
@@ -150,6 +231,16 @@ def test_group(
             itype=itype,
         ),
     ) == [1, 2, 3, 5, 6, 7, 9, 10, 11, 13]
+
+
+@pytest.mark.parametrize(
+    "itype, adapt",
+    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
+)
+def test_group_by_key_infinite_size(
+    itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
+) -> None:
+    """Group by key with infinite size must cogroup elements and yield groups starting with the group containing the oldest element."""
     # `group` called with a `by` function and an infinite size must cogroup elements and yield groups starting with the group containing the oldest element.
     assert to_list(
         stream(ints_src).group(by=adapt(lambda n: n % 2)).map(itemgetter(1)),
@@ -158,12 +249,31 @@ def test_group(
         list(range(0, N, 2)),
         list(range(1, N, 2)),
     ]
+
+
+@pytest.mark.parametrize(
+    "itype, adapt",
+    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
+)
+def test_group_by_key_on_exhaustion(
+    itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
+) -> None:
+    """Group by key on exhaustion must yield incomplete groups starting with the oldest element."""
     # `group` called with a `by` function and reaching exhaustion must cogroup elements and yield uncomplete groups starting with the group containing the oldest element, even though it's not the largest.
     assert to_list(
         stream(range(10)).group(by=adapt(lambda n: n % 4 == 0)).map(itemgetter(1)),
         itype=itype,
     ) == [[0, 4, 8], [1, 2, 3, 5, 6, 7, 9]]
 
+
+@pytest.mark.parametrize(
+    "itype, adapt",
+    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
+)
+def test_group_by_key_with_exceptions(
+    itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
+) -> None:
+    """Group by key with exceptions must cogroup and yield incomplete groups, then raise."""
     stream_iter = bi_iterable_to_iter(
         stream(src_raising_at_exhaustion())
         .group(by=adapt(lambda n: n % 2))
@@ -179,6 +289,20 @@ def test_group(
     with pytest.raises(TestError):
         anext_or_next(stream_iter)
 
+
+# ============================================================================
+# FIFO Yield Tests
+# ============================================================================
+
+
+@pytest.mark.parametrize(
+    "itype, adapt",
+    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
+)
+def test_group_by_fifo_yield_on_exhaustion(
+    itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
+) -> None:
+    """Group by key should yield groups in FIFO order on exhaustion."""
     # test `group` `by` FIFO yield on exhaustion
     assert to_list(stream([1, 2, 3, 3, 2, 1]).group(by=adapt(str)), itype=itype) == [
         ("1", [1, 1]),
@@ -186,6 +310,15 @@ def test_group(
         ("3", [3, 3]),
     ]
 
+
+@pytest.mark.parametrize(
+    "itype, adapt",
+    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
+)
+def test_group_by_fifo_yield_on_upstream_exception(
+    itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
+) -> None:
+    """Group by key should yield groups in FIFO order on upstream exception."""
     # test `group` `by` FIFO yield on upstream exception
     assert to_list(
         stream([1, 2, 2, 0, 3, 1, 3, 2, 2, 3])
@@ -195,6 +328,15 @@ def test_group(
         itype=itype,
     ) == [("1", [1]), ("2", [2, 2]), ("3", [3, 3, 3]), ("1", [1]), ("2", [2, 2])]
 
+
+@pytest.mark.parametrize(
+    "itype, adapt",
+    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
+)
+def test_group_by_fifo_yield_on_by_exception(
+    itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
+) -> None:
+    """Group by key should yield groups in FIFO order when by function raises."""
     # test `group` `by` FIFO yield on `by` exception
     assert to_list(
         stream([1, 2, 2, 0, 3, 1, 3, 2, 2, 3])
@@ -203,6 +345,15 @@ def test_group(
         itype=itype,
     ) == [(1, [1]), (1 / 2, [2, 2]), (1 / 3, [3, 3, 3]), (1, [1]), (1 / 2, [2, 2])]
 
+
+@pytest.mark.parametrize(
+    "itype, adapt",
+    ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
+)
+def test_group_by_fifo_yield_on_every_elapsed(
+    itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
+) -> None:
+    """Group by key should yield groups in FIFO order when every interval elapses."""
     # test `group` `by` FIFO yield on `every` elapsed
     assert to_list(
         stream(map(slow_identity, [1, 2, 2, 2, 2, 3, 3, 1, 3]))

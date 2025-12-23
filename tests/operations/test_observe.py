@@ -1,13 +1,11 @@
+"""
+Tests for observe operation.
+
+Observe logs iteration progress including errors and emissions at specified intervals.
+"""
+
 import datetime
-from typing import (
-    Any,
-    Callable,
-    Iterable,
-    List,
-    NamedTuple,
-    Optional,
-    Union,
-)
+from typing import Any, Callable, Iterable, List, NamedTuple, Optional, Union
 from unittest.mock import patch
 
 import pytest
@@ -18,15 +16,43 @@ from streamable._tools._logging import logfmt_str_escape
 from tests.utils import (
     ITERABLE_TYPES,
     IterableType,
-    slow_identity,
     identity,
+    slow_identity,
     slow_identity_duration,
     to_list,
 )
 
 
+# ============================================================================
+# Helper Classes
+# ============================================================================
+
+
+class Log(NamedTuple):
+    """Represents a log entry from observe."""
+
+    errors: int
+    yields: int
+
+    @staticmethod
+    def from_logfmt(logfmt_str: str) -> "Log":
+        """Parses a logfmt string into a Log instance."""
+        parts = dict(part.split("=", 1) for part in logfmt_str.split())
+        return Log(
+            errors=int(parts["errors"]),
+            yields=int(parts["emissions"]),
+        )
+
+
+# ============================================================================
+# Basic Functionality Tests
+# ============================================================================
+
+
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_observe(itype: IterableType) -> None:
+def test_observe_yields_upstream_elements(itype: IterableType) -> None:
+    """Observe should yield upstream elements."""
+
     def inverse(
         chars: Iterable[str], every: Optional[Union[int, datetime.timedelta]] = None
     ) -> stream[float]:
@@ -43,28 +69,32 @@ def test_observe(itype: IterableType) -> None:
         map(lambda n: 1 / n, range(1, 8))
     )
 
-    class Log(NamedTuple):
-        errors: int
-        yields: int
 
-        @staticmethod
-        def from_logfmt(logfmt_str: str) -> "Log":
-            """Parses a logfmt string into a Log instance."""
-            parts = dict(part.split("=", 1) for part in logfmt_str.split())
-            return Log(
-                errors=int(parts["errors"]),
-                yields=int(parts["emissions"]),
-            )
+# ============================================================================
+# Logging Tests - every == None
+# ============================================================================
+
+
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_observe_logging_every_none_reraises(itype: IterableType) -> None:
+    """Observe should reraise exceptions when every is None."""
+
+    def inverse(
+        chars: Iterable[str], every: Optional[Union[int, datetime.timedelta]] = None
+    ) -> stream[float]:
+        return (
+            stream(chars)
+            .map(int)
+            .map(lambda n: 1 / n)
+            .observe("inverses", every=every)
+            .catch(ValueError)
+        )
 
     logs: List[Log] = []
     with patch(
         "logging.Logger.info",
         lambda self, msg: logs.append(Log.from_logfmt(msg)),
     ):
-        #################
-        # every == None #
-        #################
-
         # `observe` should reraise
         with pytest.raises(ZeroDivisionError):
             to_list(inverse("12---3456----07"), itype=itype)
@@ -79,6 +109,27 @@ def test_observe(itype: IterableType) -> None:
             Log(errors=8, yields=6),
         ]
 
+
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_observe_logging_every_none_with_catch(itype: IterableType) -> None:
+    """Observe should produce one last log on StopIteration when exceptions are caught."""
+
+    def inverse(
+        chars: Iterable[str], every: Optional[Union[int, datetime.timedelta]] = None
+    ) -> stream[float]:
+        return (
+            stream(chars)
+            .map(int)
+            .map(lambda n: 1 / n)
+            .observe("inverses", every=every)
+            .catch(ValueError)
+        )
+
+    logs: List[Log] = []
+    with patch(
+        "logging.Logger.info",
+        lambda self, msg: logs.append(Log.from_logfmt(msg)),
+    ):
         logs.clear()
         to_list(inverse("12---3456----07").catch(ZeroDivisionError), itype=itype)
         # `observe` should produce one last log on StopIteration
@@ -93,6 +144,27 @@ def test_observe(itype: IterableType) -> None:
             Log(errors=8, yields=7),
         ]
 
+
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_observe_logging_every_none_skips_redundant(itype: IterableType) -> None:
+    """Observe should skip redundant last log on StopIteration."""
+
+    def inverse(
+        chars: Iterable[str], every: Optional[Union[int, datetime.timedelta]] = None
+    ) -> stream[float]:
+        return (
+            stream(chars)
+            .map(int)
+            .map(lambda n: 1 / n)
+            .observe("inverses", every=every)
+            .catch(ValueError)
+        )
+
+    logs: List[Log] = []
+    with patch(
+        "logging.Logger.info",
+        lambda self, msg: logs.append(Log.from_logfmt(msg)),
+    ):
         logs.clear()
         to_list(inverse("12---3456----0").catch(ZeroDivisionError), itype=itype)
         # `observe` should skip redundant last log on StopIteration
@@ -106,10 +178,32 @@ def test_observe(itype: IterableType) -> None:
             Log(errors=8, yields=6),
         ]
 
-        ##############
-        # every == 2 #
-        ##############
 
+# ============================================================================
+# Logging Tests - every == 2
+# ============================================================================
+
+
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_observe_logging_every_2_reraises(itype: IterableType) -> None:
+    """Observe should reraise exceptions when every is 2."""
+
+    def inverse(
+        chars: Iterable[str], every: Optional[Union[int, datetime.timedelta]] = None
+    ) -> stream[float]:
+        return (
+            stream(chars)
+            .map(int)
+            .map(lambda n: 1 / n)
+            .observe("inverses", every=every)
+            .catch(ValueError)
+        )
+
+    logs: List[Log] = []
+    with patch(
+        "logging.Logger.info",
+        lambda self, msg: logs.append(Log.from_logfmt(msg)),
+    ):
         # `observe` should reraise
         logs.clear()
         with pytest.raises(ZeroDivisionError):
@@ -127,6 +221,27 @@ def test_observe(itype: IterableType) -> None:
             Log(errors=8, yields=6),
         ]
 
+
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_observe_logging_every_2_with_catch(itype: IterableType) -> None:
+    """Observe should produce one last log on StopIteration when every is 2 and exceptions are caught."""
+
+    def inverse(
+        chars: Iterable[str], every: Optional[Union[int, datetime.timedelta]] = None
+    ) -> stream[float]:
+        return (
+            stream(chars)
+            .map(int)
+            .map(lambda n: 1 / n)
+            .observe("inverses", every=every)
+            .catch(ValueError)
+        )
+
+    logs: List[Log] = []
+    with patch(
+        "logging.Logger.info",
+        lambda self, msg: logs.append(Log.from_logfmt(msg)),
+    ):
         logs.clear()
         to_list(
             inverse("12---3456----07", every=2).catch(ZeroDivisionError), itype=itype
@@ -145,6 +260,27 @@ def test_observe(itype: IterableType) -> None:
             Log(errors=8, yields=7),
         ]
 
+
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_observe_logging_every_2_skips_redundant(itype: IterableType) -> None:
+    """Observe should skip redundant last log when every is 2."""
+
+    def inverse(
+        chars: Iterable[str], every: Optional[Union[int, datetime.timedelta]] = None
+    ) -> stream[float]:
+        return (
+            stream(chars)
+            .map(int)
+            .map(lambda n: 1 / n)
+            .observe("inverses", every=every)
+            .catch(ValueError)
+        )
+
+    logs: List[Log] = []
+    with patch(
+        "logging.Logger.info",
+        lambda self, msg: logs.append(Log.from_logfmt(msg)),
+    ):
         logs.clear()
         to_list(
             inverse("12---3456----0", every=2).catch(ZeroDivisionError), itype=itype
@@ -162,10 +298,32 @@ def test_observe(itype: IterableType) -> None:
             Log(errors=8, yields=6),
         ]
 
-        ###############
-        # every == 1s #
-        ###############
 
+# ============================================================================
+# Logging Tests - every == timedelta
+# ============================================================================
+
+
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_observe_logging_every_timedelta_reraises(itype: IterableType) -> None:
+    """Observe should reraise exceptions when every is a timedelta."""
+
+    def inverse(
+        chars: Iterable[str], every: Optional[Union[int, datetime.timedelta]] = None
+    ) -> stream[float]:
+        return (
+            stream(chars)
+            .map(int)
+            .map(lambda n: 1 / n)
+            .observe("inverses", every=every)
+            .catch(ValueError)
+        )
+
+    logs: List[Log] = []
+    with patch(
+        "logging.Logger.info",
+        lambda self, msg: logs.append(Log.from_logfmt(msg)),
+    ):
         # `observe` should reraise
         logs.clear()
         with pytest.raises(ZeroDivisionError):
@@ -176,6 +334,27 @@ def test_observe(itype: IterableType) -> None:
         # `observe` errors and yields independently
         assert logs == [Log(errors=0, yields=1)]
 
+
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_observe_logging_every_timedelta_with_catch(itype: IterableType) -> None:
+    """Observe should produce one last log on StopIteration when every is a timedelta and exceptions are caught."""
+
+    def inverse(
+        chars: Iterable[str], every: Optional[Union[int, datetime.timedelta]] = None
+    ) -> stream[float]:
+        return (
+            stream(chars)
+            .map(int)
+            .map(lambda n: 1 / n)
+            .observe("inverses", every=every)
+            .catch(ValueError)
+        )
+
+    logs: List[Log] = []
+    with patch(
+        "logging.Logger.info",
+        lambda self, msg: logs.append(Log.from_logfmt(msg)),
+    ):
         logs.clear()
         to_list(
             inverse("12---3456----07", every=datetime.timedelta(seconds=1)).catch(
@@ -189,6 +368,27 @@ def test_observe(itype: IterableType) -> None:
             Log(errors=8, yields=7),
         ]
 
+
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_observe_logging_every_timedelta_skips_redundant(itype: IterableType) -> None:
+    """Observe should skip redundant last log when every is a timedelta."""
+
+    def inverse(
+        chars: Iterable[str], every: Optional[Union[int, datetime.timedelta]] = None
+    ) -> stream[float]:
+        return (
+            stream(chars)
+            .map(int)
+            .map(lambda n: 1 / n)
+            .observe("inverses", every=every)
+            .catch(ValueError)
+        )
+
+    logs: List[Log] = []
+    with patch(
+        "logging.Logger.info",
+        lambda self, msg: logs.append(Log.from_logfmt(msg)),
+    ):
         logs.clear()
         to_list(
             inverse("12---3456----0", every=datetime.timedelta(seconds=1)).catch(
@@ -202,6 +402,27 @@ def test_observe(itype: IterableType) -> None:
             Log(errors=8, yields=6),
         ]
 
+
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_observe_logging_every_timedelta_frequent(itype: IterableType) -> None:
+    """Observe with `every` slightly under slow_identity_duration should emit one log per yield/error."""
+
+    def inverse(
+        chars: Iterable[str], every: Optional[Union[int, datetime.timedelta]] = None
+    ) -> stream[float]:
+        return (
+            stream(chars)
+            .map(int)
+            .map(lambda n: 1 / n)
+            .observe("inverses", every=every)
+            .catch(ValueError)
+        )
+
+    logs: List[Log] = []
+    with patch(
+        "logging.Logger.info",
+        lambda self, msg: logs.append(Log.from_logfmt(msg)),
+    ):
         logs.clear()
         digits = "12---3456----0"
         to_list(
@@ -215,11 +436,9 @@ def test_observe(itype: IterableType) -> None:
         assert len(digits) == len(logs)
 
 
-def test_escape():
-    assert logfmt_str_escape("ints") == '"ints"'
-    assert logfmt_str_escape("in ts") == '"in ts"'
-    assert logfmt_str_escape("in\\ts") == r'"in\\ts"'
-    assert logfmt_str_escape('"ints"') == r'"\"ints\""'
+# ============================================================================
+# Custom How Function Tests
+# ============================================================================
 
 
 @pytest.mark.parametrize(
@@ -229,6 +448,7 @@ def test_escape():
 def test_observe_how(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
+    """Observe should call the how function with log messages."""
     observed: List[str] = []
     ints = list(range(8))
     assert (
@@ -247,3 +467,16 @@ def test_observe_how(
         "errors=0 emissions=6",
         "errors=0 emissions=8",
     ]
+
+
+# ============================================================================
+# Utility Tests
+# ============================================================================
+
+
+def test_escape():
+    """Test logfmt string escaping."""
+    assert logfmt_str_escape("ints") == '"ints"'
+    assert logfmt_str_escape("in ts") == '"in ts"'
+    assert logfmt_str_escape("in\\ts") == r'"in\\ts"'
+    assert logfmt_str_escape('"ints"') == r'"\"ints\""'

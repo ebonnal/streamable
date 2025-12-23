@@ -1,11 +1,13 @@
+"""
+Tests for throttle operation.
+
+Throttle limits the rate of iteration to yield at most `up_to` elements
+per time interval.
+"""
+
 import datetime
 import math
 import time
-from typing import (
-    List,
-    Tuple,
-    cast,
-)
 
 import pytest
 
@@ -23,9 +25,14 @@ from tests.utils import (
 )
 
 
+# ============================================================================
+# Validation Tests
+# ============================================================================
+
+
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_throttle(itype: IterableType) -> None:
-    # `throttle` should raise error when called with negative `per`.
+def test_throttle_raises_on_zero_timedelta(itype: IterableType) -> None:
+    """Throttle should raise ValueError when per is zero or negative."""
     with pytest.raises(
         ValueError,
         match=r"`per` must be a positive timedelta but got datetime\.timedelta\(0\)",
@@ -34,11 +41,28 @@ def test_throttle(itype: IterableType) -> None:
             stream([1]).throttle(1, per=datetime.timedelta(microseconds=0)),
             itype=itype,
         )
-        # `throttle` should raise error when called with `count` < 1.
+
+
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_throttle_raises_on_invalid_count(itype: IterableType) -> None:
+    """Throttle should raise ValueError when count is less than 1."""
     with pytest.raises(ValueError, match="`up_to` must be >= 1 but got 0"):
         to_list(stream([1]).throttle(0, per=datetime.timedelta(seconds=1)), itype=itype)
 
-    # test interval
+
+# ============================================================================
+# Interval Timing Tests
+# ============================================================================
+
+
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_throttle_enforces_minimum_interval(itype: IterableType) -> None:
+    """
+    Throttle should enforce minimum interval between emissions.
+
+    When throttling to 1 per 0.3s, 10 items should take approximately
+    2.7 seconds (9 intervals * 0.3s) plus any upstream delays.
+    """
     interval_seconds = 0.3
     super_slow_elem_pull_seconds = 2 * interval_seconds
     N = 10
@@ -49,29 +73,51 @@ def test_throttle(itype: IterableType) -> None:
             time.sleep(super_slow_elem_pull_seconds)
         return elem
 
-    for stream_, expected_elems in cast(
-        List[Tuple[stream, List]],
-        [
-            (
-                stream(map(slow_first_elem, integers)).throttle(
-                    1, per=datetime.timedelta(seconds=interval_seconds)
-                ),
-                list(integers),
-            ),
-            (
-                stream(map(throw_func(TestError), map(slow_first_elem, integers)))
-                .throttle(1, per=datetime.timedelta(seconds=interval_seconds))
-                .catch(TestError),
-                [],
-            ),
-        ],
-    ):
-        duration, res = timestream(stream_, itype=itype)
-        # `throttle` with `interval` must yield upstream elements
-        assert res == expected_elems
-        expected_duration = (N - 1) * interval_seconds + super_slow_elem_pull_seconds
-        # avoid bursts after very slow particular upstream elements
-        assert duration == pytest.approx(expected_duration, rel=0.1)
+    stream_ = stream(map(slow_first_elem, integers)).throttle(
+        1, per=datetime.timedelta(seconds=interval_seconds)
+    )
+    duration, res = timestream(stream_, itype=itype)
+    # `throttle` with `interval` must yield upstream elements
+    assert res == list(integers)
+    expected_duration = (N - 1) * interval_seconds + super_slow_elem_pull_seconds
+    # avoid bursts after very slow particular upstream elements
+    assert duration == pytest.approx(expected_duration, rel=0.1)
+
+
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_throttle_with_exceptions_respects_interval(itype: IterableType) -> None:
+    """Throttle should enforce interval even when upstream raises exceptions."""
+    interval_seconds = 0.3
+    super_slow_elem_pull_seconds = 2 * interval_seconds
+    N = 10
+    integers = range(N)
+
+    def slow_first_elem(elem: int):
+        if elem == 0:
+            time.sleep(super_slow_elem_pull_seconds)
+        return elem
+
+    stream_ = (
+        stream(map(throw_func(TestError), map(slow_first_elem, integers)))
+        .throttle(1, per=datetime.timedelta(seconds=interval_seconds))
+        .catch(TestError)
+    )
+    duration, res = timestream(stream_, itype=itype)
+    # `throttle` with `interval` must yield upstream elements
+    assert res == []
+    expected_duration = (N - 1) * interval_seconds + super_slow_elem_pull_seconds
+    # avoid bursts after very slow particular upstream elements
+    assert duration == pytest.approx(expected_duration, rel=0.1)
+
+
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_throttle_handles_slow_upstream(itype: IterableType) -> None:
+    """
+    Throttle should not raise ValueError when upstream is slower than interval.
+
+    This tests that sleep calculations don't go negative when upstream
+    processing takes longer than the throttle interval.
+    """
     # `throttle` should avoid 'ValueError: sleep length must be non-negative' when upstream is slower than `interval`
     assert (
         anext_or_next(
@@ -85,39 +131,70 @@ def test_throttle(itype: IterableType) -> None:
         == 0
     )
 
-    # test per_second
 
-    for N in [1, 10, 11]:
-        integers = range(N)
-        per_second = 2
-        for stream_, expected_elems in cast(
-            List[Tuple[stream, List]],
-            [
-                (
-                    stream(integers).throttle(
-                        per_second, per=datetime.timedelta(seconds=1)
-                    ),
-                    list(integers),
-                ),
-                (
-                    stream(map(throw_func(TestError), integers))
-                    .throttle(per_second, per=datetime.timedelta(seconds=1))
-                    .catch(TestError),
-                    [],
-                ),
-            ],
-        ):
-            duration, res = timestream(stream_, itype=itype)
-            # `throttle` with `per_second` must yield upstream elements
-            assert res == expected_elems
-            expected_duration = math.ceil(N / per_second) - 1
-            # `throttle` must slow according to `per_second`
-            assert duration == pytest.approx(
-                expected_duration, abs=0.01 * expected_duration + 0.01
-            )
+# ============================================================================
+# Rate Limiting Tests (per second)
+# ============================================================================
 
-    # test chain
 
+@pytest.mark.parametrize("n_items", [1, 10, 11])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_throttle_limits_per_second(n_items: int, itype: IterableType) -> None:
+    """
+    Throttle should limit emissions per second correctly.
+
+    With throttle(2, per=1s), N items should take approximately
+    ceil(N/2) - 1 seconds.
+    """
+    integers = range(n_items)
+    per_second = 2
+    stream_ = stream(integers).throttle(per_second, per=datetime.timedelta(seconds=1))
+    duration, res = timestream(stream_, itype=itype)
+    # `throttle` with `per_second` must yield upstream elements
+    assert res == list(integers)
+    expected_duration = math.ceil(n_items / per_second) - 1
+    # `throttle` must slow according to `per_second`
+    assert duration == pytest.approx(
+        expected_duration, abs=0.01 * expected_duration + 0.01
+    )
+
+
+@pytest.mark.parametrize("n_items", [1, 10, 11])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_throttle_with_exceptions_limits_per_second(
+    n_items: int, itype: IterableType
+) -> None:
+    """Throttle should limit rate even when upstream raises exceptions."""
+    integers = range(n_items)
+    per_second = 2
+    stream_ = (
+        stream(map(throw_func(TestError), integers))
+        .throttle(per_second, per=datetime.timedelta(seconds=1))
+        .catch(TestError)
+    )
+    duration, res = timestream(stream_, itype=itype)
+    # `throttle` with `per_second` must yield upstream elements
+    assert res == []
+    expected_duration = math.ceil(n_items / per_second) - 1
+    # `throttle` must slow according to `per_second`
+    assert duration == pytest.approx(
+        expected_duration, abs=0.01 * expected_duration + 0.01
+    )
+
+
+# ============================================================================
+# Chained Throttle Tests
+# ============================================================================
+
+
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_throttle_chained_follows_most_restrictive(itype: IterableType) -> None:
+    """
+    Chained throttles should follow the most restrictive limit.
+
+    throttle(5, per=1s) then throttle(1, per=0.01s) should result in
+    approximately 2 seconds for 11 items (10 intervals * 0.2s).
+    """
     expected_duration = 2
     for stream_ in [
         stream(range(11))

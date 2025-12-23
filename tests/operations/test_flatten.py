@@ -20,7 +20,6 @@ from tests.utils import (
     ITERABLE_TYPES,
     IterableType,
     N,
-    alist,
     anext_or_next,
     async_slow_identity,
     bi_iterable_to_iter,
@@ -32,6 +31,7 @@ from tests.utils import (
     to_list,
     sync_to_bi_iterable,
 )
+from tests.utils.conversion import alist
 
 
 def test_flatten_typing() -> None:

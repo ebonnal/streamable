@@ -1,3 +1,9 @@
+"""
+Tests for filtering operations: filter, skip, and take.
+
+These operations control which elements are yielded from a stream.
+"""
+
 import builtins
 import sys
 from typing import Any, Callable
@@ -22,6 +28,11 @@ from tests.utils import (
 )
 
 
+# ============================================================================
+# Filter Tests
+# ============================================================================
+
+
 @pytest.mark.parametrize(
     "itype, adapt",
     ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
@@ -29,6 +40,8 @@ from tests.utils import (
 def test_filter(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
+    """Filter must act like builtin filter."""
+
     def keep(x) -> int:
         return x % 2
 
@@ -46,6 +59,11 @@ def test_filter(
     )
 
 
+# ============================================================================
+# Skip Tests
+# ============================================================================
+
+
 @pytest.mark.parametrize(
     "itype, adapt",
     ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
@@ -53,6 +71,7 @@ def test_filter(
 def test_skip(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
+    """Skip must skip elements correctly."""
     # `skip` must raise ValueError if `until` is negative
     with pytest.raises(ValueError, match="`until` must be >= 0 but got -1"):
         stream(ints_src).skip(-1)
@@ -80,6 +99,11 @@ def test_skip(
         )
 
 
+# ============================================================================
+# Take Tests
+# ============================================================================
+
+
 @pytest.mark.parametrize(
     "itype, adapt",
     ((itype, adapt) for adapt in (identity, asyncify) for itype in ITERABLE_TYPES),
@@ -87,6 +111,7 @@ def test_skip(
 def test_take(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
+    """Take must limit elements correctly."""
     # `take` must be ok with `until` >= stream length
     assert to_list(stream(ints_src).take(N * 2), itype=itype) == list(ints_src)
     # `take` must be ok with `until` >= 1
