@@ -4,7 +4,7 @@ from typing import AsyncIterator
 import pytest
 
 from streamable._aiterators import (
-    _ConcurrentAMapAsyncIterable,
+    _AsyncConcurrentMapAsyncIterable,
     _RaisingAsyncIterator,
 )
 from streamable._tools._async import awaitable_to_coroutine
@@ -19,8 +19,8 @@ def test_ConcurrentAMapAsyncIterable() -> None:
         TypeError,
         match=r"(object int can't be used in 'await' expression)|('int' object can't be awaited)",
     ):
-        concurrent_amap_async_iterable: _ConcurrentAMapAsyncIterable[int, int] = (
-            _ConcurrentAMapAsyncIterable(
+        concurrent_amap_async_iterable: _AsyncConcurrentMapAsyncIterable[int, int] = (
+            _AsyncConcurrentMapAsyncIterable(
                 async_iter(iter(ints_src)),
                 async_identity,
                 concurrency=2,

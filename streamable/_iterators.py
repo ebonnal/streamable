@@ -601,7 +601,7 @@ class _BaseConcurrentMapIterable(
                 yield future_results.__next__()
 
 
-class _ConcurrentMapIterable(_BaseConcurrentMapIterable[T, U]):
+class _ExecutorConcurrentMapIterable(_BaseConcurrentMapIterable[T, U]):
     def __init__(
         self,
         iterator: Iterator[T],
@@ -642,7 +642,7 @@ class _ConcurrentMapIterable(_BaseConcurrentMapIterable[T, U]):
         )
 
 
-class ConcurrentMapIterator(_RaisingIterator[U]):
+class ExecutorConcurrentMapIterator(_RaisingIterator[U]):
     def __init__(
         self,
         iterator: Iterator[T],
@@ -651,7 +651,7 @@ class ConcurrentMapIterator(_RaisingIterator[U]):
         ordered: bool,
     ) -> None:
         super().__init__(
-            _ConcurrentMapIterable(
+            _ExecutorConcurrentMapIterable(
                 iterator,
                 into,
                 concurrency,
@@ -660,7 +660,9 @@ class ConcurrentMapIterator(_RaisingIterator[U]):
         )
 
 
-class _ConcurrentAMapIterable(_BaseConcurrentMapIterable[T, U], CloseEventLoopMixin):
+class _AsyncConcurrentMapIterable(
+    _BaseConcurrentMapIterable[T, U], CloseEventLoopMixin
+):
     def __init__(
         self,
         loop: asyncio.AbstractEventLoop,
@@ -701,7 +703,7 @@ class _ConcurrentAMapIterable(_BaseConcurrentMapIterable[T, U], CloseEventLoopMi
         return AsyncFDFOFutureResultCollection(self.loop)
 
 
-class ConcurrentAMapIterator(_RaisingIterator[U]):
+class AsyncConcurrentMapIterator(_RaisingIterator[U]):
     def __init__(
         self,
         loop: asyncio.AbstractEventLoop,
@@ -711,7 +713,7 @@ class ConcurrentAMapIterator(_RaisingIterator[U]):
         ordered: bool,
     ) -> None:
         super().__init__(
-            _ConcurrentAMapIterable(
+            _AsyncConcurrentMapIterable(
                 loop,
                 iterator,
                 into,

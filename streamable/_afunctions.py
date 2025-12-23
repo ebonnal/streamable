@@ -104,14 +104,14 @@ def map(
     if concurrency == 1:
         return _aiterators.MapAsyncIterator(aiterator, asyncify(into))
     if iscoroutinefunction(into):
-        return _aiterators.ConcurrentAMapAsyncIterator(
+        return _aiterators.AsyncConcurrentMapAsyncIterator(
             aiterator,
             cast(AsyncCallable[T, U], into),
             concurrency=cast(int, concurrency),
             ordered=ordered,
         )
     else:
-        return _aiterators.ConcurrentMapAsyncIterator(
+        return _aiterators.ExecutorConcurrentMapAsyncIterator(
             aiterator,
             cast(Callable[[T], U], into),
             concurrency=concurrency,

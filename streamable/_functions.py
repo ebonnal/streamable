@@ -112,7 +112,7 @@ def map(
     if concurrency == 1:
         return builtins.map(syncify(loop_getter, into), iterator)
     if iscoroutinefunction(into):
-        return _iterators.ConcurrentAMapIterator(
+        return _iterators.AsyncConcurrentMapIterator(
             loop_getter(),
             iterator,
             into,
@@ -120,7 +120,7 @@ def map(
             ordered=ordered,
         )
     else:
-        return _iterators.ConcurrentMapIterator(
+        return _iterators.ExecutorConcurrentMapIterator(
             iterator,
             cast(Callable[[T], U], into),
             concurrency=concurrency,

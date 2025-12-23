@@ -639,7 +639,7 @@ class _BaseConcurrentMapAsyncIterable(
                 yield await future_results.__anext__()
 
 
-class _ConcurrentMapAsyncIterable(_BaseConcurrentMapAsyncIterable[T, U]):
+class _ExecutorConcurrentMapAsyncIterable(_BaseConcurrentMapAsyncIterable[T, U]):
     def __init__(
         self,
         iterator: AsyncIterator[T],
@@ -671,7 +671,7 @@ class _ConcurrentMapAsyncIterable(_BaseConcurrentMapAsyncIterable[T, U]):
         )
 
 
-class ConcurrentMapAsyncIterator(_RaisingAsyncIterator[U]):
+class ExecutorConcurrentMapAsyncIterator(_RaisingAsyncIterator[U]):
     def __init__(
         self,
         iterator: AsyncIterator[T],
@@ -680,7 +680,7 @@ class ConcurrentMapAsyncIterator(_RaisingAsyncIterator[U]):
         ordered: bool,
     ) -> None:
         super().__init__(
-            _ConcurrentMapAsyncIterable(
+            _ExecutorConcurrentMapAsyncIterable(
                 iterator,
                 into,
                 concurrency,
@@ -689,7 +689,7 @@ class ConcurrentMapAsyncIterator(_RaisingAsyncIterator[U]):
         )
 
 
-class _ConcurrentAMapAsyncIterable(_BaseConcurrentMapAsyncIterable[T, U]):
+class _AsyncConcurrentMapAsyncIterable(_BaseConcurrentMapAsyncIterable[T, U]):
     def __init__(
         self,
         iterator: AsyncIterator[T],
@@ -718,7 +718,7 @@ class _ConcurrentAMapAsyncIterable(_BaseConcurrentMapAsyncIterable[T, U]):
         return asyncio.get_running_loop().create_task(self._safe_to(elem))
 
 
-class ConcurrentAMapAsyncIterator(_RaisingAsyncIterator[U]):
+class AsyncConcurrentMapAsyncIterator(_RaisingAsyncIterator[U]):
     def __init__(
         self,
         iterator: AsyncIterator[T],
@@ -727,7 +727,7 @@ class ConcurrentAMapAsyncIterator(_RaisingAsyncIterator[U]):
         ordered: bool,
     ) -> None:
         super().__init__(
-            _ConcurrentAMapAsyncIterable(
+            _AsyncConcurrentMapAsyncIterable(
                 iterator,
                 into,
                 concurrency,
