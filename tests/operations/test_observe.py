@@ -447,24 +447,20 @@ def test_observe_how(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
     """Observe should call the how function with log messages."""
-    observed: List[str] = []
+    observations: List[stream.Observation] = []
     ints = list(range(8))
     assert (
         to_list(
             stream(ints).observe(
-                "ints", every=2, how=adapt(lambda msg: observed.append(msg[-20:]))
+                "ints", every=2, how=adapt(observations.append)
             ),
             itype,
         )
         == ints
     )
-    assert observed == [
-        "errors=0 emissions=1",
-        "errors=0 emissions=2",
-        "errors=0 emissions=4",
-        "errors=0 emissions=6",
-        "errors=0 emissions=8",
-    ]
+    assert [
+        observation.emissions for observation in observations
+    ] == [1, 2, 4, 6, 8]
 
 
 # ============================================================================

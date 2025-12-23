@@ -1,6 +1,7 @@
 from concurrent.futures import Executor
 import copy
 import datetime
+import logging
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -16,6 +17,7 @@ from typing import (
     Iterable,
     Iterator,
     List,
+    NamedTuple,
     Optional,
     Sequence,
     Set,
@@ -608,12 +610,23 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             validate_concurrency_executor(concurrency, into, fn_name="into")
         return MapStream(self, into, concurrency, ordered)
 
+    class Observation(NamedTuple):
+        subject: str
+        elapsed: datetime.timedelta
+        errors: int
+        emissions: int
+
     def observe(
         self,
         subject: str,
         *,
         every: Union[None, int, datetime.timedelta] = None,
-        how: Union[None, Callable[[str], Any], AsyncCallable[str, Any]] = None,
+        how: Union[
+            None,
+            logging.Logger,
+            Callable[["stream.Observation"], Any],
+            AsyncCallable["stream.Observation", Any],
+        ] = None,
     ) -> "stream[T]":
         """
         Logs the progress of iteration over this stream: the time elapsed since the iteration started, the count of emitted elements and errors.
@@ -624,11 +637,15 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             subject (``str``): Describes the yielded objects ("cats", "dogs", ...).
             every (``int | timedelta | None``, optional): When an upstream element is pulled, a log is emitted if ...
 
-              - ``None`` (default): ... the number of yielded elements (or errors) reaches a power of 2.
-              - ``int``: ... the number of yielded elements (or errors) reaches `every`.
-              - ``timedelta``: ... `every` has elapsed since the last log.
+                - ``None`` (default): ... the number of yielded elements (or errors) reaches a power of 2.
+                - ``int``: ... the number of yielded elements (or errors) reaches `every`.
+                - ``timedelta``: ... `every` has elapsed since the last log.
 
-            how (``Callable[[str], Any] | AsyncCallable[str, Any] | None``, optional): Specify what to do with the iteration progress message, ``how(message)`` will be periodically called according to ``every``. (default: calls ``logging.getLogger("streamable").info``)
+            how (``logging.Logger | Callable[[stream.Observation], Any] | AsyncCallable[stream.Observation, Any] | None``, optional): Specify what to do with the observation, ``how`` will be periodically called according to ``every``. (default: calls ``logging.getLogger("streamable").info``)
+
+                - ``None`` (default): The observation is logged via ``logging.getLogger("streamable").info``.
+                - ``logging.Logger``: The observation is logged via ``how.info``.
+                - ``Callable[[stream.Observation], Any] | AsyncCallable[stream.Observation, Any]``: ``how(observation)`` is called.
 
         Returns:
             ``stream[T]``: A stream of upstream elements with progress logging during iteration.
@@ -880,7 +897,12 @@ class ObserveStream(DownStream[T, T]):
         upstream: stream[T],
         subject: str,
         every: Union[None, int, datetime.timedelta],
-        how: Union[None, Callable[[str], Any], AsyncCallable[str, Any]],
+        how: Union[
+            None,
+            logging.Logger,
+            Callable[["stream.Observation"], Any],
+            AsyncCallable["stream.Observation", Any],
+        ],
     ) -> None:
         super().__init__(upstream)
         self._subject = subject

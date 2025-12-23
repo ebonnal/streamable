@@ -2,7 +2,9 @@ from concurrent.futures import Executor
 import datetime
 from contextlib import suppress
 from inspect import iscoroutinefunction
+import logging
 from typing import (
+    TYPE_CHECKING,
     Any,
     AsyncIterable,
     AsyncIterator,
@@ -16,6 +18,9 @@ from typing import (
     Union,
     cast,
 )
+
+if TYPE_CHECKING:
+    from streamable._stream import stream
 
 from streamable import _aiterators
 from streamable._tools._async import AsyncCallable
@@ -119,17 +124,19 @@ def observe(
     aiterator: AsyncIterator[T],
     subject: str,
     every: Union[None, int, datetime.timedelta],
-    how: Union[None, Callable[[str], Any], AsyncCallable[str, Any]] = None,
+    how: Union[
+        None,
+        logging.Logger,
+        Callable[["stream.Observation"], Any],
+        AsyncCallable["stream.Observation", Any],
+    ] = None,
 ) -> AsyncIterator[T]:
+    how = how if isinstance(how, logging.Logger) else asyncify(how)
     if every is None:
-        return _aiterators.PowerObserveAsyncIterator(aiterator, subject, asyncify(how))
+        return _aiterators.PowerObserveAsyncIterator(aiterator, subject, how)
     elif isinstance(every, int):
-        return _aiterators.EveryIntObserveAsyncIterator(
-            aiterator, subject, every, asyncify(how)
-        )
-    return _aiterators.EveryIntervalObserveAsyncIterator(
-        aiterator, subject, every, asyncify(how)
-    )
+        return _aiterators.EveryIntObserveAsyncIterator(aiterator, subject, every, how)
+    return _aiterators.EveryIntervalObserveAsyncIterator(aiterator, subject, every, how)
 
 
 def skip(
