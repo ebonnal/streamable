@@ -1,10 +1,3 @@
-"""
-Tests for throttle operation.
-
-Throttle limits the rate of iteration to yield at most `up_to` elements
-per time interval.
-"""
-
 import datetime
 import math
 import time
@@ -12,17 +5,17 @@ import time
 import pytest
 
 from streamable import stream
-from tests.utils import (
+from tests.utils.error import TestError
+from tests.utils.functions import throw_func
+from tests.utils.iteration import (
     ITERABLE_TYPES,
     IterableType,
-    TestError,
     anext_or_next,
     bi_iterable_to_iter,
-    ints_src,
-    throw_func,
-    timestream,
     to_list,
 )
+from tests.utils.source import ints_src
+from tests.utils.timing import timestream
 
 
 # ============================================================================

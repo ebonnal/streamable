@@ -1,9 +1,3 @@
-"""
-Tests for group operation.
-
-Group collects elements into batches based on size, time intervals, or key functions.
-"""
-
 import datetime
 from operator import itemgetter
 from typing import Any, AsyncIterator, Callable, Iterator, List, Tuple, Union
@@ -12,21 +6,21 @@ import pytest
 
 from streamable import stream
 from streamable._tools._func import asyncify
-from tests.utils import (
-    ITERABLE_TYPES,
-    IterableType,
-    N,
-    TestError,
-    anext_or_next,
-    bi_iterable_to_iter,
-    even_src,
+from tests.utils.error import TestError
+from tests.utils.functions import (
     identity,
     slow_identity,
     slow_identity_duration,
-    ints_src,
     src_raising_at_exhaustion,
+)
+from tests.utils.iteration import (
+    ITERABLE_TYPES,
+    IterableType,
+    anext_or_next,
+    bi_iterable_to_iter,
     to_list,
 )
+from tests.utils.source import N, even_src, ints_src
 
 
 # ============================================================================

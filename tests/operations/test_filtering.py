@@ -1,9 +1,3 @@
-"""
-Tests for filtering operations: filter, skip, and take.
-
-These operations control which elements are yielded from a stream.
-"""
-
 import builtins
 import sys
 from typing import Any, Callable
@@ -12,20 +6,18 @@ import pytest
 
 from streamable import stream
 from streamable._tools._func import asyncify
-from tests.utils import (
+from tests.utils.error import TestError
+from tests.utils.functions import identity, throw_for_odd_func
+from tests.utils.iteration import (
     ITERABLE_TYPES,
     IterableType,
-    N,
-    TestError,
     alist_or_list,
     anext_or_next,
     bi_iterable_to_iter,
-    identity,
-    ints_src,
     stopiteration_type,
-    throw_for_odd_func,
     to_list,
 )
+from tests.utils.source import N, ints_src
 
 
 # ============================================================================

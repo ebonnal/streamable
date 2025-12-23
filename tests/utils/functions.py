@@ -12,7 +12,8 @@ from streamable._tools._iter import (
     SyncAsyncIterable,
     SyncToAsyncIterator,
 )
-from tests.utils.data import N, TestError
+from tests.utils.error import TestError
+from tests.utils.source import N
 
 T = TypeVar("T")
 R = TypeVar("R")

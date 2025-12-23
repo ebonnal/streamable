@@ -15,7 +15,10 @@ from typing import (
 from streamable._stream import stream
 from streamable._tools._async import awaitable_to_coroutine
 from streamable._tools._iter import SyncAsyncIterable
-from tests.utils.types import IterableType
+from typing import Tuple
+
+IterableType = Union[Type[Iterable], Type[AsyncIterable]]
+ITERABLE_TYPES: Tuple[IterableType, ...] = (Iterable, AsyncIterable)
 
 T = TypeVar("T")
 

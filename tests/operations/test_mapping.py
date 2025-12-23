@@ -1,9 +1,3 @@
-"""
-Tests for mapping operations: map and do.
-
-Map transforms elements while do performs side effects without transformation.
-"""
-
 import asyncio
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 import sys
@@ -14,12 +8,8 @@ from typing import Any, Callable, Iterable, Iterator, List, Set, Type, cast
 import pytest
 
 from streamable import stream
-from tests.utils import (
-    ITERABLE_TYPES,
-    IterableType,
-    N,
-    TestError,
-    anext_or_next,
+from tests.utils.error import TestError
+from tests.utils.functions import (
     async_identity,
     async_identity_sleep,
     async_randomly_slowed,
@@ -27,20 +17,24 @@ from tests.utils import (
     async_square,
     async_throw_for_odd_func,
     async_throw_func,
-    bi_iterable_to_iter,
-    even_src,
     identity,
     identity_sleep,
     randomly_slowed,
     slow_identity,
     slow_identity_duration,
     square,
-    ints_src,
     throw_for_odd_func,
     throw_func,
-    timestream,
+)
+from tests.utils.iteration import (
+    ITERABLE_TYPES,
+    IterableType,
+    anext_or_next,
+    bi_iterable_to_iter,
     to_list,
 )
+from tests.utils.source import N, even_src, ints_src
+from tests.utils.timing import timestream
 
 
 # ============================================================================

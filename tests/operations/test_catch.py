@@ -1,10 +1,3 @@
-"""
-Tests for catch operation.
-
-Catch handles exceptions raised during iteration, allowing selective
-error handling with optional filtering, replacement, and stopping behavior.
-"""
-
 from collections import Counter
 from typing import Any, Callable, List, Type
 
@@ -12,19 +5,17 @@ import pytest
 
 from streamable import stream
 from streamable._tools._func import asyncify
-from tests.utils import (
+from tests.utils.error import TestError
+from tests.utils.functions import identity, throw, throw_for_odd_func
+from tests.utils.iteration import (
     ITERABLE_TYPES,
     IterableType,
-    TestError,
     anext_or_next,
     bi_iterable_to_iter,
-    identity,
-    ints_src,
     stopiteration_type,
-    throw,
-    throw_for_odd_func,
     to_list,
 )
+from tests.utils.source import ints_src
 
 
 # ============================================================================

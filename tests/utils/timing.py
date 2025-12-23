@@ -14,8 +14,7 @@ from typing import (
 )
 
 from streamable._stream import stream
-from tests.utils.conversion import to_list
-from tests.utils.types import IterableType
+from tests.utils.iteration import IterableType, to_list
 
 T = TypeVar("T")
 

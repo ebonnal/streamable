@@ -11,11 +11,8 @@ from streamable._tools._func import star
 from streamable._tools._iter import (
     async_iter,
 )
-from tests.utils import (
-    async_identity,
-    identity,
-    ints_src,
-)
+from tests.utils.functions import async_identity, identity
+from tests.utils.source import ints_src
 
 
 class CustomCallable:

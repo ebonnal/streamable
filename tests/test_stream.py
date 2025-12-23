@@ -23,19 +23,20 @@ from streamable import stream
 from streamable._tools._async import awaitable_to_coroutine
 from streamable._tools._func import asyncify, star
 from streamable._tools._iter import async_iter
-from tests.utils import (
-    ITERABLE_TYPES,
-    IterableType,
-    N,
+from tests.utils.functions import (
     async_identity,
-    bi_iterable_to_iter,
     identity,
     slow_identity,
     slow_identity_duration,
-    ints_src,
-    timecoro,
+)
+from tests.utils.iteration import (
+    ITERABLE_TYPES,
+    IterableType,
+    bi_iterable_to_iter,
     to_list,
 )
+from tests.utils.source import N, ints_src
+from tests.utils.timing import timecoro
 
 
 def test_init() -> None:

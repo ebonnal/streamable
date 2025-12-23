@@ -1,9 +1,3 @@
-"""
-Tests for observe operation.
-
-Observe logs iteration progress including errors and emissions at specified intervals.
-"""
-
 import datetime
 from typing import Iterable, List, NamedTuple, Union
 from unittest.mock import patch
@@ -12,13 +6,8 @@ import pytest
 
 from streamable import stream
 from streamable._tools._logging import logfmt_str_escape
-from tests.utils import (
-    ITERABLE_TYPES,
-    IterableType,
-    slow_identity,
-    slow_identity_duration,
-    to_list,
-)
+from tests.utils.functions import slow_identity, slow_identity_duration
+from tests.utils.iteration import ITERABLE_TYPES, IterableType, to_list
 
 
 # ============================================================================

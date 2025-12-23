@@ -16,22 +16,23 @@ import pytest
 
 from streamable import stream
 from streamable._tools._iter import async_iter
-from tests.utils import (
-    ITERABLE_TYPES,
-    IterableType,
-    N,
-    anext_or_next,
+from tests.utils.functions import (
     async_slow_identity,
-    bi_iterable_to_iter,
     identity,
     slow_identity,
     slow_identity_duration,
-    ints_src,
-    timestream,
-    to_list,
     sync_to_bi_iterable,
 )
-from tests.utils.conversion import alist
+from tests.utils.iteration import (
+    ITERABLE_TYPES,
+    IterableType,
+    alist,
+    anext_or_next,
+    bi_iterable_to_iter,
+    to_list,
+)
+from tests.utils.source import N, ints_src
+from tests.utils.timing import timestream
 
 
 def test_flatten_typing() -> None:

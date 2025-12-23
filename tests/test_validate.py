@@ -3,11 +3,8 @@ from typing import Any, Callable, List
 import pytest
 
 from streamable import stream
-from tests.utils import (
-    async_identity,
-    identity,
-    ints_src,
-)
+from tests.utils.functions import async_identity, identity
+from tests.utils.source import ints_src
 
 
 @pytest.mark.parametrize(
