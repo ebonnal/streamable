@@ -443,24 +443,20 @@ def test_observe_logging_every_timedelta_frequent(itype: IterableType) -> None:
 
 @pytest.mark.parametrize("adapt", [identity, asyncify])
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_observe_how(
+def test_observe_do(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
-    """Observe should call the how function with log messages."""
+    """Observe should call the do function with log messages."""
     observations: List[stream.Observation] = []
     ints = list(range(8))
     assert (
         to_list(
-            stream(ints).observe(
-                "ints", every=2, how=adapt(observations.append)
-            ),
+            stream(ints).observe("ints", every=2, do=adapt(observations.append)),
             itype,
         )
         == ints
     )
-    assert [
-        observation.emissions for observation in observations
-    ] == [1, 2, 4, 6, 8]
+    assert [observation.emissions for observation in observations] == [1, 2, 4, 6, 8]
 
 
 # ============================================================================

@@ -4,7 +4,6 @@ from concurrent.futures import Executor
 import datetime
 from contextlib import suppress
 from inspect import iscoroutinefunction
-import logging
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -134,19 +133,23 @@ def observe(
     iterator: Iterator[T],
     subject: str,
     every: Union[None, int, datetime.timedelta],
-    how: Union[
+    do: Union[
         None,
-        logging.Logger,
         Callable[["stream.Observation"], Any],
         AsyncCallable["stream.Observation", Any],
     ] = None,
 ) -> Iterator[T]:
-    how = how if isinstance(how, logging.Logger) else syncify(loop_getter, how)
     if every is None:
-        return _iterators.PowerObserveIterator(iterator, subject, how)
+        return _iterators.PowerObserveIterator(
+            iterator, subject, syncify(loop_getter, do)
+        )
     elif isinstance(every, int):
-        return _iterators.EveryIntObserveIterator(iterator, subject, every, how)
-    return _iterators.EveryIntervalObserveIterator(iterator, subject, every, how)
+        return _iterators.EveryIntObserveIterator(
+            iterator, subject, every, syncify(loop_getter, do)
+        )
+    return _iterators.EveryIntervalObserveIterator(
+        iterator, subject, every, syncify(loop_getter, do)
+    )
 
 
 def skip(

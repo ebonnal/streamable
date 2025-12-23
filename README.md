@@ -385,12 +385,11 @@ observed_ints = ints.observe("ints", every=1000)
 observed_ints = ints.observe("ints", every=timedelta(seconds=5))
 ```
 
-Observations are logged via `logging.getLogger("streamable")` by default, but you can pass your own `logging.Logger` or a function taking a `stream.Observation`:
+Observations are logged via `logging.getLogger("streamable").info` by default, but you can pass a function taking a `stream.Observation`:
 
 ```python
-observed_ints = ints.observe("ints", how=logger)
-observed_ints = ints.observe("ints", how=logs.append)
-observed_ints = ints.observe("ints", how=print)
+observed_ints = ints.observe("ints", do=logs.append)
+observed_ints = ints.observe("ints", do=print)
 ```
 
 

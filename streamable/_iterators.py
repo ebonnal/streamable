@@ -1,6 +1,5 @@
 import asyncio
 import datetime
-import logging
 import multiprocessing
 import queue
 import sys
@@ -346,11 +345,11 @@ class ObserveIterator(Iterator[T]):
         self,
         iterator: Iterator[T],
         subject: str,
-        how: Union[None, logging.Logger, Callable[["stream.Observation"], Any]],
+        do: Optional[Callable[["stream.Observation"], Any]],
     ) -> None:
         self.iterator = iterator
         self.subject = logfmt_str_escape(subject)
-        self.how = how or get_logger()
+        self.do = do or self._log
         self._emissions = 0
         self._errors = 0
         self._nexts_logged = 0
@@ -358,17 +357,18 @@ class ObserveIterator(Iterator[T]):
         self._errors_logged = 0
         self.__start_point: Optional[datetime.datetime] = None
 
+    def _log(self, observation: "stream.Observation") -> None:
+        get_logger().info(self._FORMAT.format(**observation._asdict()))
+
     def _observation(self) -> "stream.Observation":
         from streamable._stream import stream
+
         return stream.Observation(
             subject=self.subject,
             elapsed=self._time_point() - self._start_point(),
             errors=self._errors,
             emissions=self._emissions,
         )
-
-    def _message(self) -> str:
-        return self._FORMAT.format(**self._observation()._asdict())
 
     @staticmethod
     def _time_point() -> datetime.datetime:
@@ -379,11 +379,8 @@ class ObserveIterator(Iterator[T]):
             self.__start_point = self._time_point()
         return self.__start_point
 
-    def _log(self) -> None:
-        if isinstance(self.how, logging.Logger):
-            self.how.info(self._message())
-        else:
-            self.how(self._observation())
+    def _observe(self) -> None:
+        self.do(self._observation())
         self._nexts_logged = self._emissions + self._errors
 
     @abstractmethod
@@ -398,17 +395,17 @@ class ObserveIterator(Iterator[T]):
             elem = self.iterator.__next__()
             self._emissions += 1
             if self._should_emit_yield_log():
-                self._log()
+                self._observe()
                 self._emissions_logged = self._emissions
             return elem
         except StopIteration:
             if self._emissions + self._errors > self._nexts_logged:
-                self._log()
+                self._observe()
             raise
         except Exception:
             self._errors += 1
             if self._should_emit_error_log():
-                self._log()
+                self._observe()
                 self._errors_logged = self._errors
             raise
 
@@ -418,10 +415,10 @@ class PowerObserveIterator(ObserveIterator[T]):
         self,
         iterator: Iterator[T],
         subject: str,
-        how: Union[None, logging.Logger, Callable[["stream.Observation"], Any]],
+        do: Optional[Callable[["stream.Observation"], Any]],
         base: int = 2,
     ) -> None:
-        super().__init__(iterator, subject, how)
+        super().__init__(iterator, subject, do)
         self.base = base
 
     def _should_emit_yield_log(self) -> bool:
@@ -437,9 +434,9 @@ class EveryIntObserveIterator(ObserveIterator[T]):
         iterator: Iterator[T],
         subject: str,
         every: int,
-        how: Union[None, logging.Logger, Callable[["stream.Observation"], Any]],
+        do: Optional[Callable[["stream.Observation"], Any]],
     ) -> None:
-        super().__init__(iterator, subject, how)
+        super().__init__(iterator, subject, do)
         self.every = every
 
     def _should_emit_yield_log(self) -> bool:
@@ -457,9 +454,9 @@ class EveryIntervalObserveIterator(ObserveIterator[T]):
         iterator: Iterator[T],
         subject: str,
         every: datetime.timedelta,
-        how: Union[None, logging.Logger, Callable[["stream.Observation"], Any]],
+        do: Optional[Callable[["stream.Observation"], Any]],
     ) -> None:
-        super().__init__(iterator, subject, how)
+        super().__init__(iterator, subject, do)
         self._every_seconds: float = every.total_seconds()
         self._last_log_time: Optional[float] = None
 

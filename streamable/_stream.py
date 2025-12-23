@@ -1,7 +1,6 @@
 from concurrent.futures import Executor
 import copy
 import datetime
-import logging
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -621,9 +620,8 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         subject: str,
         *,
         every: Union[None, int, datetime.timedelta] = None,
-        how: Union[
+        do: Union[
             None,
-            logging.Logger,
             Callable[["stream.Observation"], Any],
             AsyncCallable["stream.Observation", Any],
         ] = None,
@@ -641,11 +639,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
                 - ``int``: ... the number of yielded elements (or errors) reaches `every`.
                 - ``timedelta``: ... `every` has elapsed since the last log.
 
-            how (``logging.Logger | Callable[[stream.Observation], Any] | AsyncCallable[stream.Observation, Any] | None``, optional): Specify what to do with the observation, ``how`` will be periodically called according to ``every``. (default: calls ``logging.getLogger("streamable").info``)
-
-                - ``None`` (default): The observation is logged via ``logging.getLogger("streamable").info``.
-                - ``logging.Logger``: The observation is logged via ``how.info``.
-                - ``Callable[[stream.Observation], Any] | AsyncCallable[stream.Observation, Any]``: ``how(observation)`` is called.
+            do (``Callable[[stream.Observation], Any] | AsyncCallable[stream.Observation, Any] | None``, optional): Specify what to do with the observation, ``do`` will be periodically called according to ``every``. (default: calls ``logging.getLogger("streamable").info``)
 
         Returns:
             ``stream[T]``: A stream of upstream elements with progress logging during iteration.
@@ -654,7 +648,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             validate_int(every, gte=1, name="every")
         elif isinstance(every, datetime.timedelta):
             validate_positive_timedelta(every, name="every")
-        return ObserveStream(self, subject, every, how)
+        return ObserveStream(self, subject, every, do)
 
     @overload
     def skip(self, until: int) -> "stream[T]": ...
@@ -890,16 +884,15 @@ class MapStream(DownStream[T, U]):
 
 
 class ObserveStream(DownStream[T, T]):
-    __slots__ = ("_subject", "_every", "_how")
+    __slots__ = ("_subject", "_every", "_do")
 
     def __init__(
         self,
         upstream: stream[T],
         subject: str,
         every: Union[None, int, datetime.timedelta],
-        how: Union[
+        do: Union[
             None,
-            logging.Logger,
             Callable[["stream.Observation"], Any],
             AsyncCallable["stream.Observation", Any],
         ],
@@ -907,7 +900,7 @@ class ObserveStream(DownStream[T, T]):
         super().__init__(upstream)
         self._subject = subject
         self._every = every
-        self._how = how
+        self._do = do
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_observe_stream(self)
