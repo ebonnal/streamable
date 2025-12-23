@@ -523,13 +523,13 @@ class ThrottleAsyncIterator(AsyncIterator[T]):
 
     async def __anext__(self) -> T:
         elem: Optional[T] = None
-        caught_error: Optional[Exception] = None
+        error: Optional[Exception] = None
         try:
             elem = await self.iterator.__anext__()
         except StopAsyncIteration:
             raise
         except Exception as e:
-            caught_error = e
+            error = e
 
         now = time.perf_counter()
         if not self._offset:
@@ -549,11 +549,11 @@ class ThrottleAsyncIterator(AsyncIterator[T]):
             )
         self._elements_in_period += 1
 
-        if caught_error:
+        if error:
             try:
-                raise caught_error
+                raise error
             finally:
-                caught_error = None
+                error = None
         return cast(T, elem)
 
 

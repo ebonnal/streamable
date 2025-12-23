@@ -492,13 +492,13 @@ class ThrottleIterator(Iterator[T]):
 
     def __next__(self) -> T:
         elem: Optional[T] = None
-        caught_error: Optional[Exception] = None
+        error: Optional[Exception] = None
         try:
             elem = self.iterator.__next__()
         except StopIteration:
             raise
         except Exception as e:
-            caught_error = e
+            error = e
 
         now = time.perf_counter()
         if not self._offset:
@@ -516,11 +516,11 @@ class ThrottleIterator(Iterator[T]):
             time.sleep((ceil(num_periods) - num_periods) * self._period_seconds)
         self._elements_in_period += 1
 
-        if caught_error:
+        if error:
             try:
-                raise caught_error
+                raise error
             finally:
-                caught_error = None
+                error = None
         return cast(T, elem)
 
 
