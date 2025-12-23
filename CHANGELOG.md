@@ -114,5 +114,5 @@ stream(...).filter(lambda _: _ not in seen).do(seen.add)
 
 - Unified sync/async operations: All methods now automatically handle both sync and async functions without needing separate `a*` methods
 - `__iadd__` support: In-place addition operator (`+=`) support for streams
-- Enhanced `observe()`: New flexible observation with configurable `every` intervals and custom `do` to process observations.
+- Enhanced `observe()`: New `every` param to specify the desired interval between observations.
 - Improved `catch()`: Now supports `do` side effects in addition to `replace`, and new `stop` parameter to halt iteration on caught exception.

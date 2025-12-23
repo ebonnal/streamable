@@ -16,7 +16,6 @@ from typing import (
     Iterable,
     Iterator,
     List,
-    NamedTuple,
     Optional,
     Sequence,
     Set,
@@ -609,22 +608,11 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             validate_concurrency_executor(concurrency, into, fn_name="into")
         return MapStream(self, into, concurrency, ordered)
 
-    class Observation(NamedTuple):
-        subject: str
-        elapsed: datetime.timedelta
-        errors: int
-        emissions: int
-
     def observe(
         self,
         subject: str,
         *,
         every: Union[None, int, datetime.timedelta] = None,
-        do: Union[
-            None,
-            Callable[["stream.Observation"], Any],
-            AsyncCallable["stream.Observation", Any],
-        ] = None,
     ) -> "stream[T]":
         """
         Logs the progress of iteration over this stream: the time elapsed since the iteration started, the count of emitted elements and errors.
@@ -639,8 +627,6 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
                 - ``int``: ... the number of yielded elements (or errors) reaches `every`.
                 - ``timedelta``: ... `every` has elapsed since the last log.
 
-            do (``Callable[[stream.Observation], Any] | AsyncCallable[stream.Observation, Any] | None``, optional): Specify what to do with the observation, ``do`` will be periodically called according to ``every``. (default: calls ``logging.getLogger("streamable").info``)
-
         Returns:
             ``stream[T]``: A stream of upstream elements with progress logging during iteration.
         """
@@ -648,7 +634,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             validate_int(every, gte=1, name="every")
         elif isinstance(every, datetime.timedelta):
             validate_positive_timedelta(every, name="every")
-        return ObserveStream(self, subject, every, do)
+        return ObserveStream(self, subject, every)
 
     @overload
     def skip(self, until: int) -> "stream[T]": ...
@@ -884,23 +870,17 @@ class MapStream(DownStream[T, U]):
 
 
 class ObserveStream(DownStream[T, T]):
-    __slots__ = ("_subject", "_every", "_do")
+    __slots__ = ("_subject", "_every")
 
     def __init__(
         self,
         upstream: stream[T],
         subject: str,
         every: Union[None, int, datetime.timedelta],
-        do: Union[
-            None,
-            Callable[["stream.Observation"], Any],
-            AsyncCallable["stream.Observation", Any],
-        ],
     ) -> None:
         super().__init__(upstream)
         self._subject = subject
         self._every = every
-        self._do = do
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_observe_stream(self)
