@@ -1,4 +1,6 @@
-from typing import Any, Awaitable, Callable, Coroutine, NamedTuple, TypeVar, Union
+from typing import Awaitable, Callable, NamedTuple, TypeVar, Union
+
+from streamable._tools._async import AsyncCallable
 
 T = TypeVar("T")
 U = TypeVar("U")
@@ -20,7 +22,7 @@ class ExceptionContainer(NamedTuple):
     @staticmethod
     def awrap(
         afunc: Callable[[T], Awaitable[U]],
-    ) -> Callable[[T], Coroutine[Any, Any, Union[U, "ExceptionContainer"]]]:
+    ) -> AsyncCallable[T, Union[U, "ExceptionContainer"]]:
         async def error_wrapping(_: T) -> Union[U, "ExceptionContainer"]:
             try:
                 return await afunc(_)

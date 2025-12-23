@@ -27,6 +27,7 @@ from typing import (
     overload,
 )
 
+from streamable._tools._async import AsyncCallable
 from streamable._tools._iter import SyncAsyncIterable
 from streamable._tools._validation import (
     validate_concurrency_executor,
@@ -233,9 +234,9 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         self,
         errors: Union[Type[Exception], Tuple[Type[Exception], ...]],
         *,
-        where: Optional[Callable[[Exception], Coroutine[Any, Any, Any]]] = None,
-        do: Optional[Callable[[Exception], Coroutine[Any, Any, Any]]] = None,
-        replace: Optional[Callable[[Exception], Coroutine[Any, Any, U]]] = None,
+        where: Optional[AsyncCallable[Exception, Any]] = None,
+        do: Optional[AsyncCallable[Exception, Any]] = None,
+        replace: Optional[AsyncCallable[Exception, U]] = None,
         stop: bool = False,
     ) -> "stream[Union[T, U]]": ...
 
@@ -257,17 +258,17 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         where: Union[
             None,
             Callable[[Exception], Any],
-            Callable[[Exception], Coroutine[Any, Any, Any]],
+            AsyncCallable[Exception, Any],
         ] = None,
         do: Union[
             None,
             Callable[[Exception], Any],
-            Callable[[Exception], Coroutine[Any, Any, Any]],
+            AsyncCallable[Exception, Any],
         ] = None,
         replace: Union[
             None,
             Callable[[Exception], U],
-            Callable[[Exception], Coroutine[Any, Any, U]],
+            AsyncCallable[Exception, U],
         ] = None,
         stop: bool = False,
     ) -> "stream[Union[T, U]]":
@@ -279,9 +280,9 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         Args:
             errors (``Type[Exception] | Tuple[Type[Exception], ...]``): The exception types to catch.
-            where (``Callable[[Exception], Any] | Callable[[Exception], Coroutine[Any, Any, Any]] | None``, optional): An additional condition that must be satisfied to catch the exception, i.e. ``where(exc)`` must be truthy. (default: no additional condition)
-            do (``Callable[[Exception], Any] | Callable[[Exception], Coroutine[Any, Any, Any]] | None``, optional): Side effect to apply when an exception is caught (default: no side effect)
-            replace (``Callable[[Exception], U] | Callable[[Exception], Coroutine[Any, Any, U]] | None``, optional): Replacement value yielded when an exception is caught. (default: do not yield any replacement value)
+            where (``Callable[[Exception], Any] | AsyncCallable[Exception, Any] | None``, optional): An additional condition that must be satisfied to catch the exception, i.e. ``where(exc)`` must be truthy. (default: no additional condition)
+            do (``Callable[[Exception], Any] | AsyncCallable[Exception, Any] | None``, optional): Side effect to apply when an exception is caught (default: no side effect)
+            replace (``Callable[[Exception], U] | AsyncCallable[Exception, U] | None``, optional): Replacement value yielded when an exception is caught. (default: do not yield any replacement value)
             stop (``bool``, optional): If True, catching an exception will stop the iteration. (default: iteration continues after an exception is caught)
 
         Returns:
@@ -300,20 +301,20 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
     def filter(self, where: Callable[[T], Any] = bool) -> "stream[T]": ...
 
     @overload
-    def filter(self, where: Callable[[T], Coroutine[Any, Any, Any]]) -> "stream[T]": ...
+    def filter(self, where: AsyncCallable[T, Any]) -> "stream[T]": ...
 
     def filter(
         self,
         where: Union[
             Callable[[T], Any],
-            Callable[[T], Coroutine[Any, Any, Any]],
+            AsyncCallable[T, Any],
         ] = bool,
     ) -> "stream[T]":
         """
         Filters the stream to yield only elements satisfying the ``where`` predicate.
 
         Args:
-            where (``Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``, optional): An element is kept if ``where(elem)`` is truthy.
+            where (``Callable[[T], Any] | AsyncCallable[T, Any]``, optional): An element is kept if ``where(elem)`` is truthy.
 
         Returns:
             ``stream[T]``: A stream of upstream elements satisfying the `where` predicate.
@@ -450,7 +451,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
     @overload
     def do(
         self,
-        effect: Callable[[T], Coroutine[Any, Any, Any]],
+        effect: AsyncCallable[T, Any],
         *,
         concurrency: Union[int, Executor] = 1,
         ordered: bool = True,
@@ -469,7 +470,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         self,
         effect: Union[
             Callable[[T], Any],
-            Callable[[T], Coroutine[Any, Any, Any]],
+            AsyncCallable[T, Any],
         ],
         *,
         concurrency: Union[int, Executor] = 1,
@@ -479,7 +480,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         Applies a side ``effect`` for each upstream element.
 
         Args:
-            effect (``Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``): The function called on each upstream element as a side effect.
+            effect (``Callable[[T], Any] | AsyncCallable[T, Any]``): The function called on each upstream element as a side effect.
             concurrency (``int``, optional): The ``effect`` is applied ...
 
                 - ``concurrency == 1`` (default): ... sequentially, no concurrency.
@@ -502,7 +503,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         up_to: Optional[int] = None,
         *,
         every: Optional[datetime.timedelta] = None,
-        by: Callable[[T], Coroutine[Any, Any, U]],
+        by: AsyncCallable[T, U],
     ) -> "stream[Tuple[U, List[T]]]": ...
 
     @overload
@@ -530,7 +531,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         by: Union[
             None,
             Callable[[T], U],
-            Callable[[T], Coroutine[Any, Any, U]],
+            AsyncCallable[T, U],
         ] = None,
     ) -> "Union[stream[List[T]], stream[Tuple[U, List[T]]]]":
         """
@@ -551,7 +552,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         Args:
             up_to (``int | None``, optional): The maximum size of the group. (default: no size limit)
             every (``datetime.timedelta | None``, optional): Yields a group if this time interval has elapsed since the last group was yielded. (default: no time limit)
-            by (``Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]] | None``, optional): If specified, groups will only contain elements sharing the same ``by(elem)`` value, and ``(key, group)`` pairs are yielded. (default: does not co-group elements)
+            by (``Callable[[T], Any] | AsyncCallable[T, Any] | None``, optional): If specified, groups will only contain elements sharing the same ``by(elem)`` value, and ``(key, group)`` pairs are yielded. (default: does not co-group elements)
         Returns:
             ``stream[list[T]]``: A stream of upstream elements grouped into lists.
         """
@@ -564,7 +565,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
     @overload
     def map(
         self,
-        into: Callable[[T], Coroutine[Any, Any, U]],
+        into: AsyncCallable[T, U],
         *,
         concurrency: Union[int, Executor] = 1,
         ordered: bool = True,
@@ -583,7 +584,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         self,
         into: Union[
             Callable[[T], U],
-            Callable[[T], Coroutine[Any, Any, U]],
+            AsyncCallable[T, U],
         ],
         *,
         concurrency: Union[int, Executor] = 1,
@@ -593,7 +594,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         Applies ``into`` on upstream elements and yields the results.
 
         Args:
-            into (``Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``): The transformation applied to upstream elements.
+            into (``Callable[[T], Any] | AsyncCallable[T, Any]``): The transformation applied to upstream elements.
             concurrency (``int``, optional): ``into`` is applied
 
                 - ``concurrency == 1`` (default): ... sequentially, no concurrency.
@@ -616,7 +617,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         subject: str,
         *,
         every: Optional[Union[int, datetime.timedelta]] = None,
-        how: Optional[Callable[[str], Coroutine[Any, Any, Any]]] = None,
+        how: Optional[AsyncCallable[str, Any]] = None,
     ) -> "stream[T]": ...
 
     @overload
@@ -633,9 +634,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         subject: str,
         *,
         every: Optional[Union[int, datetime.timedelta]] = None,
-        how: Optional[
-            Union[Callable[[str], Any], Callable[[str], Coroutine[Any, Any, Any]]]
-        ] = None,
+        how: Optional[Union[Callable[[str], Any], AsyncCallable[str, Any]]] = None,
     ) -> "stream[T]":
         """
         Logs the progress of iteration over this stream: the time elapsed since the iteration started, the count of emitted elements and errors.
@@ -650,7 +649,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
               - ``int``: ... the number of yielded elements (or errors) reaches `every`.
               - ``timedelta``: ... `every` has elapsed since the last log.
 
-            how (``Callable[[str], Any] | Callable[[str], Coroutine[Any, Any, Any]] | None``): Specify what to do with the iteration progress message, ``how(message)`` will be periodically called according to ``every``. (default: calls ``logging.getLogger("streamable").info``)
+            how (``Callable[[str], Any] | AsyncCallable[str, Any] | None``): Specify what to do with the iteration progress message, ``how(message)`` will be periodically called according to ``every``. (default: calls ``logging.getLogger("streamable").info``)
 
         Returns:
             ``stream[T]``: A stream of upstream elements with progress logging during iteration.
@@ -662,9 +661,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         return ObserveStream(self, subject, every, how)
 
     @overload
-    def skip(
-        self, *, until: Callable[[T], Coroutine[Any, Any, Any]]
-    ) -> "stream[T]": ...
+    def skip(self, *, until: AsyncCallable[T, Any]) -> "stream[T]": ...
 
     @overload
     def skip(self, *, until: Callable[[T], Any]) -> "stream[T]": ...
@@ -677,17 +674,17 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         until: Union[
             int,
             Callable[[T], Any],
-            Callable[[T], Coroutine[Any, Any, Any]],
+            AsyncCallable[T, Any],
         ],
     ) -> "stream[T]":
         """
         Skips ``until`` elements (if ``int``) or skips until ``until(elem)`` becomes truthy.
 
         Args:
-            until (``int | Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``):
+            until (``int | Callable[[T], Any] | AsyncCallable[T, Any]``):
 
                 - ``int``: The number of elements to skip.
-                - ``Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``: Skips elements until encountering one for which ``until(elem)`` is truthy (this element and all the subsequent ones will be yielded).
+                - ``Callable[[T], Any] | AsyncCallable[T, Any]``: Skips elements until encountering one for which ``until(elem)`` is truthy (this element and all the subsequent ones will be yielded).
 
         Returns:
             ``stream[T]``: A stream of the upstream elements remaining after skipping.
@@ -697,9 +694,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         return SkipStream(self, until)
 
     @overload
-    def take(
-        self, *, until: Callable[[T], Coroutine[Any, Any, Any]]
-    ) -> "stream[T]": ...
+    def take(self, *, until: AsyncCallable[T, Any]) -> "stream[T]": ...
 
     @overload
     def take(self, *, until: Callable[[T], Any]) -> "stream[T]": ...
@@ -712,17 +707,17 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         until: Union[
             int,
             Callable[[T], Any],
-            Callable[[T], Coroutine[Any, Any, Any]],
+            AsyncCallable[T, Any],
         ],
     ) -> "stream[T]":
         """
         Yields the first ``until`` elements (if ``int``) or until ``until(elem)`` becomes truthy, and stop.
 
         Args:
-            until (``int | Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``):
+            until (``int | Callable[[T], Any] | AsyncCallable[T, Any]``):
 
                 - ``int``: Yields the first ``until`` elements.
-                - ``Callable[[T], Any] | Callable[[T], Coroutine[Any, Any, Any]]``: Yields elements until encountering one for which ``until(elem)`` is truthy; that element will not be yielded.
+                - ``Callable[[T], Any] | AsyncCallable[T, Any]``: Yields elements until encountering one for which ``until(elem)`` is truthy; that element will not be yielded.
 
         Returns:
             ``stream[T]``: A stream of the first upstream elements stopping according to ``until``.
@@ -790,17 +785,17 @@ class CatchStream(DownStream[T, Union[T, U]]):
         where: Union[
             None,
             Callable[[Exception], Any],
-            Callable[[Exception], Coroutine[Any, Any, Any]],
+            AsyncCallable[Exception, Any],
         ],
         replace: Union[
             None,
             Callable[[Exception], U],
-            Callable[[Exception], Coroutine[Any, Any, U]],
+            AsyncCallable[Exception, U],
         ],
         do: Union[
             None,
             Callable[[Exception], Any],
-            Callable[[Exception], Coroutine[Any, Any, Any]],
+            AsyncCallable[Exception, Any],
         ],
         stop: bool,
     ) -> None:
@@ -849,7 +844,7 @@ class DoStream(DownStream[T, T]):
         upstream: stream[T],
         effect: Union[
             Callable[[T], Any],
-            Callable[[T], Coroutine[Any, Any, Any]],
+            AsyncCallable[T, Any],
         ],
         concurrency: Union[int, Executor],
         ordered: bool,
@@ -874,7 +869,7 @@ class GroupStream(DownStream[T, List[T]]):
         by: Union[
             None,
             Callable[[T], Any],
-            Callable[[T], Coroutine[Any, Any, Any]],
+            AsyncCallable[T, Any],
         ],
     ) -> None:
         super().__init__(upstream)
@@ -894,7 +889,7 @@ class MapStream(DownStream[T, U]):
         upstream: stream[T],
         into: Union[
             Callable[[T], U],
-            Callable[[T], Coroutine[Any, Any, U]],
+            AsyncCallable[T, U],
         ],
         concurrency: Union[int, Executor],
         ordered: bool,
@@ -916,9 +911,7 @@ class ObserveStream(DownStream[T, T]):
         upstream: stream[T],
         subject: str,
         every: Optional[Union[int, datetime.timedelta]],
-        how: Optional[
-            Union[Callable[[str], Any], Callable[[str], Coroutine[Any, Any, Any]]]
-        ],
+        how: Optional[Union[Callable[[str], Any], AsyncCallable[str, Any]]],
     ) -> None:
         super().__init__(upstream)
         self._subject = subject
@@ -938,7 +931,7 @@ class SkipStream(DownStream[T, T]):
         until: Union[
             int,
             Callable[[T], Any],
-            Callable[[T], Coroutine[Any, Any, Any]],
+            AsyncCallable[T, Any],
         ],
     ) -> None:
         super().__init__(upstream)
@@ -957,7 +950,7 @@ class TakeStream(DownStream[T, T]):
         until: Union[
             int,
             Callable[[T], Any],
-            Callable[[T], Coroutine[Any, Any, Any]],
+            AsyncCallable[T, Any],
         ],
     ) -> None:
         super().__init__(upstream)

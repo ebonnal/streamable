@@ -7,7 +7,6 @@ from typing import (
     AsyncIterable,
     AsyncIterator,
     Callable,
-    Coroutine,
     Iterable,
     List,
     Optional,
@@ -19,6 +18,7 @@ from typing import (
 )
 
 from streamable import _aiterators
+from streamable._tools._async import AsyncCallable
 from streamable._tools._func import asyncify
 
 with suppress(ImportError):
@@ -33,17 +33,13 @@ def catch(
     errors: Union[Type[Exception], Tuple[Type[Exception], ...]],
     *,
     where: Optional[
-        Union[
-            Callable[[Exception], Any], Callable[[Exception], Coroutine[Any, Any, Any]]
-        ]
+        Union[Callable[[Exception], Any], AsyncCallable[Exception, Any]]
     ] = None,
     replace: Optional[
-        Union[Callable[[Exception], U], Callable[[Exception], Coroutine[Any, Any, U]]]
+        Union[Callable[[Exception], U], AsyncCallable[Exception, U]]
     ] = None,
     do: Optional[
-        Union[
-            Callable[[Exception], Any], Callable[[Exception], Coroutine[Any, Any, Any]]
-        ]
+        Union[Callable[[Exception], Any], AsyncCallable[Exception, Any]]
     ] = None,
     stop: bool = False,
 ) -> AsyncIterator[Union[T, U]]:
@@ -58,7 +54,7 @@ def catch(
 
 
 def filter(
-    where: Union[Callable[[T], Any], Callable[[T], Coroutine[Any, Any, Any]]],
+    where: Union[Callable[[T], Any], AsyncCallable[T, Any]],
     aiterator: AsyncIterator[T],
 ) -> AsyncIterator[T]:
     return _aiterators.FilterAsyncIterator(aiterator, asyncify(where))
@@ -82,7 +78,7 @@ def group(
     up_to: Optional[int] = None,
     *,
     every: Optional[datetime.timedelta] = None,
-    by: Optional[Union[Callable[[T], U], Callable[[T], Coroutine[Any, Any, U]]]] = None,
+    by: Optional[Union[Callable[[T], U], AsyncCallable[T, U]]] = None,
 ) -> Union[AsyncIterator[List[T]], AsyncIterator[Tuple[U, List[T]]]]:
     if by is None:
         return _aiterators.GroupAsyncIterator(aiterator, up_to, every)
@@ -95,7 +91,7 @@ def group(
 
 
 def map(
-    into: Union[Callable[[T], U], Callable[[T], Coroutine[Any, Any, U]]],
+    into: Union[Callable[[T], U], AsyncCallable[T, U]],
     aiterator: AsyncIterator[T],
     *,
     concurrency: Union[int, Executor] = 1,
@@ -106,7 +102,7 @@ def map(
     if iscoroutinefunction(into):
         return _aiterators.ConcurrentAMapAsyncIterator(
             aiterator,
-            cast(Callable[[T], Coroutine[Any, Any, U]], into),
+            cast(AsyncCallable[T, U], into),
             concurrency=cast(int, concurrency),
             ordered=ordered,
         )
@@ -123,9 +119,7 @@ def observe(
     aiterator: AsyncIterator[T],
     subject: str,
     every: Optional[Union[int, datetime.timedelta]],
-    how: Optional[
-        Union[Callable[[str], Any], Callable[[str], Coroutine[Any, Any, Any]]]
-    ] = None,
+    how: Optional[Union[Callable[[str], Any], AsyncCallable[str, Any]]] = None,
 ) -> AsyncIterator[T]:
     if every is None:
         return _aiterators.PowerObserveAsyncIterator(aiterator, subject, asyncify(how))
@@ -140,7 +134,7 @@ def observe(
 
 def skip(
     aiterator: AsyncIterator[T],
-    until: Union[int, Callable[[T], Any], Callable[[T], Coroutine[Any, Any, Any]]],
+    until: Union[int, Callable[[T], Any], AsyncCallable[T, Any]],
 ) -> AsyncIterator[T]:
     if isinstance(until, int):
         return _aiterators.CountSkipAsyncIterator(aiterator, until)
@@ -149,7 +143,7 @@ def skip(
 
 def take(
     aiterator: AsyncIterator[T],
-    until: Union[int, Callable[[T], Any], Callable[[T], Coroutine[Any, Any, Any]]],
+    until: Union[int, Callable[[T], Any], AsyncCallable[T, Any]],
 ) -> AsyncIterator[T]:
     if isinstance(until, int):
         return _aiterators.CountTakeAsyncIterator(aiterator, until)

@@ -1,7 +1,8 @@
 import asyncio
-from typing import Any, AsyncIterator, Awaitable, TypeVar
+from typing import Any, AsyncIterator, Awaitable, Callable, Coroutine, TypeVar
 
 T = TypeVar("T")
+R = TypeVar("R")
 
 
 # pre 3.10 to builtin `anext`
@@ -25,3 +26,6 @@ class CloseEventLoopMixin:
     def __del__(self) -> None:
         if not self.loop.is_closed():
             self.loop.close()
+
+
+AsyncCallable = Callable[[T], Coroutine[Any, Any, R]]

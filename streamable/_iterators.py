@@ -17,7 +17,6 @@ from typing import (
     AsyncIterator,
     Callable,
     ContextManager,
-    Coroutine,
     DefaultDict,
     Deque,
     Generic,
@@ -32,6 +31,7 @@ from typing import (
     cast,
 )
 from streamable._tools._async import (
+    AsyncCallable,
     CloseEventLoopMixin,
 )
 from streamable._tools._contextmanager import noop_context_manager
@@ -659,7 +659,7 @@ class _ConcurrentAMapIterable(_BaseConcurrentMapIterable[T, U], CloseEventLoopMi
         self,
         loop: asyncio.AbstractEventLoop,
         iterator: Iterator[T],
-        into: Callable[[T], Coroutine[Any, Any, U]],
+        into: AsyncCallable[T, U],
         concurrency: int,
         ordered: bool,
     ) -> None:
@@ -700,7 +700,7 @@ class ConcurrentAMapIterator(_RaisingIterator[U]):
         self,
         loop: asyncio.AbstractEventLoop,
         iterator: Iterator[T],
-        into: Callable[[T], Coroutine[Any, Any, U]],
+        into: AsyncCallable[T, U],
         concurrency: int,
         ordered: bool,
     ) -> None:

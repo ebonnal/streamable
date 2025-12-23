@@ -14,7 +14,7 @@ from typing import (
     overload,
 )
 
-from streamable._tools._async import CloseEventLoopMixin
+from streamable._tools._async import AsyncCallable, CloseEventLoopMixin
 
 T = TypeVar("T")
 R = TypeVar("R")
@@ -31,8 +31,8 @@ class _Sidify(Generic[T]):
 
 @overload
 def sidify(
-    func: Callable[[T], Coroutine[Any, Any, Any]],
-) -> Callable[[T], Coroutine[Any, Any, T]]: ...
+    func: AsyncCallable[T, Any],
+) -> AsyncCallable[T, T]: ...
 
 
 @overload
@@ -43,7 +43,7 @@ def sidify(func: Callable[[T], Any]) -> Callable[[T], Union[T, Coroutine[Any, An
     if iscoroutinefunction(func):
 
         async def wrap(arg: T) -> T:
-            await cast(Callable[[T], Coroutine[Any, Any, T]], func)(arg)
+            await cast(AsyncCallable[T, T], func)(arg)
             return arg
 
         return wrap
@@ -121,7 +121,7 @@ class _Syncify(Generic[T, R], CloseEventLoopMixin):
     def __init__(
         self,
         loop: asyncio.AbstractEventLoop,
-        async_func: Callable[[T], Coroutine[Any, Any, R]],
+        async_func: AsyncCallable[T, R],
     ) -> None:
         self.async_func = async_func
         self.loop = loop
@@ -133,7 +133,7 @@ class _Syncify(Generic[T, R], CloseEventLoopMixin):
 @overload
 def syncify(
     loop_getter: Callable[[], asyncio.AbstractEventLoop],
-    async_func: Callable[[T], Coroutine[Any, Any, R]],
+    async_func: AsyncCallable[T, R],
 ) -> Callable[[T], R]: ...
 
 
@@ -153,7 +153,7 @@ def syncify(
 
 def syncify(
     loop_getter: Callable[[], asyncio.AbstractEventLoop],
-    async_func: Union[None, Callable[[T], Coroutine[Any, Any, R]], Callable[[T], R]],
+    async_func: Union[None, AsyncCallable[T, R], Callable[[T], R]],
 ) -> Optional[Callable[[T], R]]:
     if not async_func or not iscoroutinefunction(async_func):
         return cast(Optional[Callable[[T], R]], async_func)
@@ -166,12 +166,12 @@ async def _async_call(func: Callable[[T], R], o: T) -> R:
 
 @overload
 def asyncify(
-    func: Callable[[T], Coroutine[Any, Any, R]],
-) -> Callable[[T], Coroutine[Any, Any, R]]: ...
+    func: AsyncCallable[T, R],
+) -> AsyncCallable[T, R]: ...
 
 
 @overload
-def asyncify(func: Callable[[T], R]) -> Callable[[T], Coroutine[Any, Any, R]]: ...
+def asyncify(func: Callable[[T], R]) -> AsyncCallable[T, R]: ...
 
 
 @overload
@@ -179,8 +179,8 @@ def asyncify(func: None) -> None: ...
 
 
 def asyncify(
-    func: Union[None, Callable[[T], Any]],
-) -> Optional[Callable[[T], Coroutine[Any, Any, Any]]]:
+    func: Union[None, Callable[[T], R], AsyncCallable[T, R]],
+) -> Optional[AsyncCallable[T, R]]:
     if not func or iscoroutinefunction(func):
-        return cast(Optional[Callable[[T], Coroutine[Any, Any, R]]], func)
+        return cast(Optional[AsyncCallable[T, R]], func)
     return partial(_async_call, cast(Callable[[T], R], func))

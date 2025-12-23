@@ -3,8 +3,9 @@
 import asyncio
 import random
 import time
-from typing import Any, Callable, Coroutine, Iterator, Type, TypeVar
+from typing import Callable, Iterator, Type, TypeVar
 
+from streamable._tools._async import AsyncCallable
 from streamable._tools._iter import (
     AsyncIterator,
     Iterable,
@@ -62,7 +63,7 @@ def throw_func(exc: Type[Exception]) -> Callable[[T], T]:
     return lambda _: throw(exc)
 
 
-def async_throw_func(exc: Type[Exception]) -> Callable[[T], Coroutine[Any, Any, T]]:
+def async_throw_func(exc: Type[Exception]) -> AsyncCallable[T, T]:
     """Return an async function that raises the given exception."""
 
     async def f(_: T) -> T:
@@ -122,10 +123,10 @@ def randomly_slowed(
 
 
 def async_randomly_slowed(
-    async_func: Callable[[T], Coroutine[Any, Any, R]],
+    async_func: AsyncCallable[T, R],
     min_sleep: float = 0.001,
     max_sleep: float = 0.05,
-) -> Callable[[T], Coroutine[Any, Any, R]]:
+) -> AsyncCallable[T, R]:
     """Wrap an async function to add random sleep delay."""
 
     async def wrap(x: T) -> R:

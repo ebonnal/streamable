@@ -15,7 +15,6 @@ from typing import (
     Awaitable,
     Callable,
     ContextManager,
-    Coroutine,
     DefaultDict,
     Deque,
     Generic,
@@ -36,7 +35,7 @@ from streamable._tools._afuture import (
     FDFOFutureResultCollection,
     FIFOFutureResultCollection,
 )
-from streamable._tools._async import empty_aiter
+from streamable._tools._async import AsyncCallable, empty_aiter
 from streamable._tools._contextmanager import noop_context_manager
 from streamable._tools._error import ExceptionContainer
 from streamable._tools._func import asyncify
@@ -61,9 +60,9 @@ class CatchAsyncIterator(AsyncIterator[Union[T, U]]):
         self,
         iterator: AsyncIterator[T],
         errors: Union[Type[Exception], Tuple[Type[Exception], ...]],
-        where: Optional[Callable[[Exception], Coroutine[Any, Any, Any]]],
-        replace: Optional[Callable[[Exception], Coroutine[Any, Any, U]]],
-        do: Optional[Callable[[Exception], Coroutine[Any, Any, Any]]],
+        where: Optional[AsyncCallable[Exception, Any]],
+        replace: Optional[AsyncCallable[Exception, U]],
+        do: Optional[AsyncCallable[Exception, Any]],
         stop: bool,
     ) -> None:
         self.iterator = iterator
@@ -194,7 +193,7 @@ class GroupbyAsyncIterator(
     def __init__(
         self,
         iterator: AsyncIterator[T],
-        by: Callable[[T], Coroutine[Any, Any, U]],
+        by: AsyncCallable[T, U],
         up_to: Optional[int],
         every: Optional[datetime.timedelta],
     ) -> None:
@@ -273,7 +272,7 @@ class CountSkipAsyncIterator(AsyncIterator[T]):
 
 class PredicateSkipAsyncIterator(AsyncIterator[T]):
     def __init__(
-        self, iterator: AsyncIterator[T], until: Callable[[T], Coroutine[Any, Any, Any]]
+        self, iterator: AsyncIterator[T], until: AsyncCallable[T, Any]
     ) -> None:
         self.iterator = iterator
         self.until = until
@@ -308,7 +307,7 @@ class CountTakeAsyncIterator(AsyncIterator[T]):
 
 class PredicateTakeAsyncIterator(AsyncIterator[T]):
     def __init__(
-        self, iterator: AsyncIterator[T], until: Callable[[T], Coroutine[Any, Any, Any]]
+        self, iterator: AsyncIterator[T], until: AsyncCallable[T, Any]
     ) -> None:
         self.iterator = iterator
         self.until = until
@@ -333,7 +332,7 @@ class MapAsyncIterator(AsyncIterator[U]):
     def __init__(
         self,
         iterator: AsyncIterator[T],
-        into: Callable[[T], Coroutine[Any, Any, U]],
+        into: AsyncCallable[T, U],
     ) -> None:
         self.iterator = iterator
         self.to = into
@@ -351,7 +350,7 @@ class FilterAsyncIterator(AsyncIterator[T]):
     def __init__(
         self,
         iterator: AsyncIterator[T],
-        where: Callable[[T], Coroutine[Any, Any, Any]],
+        where: AsyncCallable[T, Any],
     ) -> None:
         self.iterator = iterator
         self.where = where
@@ -375,7 +374,7 @@ class ObserveAsyncIterator(AsyncIterator[T]):
         self,
         iterator: AsyncIterator[T],
         subject: str,
-        how: Optional[Callable[[str], Coroutine[Any, Any, Any]]],
+        how: Optional[AsyncCallable[str, Any]],
     ) -> None:
         self.iterator = iterator
         self.subject = logfmt_str_escape(subject)
@@ -440,7 +439,7 @@ class PowerObserveAsyncIterator(ObserveAsyncIterator[T]):
         self,
         iterator: AsyncIterator[T],
         subject: str,
-        how: Optional[Callable[[str], Coroutine[Any, Any, Any]]] = None,
+        how: Optional[AsyncCallable[str, Any]] = None,
         base: int = 2,
     ) -> None:
         super().__init__(iterator, subject, how)
@@ -459,7 +458,7 @@ class EveryIntObserveAsyncIterator(ObserveAsyncIterator[T]):
         iterator: AsyncIterator[T],
         subject: str,
         every: int,
-        how: Optional[Callable[[str], Coroutine[Any, Any, Any]]],
+        how: Optional[AsyncCallable[str, Any]],
     ) -> None:
         super().__init__(iterator, subject, how)
         self.every = every
@@ -479,7 +478,7 @@ class EveryIntervalObserveAsyncIterator(ObserveAsyncIterator[T]):
         iterator: AsyncIterator[T],
         subject: str,
         every: datetime.timedelta,
-        how: Optional[Callable[[str], Coroutine[Any, Any, Any]]],
+        how: Optional[AsyncCallable[str, Any]],
     ) -> None:
         super().__init__(iterator, subject, how)
         self._every_seconds: float = every.total_seconds()
@@ -693,7 +692,7 @@ class _ConcurrentAMapAsyncIterable(_BaseConcurrentMapAsyncIterable[T, U]):
     def __init__(
         self,
         iterator: AsyncIterator[T],
-        into: Callable[[T], Coroutine[Any, Any, U]],
+        into: AsyncCallable[T, U],
         concurrency: int,
         ordered: bool,
     ) -> None:
@@ -722,7 +721,7 @@ class ConcurrentAMapAsyncIterator(_RaisingAsyncIterator[U]):
     def __init__(
         self,
         iterator: AsyncIterator[T],
-        into: Callable[[T], Coroutine[Any, Any, U]],
+        into: AsyncCallable[T, U],
         concurrency: int,
         ordered: bool,
     ) -> None:
