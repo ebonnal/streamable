@@ -378,17 +378,17 @@ class ObserveIterator(Iterator[T]):
         self._nexts_logged = self._elements + self._errors
 
     @abstractmethod
-    def _should_emit_yield_log(self) -> bool: ...
+    def _should_observe_yield(self) -> bool: ...
 
     @abstractmethod
-    def _should_emit_error_log(self) -> bool: ...
+    def _should_observe_error(self) -> bool: ...
 
     def __next__(self) -> T:
         self._start_point()
         try:
             elem = self.iterator.__next__()
             self._elements += 1
-            if self._should_emit_yield_log():
+            if self._should_observe_yield():
                 self._observe()
                 self._elements_logged = self._elements
             return elem
@@ -398,7 +398,7 @@ class ObserveIterator(Iterator[T]):
             raise
         except Exception:
             self._errors += 1
-            if self._should_emit_error_log():
+            if self._should_observe_error():
                 self._observe()
                 self._errors_logged = self._errors
             raise
@@ -415,10 +415,10 @@ class PowerObserveIterator(ObserveIterator[T]):
         super().__init__(iterator, subject, do)
         self.base = base
 
-    def _should_emit_yield_log(self) -> bool:
+    def _should_observe_yield(self) -> bool:
         return self._elements >= self.base * self._elements_logged
 
-    def _should_emit_error_log(self) -> bool:
+    def _should_observe_error(self) -> bool:
         return self._errors >= self.base * self._errors_logged
 
 
@@ -433,11 +433,11 @@ class EveryIntObserveIterator(ObserveIterator[T]):
         super().__init__(iterator, subject, do)
         self.every = every
 
-    def _should_emit_yield_log(self) -> bool:
+    def _should_observe_yield(self) -> bool:
         # always emit first yield
         return not self._elements_logged or not self._elements % self.every
 
-    def _should_emit_error_log(self) -> bool:
+    def _should_observe_error(self) -> bool:
         # always emit first error
         return not self._errors_logged or not self._errors % self.every
 
@@ -464,10 +464,10 @@ class EveryIntervalObserveIterator(ObserveIterator[T]):
             self._last_log_time = now
         return should
 
-    def _should_emit_yield_log(self) -> bool:
+    def _should_observe_yield(self) -> bool:
         return self._should_emit_log()
 
-    def _should_emit_error_log(self) -> bool:
+    def _should_observe_error(self) -> bool:
         return self._should_emit_log()
 
 
