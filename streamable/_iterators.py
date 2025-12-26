@@ -337,7 +337,7 @@ class PredicateTakeIterator(Iterator[T]):
 ###########
 
 
-class ObserveIterator(Iterator[T]):
+class _BaseObserveIterator(Iterator[T]):
     def __init__(
         self,
         iterator: Iterator[T],
@@ -404,7 +404,7 @@ class ObserveIterator(Iterator[T]):
             raise
 
 
-class PowerObserveIterator(ObserveIterator[T]):
+class PowerObserveIterator(_BaseObserveIterator[T]):
     def __init__(
         self,
         iterator: Iterator[T],
@@ -422,7 +422,7 @@ class PowerObserveIterator(ObserveIterator[T]):
         return self._errors >= self.base * self._errors_logged
 
 
-class EveryIntObserveIterator(ObserveIterator[T]):
+class EveryIntObserveIterator(_BaseObserveIterator[T]):
     def __init__(
         self,
         iterator: Iterator[T],
@@ -442,7 +442,7 @@ class EveryIntObserveIterator(ObserveIterator[T]):
         return not self._errors_logged or not self._errors % self.every
 
 
-class EveryIntervalObserveIterator(ObserveIterator[T]):
+class EveryIntervalObserveIterator(_BaseObserveIterator[T]):
     def __init__(
         self,
         iterator: Iterator[T],

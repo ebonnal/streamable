@@ -368,7 +368,7 @@ class FilterAsyncIterator(AsyncIterator[T]):
 ###########
 
 
-class ObserveAsyncIterator(AsyncIterator[T]):
+class _BaseObserveAsyncIterator(AsyncIterator[T]):
     def __init__(
         self,
         iterator: AsyncIterator[T],
@@ -435,7 +435,7 @@ class ObserveAsyncIterator(AsyncIterator[T]):
             raise
 
 
-class PowerObserveAsyncIterator(ObserveAsyncIterator[T]):
+class PowerObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
     def __init__(
         self,
         iterator: AsyncIterator[T],
@@ -453,7 +453,7 @@ class PowerObserveAsyncIterator(ObserveAsyncIterator[T]):
         return self._errors >= self.base * self._errors_logged
 
 
-class EveryIntObserveAsyncIterator(ObserveAsyncIterator[T]):
+class EveryIntObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
     def __init__(
         self,
         iterator: AsyncIterator[T],
@@ -473,7 +473,7 @@ class EveryIntObserveAsyncIterator(ObserveAsyncIterator[T]):
         return not self._errors_logged or not self._errors % self.every
 
 
-class EveryIntervalObserveAsyncIterator(ObserveAsyncIterator[T]):
+class EveryIntervalObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
     def __init__(
         self,
         iterator: AsyncIterator[T],
