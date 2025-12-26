@@ -436,6 +436,18 @@ import polars as pl
 pokemons.pipe(pl.DataFrame, schema=["name"]).write_csv("pokemons.csv")
 ```
 
+## ▼ `.cast`
+
+Casts elements:
+
+```python
+(
+    stream(['{"foo": "bar"}', '{"foo": "baz"}'])
+    .map(json.loads)       # stream[Any]
+    .cast(dict[str, str])  # stream[dict[str, str]]
+)
+```
+
 # ••• other notes
 
 ## function as source

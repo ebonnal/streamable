@@ -235,6 +235,18 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         """
         return func(self, *args, **kwargs)
 
+    def cast(self, into: Type[U]) -> "stream[U]":
+        """
+        Casts the upstream elements.
+
+        Args:
+            into (``Type[U]``): The type to cast elements into.
+
+        Returns:
+            ``stream[U]``: A stream of casted upstream elements.
+        """
+        return cast(stream[U], self)
+
     @overload
     def catch(
         self,

@@ -129,7 +129,7 @@ def test_flatten(
     )
     # At any concurrency the `flatten` method should continue pulling upstream iterables even if upstream raises an exception.
     assert to_list(
-        stream([[4, 3, 2], cast(List[int], []), [1, 0]])
+        stream([[4, 3, 2], [], [1, 0]])
         .do(lambda ints: 1 / len(ints))
         .map(sync_to_bi_iterable)
         .map(to_iter)

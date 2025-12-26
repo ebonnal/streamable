@@ -1,9 +1,10 @@
 import asyncio
 from concurrent.futures import ProcessPoolExecutor
+import json
 from pathlib import Path
 import time
 from datetime import timedelta
-from typing import Iterator, List, Tuple, TypeVar
+from typing import Dict, Iterator, List, Tuple, TypeVar
 from json import JSONDecodeError
 import httpx
 
@@ -369,6 +370,15 @@ def test_pipe(tmp_path: Path) -> None:
     import polars as pl
 
     pokemons.pipe(pl.DataFrame, schema=["name"]).write_csv(tmp_path / "ints.parquet")
+
+
+def test_cast() -> None:
+    _dicts: stream[Dict[str, str]] = (
+        stream(['{"foo": "bar"}', '{"foo": "baz"}'])
+        .map(json.loads)  # stream[Any]
+        .cast(Dict[str, str])  # stream[Dict[str, str]]
+    )
+    assert list(_dicts) == [{"foo": "bar"}, {"foo": "baz"}]
 
 
 def test_etl_example(tmp_path: Path) -> None:  # pragma: no cover
