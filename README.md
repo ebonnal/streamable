@@ -72,8 +72,9 @@ A `stream[T]` is `Iterable[T]`:
 ```
 
 
-# 📒 Operations ([API Reference](https://streamable.readthedocs.io/en/latest/api.html))
+# 📒 Operations
 
+> visit the [docs](https://streamable.readthedocs.io/en/latest/api.html) for more details
 
   - [`.map`](#-map) elements
   - [`.do`](#-do) a side effect
