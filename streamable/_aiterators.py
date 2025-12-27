@@ -464,11 +464,11 @@ class EveryIntObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
         self.every = every
 
     def _should_observe_yield(self) -> bool:
-        # always emit first yield
+        # always observe first yield
         return not self._elements_logged or not self._elements % self.every
 
     def _should_observe_error(self) -> bool:
-        # always emit first error
+        # always observe first error
         return not self._errors_logged or not self._errors % self.every
 
 
@@ -484,9 +484,9 @@ class EveryIntervalObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
         self._every_seconds: float = every.total_seconds()
         self._last_log_time: Optional[float] = None
 
-    def _should_emit_log(self) -> bool:
+    def _should_observe(self) -> bool:
         now = time.perf_counter()
-        # always emit first yield/error
+        # always observe first yield/error
         should = self._last_log_time is None or (
             (now - self._last_log_time) >= self._every_seconds
         )
@@ -495,10 +495,10 @@ class EveryIntervalObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
         return should
 
     def _should_observe_yield(self) -> bool:
-        return self._should_emit_log()
+        return self._should_observe()
 
     def _should_observe_error(self) -> bool:
-        return self._should_emit_log()
+        return self._should_observe()
 
 
 ############
