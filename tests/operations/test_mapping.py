@@ -29,9 +29,9 @@ from tests.utils.functions import (
 from tests.utils.iteration import (
     ITERABLE_TYPES,
     IterableType,
+    alist_or_list,
     anext_or_next,
     bi_iterable_to_iter,
-    to_list,
 )
 from tests.utils.source import N, even_src, ints_src
 from tests.utils.timing import timestream
@@ -46,7 +46,7 @@ from tests.utils.timing import timestream
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_map(concurrency: int, itype: IterableType) -> None:
     """At any concurrency the `map` method should act as the builtin map function, transforming elements while preserving input elements order."""
-    assert to_list(
+    assert alist_or_list(
         stream(ints_src).map(randomly_slowed(square), concurrency=concurrency),
         itype=itype,
     ) == list(map(square, ints_src))
@@ -56,7 +56,7 @@ def test_map(concurrency: int, itype: IterableType) -> None:
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_map_async(concurrency: int, itype: IterableType) -> None:
     """At any concurrency the `map` method should act as the builtin map function with async transforms, preserving input order."""
-    assert to_list(
+    assert alist_or_list(
         stream(ints_src).map(
             async_randomly_slowed(async_square), concurrency=concurrency
         ),
@@ -79,7 +79,7 @@ def test_do(concurrency: int, itype: IterableType) -> None:
         nonlocal side_collection
         side_collection.add(func(x))
 
-    res = to_list(
+    res = alist_or_list(
         stream(ints_src).do(
             lambda i: randomly_slowed(side_effect(i, square)),
             concurrency=concurrency,
@@ -96,7 +96,7 @@ def test_do(concurrency: int, itype: IterableType) -> None:
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_do_async(concurrency: int, itype: IterableType) -> None:
     """At any concurrency the `do` method must preserve input elements order."""
-    assert to_list(
+    assert alist_or_list(
         stream(ints_src).do(
             async_randomly_slowed(async_square), concurrency=concurrency
         ),
@@ -149,7 +149,7 @@ def test_map_with_more_concurrency_than_elements(
     concurrency: int, n_elems: int, itype: IterableType
 ) -> None:
     """Map method should act correctly when concurrency > number of elements."""
-    assert to_list(
+    assert alist_or_list(
         stream(range(n_elems)).map(str, concurrency=concurrency), itype=itype
     ) == list(map(str, range(n_elems)))
 
@@ -192,7 +192,7 @@ def test_process_concurrency(
             .do(lambda _: state.append(""), concurrency=1, ordered=True)
         )
         # process-based concurrency must correctly transform elements, respecting `ordered`...
-        assert to_list(stream_, itype=itype) == expected_result_list
+        assert alist_or_list(stream_, itype=itype) == expected_result_list
         # ... and should not mutate main thread-bound structures.
         assert state == [""] * len(sleeps)
 
@@ -203,7 +203,9 @@ def test_process_concurrency(
                     (AttributeError, PickleError),
                     match="<locals>",
                 ):
-                    to_list(stream(ints_src).map(f, concurrency=processes), itype=itype)
+                    alist_or_list(
+                        stream(ints_src).map(f, concurrency=processes), itype=itype
+                    )
             # partial iteration
             assert (
                 anext_or_next(bi_iterable_to_iter(stream_, itype=itype), itype=itype)
@@ -313,7 +315,7 @@ def test_catched_error_upstream_of_map(
     """At any concurrency, map/do should not stop iteration when upstream raises."""
     # at any concurrency, map/do should not stop iteration when upstream raises
     assert (
-        to_list(
+        alist_or_list(
             stream([0, 1, 0, 2, 0])
             .map(lambda n: 1 / n)
             .map(identity_sleep, concurrency=concurrency, ordered=ordered)
@@ -324,7 +326,7 @@ def test_catched_error_upstream_of_map(
     )
     # at any concurrency, async map/do should not stop iteration when upstream raises
     assert (
-        to_list(
+        alist_or_list(
             stream([0, 1, 0, 2, 0])
             .map(lambda n: 1 / n)
             .map(async_identity_sleep, concurrency=concurrency, ordered=ordered)
@@ -368,13 +370,13 @@ def test_map_or_do_with_exception(
     )  # type: ignore
     # At any concurrency, `map` and `do` must raise.
     with pytest.raises(TestError):
-        to_list(rasing_stream, itype=itype)
+        alist_or_list(rasing_stream, itype=itype)
     # Only `concurrency` upstream elements should be initially pulled for processing (0 if `concurrency=1`), and 1 more should be pulled for each call to `next`.
     assert next(cast(Iterator[int], rasing_stream.source)) == (
         concurrency + 1 if concurrency > 1 else concurrency
     )
     # At any concurrency, `map` and `do` should not stop after one exception occured.
-    assert to_list(
+    assert alist_or_list(
         method(
             stream(ints_src),
             throw_for_odd_func(TestError),

@@ -14,7 +14,7 @@ from typing import (
 )
 
 from streamable._stream import stream
-from tests.utils.iteration import IterableType, to_list
+from tests.utils.iteration import IterableType, alist_or_list
 
 T = TypeVar("T")
 
@@ -27,7 +27,7 @@ def timestream(
 
     def iterate():
         nonlocal res
-        res = to_list(stream, itype=itype)
+        res = alist_or_list(stream, itype=itype)
 
     return timeit.timeit(iterate, number=times) / times, res
 

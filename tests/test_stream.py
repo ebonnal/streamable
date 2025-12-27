@@ -32,8 +32,8 @@ from tests.utils.functions import (
 from tests.utils.iteration import (
     ITERABLE_TYPES,
     IterableType,
+    alist_or_list,
     bi_iterable_to_iter,
-    to_list,
 )
 from tests.utils.source import N, ints_src
 from tests.utils.timing import timecoro
@@ -70,9 +70,9 @@ def test_init() -> None:
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_async_src(itype: IterableType) -> None:
     # a stream with an async source must be collectable as an Iterable or as AsyncIterable
-    assert to_list(stream(async_iter(iter(ints_src))), itype) == list(ints_src)
+    assert alist_or_list(stream(async_iter(iter(ints_src))), itype) == list(ints_src)
     # a stream with an async source must be collectable as an Iterable or as AsyncIterable
-    assert to_list(stream(async_iter(iter(ints_src)).__aiter__()), itype) == list(
+    assert alist_or_list(stream(async_iter(iter(ints_src)).__aiter__()), itype) == list(
         ints_src
     )
 
@@ -150,10 +150,10 @@ def test_queue_source(itype: IterableType) -> None:
 
     fill()
     ints = stream(lambda: ints_queue.get(timeout=2)).catch(Empty, stop=True)
-    assert to_list(ints, itype) == list(range(10))
+    assert alist_or_list(ints, itype) == list(range(10))
     fill()
     ints = stream(aget).catch(Empty, stop=True)
-    assert to_list(ints, itype) == list(range(10))
+    assert alist_or_list(ints, itype) == list(range(10))
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
@@ -184,13 +184,13 @@ def test_add(itype: IterableType) -> None:
     stream_b = stream(range(10, 20))
     stream_c = stream(range(20, 30))
     # `chain` must yield the elements of the first stream the move on with the elements of the next ones and so on.
-    assert to_list(stream_a + stream_b + stream_c, itype=itype) == list(range(30))
+    assert alist_or_list(stream_a + stream_b + stream_c, itype=itype) == list(range(30))
 
     stream_ = stream(range(10))
     stream_ += stream(range(10, 20))
     stream_ += stream(range(20, 30))
     # `chain` must yield the elements of the first stream the move on with the elements of the next ones and so on.
-    assert to_list(stream_, itype=itype) == list(range(30))
+    assert alist_or_list(stream_, itype=itype) == list(range(30))
 
 
 def test_call() -> None:
@@ -217,7 +217,7 @@ def test_multiple_iterations(itype: IterableType) -> None:
     ints = stream(ints_src)
     for _ in range(3):
         # The first iteration over a stream should yield the same elements as any subsequent iteration on the same stream, even if it is based on a `source` returning an iterator that only support 1 iteration.
-        assert to_list(ints, itype=itype) == list(ints_src)
+        assert alist_or_list(ints, itype=itype) == list(ints_src)
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
@@ -233,7 +233,7 @@ def test_pipe(itype: IterableType) -> None:
     # `pipe` should pass the stream and args/kwargs to `func`.
     assert stream_.pipe(func, *ints, **strings) == (stream_, ints, strings)
     # `pipe` should be ok without args and kwargs.
-    assert stream_.pipe(to_list, itype=itype) == to_list(stream_, itype=itype)
+    assert stream_ == stream_.pipe(identity)
 
 
 def test_eq() -> None:
@@ -360,7 +360,7 @@ def test_ref_cycles(itype: IterableType) -> None:
         .map(star(lambda _, group: group))
         .catch(Exception, do=errors.append)
     )
-    to_list(ints, itype=itype)
+    alist_or_list(ints, itype=itype)
     exception = errors[0]
     # the exception's traceback should not contain an exception captured in its own traceback
     assert [

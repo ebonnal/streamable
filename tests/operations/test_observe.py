@@ -7,7 +7,7 @@ from streamable import stream
 from streamable._tools._func import asyncify
 from streamable._tools._logging import logfmt_str_escape
 from tests.utils.functions import identity, slow_identity, slow_identity_duration
-from tests.utils.iteration import ITERABLE_TYPES, IterableType, to_list
+from tests.utils.iteration import ITERABLE_TYPES, IterableType, alist_or_list
 
 
 # ============================================================================
@@ -59,7 +59,7 @@ def test_observe_yields_upstream_elements(itype: IterableType) -> None:
     """Observe should yield upstream elements."""
 
     # `observe` should yield upstream elements
-    assert to_list(inverse("12---3456----7"), itype=itype) == list(
+    assert alist_or_list(inverse("12---3456----7"), itype=itype) == list(
         map(lambda n: 1 / n, range(1, 8))
     )
 
@@ -77,7 +77,7 @@ def test_observe_logging_every_none_reraises(itype: IterableType) -> None:
 
     # `observe` should reraise
     with pytest.raises(ZeroDivisionError):
-        to_list(inverse("12---3456----07", logs), itype=itype)
+        alist_or_list(inverse("12---3456----07", logs), itype=itype)
     # `observe` errors and yields independently
     assert logs == [
         Log(errors=0, yields=1),
@@ -96,7 +96,9 @@ def test_observe_logging_every_none_with_catch(itype: IterableType) -> None:
 
     logs: List[Log] = []
 
-    to_list(inverse("12---3456----07", logs).catch(ZeroDivisionError), itype=itype)
+    alist_or_list(
+        inverse("12---3456----07", logs).catch(ZeroDivisionError), itype=itype
+    )
     # `observe` should produce one last log on StopIteration
     assert logs == [
         Log(errors=0, yields=1),
@@ -114,7 +116,7 @@ def test_observe_logging_every_none_with_catch(itype: IterableType) -> None:
 def test_observe_logging_every_none_skips_redundant(itype: IterableType) -> None:
     """Observe should skip redundant last log on StopIteration."""
     logs: List[Log] = []
-    to_list(inverse("12---3456----0", logs).catch(ZeroDivisionError), itype=itype)
+    alist_or_list(inverse("12---3456----0", logs).catch(ZeroDivisionError), itype=itype)
     # `observe` should skip redundant last log on StopIteration
     assert logs == [
         Log(errors=0, yields=1),
@@ -139,7 +141,7 @@ def test_observe_logging_every_2_reraises(itype: IterableType) -> None:
     logs: List[Log] = []
     # `observe` should reraise
     with pytest.raises(ZeroDivisionError):
-        to_list(inverse("12---3456----07", logs, every=2), itype=itype)
+        alist_or_list(inverse("12---3456----07", logs, every=2), itype=itype)
     # `observe` errors and yields independently
     assert logs == [
         Log(errors=0, yields=1),
@@ -159,7 +161,7 @@ def test_observe_logging_every_2_with_catch(itype: IterableType) -> None:
     """Observe should produce one last log on StopIteration when every is 2 and exceptions are caught."""
 
     logs: List[Log] = []
-    to_list(
+    alist_or_list(
         inverse("12---3456----07", logs, every=2).catch(ZeroDivisionError), itype=itype
     )
     # `observe` should produce one last log on StopIteration
@@ -182,7 +184,7 @@ def test_observe_logging_every_2_skips_redundant(itype: IterableType) -> None:
     """Observe should skip redundant last log when every is 2."""
 
     logs: List[Log] = []
-    to_list(
+    alist_or_list(
         inverse("12---3456----0", logs, every=2).catch(ZeroDivisionError), itype=itype
     )
     # `observe` should skip redundant last log on StopIteration
@@ -210,7 +212,7 @@ def test_observe_logging_every_timedelta_reraises(itype: IterableType) -> None:
 
     logs: List[Log] = []
     with pytest.raises(ZeroDivisionError):
-        to_list(
+        alist_or_list(
             inverse("12---3456----07", logs, every=datetime.timedelta(seconds=1)),
             itype=itype,
         )
@@ -223,7 +225,7 @@ def test_observe_logging_every_timedelta_with_catch(itype: IterableType) -> None
     """Observe should produce one last log on StopIteration when every is a timedelta and exceptions are caught."""
 
     logs: List[Log] = []
-    to_list(
+    alist_or_list(
         inverse("12---3456----07", logs, every=datetime.timedelta(seconds=1)).catch(
             ZeroDivisionError
         ),
@@ -241,7 +243,7 @@ def test_observe_logging_every_timedelta_skips_redundant(itype: IterableType) ->
     """Observe should skip redundant last log when every is a timedelta."""
 
     logs: List[Log] = []
-    to_list(
+    alist_or_list(
         inverse("12---3456----0", logs, every=datetime.timedelta(seconds=1)).catch(
             ZeroDivisionError
         ),
@@ -261,7 +263,7 @@ def test_observe_logging_every_timedelta_frequent(itype: IterableType) -> None:
     logs: List[Log] = []
 
     digits = "12---3456----0"
-    to_list(
+    alist_or_list(
         inverse(
             map(slow_identity, digits),
             logs,
@@ -287,7 +289,7 @@ def test_observe_do(
     observations: List[stream.Observation] = []
     ints = list(range(8))
     assert (
-        to_list(
+        alist_or_list(
             stream(ints).observe("ints", every=2, do=adapt(observations.append)),
             itype,
         )

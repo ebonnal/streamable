@@ -39,14 +39,6 @@ def stopiteration_type(itype: IterableType) -> Type[Exception]:
     return StopIteration
 
 
-def to_list(stream_: stream[T], itype: IterableType) -> List[T]:
-    """Convert a stream to a list, handling both sync and async iterables."""
-    assert isinstance(stream_, stream)
-    if itype is AsyncIterable:
-        return aiterable_to_list(stream_)
-    return list(stream_)
-
-
 async def alist(iterable: AsyncIterable[T]) -> List[T]:
     """Convert an async iterable to a list."""
     return [_ async for _ in iterable]
@@ -70,8 +62,10 @@ def anext_or_next(it: Union[Iterator[T], AsyncIterator[T]], itype: IterableType)
     return next(cast(Iterator[T], it))
 
 
-def alist_or_list(iterable: Union[Iterable[T], AsyncIterable[T]]) -> List[T]:
+def alist_or_list(
+    iterable: Union[Iterable[T], AsyncIterable[T]], itype: IterableType
+) -> List[T]:
     """Convert an iterable (sync or async) to a list."""
-    if isinstance(iterable, AsyncIterable):
-        return aiterable_to_list(iterable)
-    return list(iterable)
+    if itype is AsyncIterable:
+        return aiterable_to_list(cast(AsyncIterable[T], iterable))
+    return list(cast(Iterable[T], iterable))

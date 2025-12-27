@@ -27,9 +27,9 @@ from tests.utils.iteration import (
     ITERABLE_TYPES,
     IterableType,
     alist,
+    alist_or_list,
     anext_or_next,
     bi_iterable_to_iter,
-    to_list,
 )
 from tests.utils.source import N, ints_src
 from tests.utils.timing import timestream
@@ -77,21 +77,21 @@ def test_flatten(
     )
     if concurrency == 1:
         # At concurrency == 1, `flatten` method should yield all the upstream iterables' elements in the order of a nested for loop.
-        assert to_list(
+        assert alist_or_list(
             iterables_stream.map(to_iter).flatten(concurrency=concurrency),
             itype=itype,
         ) == [elem for iterable in iterables_stream for elem in iterable]
     else:
         # At concurrency > 1, the `flatten` method should yield all the upstream iterables' elements.
         assert Counter(
-            to_list(
+            alist_or_list(
                 iterables_stream.map(to_iter).flatten(concurrency=concurrency),
                 itype=itype,
             )
         ) == Counter(list(it) * n_iterables + double_it)
 
     # At any concurrency the `flatten` method should continue flattening even if an iterable' __next__ raises an exception.
-    assert to_list(
+    assert alist_or_list(
         stream([[4, 3, 2, 0], [1, 0, -1], [0, -2, -3]])
         .map(lambda iterable: sync_to_bi_iterable(map(lambda n: 1 / n, iterable)))
         .map(to_iter)
@@ -128,7 +128,7 @@ def test_flatten(
         ]
     )
     # At any concurrency the `flatten` method should continue pulling upstream iterables even if upstream raises an exception.
-    assert to_list(
+    assert alist_or_list(
         stream([[4, 3, 2], [], [1, 0]])
         .do(lambda ints: 1 / len(ints))
         .map(sync_to_bi_iterable)
@@ -140,7 +140,7 @@ def test_flatten(
         itype=itype,
     ) == ([4, 3, 2, -1, 1, 0] if concurrency == 1 else [4, -1, 3, 1, 2, 0])
     # At any concurrency the `flatten` method should continue pulling upstream iterables even if upstream's __iter__ raises an exception.
-    assert to_list(
+    assert alist_or_list(
         stream(
             [
                 sync_to_bi_iterable([4, 3, 2]),
@@ -157,7 +157,7 @@ def test_flatten(
     ) == ([4, 3, 2, -1, 1, 0] if concurrency == 1 else [4, -1, 3, 1, 2, 0])
     # `flatten` should not yield any element if upstream elements are empty iterables, and be resilient to recursion issue in case of successive empty upstream iterables.
     assert (
-        to_list(
+        alist_or_list(
             stream([sync_to_bi_iterable(iter([])) for _ in range(2000)])
             .map(to_iter)
             .flatten(
@@ -201,7 +201,7 @@ def test_flatten_heterogeneous_sync_async_elements(
         yield 0
         yield 1
 
-    assert to_list(
+    assert alist_or_list(
         stream(
             cast(
                 List[Union[AsyncIterator, Iterator]],

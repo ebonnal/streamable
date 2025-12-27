@@ -10,10 +10,10 @@ from tests.utils.functions import identity, throw, throw_for_odd_func
 from tests.utils.iteration import (
     ITERABLE_TYPES,
     IterableType,
+    alist_or_list,
     anext_or_next,
     bi_iterable_to_iter,
     stopiteration_type,
-    to_list,
 )
 from tests.utils.source import ints_src
 
@@ -29,7 +29,9 @@ def test_catch_yields_elements_without_exceptions(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
     """Catch should yield elements in exception-less scenarios."""
-    assert to_list(stream(ints_src).catch(Exception), itype=itype) == list(ints_src)
+    assert alist_or_list(stream(ints_src).catch(Exception), itype=itype) == list(
+        ints_src
+    )
 
 
 @pytest.mark.parametrize("adapt", [identity, asyncify])
@@ -45,7 +47,7 @@ def test_catch_ignores_matching_exceptions(
     stream_ = stream(ints_src).map(fn)
     safe_src = list(ints_src)
     del safe_src[3]
-    assert to_list(stream_.catch(ZeroDivisionError), itype=itype) == list(
+    assert alist_or_list(stream_.catch(ZeroDivisionError), itype=itype) == list(
         map(fn, safe_src)
     )
 
@@ -63,7 +65,7 @@ def test_catch_raises_non_matching_exceptions(
     stream_ = stream(ints_src).map(fn)
     # If a non-caught exception type occurs, then it should be raised.
     with pytest.raises(ZeroDivisionError):
-        to_list(stream_.catch(TestError), itype=itype)
+        alist_or_list(stream_.catch(TestError), itype=itype)
 
 
 @pytest.mark.parametrize("adapt", [identity, asyncify])
@@ -90,7 +92,7 @@ def test_catch_raises_first_non_caught_exception(
     )
     # the first non-caught exception should be raised
     with pytest.raises(TypeError):
-        to_list(caught_erroring_stream, itype)
+        alist_or_list(caught_erroring_stream, itype)
 
 
 @pytest.mark.parametrize("adapt", [identity, asyncify])
@@ -103,7 +105,7 @@ def test_catch_handles_only_exceptions(
         map(lambda _: throw(TestError), range(2000))
     ).catch(TestError)
     # When upstream raise exceptions without yielding any element, listing the stream must return empty list, without recursion issue.
-    assert to_list(only_caught_errors_stream, itype=itype) == []
+    assert alist_or_list(only_caught_errors_stream, itype=itype) == []
 
 
 @pytest.mark.parametrize("adapt", [identity, asyncify])
@@ -149,7 +151,7 @@ def test_catch_where_clause(
 ) -> None:
     """Catch does not catch if `where` not satisfied."""
     with pytest.raises(TypeError):
-        to_list(
+        alist_or_list(
             stream(map(throw, [ValueError, TypeError])).catch(
                 Exception, where=adapt(lambda exc: "ValueError" in repr(exc))
             ),
@@ -168,7 +170,7 @@ def test_catch_replace_with_non_none(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
     """Catch should be able to yield a non-None replacement."""
-    assert to_list(
+    assert alist_or_list(
         stream(map(lambda n: 1 / n, [0, 1, 2, 4])).catch(
             ZeroDivisionError,
             replace=adapt(lambda e: float("inf")),
@@ -183,7 +185,7 @@ def test_catch_replace_with_none(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
     """Catch should be able to yield a None replacement."""
-    assert to_list(
+    assert alist_or_list(
         stream(map(lambda n: 1 / n, [0, 1, 2, 4])).catch(
             ZeroDivisionError,
             replace=adapt(lambda e: None),
@@ -205,7 +207,7 @@ def test_catch_multiple_exception_types(
     """Catch should accept multiple types."""
     errors_counter: Counter[Type[Exception]] = Counter()
     # `catch` should accept multiple types
-    assert to_list(
+    assert alist_or_list(
         stream(
             map(
                 lambda n: 1 / n,  # potential ZeroDivisionError
@@ -246,7 +248,7 @@ def test_catch_do_side_effect(
     ):
         # `do` side effect should be correctly applied
         errors.clear()
-        assert to_list(
+        assert alist_or_list(
             stream([0, 1, 0, 1, 0])
             .map(lambda n: round(1 / n, 2))
             .catch(ZeroDivisionError, where=where, do=do),
@@ -266,7 +268,7 @@ def test_catch_stop_on_exception(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
     """Test `stop` on exception."""
-    assert to_list(
+    assert alist_or_list(
         stream("01-3").map(int).catch(ValueError, stop=True),
         itype,
     ) == [0, 1]
@@ -278,7 +280,7 @@ def test_catch_stop_on_exception_not_satisfying_where(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
     """Test `stop` on exception not satisfying `where`."""
-    assert to_list(
+    assert alist_or_list(
         stream("01-3")
         .map(int)
         .catch(ValueError, where=lambda exc: False, stop=True)
@@ -293,7 +295,7 @@ def test_catch_stop_with_replacement(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
     """Test `stop` on exception, with replacement as last elem."""
-    assert to_list(
+    assert alist_or_list(
         stream("01-3").map(int).catch(ValueError, stop=True, replace=lambda exc: -1),
         itype,
     ) == [0, 1, -1]

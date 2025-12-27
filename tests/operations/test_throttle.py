@@ -10,9 +10,9 @@ from tests.utils.functions import throw_func
 from tests.utils.iteration import (
     ITERABLE_TYPES,
     IterableType,
+    alist_or_list,
     anext_or_next,
     bi_iterable_to_iter,
-    to_list,
 )
 from tests.utils.source import ints_src
 from tests.utils.timing import timestream
@@ -30,7 +30,7 @@ def test_throttle_raises_on_zero_timedelta(itype: IterableType) -> None:
         ValueError,
         match=r"`per` must be a positive timedelta but got datetime\.timedelta\(0\)",
     ):
-        to_list(
+        alist_or_list(
             stream([1]).throttle(1, per=datetime.timedelta(microseconds=0)),
             itype=itype,
         )
@@ -40,7 +40,9 @@ def test_throttle_raises_on_zero_timedelta(itype: IterableType) -> None:
 def test_throttle_raises_on_invalid_count(itype: IterableType) -> None:
     """Throttle should raise ValueError when count is less than 1."""
     with pytest.raises(ValueError, match="`up_to` must be >= 1 but got 0"):
-        to_list(stream([1]).throttle(0, per=datetime.timedelta(seconds=1)), itype=itype)
+        alist_or_list(
+            stream([1]).throttle(0, per=datetime.timedelta(seconds=1)), itype=itype
+        )
 
 
 # ============================================================================

@@ -15,7 +15,6 @@ from tests.utils.iteration import (
     anext_or_next,
     bi_iterable_to_iter,
     stopiteration_type,
-    to_list,
 )
 from tests.utils.source import N, ints_src
 
@@ -36,15 +35,15 @@ def test_filter(
         return x % 2
 
     # `filter` must act like builtin filter
-    assert to_list(stream(ints_src).filter(adapt(keep)), itype=itype) == list(
+    assert alist_or_list(stream(ints_src).filter(adapt(keep)), itype=itype) == list(
         builtins.filter(keep, ints_src)
     )
     # `filter` with `bool` as predicate must act like builtin filter with None predicate.
-    assert to_list(stream(ints_src).filter(adapt(bool)), itype=itype) == list(
+    assert alist_or_list(stream(ints_src).filter(adapt(bool)), itype=itype) == list(
         builtins.filter(None, ints_src)
     )
     # `filter` with `bool` as predicate must act like builtin filter with None predicate.
-    assert to_list(stream(ints_src).filter(), itype=itype) == list(
+    assert alist_or_list(stream(ints_src).filter(), itype=itype) == list(
         builtins.filter(None, ints_src)
     )
 
@@ -66,11 +65,12 @@ def test_skip(
     for count in [0, 1, 3]:
         # `skip` must skip `until` elements
         assert (
-            to_list(stream(ints_src).skip(count), itype=itype) == list(ints_src)[count:]
+            alist_or_list(stream(ints_src).skip(count), itype=itype)
+            == list(ints_src)[count:]
         )
         # `skip` should not count exceptions as skipped elements
         assert (
-            to_list(
+            alist_or_list(
                 stream(map(throw_for_odd_func(TestError), ints_src))
                 .skip(count)
                 .catch(TestError),
@@ -80,7 +80,7 @@ def test_skip(
         )
         # `skip` must yield starting from the first element satisfying `until`
         assert (
-            to_list(
+            alist_or_list(
                 stream(ints_src).skip(until=adapt(lambda n: n >= count)), itype=itype
             )
             == list(ints_src)[count:]
@@ -99,13 +99,13 @@ def test_take(
 ) -> None:
     """Take must limit elements correctly."""
     # `take` must be ok with `until` >= stream length
-    assert to_list(stream(ints_src).take(N * 2), itype=itype) == list(ints_src)
+    assert alist_or_list(stream(ints_src).take(N * 2), itype=itype) == list(ints_src)
     # `take` must be ok with `until` >= 1
-    assert to_list(stream(ints_src).take(2), itype=itype) == [0, 1]
+    assert alist_or_list(stream(ints_src).take(2), itype=itype) == [0, 1]
     # `take` must be ok with `until` == 1
-    assert to_list(stream(ints_src).take(1), itype=itype) == [0]
+    assert alist_or_list(stream(ints_src).take(1), itype=itype) == [0]
     # `take` must be ok with `until` == 0
-    assert to_list(stream(ints_src).take(0), itype=itype) == []
+    assert alist_or_list(stream(ints_src).take(0), itype=itype) == []
     # `take` must raise ValueError if `until` is negative
     with pytest.raises(
         ValueError,
@@ -114,7 +114,9 @@ def test_take(
         stream(ints_src).take(-1)
 
     # `take` must be no-op if `until` greater than source's size
-    assert to_list(stream(ints_src).take(sys.maxsize), itype=itype) == list(ints_src)
+    assert alist_or_list(stream(ints_src).take(sys.maxsize), itype=itype) == list(
+        ints_src
+    )
     count = N // 2
     raising_stream_iterator = bi_iterable_to_iter(
         stream(map(lambda x: round((1 / x) * x**2), ints_src)).take(count),
@@ -123,7 +125,9 @@ def test_take(
     # `take` should not stop iteration when encountering exceptions and raise them without counting them...
     with pytest.raises(ZeroDivisionError):
         anext_or_next(raising_stream_iterator, itype=itype)
-    assert alist_or_list(raising_stream_iterator) == list(range(1, count + 1))
+    assert alist_or_list(raising_stream_iterator, itype=itype) == list(
+        range(1, count + 1)
+    )
     # ... and after reaching the limit it still continues to raise StopIteration on calls to next
     with pytest.raises(stopiteration_type(type(raising_stream_iterator))):
         anext_or_next(raising_stream_iterator, itype=itype)
@@ -132,7 +136,7 @@ def test_take(
         stream(ints_src).take(until=adapt(lambda n: n == 5)), itype=itype
     )
     # `until` n == 5 must be equivalent to `until` = 5
-    assert alist_or_list(iter_take_on_predicate) == to_list(
+    assert alist_or_list(iter_take_on_predicate, itype=itype) == alist_or_list(
         stream(ints_src).take(5), itype=itype
     )
     # After exhaustion a call to __next__ on a take iterator must raise StopIteration
@@ -140,4 +144,4 @@ def test_take(
         anext_or_next(iter_take_on_predicate, itype=itype)
     # an exception raised by `until` must be raised
     with pytest.raises(ZeroDivisionError):
-        to_list(stream(ints_src).take(until=adapt(lambda _: 1 / 0)), itype=itype)
+        alist_or_list(stream(ints_src).take(until=adapt(lambda _: 1 / 0)), itype=itype)
