@@ -744,14 +744,17 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         per: datetime.timedelta,
     ) -> "stream[T]":
         """
-        Limits the speed of iteration to yield at most ``up_to`` elements (or exceptions) ``per`` time interval.
+        Limits the speed of iteration to at most ``up_to`` elements (or exceptions) ``per`` sliding time window.
+
+        An element (or exception) is emitted if fewer than ``up_to`` emissions have been made during the last ``per`` time interval, or else it sleeps until the oldest emission leaves the window.
+
 
         Args:
-            up_to (``int``, optional): Maximum number of elements (or exceptions) that must be yielded within the given time interval.
-            per (``datetime.timedelta``, optional): The time interval during which maximum ``up_to`` elements (or exceptions) will be yielded.
+            up_to (``int``): Maximum number of elements (or exceptions) allowed in the sliding time window.
+            per (``datetime.timedelta``): The duration of the sliding time window.
 
         Returns:
-            ``stream[T]``: A stream yielding at most ``up_to`` upstream elements (or exceptions) ``per`` time interval.
+            ``stream[T]``: A stream emitting at most ``up_to`` upstream elements (or exceptions) ``per`` sliding time window.
         """
         validate_int(up_to, gte=1, name="up_to")
         validate_positive_timedelta(per, name="per")

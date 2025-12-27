@@ -10,7 +10,6 @@ from collections import defaultdict, deque
 
 from concurrent.futures import Executor, Future, ThreadPoolExecutor
 from contextlib import suppress
-from math import ceil
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -481,14 +480,12 @@ class ThrottleIterator(Iterator[T]):
         self,
         iterator: Iterator[T],
         up_to: int,
-        period: datetime.timedelta,
+        per: datetime.timedelta,
     ) -> None:
         self.iterator = iterator
         self.up_to = up_to
-        self._period_seconds = period.total_seconds()
-        self._period_index: int = -1
-        self._elements_in_period = 0
-        self._offset: Optional[float] = None
+        self._window_seconds = per.total_seconds()
+        self._emission_timestamps: Deque[float] = deque()
 
     def __next__(self) -> T:
         elem: Optional[T] = None
@@ -500,22 +497,18 @@ class ThrottleIterator(Iterator[T]):
         except Exception as e:
             error = e
 
-        now = time.perf_counter()
-        if not self._offset:
-            self._offset = now
-        now -= self._offset
+        # did we reach `up_to` emissions?
+        if len(self._emission_timestamps) >= self.up_to:
+            # sleep until the oldest emission leaves the window
+            oldest_leaves_window_at = (
+                self._emission_timestamps[0] + self._window_seconds
+            )
+            time.sleep(max(0, oldest_leaves_window_at - time.perf_counter()))
+            # remove the oldest emission
+            self._emission_timestamps.popleft()
 
-        num_periods = now / self._period_seconds
-        period_index = int(num_periods)
-
-        if self._period_index != period_index:
-            self._period_index = period_index
-            self._elements_in_period = max(0, self._elements_in_period - self.up_to)
-
-        if self._elements_in_period >= self.up_to:
-            time.sleep((ceil(num_periods) - num_periods) * self._period_seconds)
-        self._elements_in_period += 1
-
+        # register the new emission
+        self._emission_timestamps.append(time.perf_counter())
         if error:
             try:
                 raise error
