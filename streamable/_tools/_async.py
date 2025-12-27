@@ -28,4 +28,4 @@ class CloseEventLoopMixin:
             self.loop.close()
 
 
-AsyncCallable = Callable[[T], Coroutine[Any, Any, R]]
+AsyncFunction = Callable[[T], Coroutine[Any, Any, R]]

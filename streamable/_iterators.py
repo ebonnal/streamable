@@ -34,7 +34,7 @@ from typing import (
 if TYPE_CHECKING:
     from streamable._stream import stream
 from streamable._tools._async import (
-    AsyncCallable,
+    AsyncFunction,
     CloseEventLoopMixin,
 )
 from streamable._tools._contextmanager import noop_context_manager
@@ -660,7 +660,7 @@ class _AsyncConcurrentMapIterable(
         self,
         loop: asyncio.AbstractEventLoop,
         iterator: Iterator[T],
-        into: AsyncCallable[T, U],
+        into: AsyncFunction[T, U],
         concurrency: int,
         ordered: bool,
     ) -> None:
@@ -701,7 +701,7 @@ class AsyncConcurrentMapIterator(_RaisingIterator[U]):
         self,
         loop: asyncio.AbstractEventLoop,
         iterator: Iterator[T],
-        into: AsyncCallable[T, U],
+        into: AsyncFunction[T, U],
         concurrency: int,
         ordered: bool,
     ) -> None:
