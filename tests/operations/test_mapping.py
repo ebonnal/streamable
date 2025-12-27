@@ -31,7 +31,7 @@ from tests.utils.iteration import (
     IterableType,
     alist_or_list,
     anext_or_next,
-    bi_iterable_to_iter,
+    aiter_or_iter,
 )
 from tests.utils.source import N, even_src, ints_src
 from tests.utils.timing import timestream
@@ -208,7 +208,7 @@ def test_process_concurrency(
                     )
             # partial iteration
             assert (
-                anext_or_next(bi_iterable_to_iter(stream_, itype=itype), itype=itype)
+                anext_or_next(aiter_or_iter(stream_, itype=itype), itype=itype)
                 == expected_result_list[0]
             )
 
@@ -428,7 +428,7 @@ def test_partial_iteration_on_streams_using_concurrency(
         ),
     ]:
         yielded_elems = []
-        iterator = bi_iterable_to_iter(stream_, itype=itype)
+        iterator = aiter_or_iter(stream_, itype=itype)
         time.sleep(0.5)
         # before the first call to `next` a concurrent stream should have pulled 0 upstream elements.
         assert len(yielded_elems) == 0

@@ -29,7 +29,7 @@ from tests.utils.iteration import (
     alist,
     alist_or_list,
     anext_or_next,
-    bi_iterable_to_iter,
+    aiter_or_iter,
 )
 from tests.utils.source import N, ints_src
 from tests.utils.timing import timestream
@@ -170,7 +170,7 @@ def test_flatten(
     # `flatten` should raise if an upstream element is not iterable.
     with pytest.raises((TypeError, AttributeError)):
         anext_or_next(
-            bi_iterable_to_iter(
+            aiter_or_iter(
                 stream(cast(Union[Iterable, AsyncIterable], ints_src))
                 .map(to_iter)
                 .flatten(),

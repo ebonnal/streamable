@@ -12,7 +12,7 @@ from tests.utils.iteration import (
     IterableType,
     alist_or_list,
     anext_or_next,
-    bi_iterable_to_iter,
+    aiter_or_iter,
     stopiteration_type,
 )
 from tests.utils.source import ints_src
@@ -120,7 +120,7 @@ def test_catch_raises_stopiteration_on_only_exceptions(
     # When upstream raise exceptions without yielding any element, then the first call to `next` on a stream catching all errors should raise StopIteration.
     with pytest.raises(stopiteration_type(itype)):
         anext_or_next(
-            bi_iterable_to_iter(only_caught_errors_stream, itype=itype), itype=itype
+            aiter_or_iter(only_caught_errors_stream, itype=itype), itype=itype
         )
 
 
@@ -130,7 +130,7 @@ def test_catch_chained(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
     """Catch chain should behave correctly."""
-    iterator = bi_iterable_to_iter(
+    iterator = aiter_or_iter(
         stream(map(throw, [TestError, ValueError])).catch(ValueError).catch(TestError),
         itype=itype,
     )

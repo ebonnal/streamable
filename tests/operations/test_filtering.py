@@ -13,7 +13,7 @@ from tests.utils.iteration import (
     IterableType,
     alist_or_list,
     anext_or_next,
-    bi_iterable_to_iter,
+    aiter_or_iter,
     stopiteration_type,
 )
 from tests.utils.source import N, ints_src
@@ -118,7 +118,7 @@ def test_take(
         ints_src
     )
     count = N // 2
-    raising_stream_iterator = bi_iterable_to_iter(
+    raising_stream_iterator = aiter_or_iter(
         stream(map(lambda x: round((1 / x) * x**2), ints_src)).take(count),
         itype=itype,
     )
@@ -132,7 +132,7 @@ def test_take(
     with pytest.raises(stopiteration_type(type(raising_stream_iterator))):
         anext_or_next(raising_stream_iterator, itype=itype)
 
-    iter_take_on_predicate = bi_iterable_to_iter(
+    iter_take_on_predicate = aiter_or_iter(
         stream(ints_src).take(until=adapt(lambda n: n == 5)), itype=itype
     )
     # `until` n == 5 must be equivalent to `until` = 5

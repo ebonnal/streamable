@@ -12,7 +12,7 @@ from tests.utils.iteration import (
     IterableType,
     alist_or_list,
     anext_or_next,
-    bi_iterable_to_iter,
+    aiter_or_iter,
 )
 from tests.utils.source import ints_src
 from tests.utils.timing import timestream
@@ -116,7 +116,7 @@ def test_throttle_handles_slow_upstream(itype: IterableType) -> None:
     # `throttle` should avoid 'ValueError: sleep length must be non-negative' when upstream is slower than `interval`
     assert (
         anext_or_next(
-            bi_iterable_to_iter(
+            aiter_or_iter(
                 stream(ints_src)
                 .throttle(1, per=datetime.timedelta(seconds=0.2))
                 .throttle(1, per=datetime.timedelta(seconds=0.1)),

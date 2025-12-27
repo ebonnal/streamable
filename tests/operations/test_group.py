@@ -18,7 +18,7 @@ from tests.utils.iteration import (
     IterableType,
     alist_or_list,
     anext_or_next,
-    bi_iterable_to_iter,
+    aiter_or_iter,
 )
 from tests.utils.source import N, even_src, ints_src
 
@@ -86,7 +86,7 @@ def test_group_without_arguments(
 ) -> None:
     """Group without arguments should group all elements together."""
     assert anext_or_next(
-        bi_iterable_to_iter(stream(ints_src).group(), itype=itype),
+        aiter_or_iter(stream(ints_src).group(), itype=itype),
         itype=itype,
     ) == list(ints_src)
 
@@ -106,9 +106,7 @@ def test_group_with_exceptions(
     def f(i):
         return i / (110 - i)
 
-    stream_iterator = bi_iterable_to_iter(
-        stream(map(f, ints_src)).group(100), itype=itype
-    )
+    stream_iterator = aiter_or_iter(stream(map(f, ints_src)).group(100), itype=itype)
     anext_or_next(stream_iterator, itype=itype)
     # when encountering upstream exception, `group` should yield the current accumulated group...
     assert anext_or_next(stream_iterator, itype=itype) == list(map(f, range(100, 110)))
@@ -173,7 +171,7 @@ def test_group_by_key_basic(
     """Group by key function should cogroup elements."""
     groupby_stream_iter: Union[
         Iterator[Tuple[int, List[int]]], AsyncIterator[Tuple[int, List[int]]]
-    ] = bi_iterable_to_iter(
+    ] = aiter_or_iter(
         stream(ints_src).group(by=adapt(lambda n: n % 2), up_to=2), itype=itype
     )
     # `group` `by` must cogroup elements.
@@ -189,7 +187,7 @@ def test_group_by_key_with_up_to(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
     """Group by key with up_to should yield first batch becoming full."""
-    stream_iter = bi_iterable_to_iter(
+    stream_iter = aiter_or_iter(
         stream(ints_src).group(up_to=2, by=adapt(lambda n: n % 2)).map(itemgetter(1)),
         itype=itype,
     )
@@ -203,7 +201,7 @@ def test_group_by_key_with_up_to(
     ]
     # `group` called with a `by` function and a `up_to` should yield the first batch becoming full.
     assert anext_or_next(
-        bi_iterable_to_iter(
+        aiter_or_iter(
             stream(src_raising_at_exhaustion())
             .group(
                 up_to=10,
@@ -251,7 +249,7 @@ def test_group_by_key_with_exceptions(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
     """Group by key with exceptions must cogroup and yield incomplete groups, then raise."""
-    stream_iter = bi_iterable_to_iter(
+    stream_iter = aiter_or_iter(
         stream(src_raising_at_exhaustion())
         .group(by=adapt(lambda n: n % 2))
         .map(itemgetter(1)),

@@ -13,9 +13,7 @@ from typing import (
     cast,
 )
 
-from streamable._stream import stream
 from streamable._tools._async import awaitable_to_coroutine
-from streamable._tools._iter import SyncAsyncIterable
 from typing import Tuple
 
 IterableType = Union[Type[Iterable], Type[AsyncIterable]]
@@ -44,13 +42,13 @@ async def alist(iterable: AsyncIterable[T]) -> List[T]:
     return [_ async for _ in iterable]
 
 
-def bi_iterable_to_iter(
-    iterable: Union[SyncAsyncIterable[T], stream[T]], itype: IterableType
+def aiter_or_iter(
+    iterable: Union[Iterable[T], AsyncIterable[T]], itype: IterableType
 ) -> Union[Iterator[T], AsyncIterator[T]]:
     """Get an iterator from a bi-iterable (supports both sync and async)."""
     if itype is AsyncIterable:
-        return iterable.__aiter__()
-    return iter(iterable)
+        return cast(AsyncIterator[T], iterable).__aiter__()
+    return cast(Iterator[T], iterable).__iter__()
 
 
 def anext_or_next(it: Union[Iterator[T], AsyncIterator[T]], itype: IterableType) -> T:

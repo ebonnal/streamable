@@ -33,7 +33,7 @@ from tests.utils.iteration import (
     ITERABLE_TYPES,
     IterableType,
     alist_or_list,
-    bi_iterable_to_iter,
+    aiter_or_iter,
 )
 from tests.utils.source import N, ints_src
 from tests.utils.timing import timecoro
@@ -125,13 +125,13 @@ def test_repr(complex_stream: stream, complex_stream_str: str) -> None:
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_iter(itype: IterableType) -> None:
     # iter(stream) must return an Iterator.
-    assert isinstance(bi_iterable_to_iter(stream(ints_src), itype=itype), itype)
+    assert isinstance(aiter_or_iter(stream(ints_src), itype=itype), itype)
     # Getting an Iterator from a Stream with a source not being a Union[Callable[[], Iterator], ITerable] must raise TypeError.
     with pytest.raises(
         TypeError,
         match=r"`source` must be Iterable or AsyncIterable or Callable but got 1",
     ):
-        bi_iterable_to_iter(stream(1), itype=itype)  # type: ignore
+        aiter_or_iter(stream(1), itype=itype)  # type: ignore
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
