@@ -10,6 +10,7 @@ from typing import (
     Type,
     TypeVar,
     Union,
+    cast,
 )
 
 from streamable._stream import stream
@@ -60,11 +61,13 @@ def bi_iterable_to_iter(
     return iter(iterable)
 
 
-def anext_or_next(it: Union[Iterator[T], AsyncIterator[T]]) -> T:
+def anext_or_next(it: Union[Iterator[T], AsyncIterator[T]], itype: IterableType) -> T:
     """Get next item from either a sync or async iterator."""
-    if isinstance(it, AsyncIterator):
-        return asyncio.run(awaitable_to_coroutine(it.__anext__()))
-    return next(it)
+    if itype is AsyncIterable:
+        return asyncio.run(
+            awaitable_to_coroutine(cast(AsyncIterator[T], it).__anext__())
+        )
+    return next(cast(Iterator[T], it))
 
 
 def alist_or_list(iterable: Union[Iterable[T], AsyncIterable[T]]) -> List[T]:

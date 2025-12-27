@@ -175,7 +175,8 @@ def test_flatten(
                 .map(to_iter)
                 .flatten(),
                 itype=itype,
-            )
+            ),
+            itype=itype,
         )
 
 

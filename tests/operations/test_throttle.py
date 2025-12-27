@@ -119,7 +119,8 @@ def test_throttle_handles_slow_upstream(itype: IterableType) -> None:
                 .throttle(1, per=datetime.timedelta(seconds=0.2))
                 .throttle(1, per=datetime.timedelta(seconds=0.1)),
                 itype=itype,
-            )
+            ),
+            itype=itype,
         )
         == 0
     )

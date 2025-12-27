@@ -206,7 +206,7 @@ def test_process_concurrency(
                     to_list(stream(ints_src).map(f, concurrency=processes), itype=itype)
             # partial iteration
             assert (
-                anext_or_next(bi_iterable_to_iter(stream_, itype=itype))
+                anext_or_next(bi_iterable_to_iter(stream_, itype=itype), itype=itype)
                 == expected_result_list[0]
             )
 
@@ -430,7 +430,7 @@ def test_partial_iteration_on_streams_using_concurrency(
         time.sleep(0.5)
         # before the first call to `next` a concurrent stream should have pulled 0 upstream elements.
         assert len(yielded_elems) == 0
-        anext_or_next(iterator)
+        anext_or_next(iterator, itype=itype)
         time.sleep(0.5)
         # `after the first call to `next` a concurrent stream with given concurrency should have pulled only `n_pulls_after_first_next` upstream elements.
         assert len(yielded_elems) == n_pulls_after_first_next

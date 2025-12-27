@@ -86,7 +86,8 @@ def test_group_without_arguments(
 ) -> None:
     """Group without arguments should group all elements together."""
     assert anext_or_next(
-        bi_iterable_to_iter(stream(ints_src).group(), itype=itype)
+        bi_iterable_to_iter(stream(ints_src).group(), itype=itype),
+        itype=itype,
     ) == list(ints_src)
 
 
@@ -108,15 +109,15 @@ def test_group_with_exceptions(
     stream_iterator = bi_iterable_to_iter(
         stream(map(f, ints_src)).group(100), itype=itype
     )
-    anext_or_next(stream_iterator)
+    anext_or_next(stream_iterator, itype=itype)
     # when encountering upstream exception, `group` should yield the current accumulated group...
-    assert anext_or_next(stream_iterator) == list(map(f, range(100, 110)))
+    assert anext_or_next(stream_iterator, itype=itype) == list(map(f, range(100, 110)))
     # ... and raise the upstream exception during the next call to `next`...
     with pytest.raises(ZeroDivisionError):
-        anext_or_next(stream_iterator)
+        anext_or_next(stream_iterator, itype=itype)
 
     # ... and restarting a fresh group to yield after that.
-    assert anext_or_next(stream_iterator) == list(map(f, range(111, 211)))
+    assert anext_or_next(stream_iterator, itype=itype) == list(map(f, range(111, 211)))
 
 
 # ============================================================================
@@ -177,8 +178,8 @@ def test_group_by_key_basic(
     )
     # `group` `by` must cogroup elements.
     assert [
-        anext_or_next(groupby_stream_iter),
-        anext_or_next(groupby_stream_iter),
+        anext_or_next(groupby_stream_iter, itype=itype),
+        anext_or_next(groupby_stream_iter, itype=itype),
     ] == [(0, [0, 2]), (1, [1, 3])]
 
 
@@ -193,7 +194,10 @@ def test_group_by_key_with_up_to(
         itype=itype,
     )
     # `group` called with a `by` function must cogroup elements.
-    assert [anext_or_next(stream_iter), anext_or_next(stream_iter)] == [
+    assert [
+        anext_or_next(stream_iter, itype=itype),
+        anext_or_next(stream_iter, itype=itype),
+    ] == [
         [0, 2],
         [1, 3],
     ]
@@ -208,6 +212,7 @@ def test_group_by_key_with_up_to(
             .map(itemgetter(1)),
             itype=itype,
         ),
+        itype=itype,
     ) == [1, 2, 3, 5, 6, 7, 9, 10, 11, 13]
 
 
@@ -253,13 +258,16 @@ def test_group_by_key_with_exceptions(
         itype=itype,
     )
     # `group` called with a `by` function and encountering an exception must cogroup elements and yield uncomplete groups starting with the group containing the oldest element.
-    assert [anext_or_next(stream_iter), anext_or_next(stream_iter)] == [
+    assert [
+        anext_or_next(stream_iter, itype=itype),
+        anext_or_next(stream_iter, itype=itype),
+    ] == [
         list(range(0, N, 2)),
         list(range(1, N, 2)),
     ]
     # `group` called with a `by` function and encountering an exception must raise it after all groups have been yielded
     with pytest.raises(TestError):
-        anext_or_next(stream_iter)
+        anext_or_next(stream_iter, itype=itype)
 
 
 # ============================================================================

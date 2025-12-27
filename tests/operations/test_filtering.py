@@ -122,11 +122,11 @@ def test_take(
     )
     # `take` should not stop iteration when encountering exceptions and raise them without counting them...
     with pytest.raises(ZeroDivisionError):
-        anext_or_next(raising_stream_iterator)
+        anext_or_next(raising_stream_iterator, itype=itype)
     assert alist_or_list(raising_stream_iterator) == list(range(1, count + 1))
     # ... and after reaching the limit it still continues to raise StopIteration on calls to next
     with pytest.raises(stopiteration_type(type(raising_stream_iterator))):
-        anext_or_next(raising_stream_iterator)
+        anext_or_next(raising_stream_iterator, itype=itype)
 
     iter_take_on_predicate = bi_iterable_to_iter(
         stream(ints_src).take(until=adapt(lambda n: n == 5)), itype=itype
@@ -137,7 +137,7 @@ def test_take(
     )
     # After exhaustion a call to __next__ on a take iterator must raise StopIteration
     with pytest.raises(stopiteration_type(type(iter_take_on_predicate))):
-        anext_or_next(iter_take_on_predicate)
+        anext_or_next(iter_take_on_predicate, itype=itype)
     # an exception raised by `until` must be raised
     with pytest.raises(ZeroDivisionError):
         to_list(stream(ints_src).take(until=adapt(lambda _: 1 / 0)), itype=itype)

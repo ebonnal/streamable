@@ -117,7 +117,9 @@ def test_catch_raises_stopiteration_on_only_exceptions(
     ).catch(TestError)
     # When upstream raise exceptions without yielding any element, then the first call to `next` on a stream catching all errors should raise StopIteration.
     with pytest.raises(stopiteration_type(itype)):
-        anext_or_next(bi_iterable_to_iter(only_caught_errors_stream, itype=itype))
+        anext_or_next(
+            bi_iterable_to_iter(only_caught_errors_stream, itype=itype), itype=itype
+        )
 
 
 @pytest.mark.parametrize("adapt", [identity, asyncify])
@@ -132,7 +134,7 @@ def test_catch_chained(
     )
     # no non-raising elements so first next leads to StopIteration
     with pytest.raises(stopiteration_type(itype)):
-        anext_or_next(iterator)
+        anext_or_next(iterator, itype=itype)
 
 
 # ============================================================================
