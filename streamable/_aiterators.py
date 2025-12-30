@@ -638,7 +638,7 @@ class _ExecutorConcurrentMapAsyncIterable(_BaseConcurrentMapAsyncIterable[T, U])
         concurrency: Union[int, Executor],
         ordered: bool,
     ) -> None:
-        self.into = into
+        self.into = ExceptionContainer.wrap(into)
         if isinstance(concurrency, int):
             self.executor: Executor = ThreadPoolExecutor(max_workers=concurrency)
             super().__init__(
@@ -648,17 +648,9 @@ class _ExecutorConcurrentMapAsyncIterable(_BaseConcurrentMapAsyncIterable[T, U])
             self.executor = concurrency
             super().__init__(iterator, getattr(self.executor, "_max_workers"), ordered)
 
-    # picklable
-    @staticmethod
-    def _safe_to(to: Callable[[T], U], elem: T) -> Union[U, ExceptionContainer]:
-        try:
-            return to(elem)
-        except Exception as e:
-            return ExceptionContainer(e)
-
     def _launch_task(self, elem: T) -> "Future[Union[U, ExceptionContainer]]":
         return asyncio.get_running_loop().run_in_executor(
-            self.executor, self._safe_to, self.into, elem
+            self.executor, self.into, elem
         )
 
 
@@ -689,24 +681,21 @@ class _AsyncConcurrentMapAsyncIterable(_BaseConcurrentMapAsyncIterable[T, U]):
         ordered: bool,
     ) -> None:
         super().__init__(iterator, concurrency, ordered)
-        self.into = into
-        self._semaphore: Optional[asyncio.Semaphore] = None
+        self.into = ExceptionContainer.awrap(into)
+        self.__semaphore: Optional[asyncio.Semaphore] = None
 
     @property
-    def semaphore(self) -> asyncio.Semaphore:
-        if not self._semaphore:
-            self._semaphore = asyncio.Semaphore(self.concurrency)
-        return self._semaphore
+    def _semaphore(self) -> asyncio.Semaphore:
+        if not self.__semaphore:
+            self.__semaphore = asyncio.Semaphore(self.concurrency)
+        return self.__semaphore
 
-    async def _safe_to(self, elem: T) -> Union[U, ExceptionContainer]:
-        try:
-            async with self.semaphore:
-                return await self.into(elem)
-        except Exception as e:
-            return ExceptionContainer(e)
+    async def _semaphored(self, elem: T) -> Union[U, ExceptionContainer]:
+        async with self._semaphore:
+            return await self.into(elem)
 
     def _launch_task(self, elem: T) -> "Future[Union[U, ExceptionContainer]]":
-        return asyncio.get_running_loop().create_task(self._safe_to(elem))
+        return asyncio.get_running_loop().create_task(self._semaphored(elem))
 
 
 class AsyncConcurrentMapAsyncIterator(_RaisingAsyncIterator[U]):

@@ -1,4 +1,5 @@
-from typing import Awaitable, Callable, NamedTuple, TypeVar, Union
+from functools import partial
+from typing import Callable, NamedTuple, TypeVar, Union
 
 from streamable._tools._async import AsyncFunction
 
@@ -6,27 +7,31 @@ T = TypeVar("T")
 U = TypeVar("U")
 
 
+def contained(func: Callable[[T], U], arg: T) -> Union[U, "ExceptionContainer"]:
+    try:
+        return func(arg)
+    except Exception as e:
+        return ExceptionContainer(e)
+
+
+async def acontained(
+    afunc: AsyncFunction[T, U], arg: T
+) -> Union[U, "ExceptionContainer"]:
+    try:
+        return await afunc(arg)
+    except Exception as e:
+        return ExceptionContainer(e)
+
+
 class ExceptionContainer(NamedTuple):
     exception: Exception
 
     @staticmethod
     def wrap(func: Callable[[T], U]) -> Callable[[T], Union[U, "ExceptionContainer"]]:
-        def error_wrapping(_: T) -> Union[U, "ExceptionContainer"]:
-            try:
-                return func(_)
-            except Exception as e:
-                return ExceptionContainer(e)
-
-        return error_wrapping
+        return partial(contained, func)
 
     @staticmethod
     def awrap(
-        afunc: Callable[[T], Awaitable[U]],
+        afunc: AsyncFunction[T, U],
     ) -> AsyncFunction[T, Union[U, "ExceptionContainer"]]:
-        async def error_wrapping(_: T) -> Union[U, "ExceptionContainer"]:
-            try:
-                return await afunc(_)
-            except Exception as e:
-                return ExceptionContainer(e)
-
-        return error_wrapping
+        return partial(acontained, afunc)

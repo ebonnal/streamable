@@ -602,7 +602,7 @@ class _ExecutorConcurrentMapIterable(_BaseConcurrentMapIterable[T, U]):
         concurrency: Union[int, Executor],
         ordered: bool,
     ) -> None:
-        self.into = into
+        self.into = ExceptionContainer.wrap(into)
         if isinstance(concurrency, int):
             self.executor: Executor = ThreadPoolExecutor(max_workers=concurrency)
             super().__init__(
@@ -612,16 +612,8 @@ class _ExecutorConcurrentMapIterable(_BaseConcurrentMapIterable[T, U]):
             self.executor = concurrency
             super().__init__(iterator, getattr(self.executor, "_max_workers"), ordered)
 
-    # picklable
-    @staticmethod
-    def _safe_to(to: Callable[[T], U], elem: T) -> Union[U, ExceptionContainer]:
-        try:
-            return to(elem)
-        except Exception as e:
-            return ExceptionContainer(e)
-
     def _launch_task(self, elem: T) -> "Future[Union[U, ExceptionContainer]]":
-        return self.executor.submit(self._safe_to, self.into, elem)
+        return self.executor.submit(self.into, elem)
 
     def _future_result_collection(
         self,
@@ -665,27 +657,24 @@ class _AsyncConcurrentMapIterable(
         ordered: bool,
     ) -> None:
         super().__init__(iterator, concurrency, ordered)
-        self.into = into
+        self.into = ExceptionContainer.awrap(into)
         self.loop = loop
-        self._semaphore: Optional[asyncio.Semaphore] = None
+        self.__semaphore: Optional[asyncio.Semaphore] = None
 
     @property
-    def semaphore(self) -> asyncio.Semaphore:
-        if not self._semaphore:
-            self._semaphore = asyncio.Semaphore(self.concurrency)
-        return self._semaphore
+    def _semaphore(self) -> asyncio.Semaphore:
+        if not self.__semaphore:
+            self.__semaphore = asyncio.Semaphore(self.concurrency)
+        return self.__semaphore
 
-    async def _safe_to(self, elem: T) -> Union[U, ExceptionContainer]:
-        try:
-            async with self.semaphore:
-                return await self.into(elem)
-        except Exception as e:
-            return ExceptionContainer(e)
+    async def _semaphored(self, elem: T) -> Union[U, ExceptionContainer]:
+        async with self._semaphore:
+            return await self.into(elem)
 
     def _launch_task(self, elem: T) -> "Future[Union[U, ExceptionContainer]]":
         return cast(
             "Future[Union[U, ExceptionContainer]]",
-            self.loop.create_task(self._safe_to(elem)),
+            self.loop.create_task(self._semaphored(elem)),
         )
 
     def _future_result_collection(
