@@ -602,7 +602,7 @@ class _ExecutorConcurrentMapIterable(_BaseConcurrentMapIterable[T, U]):
         concurrency: Union[int, Executor],
         ordered: bool,
     ) -> None:
-        self.to = into
+        self.into = into
         if isinstance(concurrency, int):
             self.executor: Executor = ThreadPoolExecutor(max_workers=concurrency)
             super().__init__(
@@ -621,7 +621,7 @@ class _ExecutorConcurrentMapIterable(_BaseConcurrentMapIterable[T, U]):
             return ExceptionContainer(e)
 
     def _launch_task(self, elem: T) -> "Future[Union[U, ExceptionContainer]]":
-        return self.executor.submit(self._safe_to, self.to, elem)
+        return self.executor.submit(self._safe_to, self.into, elem)
 
     def _future_result_collection(
         self,
@@ -665,7 +665,7 @@ class _AsyncConcurrentMapIterable(
         ordered: bool,
     ) -> None:
         super().__init__(iterator, concurrency, ordered)
-        self.to = into
+        self.into = into
         self.loop = loop
         self._semaphore: Optional[asyncio.Semaphore] = None
 
@@ -678,7 +678,7 @@ class _AsyncConcurrentMapIterable(
     async def _safe_to(self, elem: T) -> Union[U, ExceptionContainer]:
         try:
             async with self.semaphore:
-                return await self.to(elem)
+                return await self.into(elem)
         except Exception as e:
             return ExceptionContainer(e)
 

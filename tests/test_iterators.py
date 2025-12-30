@@ -29,7 +29,7 @@ def test_ConcurrentAMapAsyncIterable() -> None:
         )
 
         # remove error wrapping
-        concurrent_amap_async_iterable.to = identity  # type: ignore
+        concurrent_amap_async_iterable.into = identity  # type: ignore
 
         aiterator: AsyncIterator[int] = _RaisingAsyncIterator(
             concurrent_amap_async_iterable.__aiter__()
