@@ -87,7 +87,7 @@ async def test_async_amap_example_aiter() -> None:
         .map(httpx.Client().get, concurrency=3)
         .map(lambda poke: poke.json()["name"])
     )
-    # within async context: consume as AsyncIterable
+    # consume as AsyncIterable
     assert [name async for name in pokemons] == ["bulbasaur", "ivysaur", "venusaur"]
 
 
@@ -100,7 +100,7 @@ def test_async_amap_example_iter() -> None:
         .map(httpx.AsyncClient().get, concurrency=3)
         .map(lambda poke: poke.json()["name"])
     )
-    # within sync context: consume as Iterable (concurrency will happen in dedicated event loop)
+    # consume as Iterable (the concurrency will happen via a dedicated event loop)
     assert [name for name in pokemons] == ["bulbasaur", "ivysaur", "venusaur"]
 
 

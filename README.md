@@ -144,7 +144,7 @@ pokemons: stream[str] = (
 )
 # consume as AsyncIterable
 assert [name async for name in pokemons] == ['bulbasaur', 'ivysaur', 'venusaur']
-# consume as Iterable (concurrency will happen in dedicated event loop)
+# consume as Iterable (the concurrency will happen via a dedicated event loop)
 assert [name for name in pokemons] == ['bulbasaur', 'ivysaur', 'venusaur']
 ```
 
