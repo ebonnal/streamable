@@ -37,7 +37,6 @@ from tests.utils.source import N, even_src, ints_src
 from tests.utils.timing import timestream
 
 
-
 @pytest.mark.parametrize("concurrency", [1, 2])
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_map(concurrency: int, itype: IterableType) -> None:
@@ -58,7 +57,6 @@ def test_map_async(concurrency: int, itype: IterableType) -> None:
         ),
         itype=itype,
     ) == list(map(square, ints_src))
-
 
 
 @pytest.mark.parametrize("concurrency", [1, 2])
@@ -94,7 +92,6 @@ def test_do_async(concurrency: int, itype: IterableType) -> None:
         ),
         itype=itype,
     ) == list(ints_src)
-
 
 
 @pytest.mark.parametrize(
@@ -140,7 +137,6 @@ def test_map_with_more_concurrency_than_elements(
     assert alist_or_list(
         stream(range(n_elems)).map(str, concurrency=concurrency), itype=itype
     ) == list(map(str, range(n_elems)))
-
 
 
 @pytest.mark.parametrize(
@@ -197,7 +193,6 @@ def test_process_concurrency(
             )
 
 
-
 @pytest.mark.parametrize(
     "ordered, order_mutation, expected_duration, operation, func, itype",
     [
@@ -236,7 +231,6 @@ def test_mapping_ordering(
     assert duration == pytest.approx(expected_duration, rel=0.2)
 
 
-
 @pytest.mark.parametrize(
     "method, func, concurrency, itype",
     [
@@ -265,7 +259,6 @@ def test_map_or_do_concurrency(
     assert res == list(ints_src)
     # Increasing the concurrency of mapping should decrease proportionally the iteration's duration.
     assert duration == pytest.approx(expected_iteration_duration, rel=0.2)
-
 
 
 @pytest.mark.parametrize(
@@ -356,7 +349,6 @@ def test_map_or_do_with_exception(
         ).catch(TestError),
         itype=itype,
     ) == list(even_src)
-
 
 
 @pytest.mark.parametrize("concurrency", [2, 4])

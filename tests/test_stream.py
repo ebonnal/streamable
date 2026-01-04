@@ -156,9 +156,8 @@ def test_queue_source(itype: IterableType) -> None:
     assert alist_or_list(ints, itype) == list(range(10))
 
 
-@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 @pytest.mark.asyncio
-async def test_aqueue_source(itype: IterableType) -> None:
+async def test_aqueue_source() -> None:
     from asyncio import Queue, TimeoutError
 
     ints_queue: Queue[int] = Queue()
@@ -220,8 +219,7 @@ def test_multiple_iterations(itype: IterableType) -> None:
         assert alist_or_list(ints, itype=itype) == list(ints_src)
 
 
-@pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_pipe(itype: IterableType) -> None:
+def test_pipe() -> None:
     def func(
         stream: stream, *ints: int, **strings: str
     ) -> Tuple[stream, Tuple[int, ...], Dict[str, str]]:

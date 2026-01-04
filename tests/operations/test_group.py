@@ -23,12 +23,8 @@ from tests.utils.iteration import (
 from tests.utils.source import N, even_src, ints_src
 
 
-
-@pytest.mark.parametrize("adapt", [identity, asyncify])
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_group_raises_on_invalid_every(
-    itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
-) -> None:
+def test_group_raises_on_invalid_every(itype: IterableType) -> None:
     """Group should raise error when called with `every` <= 0."""
     for seconds in [-1, 0]:
         with pytest.raises(
@@ -41,23 +37,16 @@ def test_group_raises_on_invalid_every(
             )
 
 
-@pytest.mark.parametrize("adapt", [identity, asyncify])
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_group_raises_on_invalid_up_to(
-    itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
-) -> None:
+def test_group_raises_on_invalid_up_to(itype: IterableType) -> None:
     """Group should raise error when called with `up_to` < 1."""
     for size in [-1, 0]:
         with pytest.raises(ValueError):
             alist_or_list(stream([1]).group(up_to=size), itype=itype)
 
 
-
-@pytest.mark.parametrize("adapt", [identity, asyncify])
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_group_by_size(
-    itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
-) -> None:
+def test_group_up_to(itype: IterableType) -> None:
     """Group should collect elements into batches of specified size."""
     assert alist_or_list(stream(range(6)).group(up_to=4), itype=itype) == [
         [0, 1, 2, 3],
@@ -71,11 +60,8 @@ def test_group_by_size(
     assert alist_or_list(stream([]).group(up_to=2), itype=itype) == []
 
 
-@pytest.mark.parametrize("adapt", [identity, asyncify])
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_group_without_arguments(
-    itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
-) -> None:
+def test_group_without_arguments(itype: IterableType) -> None:
     """Group without arguments should group all elements together."""
     assert anext_or_next(
         aiter_or_iter(stream(ints_src).group(), itype=itype),
@@ -83,12 +69,8 @@ def test_group_without_arguments(
     ) == list(ints_src)
 
 
-
-@pytest.mark.parametrize("adapt", [identity, asyncify])
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_group_with_exceptions(
-    itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
-) -> None:
+def test_group_with_exceptions(itype: IterableType) -> None:
     """Group should handle exceptions correctly."""
 
     def f(i):
@@ -104,7 +86,6 @@ def test_group_with_exceptions(
 
     # ... and restarting a fresh group to yield after that.
     assert anext_or_next(stream_iterator, itype=itype) == list(map(f, range(111, 211)))
-
 
 
 @pytest.mark.parametrize("adapt", [identity, asyncify])
@@ -140,7 +121,6 @@ def test_group_every_parameter(
         ),
         itype=itype,
     ) == list(map(lambda e: [e, e + 1], even_src))
-
 
 
 @pytest.mark.parametrize("adapt", [identity, asyncify])
@@ -246,7 +226,6 @@ def test_group_by_key_with_exceptions(
     # `group` called with a `by` function and encountering an exception must raise it after all groups have been yielded
     with pytest.raises(TestError):
         anext_or_next(stream_iter, itype=itype)
-
 
 
 @pytest.mark.parametrize("adapt", [identity, asyncify])

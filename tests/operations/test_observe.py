@@ -10,7 +10,6 @@ from tests.utils.functions import identity, slow_identity, slow_identity_duratio
 from tests.utils.iteration import ITERABLE_TYPES, IterableType, alist_or_list
 
 
-
 class Log(NamedTuple):
     """Represents a log entry from observe."""
 
@@ -43,7 +42,6 @@ def inverse(
         )
         .catch(ValueError)
     )
-
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
@@ -262,7 +260,6 @@ def test_observe_logging_every_timedelta_frequent(itype: IterableType) -> None:
     assert len(digits) == len(logs)
 
 
-
 @pytest.mark.parametrize("adapt", [identity, asyncify])
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_observe_do(
@@ -279,7 +276,6 @@ def test_observe_do(
         == ints
     )
     assert [observation.elements for observation in observations] == [1, 2, 4, 6, 8]
-
 
 
 def test_escape():

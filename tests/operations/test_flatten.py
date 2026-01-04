@@ -180,9 +180,8 @@ def test_flatten(
         )
 
 
-@pytest.mark.parametrize("itype", [AsyncIterable])
 @pytest.mark.asyncio
-async def test_flatten_within_async(itype: IterableType) -> None:
+async def test_flatten_within_async() -> None:
     assert await alist(
         stream([stream(ints_src), stream(ints_src).__aiter__()]).flatten()
     ) == list(ints_src) + list(ints_src)

@@ -19,7 +19,6 @@ T = TypeVar("T")
 R = TypeVar("R")
 
 
-
 def identity(x: T) -> T:
     """Identity function."""
     return x
@@ -30,7 +29,6 @@ async def async_identity(x: T) -> T:
     return x
 
 
-
 def square(x):
     """Square a number."""
     return x**2
@@ -39,7 +37,6 @@ def square(x):
 async def async_square(x):
     """Async square function."""
     return x**2
-
 
 
 def throw(exc: Type[Exception]):
@@ -90,7 +87,6 @@ async def async_slow_identity(x: T) -> T:
     return x
 
 
-
 def randomly_slowed(
     func: Callable[[T], R], min_sleep: float = 0.001, max_sleep: float = 0.05
 ) -> Callable[[T], R]:
@@ -117,7 +113,6 @@ def async_randomly_slowed(
     return wrap
 
 
-
 def identity_sleep(seconds: float) -> float:
     """Sleep and return the seconds value."""
     time.sleep(seconds)
@@ -128,7 +123,6 @@ async def async_identity_sleep(seconds: float) -> float:
     """Async sleep and return the seconds value."""
     await asyncio.sleep(seconds)
     return seconds
-
 
 
 def range_raising_at_exhaustion(

@@ -18,7 +18,6 @@ from tests.utils.source import ints_src
 from tests.utils.timing import timestream
 
 
-
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_throttle_raises_on_zero_timedelta(itype: IterableType) -> None:
     """Throttle should raise ValueError when per is zero or negative."""
@@ -39,7 +38,6 @@ def test_throttle_raises_on_invalid_count(itype: IterableType) -> None:
         alist_or_list(
             stream([1]).throttle(0, per=datetime.timedelta(seconds=1)), itype=itype
         )
-
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
@@ -120,7 +118,6 @@ def test_throttle_handles_slow_upstream(itype: IterableType) -> None:
     )
 
 
-
 @pytest.mark.parametrize("n_items", [1, 10, 11])
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_throttle_limits_per_second(n_items: int, itype: IterableType) -> None:
@@ -164,7 +161,6 @@ def test_throttle_with_exceptions_limits_per_second(
     assert duration == pytest.approx(
         expected_duration, abs=0.01 * expected_duration + 0.01
     )
-
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
