@@ -4,5 +4,5 @@
 N = 256
 
 # Test data sources
-ints_src = range(N)
-even_src = range(0, N, 2)
+INTEGERS = range(N)
+EVEN_INTEGERS = range(0, N, 2)

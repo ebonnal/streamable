@@ -15,14 +15,14 @@ from tests.utils.iteration import (
     aiter_or_iter,
     stopiteration_type,
 )
-from tests.utils.source import ints_src
+from tests.utils.source import INTEGERS
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_catch_yields_elements_without_exceptions(itype: IterableType) -> None:
     """Catch should yield elements in exception-less scenarios."""
-    assert alist_or_list(stream(ints_src).catch(Exception), itype=itype) == list(
-        ints_src
+    assert alist_or_list(stream(INTEGERS).catch(Exception), itype=itype) == list(
+        INTEGERS
     )
 
 
@@ -33,8 +33,8 @@ def test_catch_ignores_matching_exceptions(itype: IterableType) -> None:
     def fn(i):
         return i / (3 - i)
 
-    stream_ = stream(ints_src).map(fn)
-    safe_src = list(ints_src)
+    stream_ = stream(INTEGERS).map(fn)
+    safe_src = list(INTEGERS)
     del safe_src[3]
     assert alist_or_list(stream_.catch(ZeroDivisionError), itype=itype) == list(
         map(fn, safe_src)
@@ -48,7 +48,7 @@ def test_catch_raises_non_matching_exceptions(itype: IterableType) -> None:
     def fn(i):
         return i / (3 - i)
 
-    stream_ = stream(ints_src).map(fn)
+    stream_ = stream(INTEGERS).map(fn)
     # If a non-caught exception type occurs, then it should be raised.
     with pytest.raises(ZeroDivisionError):
         alist_or_list(stream_.catch(TestError), itype=itype)

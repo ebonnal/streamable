@@ -33,7 +33,7 @@ from tests.utils.iteration import (
     anext_or_next,
     aiter_or_iter,
 )
-from tests.utils.source import N, even_src, ints_src
+from tests.utils.source import N, EVEN_INTEGERS, INTEGERS
 from tests.utils.timing import timestream
 
 
@@ -42,9 +42,9 @@ from tests.utils.timing import timestream
 def test_map(concurrency: int, itype: IterableType) -> None:
     """At any concurrency the `map` method should act as the builtin map function, transforming elements while preserving input elements order."""
     assert alist_or_list(
-        stream(ints_src).map(randomly_slowed(square), concurrency=concurrency),
+        stream(INTEGERS).map(randomly_slowed(square), concurrency=concurrency),
         itype=itype,
-    ) == list(map(square, ints_src))
+    ) == list(map(square, INTEGERS))
 
 
 @pytest.mark.parametrize("concurrency", [1, 100])
@@ -52,11 +52,11 @@ def test_map(concurrency: int, itype: IterableType) -> None:
 def test_map_async(concurrency: int, itype: IterableType) -> None:
     """At any concurrency the `map` method should act as the builtin map function with async transforms, preserving input order."""
     assert alist_or_list(
-        stream(ints_src).map(
+        stream(INTEGERS).map(
             async_randomly_slowed(async_square), concurrency=concurrency
         ),
         itype=itype,
-    ) == list(map(square, ints_src))
+    ) == list(map(square, INTEGERS))
 
 
 @pytest.mark.parametrize("concurrency", [1, 2])
@@ -70,16 +70,16 @@ def test_do(concurrency: int, itype: IterableType) -> None:
         side_collection.add(func(x))
 
     res = alist_or_list(
-        stream(ints_src).do(
+        stream(INTEGERS).do(
             lambda i: randomly_slowed(side_effect(i, square)),
             concurrency=concurrency,
         ),
         itype=itype,
     )
     # At any concurrency the `do` method should return the upstream elements in order.
-    assert res == list(ints_src)
+    assert res == list(INTEGERS)
     # At any concurrency the `do` method should call func on upstream elements (in any order).
-    assert side_collection == set(map(square, ints_src))
+    assert side_collection == set(map(square, INTEGERS))
 
 
 @pytest.mark.parametrize("concurrency", [1, 100])
@@ -87,11 +87,11 @@ def test_do(concurrency: int, itype: IterableType) -> None:
 def test_do_async(concurrency: int, itype: IterableType) -> None:
     """At any concurrency the `do` method must preserve input elements order."""
     assert alist_or_list(
-        stream(ints_src).do(
+        stream(INTEGERS).do(
             async_randomly_slowed(async_square), concurrency=concurrency
         ),
         itype=itype,
-    ) == list(ints_src)
+    ) == list(INTEGERS)
 
 
 @pytest.mark.parametrize(
@@ -110,7 +110,7 @@ def test_executor_concurrency_with_async_function(
         match=f"`concurrency` must be an int if `{fn_name}` is a coroutine function but got <concurrent.futures.thread.ThreadPoolExecutor object at .*",
     ):
         operation(
-            stream(ints_src),
+            stream(INTEGERS),
             async_identity_sleep,
             concurrency=ThreadPoolExecutor(max_workers=2),
         )
@@ -184,7 +184,7 @@ def test_process_concurrency(
                     match="<locals>",
                 ):
                     alist_or_list(
-                        stream(ints_src).map(f, concurrency=processes), itype=itype
+                        stream(INTEGERS).map(f, concurrency=processes), itype=itype
                     )
             # partial iteration
             assert (
@@ -254,9 +254,9 @@ def test_map_or_do_concurrency(
     """Increasing the concurrency of mapping should decrease proportionally the iteration's duration."""
     expected_iteration_duration = N * slow_identity_duration / concurrency
     duration, res = timestream(
-        method(stream(ints_src), func, concurrency=concurrency), itype=itype
+        method(stream(INTEGERS), func, concurrency=concurrency), itype=itype
     )
-    assert res == list(ints_src)
+    assert res == list(INTEGERS)
     # Increasing the concurrency of mapping should decrease proportionally the iteration's duration.
     assert duration == pytest.approx(expected_iteration_duration, rel=0.2)
 
@@ -331,7 +331,7 @@ def test_map_or_do_with_exception(
 ) -> None:
     """Map and do must handle exceptions correctly."""
     rasing_stream: stream[int] = method(
-        stream(iter(ints_src)), throw_func(TestError), concurrency=concurrency
+        stream(iter(INTEGERS)), throw_func(TestError), concurrency=concurrency
     )  # type: ignore
     # At any concurrency, `map` and `do` must raise.
     with pytest.raises(TestError):
@@ -343,12 +343,12 @@ def test_map_or_do_with_exception(
     # At any concurrency, `map` and `do` should not stop after one exception occured.
     assert alist_or_list(
         method(
-            stream(ints_src),
+            stream(INTEGERS),
             throw_for_odd_func(TestError),
             concurrency=concurrency,  # type: ignore
         ).catch(TestError),
         itype=itype,
-    ) == list(even_src)
+    ) == list(EVEN_INTEGERS)
 
 
 @pytest.mark.parametrize("concurrency", [2, 4])
@@ -361,7 +361,7 @@ def test_partial_iteration_on_streams_using_concurrency(
 
     def remembering_src() -> Iterator[int]:
         nonlocal yielded_elems
-        for elem in ints_src:
+        for elem in INTEGERS:
             yielded_elems.append(elem)
             yield elem
 

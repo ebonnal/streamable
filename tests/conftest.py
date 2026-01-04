@@ -12,7 +12,7 @@ from streamable._tools._iter import (
     async_iter,
 )
 from tests.utils.functions import async_identity, identity
-from tests.utils.source import ints_src
+from tests.utils.source import INTEGERS
 
 
 class CustomCallable:
@@ -25,7 +25,7 @@ class CustomCallable:
 @pytest.fixture
 def complex_stream() -> stream:
     return (
-        stream(ints_src)
+        stream(INTEGERS)
         .take(1024)
         .take(1024)
         .take(until=lambda _: False)

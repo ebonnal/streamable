@@ -4,7 +4,7 @@ import pytest
 
 from streamable import stream
 from tests.utils.functions import async_identity, identity
-from tests.utils.source import ints_src
+from tests.utils.source import INTEGERS
 
 
 @pytest.mark.parametrize(
@@ -21,4 +21,4 @@ from tests.utils.source import ints_src
 def test_validate_concurrency(method: Callable[..., Any], args: List[Any]) -> None:
     # should be raising ValueError for concurrency=0.
     with pytest.raises(ValueError, match="`concurrency` must be >= 1 but got 0"):
-        method(stream(ints_src), *args, concurrency=0)
+        method(stream(INTEGERS), *args, concurrency=0)

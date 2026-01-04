@@ -31,7 +31,7 @@ from tests.utils.iteration import (
     anext_or_next,
     aiter_or_iter,
 )
-from tests.utils.source import N, ints_src
+from tests.utils.source import N, INTEGERS
 from tests.utils.timing import timestream
 
 
@@ -50,7 +50,7 @@ def test_flatten_typing() -> None:
         stream("abc").map(iter).map(async_iter).flatten()
     )
     flattened_range_stream: stream[int] = (  # noqa: F841
-        stream((ints_src, ints_src)).flatten()
+        stream((INTEGERS, INTEGERS)).flatten()
     )
 
 
@@ -171,7 +171,7 @@ def test_flatten(
     with pytest.raises((TypeError, AttributeError)):
         anext_or_next(
             aiter_or_iter(
-                stream(cast(Union[Iterable, AsyncIterable], ints_src))
+                stream(cast(Union[Iterable, AsyncIterable], INTEGERS))
                 .map(to_iter)
                 .flatten(),
                 itype=itype,
@@ -183,8 +183,8 @@ def test_flatten(
 @pytest.mark.asyncio
 async def test_flatten_within_async() -> None:
     assert await alist(
-        stream([stream(ints_src), stream(ints_src).__aiter__()]).flatten()
-    ) == list(ints_src) + list(ints_src)
+        stream([stream(INTEGERS), stream(INTEGERS).__aiter__()]).flatten()
+    ) == list(INTEGERS) + list(INTEGERS)
 
 
 @pytest.mark.parametrize("concurrency", [1, 2])

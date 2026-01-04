@@ -10,7 +10,7 @@ from streamable._aiterators import (
 from streamable._tools._async import awaitable_to_coroutine
 from streamable._tools._iter import async_iter
 from tests.utils.functions import async_identity, identity
-from tests.utils.source import ints_src
+from tests.utils.source import INTEGERS
 
 
 def test_ConcurrentAMapAsyncIterable() -> None:
@@ -21,7 +21,7 @@ def test_ConcurrentAMapAsyncIterable() -> None:
     ):
         concurrent_amap_async_iterable: _AsyncConcurrentMapAsyncIterable[int, int] = (
             _AsyncConcurrentMapAsyncIterable(
-                async_iter(iter(ints_src)),
+                async_iter(iter(INTEGERS)),
                 async_identity,
                 concurrency=2,
                 ordered=True,

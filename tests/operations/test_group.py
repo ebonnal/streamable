@@ -20,7 +20,7 @@ from tests.utils.iteration import (
     anext_or_next,
     aiter_or_iter,
 )
-from tests.utils.source import N, even_src, ints_src
+from tests.utils.source import N, EVEN_INTEGERS, INTEGERS
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
@@ -64,9 +64,9 @@ def test_group_up_to(itype: IterableType) -> None:
 def test_group_without_arguments(itype: IterableType) -> None:
     """Group without arguments should group all elements together."""
     assert anext_or_next(
-        aiter_or_iter(stream(ints_src).group(), itype=itype),
+        aiter_or_iter(stream(INTEGERS).group(), itype=itype),
         itype=itype,
-    ) == list(ints_src)
+    ) == list(INTEGERS)
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
@@ -76,7 +76,7 @@ def test_group_with_exceptions(itype: IterableType) -> None:
     def f(i):
         return i / (110 - i)
 
-    stream_iterator = aiter_or_iter(stream(map(f, ints_src)).group(100), itype=itype)
+    stream_iterator = aiter_or_iter(stream(map(f, INTEGERS)).group(100), itype=itype)
     anext_or_next(stream_iterator, itype=itype)
     # when encountering upstream exception, `group` should yield the current accumulated group...
     assert anext_or_next(stream_iterator, itype=itype) == list(map(f, range(100, 110)))
@@ -96,15 +96,15 @@ def test_group_every_parameter(
     """Group should respect the `every` time interval parameter."""
     # `group` should not yield empty groups even though `every` if smaller than upstream's frequency
     assert alist_or_list(
-        stream(map(slow_identity, ints_src)).group(
+        stream(map(slow_identity, INTEGERS)).group(
             up_to=100,
             every=datetime.timedelta(seconds=slow_identity_duration / 1000),
         ),
         itype=itype,
-    ) == list(map(lambda e: [e], ints_src))
+    ) == list(map(lambda e: [e], INTEGERS))
     # `group` with `by` argument should not yield empty groups even though `every` if smaller than upstream's frequency
     assert alist_or_list(
-        stream(map(slow_identity, ints_src))
+        stream(map(slow_identity, INTEGERS))
         .group(
             up_to=100,
             every=datetime.timedelta(seconds=slow_identity_duration / 1000),
@@ -112,15 +112,15 @@ def test_group_every_parameter(
         )
         .map(itemgetter(1)),
         itype=itype,
-    ) == list(map(lambda e: [e], ints_src))
+    ) == list(map(lambda e: [e], INTEGERS))
     # `group` should yield upstream elements in a two-element group if `every` inferior to twice the upstream yield period
     assert alist_or_list(
-        stream(map(slow_identity, ints_src)).group(
+        stream(map(slow_identity, INTEGERS)).group(
             up_to=100,
             every=datetime.timedelta(seconds=2 * slow_identity_duration * 0.99),
         ),
         itype=itype,
-    ) == list(map(lambda e: [e, e + 1], even_src))
+    ) == list(map(lambda e: [e, e + 1], EVEN_INTEGERS))
 
 
 @pytest.mark.parametrize("adapt", [identity, asyncify])
@@ -132,7 +132,7 @@ def test_group_by_key_basic(
     groupby_stream_iter: Union[
         Iterator[Tuple[int, List[int]]], AsyncIterator[Tuple[int, List[int]]]
     ] = aiter_or_iter(
-        stream(ints_src).group(by=adapt(lambda n: n % 2), up_to=2), itype=itype
+        stream(INTEGERS).group(by=adapt(lambda n: n % 2), up_to=2), itype=itype
     )
     # `group` `by` must cogroup elements.
     assert [
@@ -148,7 +148,7 @@ def test_group_by_key_with_up_to(
 ) -> None:
     """Group by key with up_to should yield first batch becoming full."""
     stream_iter = aiter_or_iter(
-        stream(ints_src).group(up_to=2, by=adapt(lambda n: n % 2)).map(itemgetter(1)),
+        stream(INTEGERS).group(up_to=2, by=adapt(lambda n: n % 2)).map(itemgetter(1)),
         itype=itype,
     )
     # `group` called with a `by` function must cogroup elements.
@@ -182,7 +182,7 @@ def test_group_by_key_infinite_size(
     """Group by key with infinite size must cogroup elements and yield groups starting with the group containing the oldest element."""
     # `group` called with a `by` function and an infinite size must cogroup elements and yield groups starting with the group containing the oldest element.
     assert alist_or_list(
-        stream(ints_src).group(by=adapt(lambda n: n % 2)).map(itemgetter(1)),
+        stream(INTEGERS).group(by=adapt(lambda n: n % 2)).map(itemgetter(1)),
         itype=itype,
     ) == [
         list(range(0, N, 2)),

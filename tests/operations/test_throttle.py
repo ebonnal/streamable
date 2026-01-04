@@ -14,7 +14,7 @@ from tests.utils.iteration import (
     anext_or_next,
     aiter_or_iter,
 )
-from tests.utils.source import ints_src
+from tests.utils.source import INTEGERS
 from tests.utils.timing import timestream
 
 
@@ -107,7 +107,7 @@ def test_throttle_handles_slow_upstream(itype: IterableType) -> None:
     assert (
         anext_or_next(
             aiter_or_iter(
-                stream(ints_src)
+                stream(INTEGERS)
                 .throttle(1, per=datetime.timedelta(seconds=0.2))
                 .throttle(1, per=datetime.timedelta(seconds=0.1)),
                 itype=itype,
