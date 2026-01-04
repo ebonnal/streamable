@@ -505,8 +505,8 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             effect (``Callable[[T], Any] | AsyncCallable[T, Any]``): The function called on each upstream element as a side effect.
             concurrency (``int``, optional): The ``effect`` is applied ...
 
-                - ``concurrency == 1`` (default): ... sequentially, no concurrency.
-                - ``concurrency > 1`` or ``Executor``: ... concurrently via ``concurrency`` threads or via the provided ``Executor``, or via the event loop if ``effect`` is an async function. At any point in time, only ``concurrency`` elements are buffered for processing.
+              - ``concurrency == 1`` (default): ... sequentially, no concurrency.
+              - ``concurrency > 1`` or ``Executor``: ... concurrently via ``concurrency`` threads or via the provided ``Executor``, or via the event loop if ``effect`` is an async function. At any point in time, only ``concurrency`` elements are buffered for processing.
 
             ordered (``bool``, optional): If ``concurrency`` > 1, whether to yield preserving the upstream order (First In First Out) or as completed (First Done First Out). (default: preserves order)
 
@@ -612,8 +612,8 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             into (``Callable[[T], Any] | AsyncCallable[T, Any]``): The transformation applied to upstream elements.
             concurrency (``int``, optional): ``into`` is applied
 
-                - ``concurrency == 1`` (default): ... sequentially, no concurrency.
-                - ``concurrency > 1`` or ``Executor``: ... concurrently via ``concurrency`` threads or via the provided ``Executor``, or via the event loop if ``into`` is an async function. At any point in time, only ``concurrency`` elements are buffered for processing.
+              - ``concurrency == 1`` (default): ... sequentially, no concurrency.
+              - ``concurrency > 1`` or ``Executor``: ... concurrently via ``concurrency`` threads or via the provided ``Executor``, or via the event loop if ``into`` is an async function. At any point in time, only ``concurrency`` elements are buffered for processing.
 
             ordered (``bool``, optional): If ``concurrency`` > 1, whether to yield preserving the upstream order (First In First Out) or as completed (First Done First Out). (default: preserves order)
 
@@ -666,9 +666,9 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             subject (``str``, optional): Describes the yielded objects ("cats", "dogs", ...). (default: "elements")
             every (``int | timedelta | None``, optional): When an upstream element is pulled, a log is emitted if ...
 
-                - ``None`` (default): ... the number of yielded elements (or errors) reaches a power of 2.
-                - ``int``: ... the number of yielded elements (or errors) reaches `every`.
-                - ``timedelta``: ... `every` has elapsed since the last log.
+              - ``None`` (default): ... the number of yielded elements (or errors) reaches a power of 2.
+              - ``int``: ... the number of yielded elements (or errors) reaches `every`.
+              - ``timedelta``: ... `every` has elapsed since the last log.
 
             do (``Callable[[stream.Observation], Any] | AsyncCallable[stream.Observation, Any]``, optional): Specify what to do with the observation, ``do`` will be called periodically according to ``every``. A ``stream.Observation`` is passed to ``do``. (default: calls ``logging.getLogger("streamable").info``)
 
@@ -699,8 +699,8 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         Args:
             until (``int | Callable[[T], Any] | AsyncCallable[T, Any]``):
 
-                - ``int``: The number of elements to skip.
-                - ``Callable[[T], Any] | AsyncCallable[T, Any]``: Skips elements until encountering one for which ``until(elem)`` is truthy (this element and all the subsequent ones will be yielded).
+              - ``int``: The number of elements to skip.
+              - ``Callable[[T], Any] | AsyncCallable[T, Any]``: Skips elements until encountering one for which ``until(elem)`` is truthy (this element and all the subsequent ones will be yielded).
 
         Returns:
             ``stream[T]``: A stream of the upstream elements remaining after skipping.
@@ -727,8 +727,8 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         Args:
             until (``int | Callable[[T], Any] | AsyncCallable[T, Any]``):
 
-                - ``int``: Yields the first ``until`` elements.
-                - ``Callable[[T], Any] | AsyncCallable[T, Any]``: Yields elements until encountering one for which ``until(elem)`` is truthy; that element will not be yielded.
+              - ``int``: Yields the first ``until`` elements.
+              - ``Callable[[T], Any] | AsyncCallable[T, Any]``: Yields elements until encountering one for which ``until(elem)`` is truthy; that element will not be yielded.
 
         Returns:
             ``stream[T]``: A stream of the first upstream elements stopping according to ``until``.
