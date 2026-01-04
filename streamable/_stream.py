@@ -649,7 +649,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
     def observe(
         self,
-        subject: str,
+        subject: str = "elements",
         *,
         every: Union[None, int, datetime.timedelta] = None,
         do: Union[
@@ -663,7 +663,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         A log is emitted `every` interval (number of elements or time interval), or when the number of yielded elements (or errors) reaches powers of 2 if `every is None`.
 
         Args:
-            subject (``str``): Describes the yielded objects ("cats", "dogs", ...).
+            subject (``str``, optional): Describes the yielded objects ("cats", "dogs", ...). (default: "elements")
             every (``int | timedelta | None``, optional): When an upstream element is pulled, a log is emitted if ...
 
                 - ``None`` (default): ... the number of yielded elements (or errors) reaches a power of 2.
