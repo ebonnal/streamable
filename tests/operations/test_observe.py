@@ -10,10 +10,6 @@ from tests.utils.functions import identity, slow_identity, slow_identity_duratio
 from tests.utils.iteration import ITERABLE_TYPES, IterableType, alist_or_list
 
 
-# ============================================================================
-# Helper Classes
-# ============================================================================
-
 
 class Log(NamedTuple):
     """Represents a log entry from observe."""
@@ -49,10 +45,6 @@ def inverse(
     )
 
 
-# ============================================================================
-# Basic Functionality Tests
-# ============================================================================
-
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_observe_yields_upstream_elements(itype: IterableType) -> None:
@@ -73,11 +65,6 @@ def test_observe_empty_stream(itype: IterableType) -> None:
     assert alist_or_list(inverse("", logs), itype=itype) == []
     # `observe` should produce one last log on StopIteration, even if the stream is empty
     assert logs == [Log(errors=0, yields=0)]
-
-
-# ============================================================================
-# Logging Tests - every == None
-# ============================================================================
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
@@ -138,11 +125,6 @@ def test_observe_logging_every_none_skips_redundant(itype: IterableType) -> None
         Log(errors=4, yields=6),
         Log(errors=8, yields=6),
     ]
-
-
-# ============================================================================
-# Logging Tests - every == 2
-# ============================================================================
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
@@ -210,12 +192,6 @@ def test_observe_logging_every_2_skips_redundant(itype: IterableType) -> None:
         Log(errors=6, yields=6),
         Log(errors=8, yields=6),
     ]
-
-
-# ============================================================================
-# Logging Tests - every == timedelta
-# ============================================================================
-
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_observe_logging_every_timedelta_reraises(itype: IterableType) -> None:
@@ -286,10 +262,6 @@ def test_observe_logging_every_timedelta_frequent(itype: IterableType) -> None:
     assert len(digits) == len(logs)
 
 
-# ============================================================================
-# Custom How Function Tests
-# ============================================================================
-
 
 @pytest.mark.parametrize("adapt", [identity, asyncify])
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
@@ -308,10 +280,6 @@ def test_observe_do(
     )
     assert [observation.elements for observation in observations] == [1, 2, 4, 6, 8]
 
-
-# ============================================================================
-# Utility Tests
-# ============================================================================
 
 
 def test_escape():

@@ -19,10 +19,6 @@ from tests.utils.iteration import (
 from tests.utils.source import N, ints_src
 
 
-# ============================================================================
-# Filter Tests
-# ============================================================================
-
 
 @pytest.mark.parametrize("adapt", [identity, asyncify])
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
@@ -47,10 +43,6 @@ def test_filter(
         builtins.filter(None, ints_src)
     )
 
-
-# ============================================================================
-# Skip Tests
-# ============================================================================
 
 
 @pytest.mark.parametrize("adapt", [identity, asyncify])
@@ -86,10 +78,6 @@ def test_skip(
             == list(ints_src)[count:]
         )
 
-
-# ============================================================================
-# Take Tests
-# ============================================================================
 
 
 @pytest.mark.parametrize("adapt", [identity, asyncify])

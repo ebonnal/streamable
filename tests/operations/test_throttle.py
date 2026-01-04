@@ -18,10 +18,6 @@ from tests.utils.source import ints_src
 from tests.utils.timing import timestream
 
 
-# ============================================================================
-# Validation Tests
-# ============================================================================
-
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_throttle_raises_on_zero_timedelta(itype: IterableType) -> None:
@@ -44,10 +40,6 @@ def test_throttle_raises_on_invalid_count(itype: IterableType) -> None:
             stream([1]).throttle(0, per=datetime.timedelta(seconds=1)), itype=itype
         )
 
-
-# ============================================================================
-# Interval Timing Tests
-# ============================================================================
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
@@ -128,10 +120,6 @@ def test_throttle_handles_slow_upstream(itype: IterableType) -> None:
     )
 
 
-# ============================================================================
-# Rate Limiting Tests (per second)
-# ============================================================================
-
 
 @pytest.mark.parametrize("n_items", [1, 10, 11])
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
@@ -177,10 +165,6 @@ def test_throttle_with_exceptions_limits_per_second(
         expected_duration, abs=0.01 * expected_duration + 0.01
     )
 
-
-# ============================================================================
-# Chained Throttle Tests
-# ============================================================================
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)

@@ -18,10 +18,6 @@ from tests.utils.iteration import (
 from tests.utils.source import ints_src
 
 
-# ============================================================================
-# Basic Functionality Tests
-# ============================================================================
-
 
 @pytest.mark.parametrize("adapt", [identity, asyncify])
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
@@ -139,10 +135,6 @@ def test_catch_chained(
         anext_or_next(iterator, itype=itype)
 
 
-# ============================================================================
-# Where Clause Tests
-# ============================================================================
-
 
 @pytest.mark.parametrize("adapt", [identity, asyncify])
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
@@ -158,10 +150,6 @@ def test_catch_where_clause(
             itype=itype,
         )
 
-
-# ============================================================================
-# Replacement Tests
-# ============================================================================
 
 
 @pytest.mark.parametrize("adapt", [identity, asyncify])
@@ -194,10 +182,6 @@ def test_catch_replace_with_none(
     ) == [None, 1, 0.5, 0.25]
 
 
-# ============================================================================
-# Multiple Exception Types Tests
-# ============================================================================
-
 
 @pytest.mark.parametrize("adapt", [identity, asyncify])
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
@@ -229,10 +213,6 @@ def test_catch_multiple_exception_types(
     assert errors_counter == {TestError: 5, ValueError: 3, ZeroDivisionError: 1}
 
 
-# ============================================================================
-# Do Side Effect Tests
-# ============================================================================
-
 
 @pytest.mark.parametrize("adapt", [identity, asyncify])
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
@@ -256,10 +236,6 @@ def test_catch_do_side_effect(
         ) == [1, 1]
         assert len(errors) == 3
 
-
-# ============================================================================
-# Stop Behavior Tests
-# ============================================================================
 
 
 @pytest.mark.parametrize("adapt", [identity, asyncify])

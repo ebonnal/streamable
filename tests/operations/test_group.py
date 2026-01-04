@@ -23,10 +23,6 @@ from tests.utils.iteration import (
 from tests.utils.source import N, even_src, ints_src
 
 
-# ============================================================================
-# Validation Tests
-# ============================================================================
-
 
 @pytest.mark.parametrize("adapt", [identity, asyncify])
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
@@ -55,10 +51,6 @@ def test_group_raises_on_invalid_up_to(
         with pytest.raises(ValueError):
             alist_or_list(stream([1]).group(up_to=size), itype=itype)
 
-
-# ============================================================================
-# Basic Grouping Tests
-# ============================================================================
 
 
 @pytest.mark.parametrize("adapt", [identity, asyncify])
@@ -91,10 +83,6 @@ def test_group_without_arguments(
     ) == list(ints_src)
 
 
-# ============================================================================
-# Exception Handling Tests
-# ============================================================================
-
 
 @pytest.mark.parametrize("adapt", [identity, asyncify])
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
@@ -117,10 +105,6 @@ def test_group_with_exceptions(
     # ... and restarting a fresh group to yield after that.
     assert anext_or_next(stream_iterator, itype=itype) == list(map(f, range(111, 211)))
 
-
-# ============================================================================
-# Time-Based Grouping Tests
-# ============================================================================
 
 
 @pytest.mark.parametrize("adapt", [identity, asyncify])
@@ -157,10 +141,6 @@ def test_group_every_parameter(
         itype=itype,
     ) == list(map(lambda e: [e, e + 1], even_src))
 
-
-# ============================================================================
-# Group By Key Tests
-# ============================================================================
 
 
 @pytest.mark.parametrize("adapt", [identity, asyncify])
@@ -267,10 +247,6 @@ def test_group_by_key_with_exceptions(
     with pytest.raises(TestError):
         anext_or_next(stream_iter, itype=itype)
 
-
-# ============================================================================
-# FIFO Yield Tests
-# ============================================================================
 
 
 @pytest.mark.parametrize("adapt", [identity, asyncify])

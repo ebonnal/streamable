@@ -19,10 +19,6 @@ T = TypeVar("T")
 R = TypeVar("R")
 
 
-# ============================================================================
-# Identity Functions
-# ============================================================================
-
 
 def identity(x: T) -> T:
     """Identity function."""
@@ -34,10 +30,6 @@ async def async_identity(x: T) -> T:
     return x
 
 
-# ============================================================================
-# Math Functions
-# ============================================================================
-
 
 def square(x):
     """Square a number."""
@@ -48,10 +40,6 @@ async def async_square(x):
     """Async square function."""
     return x**2
 
-
-# ============================================================================
-# Exception Functions
-# ============================================================================
 
 
 def throw(exc: Type[Exception]):
@@ -87,10 +75,6 @@ def async_throw_for_odd_func(exc):
     return f
 
 
-# ============================================================================
-# Slow Functions
-# ============================================================================
-
 slow_identity_duration = 0.05
 
 
@@ -105,10 +89,6 @@ async def async_slow_identity(x: T) -> T:
     await asyncio.sleep(slow_identity_duration)
     return x
 
-
-# ============================================================================
-# Randomly Slowed Functions
-# ============================================================================
 
 
 def randomly_slowed(
@@ -137,10 +117,6 @@ def async_randomly_slowed(
     return wrap
 
 
-# ============================================================================
-# Sleep Functions
-# ============================================================================
-
 
 def identity_sleep(seconds: float) -> float:
     """Sleep and return the seconds value."""
@@ -153,10 +129,6 @@ async def async_identity_sleep(seconds: float) -> float:
     await asyncio.sleep(seconds)
     return seconds
 
-
-# ============================================================================
-# Iterator Functions
-# ============================================================================
 
 
 def range_raising_at_exhaustion(
