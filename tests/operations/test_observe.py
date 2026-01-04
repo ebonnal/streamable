@@ -64,6 +64,17 @@ def test_observe_yields_upstream_elements(itype: IterableType) -> None:
     )
 
 
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_observe_empty_stream(itype: IterableType) -> None:
+    """Observe should produce one last log on StopIteration, even if the stream is empty."""
+
+    logs: List[Log] = []
+
+    assert alist_or_list(inverse("", logs), itype=itype) == []
+    # `observe` should produce one last log on StopIteration, even if the stream is empty
+    assert logs == [Log(errors=0, yields=0)]
+
+
 # ============================================================================
 # Logging Tests - every == None
 # ============================================================================

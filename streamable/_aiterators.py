@@ -379,10 +379,14 @@ class _BaseObserveAsyncIterator(AsyncIterator[T]):
         self.do = do
         self._elements = 0
         self._errors = 0
-        self._nexts_logged = 0
+        self._emissions_logged = 0
         self._elements_logged = 0
         self._errors_logged = 0
         self.__start_point: Optional[datetime.datetime] = None
+
+    @property
+    def _emissions(self) -> int:
+        return self._elements + self._errors
 
     def _observation(self) -> "stream.Observation":
         from streamable._stream import stream
@@ -405,7 +409,7 @@ class _BaseObserveAsyncIterator(AsyncIterator[T]):
 
     async def _observe(self) -> None:
         await self.do(self._observation())
-        self._nexts_logged = self._elements + self._errors
+        self._emissions_logged = self._emissions
 
     @abstractmethod
     def _should_observe_yield(self) -> bool: ...
@@ -423,7 +427,7 @@ class _BaseObserveAsyncIterator(AsyncIterator[T]):
                 self._elements_logged = self._elements
             return elem
         except StopAsyncIteration:
-            if self._elements + self._errors > self._nexts_logged:
+            if not self._emissions or self._emissions > self._emissions_logged:
                 await self._observe()
             raise
         except Exception:
