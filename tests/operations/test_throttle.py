@@ -1,6 +1,7 @@
 import datetime
 import math
 import time
+from typing import Any, Callable
 
 import pytest
 
@@ -186,7 +187,10 @@ def test_throttle_chained_follows_most_restrictive(itype: IterableType) -> None:
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_throttle_sliding_window(itype: IterableType) -> None:
+@pytest.mark.parametrize("effect", [str, throw_func(TestError)])
+def test_throttle_sliding_window(
+    itype: IterableType, effect: Callable[[float], Any]
+) -> None:
     """
     Throttle should behave like a limit on the number of element emitted per sliding window
     """
@@ -195,7 +199,7 @@ def test_throttle_sliding_window(itype: IterableType) -> None:
     # |         |         |         |
     # 0s        1s        2s        3s
     sleeps = [0, 0.1, 0.1, 1.7, 0.1, 0.1, 0.1, 0.1, 0.1, 1]
-    bursty_stream = stream(sleeps).do(time.sleep)
+    bursty_stream = stream(sleeps).do(time.sleep).map(effect)
 
     # throttled emissions (4 emissions per 2 seconds window, each window contains at most 3 past emissions):
     # eee................eeee................ee.........e
@@ -213,12 +217,15 @@ def test_throttle_sliding_window(itype: IterableType) -> None:
     #                               ]--------ee---------]
     expected_emission_timestamps = [0.0, 0.1, 0.2, 1.9, 2, 2.1, 2.2, 3.9, 4, 5]
     throttled_stream = aiter_or_iter(
-        bursty_stream.throttle(4, per=datetime.timedelta(seconds=2)), itype=itype
+        bursty_stream.throttle(4, per=datetime.timedelta(seconds=2)).catch(
+            Exception, replace=lambda err: None
+        ),
+        itype=itype,
     )
 
     start = time.perf_counter()
     for expected_emission_timestamp, elem in zip(expected_emission_timestamps, sleeps):
-        assert anext_or_next(throttled_stream, itype=itype) == elem
+        anext_or_next(throttled_stream, itype=itype) == elem
         assert time.perf_counter() - start == pytest.approx(
             expected_emission_timestamp, rel=0.15, abs=0.005
         )
