@@ -18,22 +18,22 @@
 
 #### Unified Sync/Async Methods
 - **BREAKING**: All `a*` methods merged into their sync counterparts. All operations now accept both sync and async functions automatically.
-  - `acatch()` → merged into `catch()` 
-  - `afilter()` → merged into `filter()`
-  - `aflatten()` → merged into `flatten()`
-  - `aforeach()` → merged into `do()` (see below)
-  - `agroup()` → merged into `group()`
-  - `agroupby()` → merged into `group()` with `by` parameter (see below)
-  - `amap()` → merged into `map()`
-  - `askip()` → merged into `skip()`
-  - `atruncate()` → merged into `take()` (see below)
+  - `.acatch` → merged into `.catch`
+  - `.afilter` → merged into `.filter`
+  - `.aflatten` → merged into `.flatten`
+  - `.aforeach` → merged into `.do` (see below)
+  - `.agroup` → merged into `.group`
+  - `.agroupby` → merged into `.group` with `by` parameter (see below)
+  - `.amap` → merged into `.map`
+  - `.askip` → merged into `.skip`
+  - `.atruncate` → merged into `.take` (see below)
 
 #### Method Renames
-- **BREAKING**: `foreach()` / `aforeach()` → `do()`
+- **BREAKING**: `.foreach` / `.aforeach` → `.do`
 
-- **BREAKING**: `truncate()` / `atruncate()` → `take()`
+- **BREAKING**: `.truncate` / `.atruncate` → `.take`
 
-- **BREAKING**: `groupby()` / `agroupby()` → merged into `group()`
+- **BREAKING**: `.groupby` / `.agroupby` → merged into `.group`
   ```python
   # v1.6.6
   ints.groupby(key=lambda x: x % 2)
@@ -43,7 +43,7 @@
   ```
 
 #### Parameter Renames
-- **BREAKING**: `catch()` parameter changes:
+- **BREAKING**: `.catch` parameter changes:
   - Parameter renames: `when` → `where`, `replacement` → `replace` (now a callable instead of a value)
   - Parameter removed: `finally_raise` (use the new `do` parameter to save and manually raise errors after iteration if needed)
   
@@ -63,21 +63,21 @@
   )
   ```
 
-- **BREAKING**: `filter()` positional parameter rename: `when` → `where`
+- **BREAKING**: `.filter` positional parameter rename: `when` → `where`
 
-- **BREAKING**: `map()`/`do()` positional parameter rename: `ordered` → `as_completed` (of opposite boolean value)
+- **BREAKING**: `.map`/`.do` positional parameter rename: `ordered` → `as_completed` (of opposite boolean value)
 
-- **BREAKING**: `skip()` API changes: merge `count` and `until` params
+- **BREAKING**: `.skip` API changes: merge `count` and `until` params
 
-- **BREAKING**: `group()` parameter renames:
+- **BREAKING**: `.group` parameter renames:
   - `size` → `up_to` (positional)
   - `interval` → `every` (keyword-only)
 
-- **BREAKING**: `throttle()` parameter changes:
+- **BREAKING**: `.throttle` parameter changes:
   - `count` → `up_to`, now required
   - `per` is now required
 
-- **BREAKING**: `map()` parameter rename:
+- **BREAKING**: `.map` parameter rename:
   - `transformation` → `into` (positional)
   - Removed `via` parameter, for process-based concurrency you can now pass a `ProcessPoolExecutor` as `concurrency`
   
@@ -95,9 +95,9 @@
   ```
 
 #### Removed Methods
-- **BREAKING**: `display()` removed
-- **BREAKING**: `count()` / `acount()` removed
-- **BREAKING**: `distinct()` / `adistinct()` removed
+- **BREAKING**: `.display` removed
+- **BREAKING**: `.count` / `.acount` removed
+- **BREAKING**: `.distinct` / `.adistinct` removed
 
 ```python
 # v1.6.6
@@ -110,11 +110,11 @@ stream(...).filter(lambda _: _ not in seen).do(seen.add)
 ```
 
 #### Redesigned Methods
-- **BREAKING**: `observe()`: positional parameter rename: `what` → `subject`
+- **BREAKING**: `.observe`: positional parameter rename: `what` → `subject`
 
 ### ✨ New Features
 
 - Unified sync/async operations: All methods now automatically handle both sync and async functions without needing separate `a*` methods
 - `__iadd__` support: In-place addition operator (`+=`) support for streams
-- Enhanced `observe()`: New flexible observation with configurable `every` intervals and custom `do` to process observations.
-- Improved `catch()`: Now supports `do` side effects in addition to `replace`, and new `stop` parameter to halt iteration on caught exception.
+- Enhanced `.observe`: New flexible observation with configurable `every` intervals and custom `do` to process observations.
+- Improved `.catch`: Now supports `do` side effects in addition to `replace`, and new `stop` parameter to halt iteration on caught exception.
