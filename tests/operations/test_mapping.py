@@ -140,22 +140,19 @@ def test_map_with_more_concurrency_than_elements(
 
 
 @pytest.mark.parametrize(
-    "ordered, order_mutation, itype",
+    "as_completed, order_mutation, itype",
     [
-        (ordered, order_mutation, itype)
+        [as_completed, order_mutation, itype]
         for itype in ITERABLE_TYPES
-        for ordered, order_mutation in [
-            (True, identity),
-            (False, sorted),
-        ]
+        for as_completed, order_mutation in [(False, identity), (True, sorted)]
     ],
 )
 def test_process_concurrency(
-    ordered: bool,
+    as_completed: bool,
     order_mutation: Callable[[Iterable], Iterable],
     itype: IterableType,
 ) -> None:
-    """Process-based concurrency must correctly transform elements, respecting `ordered`."""
+    """Process-based concurrency must correctly transform elements, respecting `as_completed`."""
 
     def local_identity(x):
         return x  # pragma: no cover
@@ -166,12 +163,12 @@ def test_process_concurrency(
         expected_result_list: List[str] = list(order_mutation(map(str, sleeps)))
         stream_ = (
             stream(sleeps)
-            .do(identity_sleep, concurrency=processes, ordered=ordered)
-            .map(str, concurrency=processes, ordered=True)
-            .do(state.append, concurrency=processes, ordered=True)
-            .do(lambda _: state.append(""), concurrency=1, ordered=True)
+            .do(identity_sleep, concurrency=processes, as_completed=as_completed)
+            .map(str, concurrency=processes, as_completed=False)
+            .do(state.append, concurrency=processes, as_completed=False)
+            .do(lambda _: state.append(""), concurrency=1, as_completed=False)
         )
-        # process-based concurrency must correctly transform elements, respecting `ordered`...
+        # process-based concurrency must correctly transform elements, respecting `as_completed`...
         assert alist_or_list(stream_, itype=itype) == expected_result_list
         # ... and should not mutate main thread-bound structures.
         assert state == [""] * len(sleeps)
@@ -194,12 +191,12 @@ def test_process_concurrency(
 
 
 @pytest.mark.parametrize(
-    "ordered, order_mutation, expected_duration, operation, func, itype",
+    "as_completed, order_mutation, expected_duration, operation, func, itype",
     [
-        [ordered, order_mutation, expected_duration, operation, func, itype]
-        for ordered, order_mutation, expected_duration in [
-            (True, identity, 0.7),
-            (False, sorted, 0.41),
+        [as_completed, order_mutation, expected_duration, operation, func, itype]
+        for as_completed, order_mutation, expected_duration in [
+            (False, identity, 0.7),
+            (True, sorted, 0.41),
         ]
         for operation, func in [
             (stream.do, time.sleep),
@@ -211,21 +208,21 @@ def test_process_concurrency(
     ],
 )
 def test_mapping_ordering(
-    ordered: bool,
+    as_completed: bool,
     order_mutation: Callable[[Iterable], Iterable],
     expected_duration: float,
     operation: Callable[..., Any],
     func: Callable[..., Any],
     itype: IterableType,
 ) -> None:
-    """Operation must respect `ordered` constraint."""
+    """Operation must respect `as_completed` constraint."""
     seconds = [0.3, 0.01, 0.01, 0.4]
     duration, res = timestream(
-        operation(stream(seconds), func, ordered=ordered, concurrency=2),
+        operation(stream(seconds), func, as_completed=as_completed, concurrency=2),
         5,
         itype=itype,
     )
-    # operation must respect `ordered` constraint
+    # operation must respect `as_completed` constraint
     assert res == list(order_mutation(seconds))
     # should reflect that unordering improves runtime by avoiding bottlenecks
     assert duration == pytest.approx(expected_duration, rel=0.2)
@@ -262,28 +259,27 @@ def test_map_or_do_concurrency(
 
 
 @pytest.mark.parametrize(
-    "itype, concurrency, ordered, expected",
+    "itype, concurrency, as_completed, expected",
     [
-        (itype, concurrency, ordered, expected)
+        (itype, concurrency, as_completed, expected)
         for itype in ITERABLE_TYPES
         for concurrency in (1, 2)
-        for ordered, expected in (
-            (True, [float("inf"), 1.0, float("inf"), 0.5, float("inf")]),
-            (False, [float("inf"), float("inf"), float("inf"), 0.5, 1.0]),
+        for as_completed, expected in (
+            (False, [float("inf"), 1.0, float("inf"), 0.5, float("inf")]),
+            (True, [float("inf"), float("inf"), float("inf"), 0.5, 1.0]),
         )
-        if concurrency > 1 or ordered
+        if concurrency > 1 or not as_completed
     ],
 )
 def test_catched_error_upstream_of_map(
-    itype: IterableType, concurrency: int, ordered: bool, expected: List[float]
+    itype: IterableType, concurrency: int, as_completed: bool, expected: List[float]
 ) -> None:
     """At any concurrency, map/do should not stop iteration when upstream raises."""
-    # at any concurrency, map/do should not stop iteration when upstream raises
     assert (
         alist_or_list(
             stream([0, 1, 0, 2, 0])
             .map(lambda n: 1 / n)
-            .map(identity_sleep, concurrency=concurrency, ordered=ordered)
+            .map(identity_sleep, concurrency=concurrency, as_completed=as_completed)
             .catch(ZeroDivisionError, replace=lambda e: float("inf")),
             itype=itype,
         )
@@ -294,7 +290,9 @@ def test_catched_error_upstream_of_map(
         alist_or_list(
             stream([0, 1, 0, 2, 0])
             .map(lambda n: 1 / n)
-            .map(async_identity_sleep, concurrency=concurrency, ordered=ordered)
+            .map(
+                async_identity_sleep, concurrency=concurrency, as_completed=as_completed
+            )
             .catch(ZeroDivisionError, replace=lambda e: float("inf")),
             itype=itype,
         )

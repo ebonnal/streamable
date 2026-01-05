@@ -99,7 +99,7 @@ def map(
     aiterator: AsyncIterator[T],
     *,
     concurrency: Union[int, Executor] = 1,
-    ordered: bool = True,
+    as_completed: bool = False,
 ) -> AsyncIterator[U]:
     if concurrency == 1:
         return _aiterators.MapAsyncIterator(aiterator, asyncify(into))
@@ -108,14 +108,14 @@ def map(
             aiterator,
             cast(AsyncFunction[T, U], into),
             concurrency=cast(int, concurrency),
-            ordered=ordered,
+            as_completed=as_completed,
         )
     else:
         return _aiterators.ExecutorConcurrentMapAsyncIterator(
             aiterator,
             cast(Callable[[T], U], into),
             concurrency=concurrency,
-            ordered=ordered,
+            as_completed=as_completed,
         )
 
 

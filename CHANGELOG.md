@@ -65,6 +65,8 @@
 
 - **BREAKING**: `filter()` positional parameter rename: `when` → `where`
 
+- **BREAKING**: `map()`/`do()` positional parameter rename: `ordered` → `as_completed` (of opposite boolean value)
+
 - **BREAKING**: `skip()` API changes: merge `count` and `until` params
 
 - **BREAKING**: `group()` parameter renames:

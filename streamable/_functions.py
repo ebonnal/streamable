@@ -107,7 +107,7 @@ def map(
     iterator: Iterator[T],
     *,
     concurrency: Union[int, Executor] = 1,
-    ordered: bool = True,
+    as_completed: bool = False,
 ) -> Iterator[U]:
     if concurrency == 1:
         return builtins.map(syncify(loop_getter, into), iterator)
@@ -117,14 +117,14 @@ def map(
             iterator,
             into,
             concurrency=cast(int, concurrency),
-            ordered=ordered,
+            as_completed=as_completed,
         )
     else:
         return _iterators.ExecutorConcurrentMapIterator(
             iterator,
             cast(Callable[[T], U], into),
             concurrency=concurrency,
-            ordered=ordered,
+            as_completed=as_completed,
         )
 
 

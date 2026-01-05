@@ -479,7 +479,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         effect: AsyncFunction[T, Any],
         *,
         concurrency: int = 1,
-        ordered: bool = True,
+        as_completed: bool = False,
     ) -> "stream[T]": ...
 
     @overload
@@ -488,7 +488,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         effect: Callable[[T], Any],
         *,
         concurrency: Union[int, Executor] = 1,
-        ordered: bool = True,
+        as_completed: bool = False,
     ) -> "stream[T]": ...
 
     def do(
@@ -496,7 +496,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         effect: Union[Callable[[T], Any], AsyncFunction[T, Any]],
         *,
         concurrency: Union[int, Executor] = 1,
-        ordered: bool = True,
+        as_completed: bool = False,
     ) -> "stream[T]":
         """
         Applies a side ``effect`` for each upstream element.
@@ -508,7 +508,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
               - ``concurrency == 1`` (default): ... sequentially, no concurrency.
               - ``concurrency > 1`` or ``Executor``: ... concurrently via ``concurrency`` threads or via the provided ``Executor``, or via the event loop if ``effect`` is an async function. At any point in time, only ``concurrency`` elements are buffered for processing.
 
-            ordered (``bool``, optional): If ``concurrency`` > 1, whether to yield preserving the upstream order (First In First Out) or as completed (First Done First Out). (default: preserves order)
+            as_completed (``bool``, optional): If ``concurrency`` > 1, whether to yield preserving the upstream order (First In First Out) or as completed (First Done First Out). (default: preserves order)
 
         Returns:
             ``stream[T]``: A stream of upstream elements, unchanged.
@@ -517,7 +517,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             validate_int(concurrency, gte=1, name="concurrency")
         else:
             validate_concurrency_executor(concurrency, effect, fn_name="effect")
-        return DoStream(self, effect, concurrency, ordered)
+        return DoStream(self, effect, concurrency, as_completed)
 
     @overload
     def group(
@@ -586,7 +586,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         into: AsyncFunction[T, U],
         *,
         concurrency: int = 1,
-        ordered: bool = True,
+        as_completed: bool = False,
     ) -> "stream[U]": ...
 
     @overload
@@ -595,7 +595,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         into: Callable[[T], U],
         *,
         concurrency: Union[int, Executor] = 1,
-        ordered: bool = True,
+        as_completed: bool = False,
     ) -> "stream[U]": ...
 
     def map(
@@ -603,7 +603,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         into: Union[Callable[[T], U], AsyncFunction[T, U]],
         *,
         concurrency: Union[int, Executor] = 1,
-        ordered: bool = True,
+        as_completed: bool = False,
     ) -> "stream[U]":
         """
         Applies ``into`` on upstream elements and yields the results.
@@ -615,7 +615,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
               - ``concurrency == 1`` (default): ... sequentially, no concurrency.
               - ``concurrency > 1`` or ``Executor``: ... concurrently via ``concurrency`` threads or via the provided ``Executor``, or via the event loop if ``into`` is an async function. At any point in time, only ``concurrency`` elements are buffered for processing.
 
-            ordered (``bool``, optional): If ``concurrency`` > 1, whether to yield preserving the upstream order (First In First Out) or as completed (First Done First Out). (default: preserves order)
+            as_completed (``bool``, optional): If ``concurrency`` > 1, whether to yield preserving the upstream order (First In First Out) or as completed (First Done First Out). (default: preserves order)
 
         Returns:
             ``stream[U]``: A stream of transformed elements.
@@ -624,7 +624,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             validate_int(concurrency, gte=1, name="concurrency")
         else:
             validate_concurrency_executor(concurrency, into, fn_name="into")
-        return MapStream(self, into, concurrency, ordered)
+        return MapStream(self, into, concurrency, as_completed)
 
     class Observation(NamedTuple):
         """
@@ -851,7 +851,7 @@ class FlattenStream(DownStream[Union[Iterable[T], AsyncIterable[T]], T]):
 
 
 class DoStream(DownStream[T, T]):
-    __slots__ = ("_effect", "_concurrency", "_ordered")
+    __slots__ = ("_effect", "_concurrency", "_as_completed")
 
     def __init__(
         self,
@@ -861,12 +861,12 @@ class DoStream(DownStream[T, T]):
             AsyncFunction[T, Any],
         ],
         concurrency: Union[int, Executor],
-        ordered: bool,
+        as_completed: bool,
     ) -> None:
         super().__init__(upstream)
         self._effect = effect
         self._concurrency = concurrency
-        self._ordered = ordered
+        self._as_completed = as_completed
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_do_stream(self)
@@ -896,7 +896,7 @@ class GroupStream(DownStream[T, List[T]]):
 
 
 class MapStream(DownStream[T, U]):
-    __slots__ = ("_into", "_concurrency", "_ordered")
+    __slots__ = ("_into", "_concurrency", "_as_completed")
 
     def __init__(
         self,
@@ -906,12 +906,12 @@ class MapStream(DownStream[T, U]):
             AsyncFunction[T, U],
         ],
         concurrency: Union[int, Executor],
-        ordered: bool,
+        as_completed: bool,
     ) -> None:
         super().__init__(upstream)
         self._into = into
         self._concurrency = concurrency
-        self._ordered = ordered
+        self._as_completed = as_completed
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_map_stream(self)

@@ -82,7 +82,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
             sidify(stream._effect),
             stream.upstream.accept(self),
             concurrency=stream._concurrency,
-            ordered=stream._ordered,
+            as_completed=stream._as_completed,
         )
 
     def visit_group_stream(self, stream: "GroupStream[T]") -> Iterator[T]:
@@ -103,7 +103,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
             stream._into,
             stream.upstream.accept(cast(IteratorVisitor[U], self)),
             concurrency=stream._concurrency,
-            ordered=stream._ordered,
+            as_completed=stream._as_completed,
         )
 
     def visit_observe_stream(self, stream: "ObserveStream[T]") -> Iterator[T]:

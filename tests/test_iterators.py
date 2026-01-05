@@ -24,7 +24,7 @@ def test_ConcurrentAMapAsyncIterable() -> None:
                 async_iter(iter(INTEGERS)),
                 async_identity,
                 concurrency=2,
-                ordered=True,
+                as_completed=False,
             )
         )
 

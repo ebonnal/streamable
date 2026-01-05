@@ -109,7 +109,7 @@ Set the `concurrency` parameter to apply the transformation concurrently.
 
 > ***Memory-efficient***: Only `concurrency` upstream elements are pulled for processing; the next upstream element is pulled only when a result is yielded downstream.
 
-> ***Ordering***: it yields results in the upstream order (FIFO), set `ordered=False` to yield results as they become available (*First Done, First Out*).
+> ***Ordering***: it yields results in the upstream order (***FIFO***), set `as_completed=True` to yield results as they become available (***First Done, First Out***).
 
 #### via threads
 

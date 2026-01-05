@@ -583,12 +583,12 @@ class _BaseConcurrentMapAsyncIterable(
         self,
         iterator: AsyncIterator[T],
         concurrency: int,
-        ordered: bool,
+        as_completed: bool,
         context_manager: Optional[ContextManager] = None,
     ) -> None:
         self.iterator = iterator
         self.concurrency = concurrency
-        self.ordered = ordered
+        self.as_completed = as_completed
         self._context_manager = context_manager or noop_context_manager()
 
     @abstractmethod
@@ -597,9 +597,9 @@ class _BaseConcurrentMapAsyncIterable(
     def _future_result_collection(
         self,
     ) -> FutureResultCollection[Union[U, ExceptionContainer]]:
-        if self.ordered:
-            return FIFOFutureResultCollection()
-        return FDFOFutureResultCollection()
+        if self.as_completed:
+            return FDFOFutureResultCollection()
+        return FIFOFutureResultCollection()
 
     async def _next_future(
         self,
@@ -640,17 +640,19 @@ class _ExecutorConcurrentMapAsyncIterable(_BaseConcurrentMapAsyncIterable[T, U])
         iterator: AsyncIterator[T],
         into: Callable[[T], U],
         concurrency: Union[int, Executor],
-        ordered: bool,
+        as_completed: bool,
     ) -> None:
         self.into = ExceptionContainer.wrap(into)
         if isinstance(concurrency, int):
             self.executor: Executor = ThreadPoolExecutor(max_workers=concurrency)
             super().__init__(
-                iterator, concurrency, ordered, context_manager=self.executor
+                iterator, concurrency, as_completed, context_manager=self.executor
             )
         else:
             self.executor = concurrency
-            super().__init__(iterator, getattr(self.executor, "_max_workers"), ordered)
+            super().__init__(
+                iterator, getattr(self.executor, "_max_workers"), as_completed
+            )
 
     def _launch_task(self, elem: T) -> "Future[Union[U, ExceptionContainer]]":
         return asyncio.get_running_loop().run_in_executor(
@@ -664,14 +666,14 @@ class ExecutorConcurrentMapAsyncIterator(_RaisingAsyncIterator[U]):
         iterator: AsyncIterator[T],
         into: Callable[[T], U],
         concurrency: Union[int, Executor],
-        ordered: bool,
+        as_completed: bool,
     ) -> None:
         super().__init__(
             _ExecutorConcurrentMapAsyncIterable(
                 iterator,
                 into,
                 concurrency,
-                ordered,
+                as_completed,
             ).__aiter__()
         )
 
@@ -682,9 +684,9 @@ class _AsyncConcurrentMapAsyncIterable(_BaseConcurrentMapAsyncIterable[T, U]):
         iterator: AsyncIterator[T],
         into: AsyncFunction[T, U],
         concurrency: int,
-        ordered: bool,
+        as_completed: bool,
     ) -> None:
-        super().__init__(iterator, concurrency, ordered)
+        super().__init__(iterator, concurrency, as_completed)
         self.into = ExceptionContainer.awrap(into)
         self.__semaphore: Optional[asyncio.Semaphore] = None
 
@@ -708,14 +710,14 @@ class AsyncConcurrentMapAsyncIterator(_RaisingAsyncIterator[U]):
         iterator: AsyncIterator[T],
         into: AsyncFunction[T, U],
         concurrency: int,
-        ordered: bool,
+        as_completed: bool,
     ) -> None:
         super().__init__(
             _AsyncConcurrentMapAsyncIterable(
                 iterator,
                 into,
                 concurrency,
-                ordered,
+                as_completed,
             ).__aiter__()
         )
 

@@ -78,14 +78,11 @@ def test_async_src(itype: IterableType) -> None:
 
 
 def test_repr(complex_stream: stream, complex_stream_str: str) -> None:
-    print_stream = stream([]).map(star(print))
+    print_stream = stream([(0, 1)]).filter(star(print))
     assert (
-        repr(print_stream)
-        == "stream([]).map(star(<built-in function print>), concurrency=1, ordered=True)"
+        repr(print_stream) == "stream([(0, 1)]).filter(star(<built-in function print>))"
     )
-    assert (
-        str(print_stream) == "stream([]).map(star(print), concurrency=1, ordered=True)"
-    )
+    assert str(print_stream) == "stream([(0, 1)]).filter(star(print))"
 
     async def foo():
         pass  # pragma: no cover
