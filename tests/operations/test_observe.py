@@ -66,7 +66,7 @@ def test_observe_empty_stream(itype: IterableType) -> None:
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_observe_logging_every_none_reraises(itype: IterableType) -> None:
+def test_observe_every_none_reraises(itype: IterableType) -> None:
     """Observe should reraise exceptions when every is None."""
 
     logs: List[Log] = []
@@ -87,7 +87,7 @@ def test_observe_logging_every_none_reraises(itype: IterableType) -> None:
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_observe_logging_every_none_with_catch(itype: IterableType) -> None:
+def test_observe_every_none_with_catch(itype: IterableType) -> None:
     """Observe should produce one last log on StopIteration when exceptions are caught."""
 
     logs: List[Log] = []
@@ -109,7 +109,7 @@ def test_observe_logging_every_none_with_catch(itype: IterableType) -> None:
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_observe_logging_every_none_skips_redundant(itype: IterableType) -> None:
+def test_observe_every_none_skips_redundant(itype: IterableType) -> None:
     """Observe should skip redundant last log on StopIteration."""
     logs: List[Log] = []
     alist_or_list(inverse("12---3456----0", logs).catch(ZeroDivisionError), itype=itype)
@@ -126,7 +126,7 @@ def test_observe_logging_every_none_skips_redundant(itype: IterableType) -> None
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_observe_logging_every_2_reraises(itype: IterableType) -> None:
+def test_observe_every_2_reraises(itype: IterableType) -> None:
     """Observe should reraise exceptions when every is 2."""
 
     logs: List[Log] = []
@@ -148,7 +148,7 @@ def test_observe_logging_every_2_reraises(itype: IterableType) -> None:
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_observe_logging_every_2_with_catch(itype: IterableType) -> None:
+def test_observe_every_2_with_catch(itype: IterableType) -> None:
     """Observe should produce one last log on StopIteration when every is 2 and exceptions are caught."""
 
     logs: List[Log] = []
@@ -171,7 +171,7 @@ def test_observe_logging_every_2_with_catch(itype: IterableType) -> None:
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_observe_logging_every_2_skips_redundant(itype: IterableType) -> None:
+def test_observe_every_2_skips_redundant(itype: IterableType) -> None:
     """Observe should skip redundant last log when every is 2."""
 
     logs: List[Log] = []
@@ -191,8 +191,9 @@ def test_observe_logging_every_2_skips_redundant(itype: IterableType) -> None:
         Log(errors=8, yields=6),
     ]
 
+
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_observe_logging_every_timedelta_reraises(itype: IterableType) -> None:
+def test_observe_every_timedelta_reraises(itype: IterableType) -> None:
     """Observe should reraise exceptions when every is a timedelta."""
 
     logs: List[Log] = []
@@ -206,7 +207,7 @@ def test_observe_logging_every_timedelta_reraises(itype: IterableType) -> None:
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_observe_logging_every_timedelta_with_catch(itype: IterableType) -> None:
+def test_observe_every_timedelta_with_catch(itype: IterableType) -> None:
     """Observe should produce one last log on StopIteration when every is a timedelta and exceptions are caught."""
 
     logs: List[Log] = []
@@ -224,7 +225,7 @@ def test_observe_logging_every_timedelta_with_catch(itype: IterableType) -> None
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_observe_logging_every_timedelta_skips_redundant(itype: IterableType) -> None:
+def test_observe_every_timedelta_skips_redundant(itype: IterableType) -> None:
     """Observe should skip redundant last log when every is a timedelta."""
 
     logs: List[Log] = []
@@ -242,7 +243,7 @@ def test_observe_logging_every_timedelta_skips_redundant(itype: IterableType) ->
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_observe_logging_every_timedelta_frequent(itype: IterableType) -> None:
+def test_observe_every_timedelta_frequent(itype: IterableType) -> None:
     """Observe with `every` slightly under slow_identity_duration should emit one log per yield/error."""
 
     logs: List[Log] = []
