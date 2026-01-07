@@ -77,7 +77,7 @@ A `stream[T]` is `Iterable[T]`:
 > visit the [docs](https://streamable.readthedocs.io/en/latest/api.html) for more details
 
   - [`.map`](#-map) elements
-  - [`.do`](#-do) a side effect
+  - [`.do`](#-do) side effects on elements
   - [`.group`](#-group) elements into batches
   - [`.flatten`](#-flatten) iterable elements
   - [`.filter`](#-filter) elements
@@ -87,7 +87,7 @@ A `stream[T]` is `Iterable[T]`:
   - [`.throttle`](#-throttle) the rate of iteration
   - [`.observe`](#-observe) the iteration progress
 
-A `stream` exposes a minimalist yet expressive set of operations to manipulate its elements, but creating its source or consuming it is not its responsibility, it's meant to be combined with dedicated libraries (`csv`, `json`, `pyarrow`, `psycopg2`, `boto3`, `requests`, `httpx`, `polars` ...).
+A `stream` exposes a minimalist yet expressive set of operations to manipulate its elements, creating its source or consuming it is not its responsibility. It's meant to be combined with dedicated libraries (e.g. `csv`, `json`, `pyarrow`, `psycopg2`, `boto3`, `requests`, `httpx`, `polars`).
 
 All ***operations accept both sync and async functions***, you can freely mix them within the same `stream`. It can then be consumed either as an `Iterable` or as an `AsyncIterable`. When a stream involving async functions is consumed as an `Iterable`, a temporary `asyncio` event loop is attached to it.
 
