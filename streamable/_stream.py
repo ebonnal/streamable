@@ -572,7 +572,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             every (``datetime.timedelta | None``, optional): Yields a group if this time interval has elapsed since the last group was yielded. (default: no time limit)
             by (``Callable[[T], Any] | AsyncCallable[T, Any] | None``, optional): If specified, groups will only contain elements sharing the same ``by(elem)`` value, and ``(key, group)`` pairs are yielded. (default: does not co-group elements)
         Returns:
-            ``stream[list[T]]``: A stream of upstream elements grouped into lists.
+            ``stream[list[T]] | stream[tuple[U, list[T]]]``: A stream of upstream elements grouped into lists.
         """
         if up_to is not None:
             validate_int(up_to, gte=1, name="up_to")
