@@ -569,6 +569,40 @@ class _RaisingAsyncIterator(AsyncIterator[T]):
         return elem
 
 
+##########
+# buffer #
+##########
+
+
+class BufferAsyncIterator(AsyncIterator[T]):
+    def __init__(
+        self,
+        iterator: AsyncIterator[T],
+        up_to: int,
+    ) -> None:
+        self.iterator = iterator
+        self.up_to = up_to
+        self._buffer: Deque[asyncio.Task[T]] = deque(maxlen=up_to + 1)
+        self.__lock: Optional[asyncio.Lock] = None
+
+    @property
+    def _lock(self) -> asyncio.Lock:
+        if not self.__lock:
+            self.__lock = asyncio.Lock()
+        return self.__lock
+
+    async def _locked_anext(self) -> T:
+        async with self._lock:
+            return await self.iterator.__anext__()
+
+    async def __anext__(self) -> T:
+        while len(self._buffer) <= self.up_to:
+            self._buffer.append(
+                asyncio.get_running_loop().create_task(self._locked_anext())
+            )
+        return await self._buffer.popleft()
+
+
 ##################
 # concurrent map #
 ##################

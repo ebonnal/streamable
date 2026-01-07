@@ -538,6 +538,41 @@ class _RaisingIterator(Iterator[T]):
         return elem
 
 
+##########
+# buffer #
+##########
+
+
+class BufferIterable(Iterable[Union[T, ExceptionContainer]]):
+    def __init__(
+        self,
+        iterator: Iterator[T],
+        up_to: int,
+    ) -> None:
+        self.iterator = iterator
+        self.up_to = up_to
+        self._buffer: Deque[Future[Union[T, ExceptionContainer]]] = deque(
+            maxlen=up_to + 1
+        )
+        self._get_result = ExceptionContainer.wrap(Future.result)
+
+    def __iter__(self) -> Iterator[Union[T, ExceptionContainer]]:
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            while 1:
+                while len(self._buffer) <= self.up_to:
+                    self._buffer.append(executor.submit(self.iterator.__next__))
+                yield self._get_result(self._buffer.popleft())
+
+
+class BufferIterator(_RaisingIterator[T]):
+    def __init__(
+        self,
+        iterator: Iterator[T],
+        up_to: int,
+    ) -> None:
+        super().__init__(BufferIterable(iterator, up_to).__iter__())
+
+
 ##################
 # concurrent map #
 ##################
