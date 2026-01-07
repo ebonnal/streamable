@@ -2,7 +2,7 @@
 
 > ***fluent concurrent sync/async streams***
 
-`stream[T]` enriches any `Iterable[T]` (or `AsyncIterable[T]`) with a small set of chainable lazy operations for elegant data manipulation, covering concurrency, batching, rate limiting, buffering and error handling.
+`stream[T]` wraps any `Iterable[T]` or `AsyncIterable[T]` with a concise functional interface covering concurrency, batching, buffering, rate limiting, progress logging, and error handling.
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/release/python-360/)
 [![coverage](https://codecov.io/gh/ebonnal/streamable/graph/badge.svg?token=S62T0JQK9N)](https://codecov.io/gh/ebonnal/streamable)
@@ -26,7 +26,7 @@ from streamable import stream
 
 # 3. init
 
-Create a `stream[T]` decorating an `Iterable[T]` (or `AsyncIterable[T]`):
+Create a `stream[T]` from an `Iterable[T]` or `AsyncIterable[T]`:
 
 ```python
 ints: stream[int] = stream(range(10))
@@ -34,24 +34,25 @@ ints: stream[int] = stream(range(10))
 
 # 4. operate
 
-Chain ***lazy*** [operations](https://streamable.readthedocs.io/en/latest/api.html) (only evaluated during iteration), each returning a new `stream`:
+Chain ***lazy*** operations, accepting both ***sync and async*** functions:
 
 ```python
-import httpx
+import logging
+from datetime import timedelta
+from httpx import AsyncClient, Response, HTTPStatusError
 
 pokemons: stream[str] = (
-    ints
+    stream(range(10))
     .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
     .throttle(5, per=timedelta(seconds=1))
-    .map(httpx.Client().get, concurrency=2)
-    .do(httpx.Response.raise_for_status)
+    .map(AsyncClient().get, concurrency=2)
+    .do(Response.raise_for_status)
+    .catch(HTTPStatusError, do=logging.error)
     .map(lambda poke: poke.json()["name"])
-    .catch(httpx.HTTPStatusError)
 )
 ```
 
-
-Operations also accept `async` functions: simply pass `httpx.AsyncClient().get` to `.map` and the concurrency will happen via the event loop instead of threads.
+Source elements will be processed ***on-the-fly*** during iteration.
 
 # 5. iterate
 
@@ -88,9 +89,9 @@ A `stream[T]` is `Iterable[T]`:
   - [`.buffer`](#-buffer) elements
   - [`.observe`](#-observe) the iteration progress
 
-A `stream` exposes a minimalist yet expressive set of operations to manipulate its elements, creating its source or consuming it is not its responsibility. It's meant to be combined with dedicated libraries (e.g. `csv`, `json`, `pyarrow`, `psycopg2`, `boto3`, `requests`, `httpx`, `polars`).
+A `stream` exposes operations to manipulate its elements, but the I/O is not its responsibility. It's meant to be combined with dedicated libraries like `csv`, `json`, `pyarrow`, `psycopg2`, `boto3`, `aiohttp`, `httpx`, `polars`.
 
-All ***operations accept both sync and async functions***, you can freely mix them within the same `stream`. It can then be consumed either as an `Iterable` or as an `AsyncIterable`. When a stream involving async functions is consumed as an `Iterable`, a temporary `asyncio` event loop is attached to it.
+All operations ***accept both sync and async functions***, you can freely mix them within the same `stream` and it can then be consumed as an `Iterable` or as an `AsyncIterable`. When a stream involving async functions is consumed as an `Iterable`, a temporary `asyncio` event loop is attached to it.
 
 
 ## ▼ `.map`
@@ -108,11 +109,11 @@ assert list(str_ints) == ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
 
 Set the `concurrency` parameter to apply the transformation concurrently.
 
-> ***Memory-efficient***: Only `concurrency` upstream elements are pulled for processing; the next upstream element is pulled only when a result is yielded downstream.
+Only `concurrency` upstream elements are pulled for processing; the next upstream element is pulled only when a result is yielded downstream.
 
-> ***Ordering***: it yields results in the upstream order (***FIFO***), set `as_completed=True` to yield results as they become available (***First Done, First Out***).
+It preserves the upstream order by default (***FIFO***), but you can set `as_completed=True` to yield results as they become available.
 
-#### via threads
+#### Via threads
 
 If you set a `concurrency > 1`, then the transformation will be applied via `concurrency` threads.
 
@@ -129,7 +130,7 @@ pokemons: stream[str] = (
 assert list(pokemons) == ['bulbasaur', 'ivysaur', 'venusaur']
 ```
 
-#### via `async` coroutines
+#### Via `async` coroutines
 
 If you set a `concurrency > 1` and you provided an async function, elements will be transformed concurrently via the event loop.
 
@@ -143,15 +144,17 @@ pokemons: stream[str] = (
     .map(httpx.AsyncClient().get, concurrency=3)
     .map(lambda poke: poke.json()["name"])
 )
+
 # consume as AsyncIterable
 assert [name async for name in pokemons] == ['bulbasaur', 'ivysaur', 'venusaur']
-# consume as Iterable (the concurrency will happen via a dedicated event loop)
+
+# consume as Iterable (uses an event loop dedicated to this iteration)
 assert [name for name in pokemons] == ['bulbasaur', 'ivysaur', 'venusaur']
 ```
 
-#### via processes
+#### Via processes
 
-It is also possible to pass any `concurrent.futures.Executor` as `concurrency`, so you can pass a `ProcessPoolExecutor` to transform your elements via processes:
+It is also possible to pass any `concurrent.futures.Executor` as `concurrency`, you can pass a `ProcessPoolExecutor` to transform your elements via processes:
 
 
 ```python

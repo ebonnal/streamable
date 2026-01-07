@@ -1,6 +1,7 @@
 import asyncio
 from concurrent.futures import ProcessPoolExecutor
 import json
+import logging
 from pathlib import Path
 import time
 from datetime import timedelta
@@ -15,10 +16,13 @@ ints: stream[int] = stream(range(10))
 
 
 pokemons: stream[str] = (
-    ints.map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
-    .map(httpx.Client().get, concurrency=2)
+    stream(range(10))
+    .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
+    .throttle(5, per=timedelta(seconds=1))
+    .map(httpx.AsyncClient().get, concurrency=2)
+    .do(httpx.Response.raise_for_status)
+    .catch(httpx.HTTPStatusError, do=logging.error)
     .map(lambda poke: poke.json()["name"])
-    .catch(json.JSONDecodeError)
 )
 
 three_ints_per_second: stream[int] = ints.throttle(5, per=timedelta(seconds=1))
