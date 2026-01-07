@@ -5,6 +5,7 @@ from streamable.visitors import Visitor
 
 if TYPE_CHECKING:  # pragma: no cover
     from streamable._stream import (
+        BufferStream,
         CatchStream,
         DoStream,
         FilterStream,
@@ -107,6 +108,13 @@ class EqualityVisitor(Visitor[bool]):
             and stream.upstream.accept(EqualityVisitor(self.other.upstream))
             and stream._up_to == self.other._up_to
             and stream._per == self.other._per
+        )
+
+    def visit_buffer_stream(self, stream: "BufferStream") -> bool:
+        return (
+            self.type_eq(stream)
+            and stream.upstream.accept(EqualityVisitor(self.other.upstream))
+            and stream._up_to == self.other._up_to
         )
 
     def visit_stream(self, stream: "stream") -> bool:

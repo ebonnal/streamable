@@ -554,14 +554,14 @@ class BufferIterable(Iterable[Union[T, ExceptionContainer]]):
         self._buffer: Deque[Future[Union[T, ExceptionContainer]]] = deque(
             maxlen=up_to + 1
         )
-        self._get_result = ExceptionContainer.wrap(Future.result)
+        self._next = ExceptionContainer.wrap(next)
 
     def __iter__(self) -> Iterator[Union[T, ExceptionContainer]]:
         with ThreadPoolExecutor(max_workers=1) as executor:
-            while 1:
+            while True:
                 while len(self._buffer) <= self.up_to:
-                    self._buffer.append(executor.submit(self.iterator.__next__))
-                yield self._get_result(self._buffer.popleft())
+                    self._buffer.append(executor.submit(self._next, self.iterator))
+                yield self._buffer.popleft().result()
 
 
 class BufferIterator(_RaisingIterator[T]):

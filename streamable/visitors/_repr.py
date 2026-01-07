@@ -7,6 +7,7 @@ from streamable.visitors import Visitor
 
 if TYPE_CHECKING:  # pragma: no cover
     from streamable._stream import (
+        BufferStream,
         CatchStream,
         DoStream,
         FilterStream,
@@ -29,6 +30,10 @@ class ToStringVisitor(Visitor[str], ABC):
     @staticmethod
     @abstractmethod
     def to_string(o: object) -> str: ...
+
+    def visit_buffer_stream(self, stream: "BufferStream") -> str:
+        self.operation_reprs.append(f"buffer({self.to_string(stream._up_to)})")
+        return stream.upstream.accept(self)
 
     def visit_catch_stream(self, stream: "CatchStream") -> str:
         if isinstance(stream._errors, tuple):

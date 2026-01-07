@@ -583,22 +583,18 @@ class BufferAsyncIterator(AsyncIterator[T]):
         self.iterator = iterator
         self.up_to = up_to
         self._buffer: Deque[asyncio.Task[T]] = deque(maxlen=up_to + 1)
-        self.__lock: Optional[asyncio.Lock] = None
+        self._lock: Optional[asyncio.Lock] = None
 
-    @property
-    def _lock(self) -> asyncio.Lock:
-        if not self.__lock:
-            self.__lock = asyncio.Lock()
-        return self.__lock
-
-    async def _locked_anext(self) -> T:
-        async with self._lock:
+    async def _locked_anext(self, lock: asyncio.Lock) -> T:
+        async with lock:
             return await self.iterator.__anext__()
 
     async def __anext__(self) -> T:
+        if not self._lock:
+            self._lock = asyncio.Lock()
         while len(self._buffer) <= self.up_to:
             self._buffer.append(
-                asyncio.get_running_loop().create_task(self._locked_anext())
+                asyncio.get_running_loop().create_task(self._locked_anext(self._lock))
             )
         return await self._buffer.popleft()
 

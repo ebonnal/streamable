@@ -22,6 +22,7 @@ from streamable.visitors import Visitor
 
 if TYPE_CHECKING:  # pragma: no cover
     from streamable._stream import (
+        BufferStream,
         CatchStream,
         DoStream,
         FilterStream,
@@ -48,6 +49,12 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         if not self.loop:
             self.loop = asyncio.new_event_loop()
         return self.loop
+
+    def visit_buffer_stream(self, stream: "BufferStream[T]") -> Iterator[T]:
+        return _functions.buffer(
+            stream.upstream.accept(self),
+            stream._up_to,
+        )
 
     def visit_catch_stream(self, stream: "CatchStream[T, U]") -> Iterator[Union[T, U]]:
         return _functions.catch(

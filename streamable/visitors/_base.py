@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Generic, TypeVar
 
 if TYPE_CHECKING:  # pragma: no cover
     from streamable._stream import (
+        BufferStream,
         CatchStream,
         DoStream,
         FilterStream,
@@ -25,6 +26,9 @@ class Visitor(ABC, Generic[V]):
     @abstractmethod
     def visit_stream(self, stream: "stream") -> V: ...
     # fmt: on
+
+    def visit_buffer_stream(self, stream: "BufferStream") -> V:
+        return self.visit_stream(stream)
 
     def visit_catch_stream(self, stream: "CatchStream") -> V:
         return self.visit_stream(stream)

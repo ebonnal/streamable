@@ -85,6 +85,7 @@ A `stream[T]` is `Iterable[T]`:
   - [`.skip`](#-skip) elements until ...
   - [`.catch`](#-catch) exceptions
   - [`.throttle`](#-throttle) the rate of iteration
+  - [`.buffer`](#-buffer) elements
   - [`.observe`](#-observe) the iteration progress
 
 A `stream` exposes a minimalist yet expressive set of operations to manipulate its elements, creating its source or consuming it is not its responsibility. It's meant to be combined with dedicated libraries (e.g. `csv`, `json`, `pyarrow`, `psycopg2`, `boto3`, `requests`, `httpx`, `polars`).
@@ -358,6 +359,18 @@ three_ints_per_second: stream[int] = ints.throttle(3, per=timedelta(seconds=1))
 # collects the 10 ints in 3 seconds
 assert list(three_ints_per_second) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
+
+## ▼ `.buffer`
+
+Buffers up to a given number of upstream elements (decoupling upstream and downstream rates):
+
+```python
+buffered = []
+buffering_ints: stream[int] = ints.do(buffered.append).buffer(3)
+assert next(iter(buffering_ints)) == 0
+assert buffered == [0, 1, 2, 3]
+```
+
 
 ## ▼ `.observe`
 

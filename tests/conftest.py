@@ -26,6 +26,7 @@ class CustomCallable:
 def complex_stream() -> stream:
     return (
         stream(INTEGERS)
+        .buffer(3)
         .take(1024)
         .take(1024)
         .take(until=lambda _: False)
@@ -65,6 +66,7 @@ def complex_stream() -> stream:
 def complex_stream_str() -> str:
     return """(
     stream(range(0, 256))
+    .buffer(3)
     .take(until=1024)
     .take(until=1024)
     .take(until=<lambda>)
