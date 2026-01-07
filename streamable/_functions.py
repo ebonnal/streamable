@@ -34,6 +34,13 @@ T = TypeVar("T")
 U = TypeVar("U")
 
 
+def buffer(
+    iterator: Iterator[T],
+    up_to: int,
+) -> Iterator[T]:
+    return _iterators.BufferIterator(iterator, up_to)
+
+
 def catch(
     loop_getter: Callable[[], asyncio.AbstractEventLoop],
     iterator: Iterator[T],

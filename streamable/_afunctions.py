@@ -32,6 +32,13 @@ T = TypeVar("T")
 U = TypeVar("U")
 
 
+def buffer(
+    aiterator: AsyncIterator[T],
+    up_to: int,
+) -> AsyncIterator[T]:
+    return _aiterators.BufferAsyncIterator(aiterator, up_to)
+
+
 def catch(
     aiterator: AsyncIterator[T],
     errors: Union[Type[Exception], Tuple[Type[Exception], ...]],

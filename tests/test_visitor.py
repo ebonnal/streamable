@@ -1,6 +1,7 @@
 from typing import cast
 
 from streamable._stream import (
+    BufferStream,
     CatchStream,
     DoStream,
     FilterStream,
@@ -22,6 +23,7 @@ def test_visitor() -> None:
             return None
 
     visitor = ConcreteVisitor()
+    visitor.visit_buffer_stream(cast(BufferStream, ...))
     visitor.visit_catch_stream(cast(CatchStream, ...))
     visitor.visit_filter_stream(cast(FilterStream, ...))
     visitor.visit_flatten_stream(cast(FlattenStream, ...))

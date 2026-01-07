@@ -5,7 +5,6 @@ from pathlib import Path
 import time
 from datetime import timedelta
 from typing import Dict, Iterator, List, Tuple, TypeVar
-from json import JSONDecodeError
 import httpx
 
 import pytest
@@ -19,7 +18,7 @@ pokemons: stream[str] = (
     ints.map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
     .map(httpx.Client().get, concurrency=2)
     .map(lambda poke: poke.json()["name"])
-    .catch(JSONDecodeError)
+    .catch(json.JSONDecodeError)
 )
 
 three_ints_per_second: stream[int] = ints.throttle(5, per=timedelta(seconds=1))
@@ -265,6 +264,13 @@ def test_distinct_example() -> None:
     )
 
     assert list(unique_ints) == [0, 1]
+
+
+def test_buffer_example() -> None:
+    buffered: List[int] = []
+    buffering_ints: stream[int] = ints.do(buffered.append).buffer(3)
+    assert next(iter(buffering_ints)) == 0
+    assert buffered == [0, 1, 2, 3]
 
 
 def test_observe_example() -> None:

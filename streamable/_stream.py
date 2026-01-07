@@ -247,6 +247,24 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         """
         return cast(stream[U], self)
 
+    def buffer(
+        self,
+        up_to: int,
+    ) -> "stream[T]":
+        """
+        Buffers up to ``up_to`` upstream elements ahead of consumption, allowing to decouple upstream and downstream rates.
+
+        Elements are pulled from upstream in a separate thread (for sync iterators) or via async tasks (for async iterators) and buffered.
+
+        Args:
+            up_to (``int``): Maximum number of elements to buffer ahead of consumption.
+
+        Returns:
+            ``stream[T]``: A stream that buffers up to ``up_to`` upstream elements.
+        """
+        validate_int(up_to, gte=0, name="up_to")
+        return BufferStream(self, up_to)
+
     @overload
     def catch(
         self,
@@ -787,6 +805,21 @@ class DownStream(stream[U], Generic[T, U]):
             ``Stream``: Parent stream.
         """
         return self._upstream
+
+
+class BufferStream(DownStream[T, T]):
+    __slots__ = ("_up_to",)
+
+    def __init__(
+        self,
+        upstream: stream[T],
+        up_to: int,
+    ) -> None:
+        super().__init__(upstream)
+        self._up_to = up_to
+
+    def accept(self, visitor: "Visitor[V]") -> V:
+        return visitor.visit_buffer_stream(self)
 
 
 class CatchStream(DownStream[T, Union[T, U]]):
