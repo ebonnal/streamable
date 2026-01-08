@@ -198,26 +198,26 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
     def pipe(
         self,
-        func: "Callable[Concatenate[stream[T], P], U]",
+        fn: "Callable[Concatenate[stream[T], P], U]",
         *args: "P.args",
         **kwargs: "P.kwargs",
     ) -> U:
         """
-        Calls ``func``, with this stream as the first positional argument, optionally followed by ``*args`` and ``**kwargs``.
+        Return the result of ``fn(self, *args, **kwargs)``.
 
         Args:
-            func (``Callable[Concatenate[Stream[T], P], U]``): The function to apply.
-            *args (optional): Passed to ``func``.
-            **kwargs (optional): Passed to ``func``.
+            fn (``Callable[Concatenate[stream[T], P], U]``): The function to apply.
+            *args: positional arguments to be passed to ``fn``.
+            **kwargs: keyword arguments to be passed to ``fn``.
 
         Returns:
-            ``U``: Result of ``func(self, *args, **kwargs)``.
+            ``U``: ``fn(self, *args, **kwargs)``
         """
-        return func(self, *args, **kwargs)
+        return fn(self, *args, **kwargs)
 
     def cast(self, into: Type[U]) -> "stream[U]":
         """
-        Casts the upstream elements.
+        Cast the upstream elements ``into`` the given type.
 
         Args:
             into (``Type[U]``): The type to cast elements into.
