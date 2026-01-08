@@ -5,7 +5,7 @@ import logging
 from pathlib import Path
 import time
 from datetime import timedelta
-from typing import Dict, Iterator, List, Tuple, TypeVar
+from typing import Any, Dict, Iterator, List, Tuple, TypeVar
 import httpx
 
 import pytest
@@ -187,14 +187,13 @@ def test_group_example() -> None:
 
 
 def test_flatten_example() -> None:
-    flattened_grouped_ints: stream[int] = ints.group(2).flatten()
+    chars: stream[str] = stream(["hel", "lo!"]).flatten()
 
-    assert list(flattened_grouped_ints) == list(ints)
+    assert list(chars) == ["h", "e", "l", "l", "o", "!"]
 
-    round_robined_ints: stream[int] = stream([[0, 0], [1, 1, 1, 1], [2, 2]]).flatten(
-        concurrency=2
-    )
-    assert list(round_robined_ints) == [0, 1, 0, 1, 1, 2, 1, 2]
+    chars = stream(["hel", "lo", "!"]).flatten(concurrency=2)
+
+    assert list(chars) == ["h", "l", "e", "o", "l", "!"]
 
 
 def test_catch_example() -> None:
@@ -239,6 +238,10 @@ def test_catch_example() -> None:
         0.11,
     ]
 
+    inverses = ints.map(lambda n: round(1 / n, 2)).catch(ZeroDivisionError, stop=True)
+
+    assert list(inverses) == []
+
 
 def test_take_example() -> None:
     five_first_ints: stream[int] = ints.take(5)
@@ -271,10 +274,10 @@ def test_distinct_example() -> None:
 
 
 def test_buffer_example() -> None:
-    buffered: List[int] = []
-    buffering_ints: stream[int] = ints.do(buffered.append).buffer(3)
-    assert next(iter(buffering_ints)) == 0
-    assert buffered == [0, 1, 2, 3]
+    pulled: list[int] = []
+    buffered_ints = ints.do(pulled.append).buffer(2)
+    assert next(iter(buffered_ints)) == 0
+    assert pulled == [0, 1, 2]
 
 
 def test_observe_example() -> None:
@@ -305,6 +308,12 @@ def test_plus_example() -> None:
         8,
         9,
     ]
+
+
+def test_cast_example() -> None:
+    docs: stream[Any] = stream(['{"foo": "bar"}', '{"foo": "baz"}']).map(json.loads)
+    dicts: stream[Dict[str, str]] = docs.cast(Dict[str, str])
+    assert dicts is docs
 
 
 def test_func_source() -> None:

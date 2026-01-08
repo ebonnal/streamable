@@ -2,7 +2,7 @@
 
 > ***fluent concurrent sync/async streams***
 
-`stream[T]` wraps any `Iterable[T]` or `AsyncIterable[T]` with a concise functional interface covering concurrency, batching, buffering, rate limiting, progress logging, and error handling.
+`stream[T]` wraps any `Iterable[T]` or `AsyncIterable[T]` with a fluent interface covering concurrency, batching, buffering, rate limiting, progress logging, and error handling.
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/release/python-360/)
 [![coverage](https://codecov.io/gh/ebonnal/streamable/graph/badge.svg?token=S62T0JQK9N)](https://codecov.io/gh/ebonnal/streamable)
@@ -34,7 +34,7 @@ ints: stream[int] = stream(range(10))
 
 # 4. operate
 
-Chain ***lazy*** operations, accepting both ***sync and async*** functions:
+Chain lazy operations, accepting both sync and async functions:
 
 ```python
 import logging
@@ -52,7 +52,7 @@ pokemons: stream[str] = (
 )
 ```
 
-Source elements will be processed ***on-the-fly*** during iteration.
+Source elements will be processed on-the-fly during iteration.
 
 # 5. iterate
 
@@ -91,12 +91,12 @@ A `stream[T]` is `Iterable[T]`:
 
 A `stream` exposes operations to manipulate its elements, but the I/O is not its responsibility. It's meant to be combined with dedicated libraries like `csv`, `json`, `pyarrow`, `psycopg2`, `boto3`, `aiohttp`, `httpx`, `polars`.
 
-All operations ***accept both sync and async functions***, you can freely mix them within the same `stream` and it can then be consumed as an `Iterable` or as an `AsyncIterable`. When a stream involving async functions is consumed as an `Iterable`, a temporary `asyncio` event loop is attached to it.
+Both sync and async functions are accepted by operations, you can freely mix them within the same `stream` and it can then be consumed as an `Iterable` or `AsyncIterable`. When a stream involving async functions is consumed as an `Iterable`, a temporary `asyncio` event loop is attached to it.
 
 
 ## ▼ `.map`
 
-Applies a transformation on elements:
+Transform elements:
 
 ```python
 str_ints: stream[str] = ints.map(str)
@@ -111,11 +111,11 @@ Set the `concurrency` parameter to apply the transformation concurrently.
 
 Only `concurrency` upstream elements are pulled for processing; the next upstream element is pulled only when a result is yielded downstream.
 
-It preserves the upstream order by default (***FIFO***), but you can set `as_completed=True` to yield results as they become available.
+It preserves the upstream order by default, but you can set `as_completed=True` to yield results as they become available.
 
 #### Via threads
 
-If you set a `concurrency > 1`, then the transformation will be applied via `concurrency` threads.
+If `concurrency > 1`, the transformations will be applied via `concurrency` threads:
 
 
 ```python
@@ -132,7 +132,7 @@ assert list(pokemons) == ['bulbasaur', 'ivysaur', 'venusaur']
 
 #### Via `async` coroutines
 
-If you set a `concurrency > 1` and you provided an async function, elements will be transformed concurrently via the event loop.
+If `concurrency > 1` and the function is async, the transformations will be applied via `concurrency` async tasks:
 
 
 ```python
@@ -145,21 +145,18 @@ pokemons: stream[str] = (
     .map(lambda poke: poke.json()["name"])
 )
 
-# consume as AsyncIterable
 assert [name async for name in pokemons] == ['bulbasaur', 'ivysaur', 'venusaur']
-
-# consume as Iterable (uses an event loop dedicated to this iteration)
-assert [name for name in pokemons] == ['bulbasaur', 'ivysaur', 'venusaur']
+assert list(pokemons) == ['bulbasaur', 'ivysaur', 'venusaur']
 ```
 
 #### Via processes
 
-It is also possible to pass any `concurrent.futures.Executor` as `concurrency`, you can pass a `ProcessPoolExecutor` to transform your elements via processes:
+`concurrency` can also be a `concurrent.futures.Executor`, pass a `ProcessPoolExecutor` to apply the transformations via processes:
 
 
 ```python
 if __name__ == "__main__":
-    with ProcessPoolExecutor(10) as processes:
+    with ProcessPoolExecutor(max_workers=10) as processes:
         state: list[int] = []
         # ints are mapped
         assert list(ints.map(state.append, concurrency=processes)) == 10 * [None]
@@ -169,7 +166,7 @@ if __name__ == "__main__":
 
 ## ▼ `.do`
 
-Applies a side effect on elements:
+Apply a side effect:
 
 
 ```python
@@ -186,7 +183,7 @@ Same as `.map`.
 
 ## ▼ `.group`
 
-Groups elements into batches...
+Group elements into batches...
 
 ... `up_to` a given size:
 
@@ -223,16 +220,16 @@ ints_by_parity: stream[tuple[str, list[int]]] = (
 assert list(ints_by_parity) == [("even", [0, 2, 4, 6, 8]), ("odd", [1, 3, 5, 7, 9])]
 ```
 
-You can mix the `up_to`/`every`/`by` parameters.
+You can mix these parameters.
 
 ## ▼ `.flatten`
 
-Yields the elements from upstream elements, which must be `Iterable` (or `AsyncIterable`):
+Explode upstream `Iterable` elements (or `AsyncIterable`):
 
 ```python
-flattened_grouped_ints: stream[int] = ints.group(2).flatten()
+chars: stream[str] = stream(["hel", "lo!"]).flatten()
 
-assert list(flattened_grouped_ints) == list(ints)
+assert list(chars) == ["h", "e", "l", "l", "o", "!"]
 ```
 
 ### concurrency
@@ -241,16 +238,14 @@ Flattens `concurrency` iterables concurrently (via threads for `Iterable` elemen
 
 
 ```python
-round_robined_ints: stream[int] = (
-    stream([[0, 0], [1, 1, 1, 1], [2, 2]])
-    .flatten(concurrency=2)
-)
-assert list(round_robined_ints) == [0, 1, 0, 1, 1, 2, 1, 2]
+chars: stream[str] = stream(["hel", "lo", "!"]).flatten(concurrency=2)
+
+assert list(chars) == ["h", "l", "e", "o", "l", "!"]
 ```
 
 ## ▼ `.filter`
 
-Keeps only the elements that satisfy a condition:
+Filter elements satisfying a predicate:
 
 ```python
 even_ints: stream[int] = ints.filter(lambda n: n % 2 == 0)
@@ -260,7 +255,7 @@ assert list(even_ints) == [0, 2, 4, 6, 8]
 
 ## ▼ `.take`
 
-Takes the first specified number of elements:
+Take a certain number of elements:
 
 ```python
 five_first_ints: stream[int] = ints.take(5)
@@ -268,7 +263,7 @@ five_first_ints: stream[int] = ints.take(5)
 assert list(five_first_ints) == [0, 1, 2, 3, 4]
 ```
 
-... or takes elements `until` a condition become satisfied:
+... or `until` a predicate is satisfied:
 
 
 ```python
@@ -279,7 +274,7 @@ assert list(five_first_ints) == [0, 1, 2, 3, 4]
 
 ## ▼ `.skip`
 
-Skips the first specified number of elements:
+Skip a certain number of elements:
 
 ```python
 ints_after_five: stream[int] = ints.skip(5)
@@ -287,7 +282,7 @@ ints_after_five: stream[int] = ints.skip(5)
 assert list(ints_after_five) == [5, 6, 7, 8, 9]
 ```
 
-... or skips elements `until` a predicate is satisfied:
+... or `until` a predicate is satisfied:
 
 
 ```python
@@ -298,7 +293,7 @@ assert list(ints_after_five) == [5, 6, 7, 8, 9]
 
 ## ▼ `.catch`
 
-Catches a given type(s) of exception:
+Catch exceptions of a given type:
 
 ```python
 inverses: stream[float] = ints.map(lambda n: round(1 / n, 2)).catch(ZeroDivisionError)
@@ -306,7 +301,7 @@ inverses: stream[float] = ints.map(lambda n: round(1 / n, 2)).catch(ZeroDivision
 assert list(inverses) == [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
 ```
 
-`where` a condition is satisfied:
+... `where` a predicate is satisfied:
 
 ```python
 import httpx
@@ -321,7 +316,7 @@ status_codes_ignoring_resolution_errors: stream[int] = (
 assert list(status_codes_ignoring_resolution_errors) == [200, 404]
 ```
 
-`do` a side effect on catch:
+... `do` a side effect on catch:
 
 ```python
 errors: list[Exception] = []
@@ -334,7 +329,7 @@ assert list(inverses) == [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
 assert len(errors) == 1
 ```
 
-`replace` with another value:
+... `replace` with a value:
 
 ```python
 inverses: stream[float] = (
@@ -346,13 +341,23 @@ inverses: stream[float] = (
 assert list(inverses) == [float("inf"), 1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
 ```
 
-You can mix these parameters.
+... `stop=True` to stop the iteration if an exception is caught.
 
-Set `stop=True` to stop the iteration if an exception is caught.
+```python
+inverses: stream[float] = (
+    ints
+    .map(lambda n: round(1 / n, 2))
+    .catch(ZeroDivisionError, stop=True)
+)
+
+assert list(inverses) == []
+```
+
+You can mix these parameters.
 
 ## ▼ `.throttle`
 
-Limits the number of emissions `per` time interval:
+Limit the number of emissions `per` time interval:
 
 ```python
 from datetime import timedelta
@@ -365,19 +370,18 @@ assert list(three_ints_per_second) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 ## ▼ `.buffer`
 
-Buffers up to a given number of upstream elements (decoupling upstream and downstream rates):
+Buffer upstream elements via a background task to decouple upstream and downstream rates:
 
 ```python
-buffered = []
-buffering_ints: stream[int] = ints.do(buffered.append).buffer(3)
-assert next(iter(buffering_ints)) == 0
-assert buffered == [0, 1, 2, 3]
+pulled: list[int] = []
+buffered_ints = ints.do(pulled.append).buffer(2)
+assert next(iter(buffered_ints)) == 0
+assert pulled == [0, 1, 2]
 ```
-
 
 ## ▼ `.observe`
 
-Logs the progress of iteration:
+Log the progress of iteration:
 
 ```python
 observed_ints: stream[int] = ints.observe("ints")
@@ -385,7 +389,6 @@ assert list(observed_ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 
 logs:
-
 ```
 2025-12-23T16:43:07Z INFO observed=ints elapsed=0:00:00.000019 errors=0 elements=1
 2025-12-23T16:43:07Z INFO observed=ints elapsed=0:00:00.001117 errors=0 elements=2
@@ -394,7 +397,7 @@ logs:
 2025-12-23T16:43:07Z INFO observed=ints elapsed=0:00:00.001179 errors=0 elements=10
 ```
 
-A new log is emitted when the number of yielded elements (or errors) ***reaches powers of 2*** by default, but you can set it to be `every` *n* elements (or errors) or `every` time interval:
+By default, logs are produced when the counts reach powers of 2, but they can instead be produced periodically `every` fixed *n* elements or time interval:
 ```python
 # observe every 1k elements (or errors)
 observed_ints = ints.observe("ints", every=1000)
@@ -402,7 +405,7 @@ observed_ints = ints.observe("ints", every=1000)
 observed_ints = ints.observe("ints", every=timedelta(seconds=5))
 ```
 
-Observations are logged via `logging.getLogger("streamable").info` by default, but you can pass instead any function taking a `stream.Observation`:
+By default, observations are logged via `logging.getLogger("streamable").info`, but they can instead be passed to a function taking a `stream.Observation`:
 
 ```python
 observed_ints = ints.observe("ints", do=other_logger.info)
@@ -411,17 +414,28 @@ observed_ints = ints.observe("ints", do=print)
 ```
 
 
-## ▼ `+` (concat)
+## ▼ `+`
 
-Concatenates streams:
+Concatenate streams:
 
 ```python
 assert list(ints + ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 
-## ▼ `__call__` / `await`
+## ▼ `.cast`
 
-*Calling* the stream iterates over it until exhaustion ***without collecting its elements***, and returns it:
+Cast elements:
+
+```python
+docs: stream[Any] = stream(['{"foo": "bar"}', '{"foo": "baz"}']).map(json.loads)
+dicts: stream[dict[str, str]] = docs.cast(dict[str, str])
+# the stream remains the same, it's for type checkers only
+assert dicts is docs
+```
+
+## ▼ `.__call__`
+
+Iterate over the stream as an `Iterable` until exhaustion (without collecting its elements):
 
 ```python
 state: list[int] = []
@@ -432,7 +446,9 @@ pipeline()
 assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 
-*Awaiting* the stream iterates over it as an `AsyncIterable` until exhaustion ***without collecting its elements***, and returns it:
+## ▼ `await`
+
+Iterate over the stream as an `AsyncIterable` until exhaustion (without collecting its elements):
 
 ```python
 state: list[int] = []
@@ -445,7 +461,7 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 ## ▼ `.pipe`
 
-Calls a function, passing the stream as first argument, followed by `*args/**kwargs` if any:
+Apply a callable, passing the stream as first argument, followed by the provided `*args` and `**kwargs`:
 
 ```python
 import polars as pl
@@ -453,32 +469,19 @@ import polars as pl
 pokemons.pipe(pl.DataFrame, schema=["name"]).write_csv("pokemons.csv")
 ```
 
-## ▼ `.cast`
-
-Casts elements:
-
-```python
-(
-    stream(['{"foo": "bar"}', '{"foo": "baz"}'])
-    .map(json.loads)       # stream[Any]
-    .cast(dict[str, str])  # stream[dict[str, str]]
-)
-```
-
 # ••• other notes
 
 ## function as source
 
-A `stream` ***can also be instantiated from a function*** (sync or async), it will be called sequentially to get the next source element.
+A `stream` can also be instantiated from a (sync or async) function that will be called sequentially to get the next source element during iteration.
 
-e.g. stream from a `Queue` source:
+Stream from a `Queue`:
 
 ```python
 queued_ints: queue.Queue[int] = ...
 # or asyncio.Queue[int]
 ints: stream[int] = stream(queued_ints.get)
 ```
-
 
 ## starmap
 
@@ -534,9 +537,9 @@ If at one point during the iteration an exception is raised and caught, the iter
 
 ## performances
 
-All the operations process elements on-the-fly. At any point in time, ***concurrent operations only keep `concurrency` elements in memory for processing***.
+All the operations process elements on-the-fly. At any point in time, concurrent operations only keep `concurrency` elements in memory for processing.
 
-There is ***zero overhead during iteration compared to builtins***:
+There is zero overhead during iteration compared to builtins:
 
 ```python
 odd_int_strings = stream(range(1_000_000)).filter(lambda n: n % 2).map(str)
