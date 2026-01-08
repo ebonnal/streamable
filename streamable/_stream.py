@@ -125,7 +125,11 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
     def __eq__(self, other: Any) -> bool:
         """
+        Check if this stream is equal to another stream.
         Two streams are considered equal if they apply the same operations, with the same parameters, to the same source.
+
+        Args:
+            other (``stream[T]``): The stream to compare to.
 
         Returns:
             ``bool``: True if this stream is equal to ``other``.
@@ -141,10 +145,11 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
     def __call__(self) -> "stream[T]":
         """
-        Iterates over this stream until exhaustion.
+        Iterate over this stream as an ``Iterable`` until it is fully exhausted.
+        Do not collect the elements.
 
         Returns:
-            ``stream[T]``: self.
+            ``stream[T]``: This stream.
         """
         for _ in self:
             pass
@@ -152,10 +157,11 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
     def __await__(self) -> Generator[int, None, "stream[T]"]:
         """
-        Iterates over this stream until exhaustion.
+        Iterate over this stream as an ``AsyncIterable`` until it is fully exhausted.
+        Do not collect the elements.
 
         Returns:
-            ``stream[T]``: self.
+            ``stream[T]``: This stream.
         """
 
         async def consume():
@@ -232,7 +238,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         up_to: int,
     ) -> "stream[T]":
         """
-        Buffers up to ``up_to`` upstream elements ahead of consumption, allowing to decouple upstream and downstream rates.
+        Buffer up to ``up_to`` upstream elements ahead of consumption, allowing to decouple upstream and downstream rates.
 
         Elements are pulled from upstream in a separate thread (for sync iterators) or via async tasks (for async iterators) and buffered.
 
@@ -305,10 +311,8 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         stop: bool = False,
     ) -> "stream[Union[T, U]]":
         """
-        Catches the upstream exceptions if they are instances of ``errors`` type and they satisfy the ``where`` predicate.
-        When an exception is caught you can ``do`` an effect and/or yield a replacement value ``replace(exc)``.
-
-        The order of the calls is ``where`` -> ``do`` -> ``replace``.
+        Catch the upstream exceptions if they are instances of ``errors`` type and they satisfy the ``where`` predicate.
+        When an exception is caught, if provided it will ``do`` an effect and/or yield a replacement value ``replace(exc)`` (the order of the calls is ``where`` then ``do`` then ``replace``).
 
         Args:
             errors (``Type[Exception] | Tuple[Type[Exception], ...]``): The exception types to catch.
@@ -334,7 +338,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         where: Union[Callable[[T], Any], AsyncFunction[T, Any]] = bool,
     ) -> "stream[T]":
         """
-        Filters the stream to yield only elements satisfying the ``where`` predicate.
+        Filter the stream to yield only elements satisfying the ``where`` predicate.
 
         Args:
             where (``Callable[[T], Any] | AsyncCallable[T, Any]``, optional): An element is kept if ``where(elem)`` is truthy.
@@ -461,7 +465,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         concurrency: int = 1,
     ) -> "stream[U]":
         """
-        Yields the elements of upstream elements assumed to be iterables (`Iterable` or `AsyncIterable`).
+        Explode the upstream elements assumed to be iterables (`Iterable` or `AsyncIterable`).
 
         Args:
             concurrency (``int``, optional): Number of upstream iterables concurrently flattened. (default: no concurrency)
@@ -497,7 +501,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         as_completed: bool = False,
     ) -> "stream[T]":
         """
-        Applies a side ``effect`` for each upstream element.
+        Apply a side ``effect`` for each upstream element.
 
         Args:
             effect (``Callable[[T], Any] | AsyncCallable[T, Any]``): The function called on each upstream element as a side effect.
@@ -551,7 +555,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         by: Union[None, Callable[[T], U], AsyncFunction[T, U]] = None,
     ) -> "Union[stream[List[T]], stream[Tuple[U, List[T]]]]":
         """
-        Groups upstream elements into lists.
+        Group upstream elements into lists.
 
         - if the group reaches ``up_to`` elements, it is yielded
         - if the ``every`` time interval elapsed since the last group was yielded, the group is yielded
@@ -604,7 +608,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         as_completed: bool = False,
     ) -> "stream[U]":
         """
-        Applies ``into`` on upstream elements and yields the results.
+        Apply ``into`` to upstream elements.
 
         Args:
             into (``Callable[[T], Any] | AsyncCallable[T, Any]``): The transformation applied to upstream elements.
@@ -626,7 +630,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
     class Observation(NamedTuple):
         """
-        Represents the progress of iteration over a stream.
+        Represent the progress of iteration over a stream.
         Args:
             subject (``str``): Describes the stream's elements ("cats", "dogs", ...).
             elapsed (``datetime.timedelta``): The time elapsed since the iteration started.
@@ -640,7 +644,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         elements: int
 
         def __str__(self) -> str:
-            """Returns a logfmt string representation of the observation."""
+            """Return a logfmt string representation of the observation."""
             subject = logfmt_str_escape(self.subject)
             elapsed = logfmt_str_escape(str(self.elapsed))
             return f"observed={subject} elapsed={elapsed} errors={self.errors} elements={self.elements}"
@@ -656,7 +660,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         ] = logging.getLogger("streamable").info,
     ) -> "stream[T]":
         """
-        Logs the progress of iteration over this stream: the time elapsed since the iteration started, the count of emitted elements and errors.
+        Log the progress of iteration over this stream: the time elapsed since the iteration started, the count of emitted elements and errors.
 
         A log is emitted `every` interval (number of elements or time interval), or when the number of yielded elements (or errors) reaches powers of 2 if `every is None`.
 
@@ -692,7 +696,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         until: Union[int, Callable[[T], Any], AsyncFunction[T, Any]],
     ) -> "stream[T]":
         """
-        Skips ``until`` elements (if ``int``) or skips until ``until(elem)`` becomes truthy.
+        Skip ``until`` elements (if ``int``) or skip until ``until(elem)`` becomes truthy.
 
         Args:
             until (``int | Callable[[T], Any] | AsyncCallable[T, Any]``):
@@ -720,7 +724,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         until: Union[int, Callable[[T], Any], AsyncFunction[T, Any]],
     ) -> "stream[T]":
         """
-        Yields the first ``until`` elements (if ``int``) or until ``until(elem)`` becomes truthy, and stop.
+        Yield the first ``until`` elements (if ``int``) or until ``until(elem)`` becomes truthy, and stop.
 
         Args:
             until (``int | Callable[[T], Any] | AsyncCallable[T, Any]``):
@@ -742,7 +746,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         per: datetime.timedelta,
     ) -> "stream[T]":
         """
-        Limits the speed of iteration to at most ``up_to`` elements (or exceptions) ``per`` sliding time window.
+        Limit the rate of iteration to at most ``up_to`` elements (or exceptions) ``per`` sliding time window.
 
         An element (or exception) is emitted if fewer than ``up_to`` emissions have been made during the last ``per`` time interval, or else it sleeps until the oldest emission leaves the window.
 
