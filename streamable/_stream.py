@@ -62,50 +62,14 @@ V = TypeVar("V")
 
 class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
     """
-    ``stream[T]`` enriches any ``Iterable[T]`` or ``AsyncIterable[T]`` with a small set of chainable lazy operations for elegant data manipulation, including thread/coroutine concurrency, batching, rate limiting, and error handling.
+    Create a ``stream`` from a data source.
 
-    A ``stream[T]`` is both an ``Iterable[T]`` and an `AsyncIterable[T]``: a convenient bridge between the sync and async worlds.
+    Chain lazy operations, accepting both sync and async functions.
 
-    init
-    ^^^^
-
-    Create a ``stream[T]`` decorating an ``Iterable[T]`` or ``AsyncIterable[T]`` source:
-
-    .. code-block:: python
-
-        ints: stream[int] = stream(range(10))
-
-    operate
-    ^^^^^^^
-
-    Chain ***lazy*** operations (only evaluated during iteration), each returning a new ***immutable*** ``stream``:
-
-    .. code-block:: python
-
-        inverses: stream[float] = (
-            ints
-            .map(lambda n: round(1 / n, 2))
-            .catch(ZeroDivisionError)
-        )
-
-    iterate
-    ^^^^^^^
-
-    A ``stream`` is ***both*** ``Iterable`` and ``AsyncIterable``:
-
-    .. code-block:: python
-
-        >>> list(inverses)
-        [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
-        >>> [i for i in inverses]
-        [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
-        >>> [i async for i in inverses]
-        [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
-
-    Elements are processed ***on-the-fly*** as the iteration advances.
+    A ``stream[T]`` is both ``Iterable[T]`` and ``AsyncIterable[T]``, source elements will be processed on-the-fly during iteration.
 
     Args:
-        source (``Iterable[T] | AsyncIterable[T] | Callable[[], T] | Callable[[], Coroutine[Any, Any, T]]``): The iterable to decorate. Can be specified as a function (sync or async) that will be called sequentially to get the next source element.
+        source (``Iterable[T] | AsyncIterable[T] | Callable[[], T] | Callable[[], Coroutine[Any, Any, T]]``): The data source to wrap. Can be specified as an (async) iterable, or as a (async) function that will be called sequentially to get the next source element.
     """
 
     __slots__ = ("_source", "_upstream")
