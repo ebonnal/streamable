@@ -165,13 +165,29 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         yield from (consume().__await__())
         return self
 
-    def __add__(self, other: "stream[T]") -> "stream[T]":
+    def __add__(self, other: "stream[U]") -> "stream[Union[T, U]]":
         """
-        ``a + b`` returns a stream yielding all elements of ``a``, followed by all elements of ``b``.
-        """
-        return cast(stream[T], stream((self, other)).flatten())
+        Concatenate two streams.
 
-    def __iadd__(self, other: "stream[T]") -> "stream[T]":
+        Args:
+            other (``stream[U]``): The stream to concatenate with.
+
+        Returns:
+            ``stream[Union[T, U]]``: A stream that yields all elements of ``self``, followed by all elements of ``other``.
+        """
+        chain = cast("Iterable[stream[Union[T, U]]]", (self, other))
+        return cast("stream[Union[T, U]]", stream(chain).flatten())
+
+    def __iadd__(self, other: "stream[U]") -> "stream[Union[T, U]]":
+        """
+        Concatenate two streams.
+
+        Args:
+            other (``stream[U]``): The stream to concatenate with.
+
+        Returns:
+            ``stream[Union[T, U]]``: A stream that yields all elements of ``self``, followed by all elements of ``other``.
+        """
         return self + other
 
     def accept(self, visitor: "Visitor[V]") -> V:
