@@ -95,7 +95,7 @@ def star(func: Callable[..., R]) -> Callable[[Tuple[Any, ...]], R]: ...
 
 def star(func: Callable[..., R]) -> Callable[[Tuple[Any, ...]], R]:
     """
-    Transforms a function (sync or async) that takes several positional arguments into a function that takes a tuple.
+    Transform a function (sync or async) that takes several positional arguments into a function that takes a tuple.
 
     .. code-block:: python
 
