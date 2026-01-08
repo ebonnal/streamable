@@ -14,6 +14,7 @@ from typing import (
     List,
     Optional,
     Tuple,
+    Union,
     cast,
 )
 
@@ -173,20 +174,22 @@ def test_add(itype: IterableType) -> None:
     from streamable._stream import FlattenStream
 
     ints = stream(INTEGERS)
-    # stream addition must return a FlattenStream.
     assert isinstance(ints + ints, FlattenStream)
 
     stream_a = stream(range(10))
     stream_b = stream(range(10, 20))
     stream_c = stream(range(20, 30))
-    # `chain` must yield the elements of the first stream the move on with the elements of the next ones and so on.
     assert alist_or_list(stream_a + stream_b + stream_c, itype=itype) == list(range(30))
 
     stream_ = stream(range(10))
     stream_ += stream(range(10, 20))
     stream_ += stream(range(20, 30))
-    # `chain` must yield the elements of the first stream the move on with the elements of the next ones and so on.
     assert alist_or_list(stream_, itype=itype) == list(range(30))
+
+    union_stream: stream[Union[int, str]] = ints + ints.map(str)
+    assert alist_or_list(union_stream, itype=itype) == list(INTEGERS) + list(
+        map(str, INTEGERS)
+    )
 
 
 def test_call() -> None:
