@@ -26,7 +26,6 @@ class CustomCallable:
 def complex_stream() -> stream:
     return (
         stream(INTEGERS)
-        .buffer(3)
         .take(1024)
         .take(1024)
         .take(until=lambda _: False)
