@@ -64,7 +64,7 @@ def test_thread_concurrent_map_example() -> None:
     pokemons: stream[str] = (
         stream(range(1, 4))
         .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
-        .map(httpx.Client().get, concurrency=3)
+        .map(httpx.Client().get, concurrency=2)
         .map(httpx.Response.json)
         .map(lambda poke: poke["name"])
     )
@@ -87,7 +87,7 @@ async def test_async_amap_example_aiter() -> None:
     pokemons: stream[str] = (
         stream(range(1, 4))
         .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
-        .map(httpx.Client().get, concurrency=3)
+        .map(httpx.Client().get, concurrency=2)
         .map(lambda poke: poke.json()["name"])
     )
     # consume as AsyncIterable
@@ -100,7 +100,7 @@ def test_async_amap_example_iter() -> None:
     pokemons: stream[str] = (
         stream(range(1, 4))
         .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
-        .map(httpx.AsyncClient().get, concurrency=3)
+        .map(httpx.AsyncClient().get, concurrency=2)
         .map(lambda poke: poke.json()["name"])
     )
     # consume as Iterable (the concurrency will happen via a dedicated event loop)

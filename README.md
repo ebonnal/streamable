@@ -124,7 +124,7 @@ import httpx
 pokemons: stream[str] = (
     stream(range(1, 4))
     .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
-    .map(httpx.Client().get, concurrency=3)
+    .map(httpx.Client().get, concurrency=2)
     .map(lambda poke: poke.json()["name"])
 )
 assert list(pokemons) == ['bulbasaur', 'ivysaur', 'venusaur']
@@ -141,7 +141,7 @@ import httpx
 pokemons: stream[str] = (
     stream(range(1, 4))
     .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
-    .map(httpx.AsyncClient().get, concurrency=3)
+    .map(httpx.AsyncClient().get, concurrency=2)
     .map(lambda poke: poke.json()["name"])
 )
 
