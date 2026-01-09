@@ -179,10 +179,10 @@ def test_add(itype: IterableType) -> None:
     stream_c = stream(range(20, 30))
     assert alist_or_list(stream_a + stream_b + stream_c, itype=itype) == list(range(30))
 
-    stream_ = stream(range(10))
-    stream_ += stream(range(10, 20))
-    stream_ += stream(range(20, 30))
-    assert alist_or_list(stream_, itype=itype) == list(range(30))
+    s = stream(range(10))
+    s += stream(range(10, 20))
+    s += stream(range(20, 30))
+    assert alist_or_list(s, itype=itype) == list(range(30))
 
     union_stream: stream[Union[int, str]] = ints + ints.map(str)
     assert alist_or_list(union_stream, itype=itype) == list(INTEGERS) + list(
@@ -223,13 +223,13 @@ def test_pipe() -> None:
     ) -> Tuple[stream, Tuple[int, ...], Dict[str, str]]:
         return stream, ints, strings
 
-    stream_ = stream(INTEGERS)
+    s = stream(INTEGERS)
     ints = (0, 1, 2, 3)
     strings = {"foo": "bar", "bar": "foo"}
     # `pipe` should pass the stream and args/kwargs to `func`.
-    assert stream_.pipe(func, *ints, **strings) == (stream_, ints, strings)
+    assert s.pipe(func, *ints, **strings) == (s, ints, strings)
     # `pipe` should be ok without args and kwargs.
-    assert stream_ == stream_.pipe(identity)
+    assert s == s.pipe(identity)
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
@@ -331,7 +331,7 @@ def test_iter_loop_auto_closing() -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "stream_",
+    "s",
     (
         stream(range(N)).map(slow_identity, concurrency=N // 8),
         (
@@ -341,7 +341,7 @@ def test_iter_loop_auto_closing() -> None:
         ),
     ),
 )
-async def test_run_in_executor(stream_: stream) -> None:
+async def test_run_in_executor(s: stream) -> None:
     """
     Tests that executor-based concurrent mapping/flattening are wrapped
     in non-loop-blocking run_in_executor-based async tasks.
@@ -349,11 +349,9 @@ async def test_run_in_executor(stream_: stream) -> None:
     concurrency = N // 8
     res: tuple[int, int]
 
-    async def count(stream_: stream) -> int:
-        return len([_ async for _ in stream_])
+    async def count(s: stream) -> int:
+        return len([_ async for _ in s])
 
-    duration, res = await timecoro(
-        lambda: asyncio.gather(count(stream_), count(stream_)), times=10
-    )
+    duration, res = await timecoro(lambda: asyncio.gather(count(s), count(s)), times=10)
     assert tuple(res) == (N, N)
     assert duration == pytest.approx(N * slow_identity_duration / concurrency, rel=0.25)

@@ -161,7 +161,7 @@ def test_process_concurrency(
         sleeps = [0.01, 1, 0.01]
         state: List[str] = []
         expected_result_list: List[str] = list(order_mutation(map(str, sleeps)))
-        stream_ = (
+        s = (
             stream(sleeps)
             .do(identity_sleep, concurrency=processes, as_completed=as_completed)
             .map(str, concurrency=processes, as_completed=False)
@@ -169,7 +169,7 @@ def test_process_concurrency(
             .do(lambda _: state.append(""), concurrency=1, as_completed=False)
         )
         # process-based concurrency must correctly transform elements, respecting `as_completed`...
-        assert alist_or_list(stream_, itype=itype) == expected_result_list
+        assert alist_or_list(s, itype=itype) == expected_result_list
         # ... and should not mutate main thread-bound structures.
         assert state == [""] * len(sleeps)
 
@@ -185,7 +185,7 @@ def test_process_concurrency(
                     )
             # partial iteration
             assert (
-                anext_or_next(aiter_or_iter(stream_, itype=itype), itype=itype)
+                anext_or_next(aiter_or_iter(s, itype=itype), itype=itype)
                 == expected_result_list[0]
             )
 
@@ -363,7 +363,7 @@ def test_partial_iteration_on_streams_using_concurrency(
             yielded_elems.append(elem)
             yield elem
 
-    for stream_, n_pulls_after_first_next in [
+    for s, n_pulls_after_first_next in [
         (
             stream(remembering_src()).map(identity, concurrency=concurrency),
             concurrency + 1,
@@ -386,7 +386,7 @@ def test_partial_iteration_on_streams_using_concurrency(
         ),
     ]:
         yielded_elems = []
-        iterator = aiter_or_iter(stream_, itype=itype)
+        iterator = aiter_or_iter(s, itype=itype)
         time.sleep(0.5)
         # before the first call to `next` a concurrent stream should have pulled 0 upstream elements.
         assert len(yielded_elems) == 0
