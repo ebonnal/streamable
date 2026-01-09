@@ -11,7 +11,7 @@ from typing import (
     Union,
 )
 
-from streamable._tools._async import CloseEventLoopMixin
+from streamable._tools._async import LoopClosingMixin
 
 T = TypeVar("T")
 
@@ -39,7 +39,7 @@ def async_iter(iterator: Union[Iterable[T], AsyncIterable[T]]) -> AsyncIterator[
     return SyncToAsyncIterator(iterator.__iter__())
 
 
-class AsyncToSyncIterator(Iterator[T], CloseEventLoopMixin):
+class AsyncToSyncIterator(Iterator[T], LoopClosingMixin):
     __slots__ = ("aiterator", "loop")
 
     def __init__(
