@@ -59,10 +59,10 @@ def test_throttle_enforces_minimum_interval(itype: IterableType) -> None:
             time.sleep(super_slow_elem_pull_seconds)
         return elem
 
-    stream_ = stream(map(slow_first_elem, integers)).throttle(
+    s = stream(map(slow_first_elem, integers)).throttle(
         1, per=datetime.timedelta(seconds=interval_seconds)
     )
-    duration, res = timestream(stream_, itype=itype)
+    duration, res = timestream(s, itype=itype)
     # `throttle` with `interval` must yield upstream elements
     assert res == list(integers)
     expected_duration = (N - 1) * interval_seconds + super_slow_elem_pull_seconds
@@ -83,12 +83,12 @@ def test_throttle_with_exceptions_respects_interval(itype: IterableType) -> None
             time.sleep(super_slow_elem_pull_seconds)
         return elem
 
-    stream_ = (
+    s = (
         stream(map(throw_func(TestError), map(slow_first_elem, integers)))
         .throttle(1, per=datetime.timedelta(seconds=interval_seconds))
         .catch(TestError)
     )
-    duration, res = timestream(stream_, itype=itype)
+    duration, res = timestream(s, itype=itype)
     # `throttle` with `interval` must yield upstream elements
     assert res == []
     expected_duration = (N - 1) * interval_seconds + super_slow_elem_pull_seconds
@@ -130,8 +130,8 @@ def test_throttle_limits_per_second(n_items: int, itype: IterableType) -> None:
     """
     integers = range(n_items)
     per_second = 2
-    stream_ = stream(integers).throttle(per_second, per=datetime.timedelta(seconds=1))
-    duration, res = timestream(stream_, itype=itype)
+    s = stream(integers).throttle(per_second, per=datetime.timedelta(seconds=1))
+    duration, res = timestream(s, itype=itype)
     # `throttle` with `per_second` must yield upstream elements
     assert res == list(integers)
     expected_duration = math.ceil(n_items / per_second) - 1
@@ -149,12 +149,12 @@ def test_throttle_with_exceptions_limits_per_second(
     """Throttle should limit rate even when upstream raises exceptions."""
     integers = range(n_items)
     per_second = 2
-    stream_ = (
+    s = (
         stream(map(throw_func(TestError), integers))
         .throttle(per_second, per=datetime.timedelta(seconds=1))
         .catch(TestError)
     )
-    duration, res = timestream(stream_, itype=itype)
+    duration, res = timestream(s, itype=itype)
     # `throttle` with `per_second` must yield upstream elements
     assert res == []
     expected_duration = math.ceil(n_items / per_second) - 1
@@ -173,7 +173,7 @@ def test_throttle_chained_follows_most_restrictive(itype: IterableType) -> None:
     approximately 2 seconds for 11 items (10 intervals * 0.2s).
     """
     expected_duration = 2
-    for stream_ in [
+    for s in [
         stream(range(11))
         .throttle(5, per=datetime.timedelta(seconds=1))
         .throttle(1, per=datetime.timedelta(seconds=0.01)),
@@ -181,7 +181,7 @@ def test_throttle_chained_follows_most_restrictive(itype: IterableType) -> None:
         .throttle(20, per=datetime.timedelta(seconds=1))
         .throttle(1, per=datetime.timedelta(seconds=0.2)),
     ]:
-        duration, _ = timestream(stream_, itype=itype)
+        duration, _ = timestream(s, itype=itype)
         # `throttle` with both `per_second` and `interval` set should follow the most restrictive
         assert duration == pytest.approx(expected_duration, rel=0.1)
 

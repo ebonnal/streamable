@@ -33,10 +33,10 @@ def test_catch_ignores_matching_exceptions(itype: IterableType) -> None:
     def fn(i):
         return i / (3 - i)
 
-    stream_ = stream(INTEGERS).map(fn)
+    s = stream(INTEGERS).map(fn)
     safe_src = list(INTEGERS)
     del safe_src[3]
-    assert alist_or_list(stream_.catch(ZeroDivisionError), itype=itype) == list(
+    assert alist_or_list(s.catch(ZeroDivisionError), itype=itype) == list(
         map(fn, safe_src)
     )
 
@@ -48,10 +48,10 @@ def test_catch_raises_non_matching_exceptions(itype: IterableType) -> None:
     def fn(i):
         return i / (3 - i)
 
-    stream_ = stream(INTEGERS).map(fn)
+    s = stream(INTEGERS).map(fn)
     # If a non-caught exception type occurs, then it should be raised.
     with pytest.raises(ZeroDivisionError):
-        alist_or_list(stream_.catch(TestError), itype=itype)
+        alist_or_list(s.catch(TestError), itype=itype)
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
