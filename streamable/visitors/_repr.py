@@ -33,75 +33,75 @@ class ToStringVisitor(Visitor[str], ABC):
     @abstractmethod
     def to_string(o: object) -> str: ...
 
-    def visit_buffer_stream(self, stream: "BufferStream") -> str:
-        self.operation_reprs.append(f"buffer({self.to_string(stream._up_to)})")
-        return stream.upstream.accept(self)
+    def visit_buffer_stream(self, s: "BufferStream") -> str:
+        self.operation_reprs.append(f"buffer({self.to_string(s._up_to)})")
+        return s.upstream.accept(self)
 
-    def visit_catch_stream(self, stream: "CatchStream") -> str:
-        if isinstance(stream._errors, tuple):
-            errors = f"({', '.join(map(self.to_string, stream._errors))})"
+    def visit_catch_stream(self, s: "CatchStream") -> str:
+        if isinstance(s._errors, tuple):
+            errors = f"({', '.join(map(self.to_string, s._errors))})"
         else:
-            errors = self.to_string(stream._errors)
+            errors = self.to_string(s._errors)
         self.operation_reprs.append(
-            f"catch({errors}, where={self.to_string(stream._where)}, do={self.to_string(stream._do)}, replace={self.to_string(stream._replace)}, stop={self.to_string(stream._stop)})"
+            f"catch({errors}, where={self.to_string(s._where)}, do={self.to_string(s._do)}, replace={self.to_string(s._replace)}, stop={self.to_string(s._stop)})"
         )
-        return stream.upstream.accept(self)
+        return s.upstream.accept(self)
 
-    def visit_filter_stream(self, stream: "FilterStream") -> str:
-        self.operation_reprs.append(f"filter({self.to_string(stream._where)})")
-        return stream.upstream.accept(self)
+    def visit_filter_stream(self, s: "FilterStream") -> str:
+        self.operation_reprs.append(f"filter({self.to_string(s._where)})")
+        return s.upstream.accept(self)
 
-    def visit_flatten_stream(self, stream: "FlattenStream") -> str:
+    def visit_flatten_stream(self, s: "FlattenStream") -> str:
         self.operation_reprs.append(
-            f"flatten(concurrency={self.to_string(stream._concurrency)})"
+            f"flatten(concurrency={self.to_string(s._concurrency)})"
         )
-        return stream.upstream.accept(self)
+        return s.upstream.accept(self)
 
-    def visit_do_stream(self, stream: "DoStream") -> str:
+    def visit_do_stream(self, s: "DoStream") -> str:
         self.operation_reprs.append(
-            f"do({self.to_string(stream._effect)}, concurrency={self.to_string(stream._concurrency)}, as_completed={self.to_string(stream._as_completed)})"
+            f"do({self.to_string(s._effect)}, concurrency={self.to_string(s._concurrency)}, as_completed={self.to_string(s._as_completed)})"
         )
-        return stream.upstream.accept(self)
+        return s.upstream.accept(self)
 
-    def visit_group_stream(self, stream: "GroupStream") -> str:
+    def visit_group_stream(self, s: "GroupStream") -> str:
         self.operation_reprs.append(
-            f"group(up_to={self.to_string(stream._up_to)}, every={self.to_string(stream._every)}, by={self.to_string(stream._by)})"
+            f"group(up_to={self.to_string(s._up_to)}, every={self.to_string(s._every)}, by={self.to_string(s._by)})"
         )
-        return stream.upstream.accept(self)
+        return s.upstream.accept(self)
 
-    def visit_map_stream(self, stream: "MapStream") -> str:
+    def visit_map_stream(self, s: "MapStream") -> str:
         self.operation_reprs.append(
-            f"map({self.to_string(stream._into)}, concurrency={self.to_string(stream._concurrency)}, as_completed={self.to_string(stream._as_completed)})"
+            f"map({self.to_string(s._into)}, concurrency={self.to_string(s._concurrency)}, as_completed={self.to_string(s._as_completed)})"
         )
-        return stream.upstream.accept(self)
+        return s.upstream.accept(self)
 
-    def visit_observe_stream(self, stream: "ObserveStream") -> str:
+    def visit_observe_stream(self, s: "ObserveStream") -> str:
         do = (
-            f", do={self.to_string(stream._do)}"
-            if stream._do != logging.getLogger("streamable").info
+            f", do={self.to_string(s._do)}"
+            if s._do != logging.getLogger("streamable").info
             else ""
         )
         self.operation_reprs.append(
-            f"""observe({self.to_string(stream._subject)}, every={self.to_string(stream._every)}{do})"""
+            f"""observe({self.to_string(s._subject)}, every={self.to_string(s._every)}{do})"""
         )
-        return stream.upstream.accept(self)
+        return s.upstream.accept(self)
 
-    def visit_skip_stream(self, stream: "SkipStream") -> str:
-        self.operation_reprs.append(f"skip(until={self.to_string(stream._until)})")
-        return stream.upstream.accept(self)
+    def visit_skip_stream(self, s: "SkipStream") -> str:
+        self.operation_reprs.append(f"skip(until={self.to_string(s._until)})")
+        return s.upstream.accept(self)
 
-    def visit_take_stream(self, stream: "TakeStream") -> str:
-        self.operation_reprs.append(f"take(until={self.to_string(stream._until)})")
-        return stream.upstream.accept(self)
+    def visit_take_stream(self, s: "TakeStream") -> str:
+        self.operation_reprs.append(f"take(until={self.to_string(s._until)})")
+        return s.upstream.accept(self)
 
-    def visit_throttle_stream(self, stream: "ThrottleStream") -> str:
+    def visit_throttle_stream(self, s: "ThrottleStream") -> str:
         self.operation_reprs.append(
-            f"throttle({self.to_string(stream._up_to)}, per={self.to_string(stream._per)})"
+            f"throttle({self.to_string(s._up_to)}, per={self.to_string(s._per)})"
         )
-        return stream.upstream.accept(self)
+        return s.upstream.accept(self)
 
-    def visit_stream(self, stream: "stream") -> str:
-        source_stream = f"stream({self.to_string(stream.source)})"
+    def visit_stream(self, s: "stream") -> str:
+        source_stream = f"stream({self.to_string(s.source)})"
         depth = len(self.operation_reprs) + 1
         if depth == 1:
             return source_stream

@@ -26,98 +26,98 @@ class EqualityVisitor(Visitor[bool]):
     def __init__(self, other: Any):
         self.other: Any = other
 
-    def type_eq(self, stream: "stream") -> bool:
-        return type(stream) is type(self.other)
+    def type_eq(self, s: "stream") -> bool:
+        return type(s) is type(self.other)
 
-    def visit_catch_stream(self, stream: "CatchStream") -> bool:
+    def visit_catch_stream(self, s: "CatchStream") -> bool:
         return (
-            self.type_eq(stream)
-            and stream.upstream.accept(EqualityVisitor(self.other.upstream))
-            and stream._errors == self.other._errors
-            and stream._where == self.other._where
-            and stream._do == self.other._do
-            and stream._replace == self.other._replace
-            and stream._stop == self.other._stop
+            self.type_eq(s)
+            and s.upstream.accept(EqualityVisitor(self.other.upstream))
+            and s._errors == self.other._errors
+            and s._where == self.other._where
+            and s._do == self.other._do
+            and s._replace == self.other._replace
+            and s._stop == self.other._stop
         )
 
-    def visit_filter_stream(self, stream: "FilterStream") -> bool:
+    def visit_filter_stream(self, s: "FilterStream") -> bool:
         return (
-            self.type_eq(stream)
-            and stream.upstream.accept(EqualityVisitor(self.other.upstream))
-            and stream._where == self.other._where
+            self.type_eq(s)
+            and s.upstream.accept(EqualityVisitor(self.other.upstream))
+            and s._where == self.other._where
         )
 
-    def visit_flatten_stream(self, stream: "FlattenStream") -> bool:
+    def visit_flatten_stream(self, s: "FlattenStream") -> bool:
         return (
-            self.type_eq(stream)
-            and stream.upstream.accept(EqualityVisitor(self.other.upstream))
-            and stream._concurrency == self.other._concurrency
+            self.type_eq(s)
+            and s.upstream.accept(EqualityVisitor(self.other.upstream))
+            and s._concurrency == self.other._concurrency
         )
 
-    def visit_do_stream(self, stream: "DoStream") -> bool:
+    def visit_do_stream(self, s: "DoStream") -> bool:
         return (
-            self.type_eq(stream)
-            and stream.upstream.accept(EqualityVisitor(self.other.upstream))
-            and stream._effect == self.other._effect
-            and stream._concurrency == self.other._concurrency
-            and stream._as_completed == self.other._as_completed
+            self.type_eq(s)
+            and s.upstream.accept(EqualityVisitor(self.other.upstream))
+            and s._effect == self.other._effect
+            and s._concurrency == self.other._concurrency
+            and s._as_completed == self.other._as_completed
         )
 
-    def visit_group_stream(self, stream: "GroupStream") -> bool:
+    def visit_group_stream(self, s: "GroupStream") -> bool:
         return (
-            self.type_eq(stream)
-            and stream.upstream.accept(EqualityVisitor(self.other.upstream))
-            and stream._up_to == self.other._up_to
-            and stream._every == self.other._every
-            and stream._by == self.other._by
+            self.type_eq(s)
+            and s.upstream.accept(EqualityVisitor(self.other.upstream))
+            and s._up_to == self.other._up_to
+            and s._every == self.other._every
+            and s._by == self.other._by
         )
 
-    def visit_map_stream(self, stream: "MapStream") -> bool:
+    def visit_map_stream(self, s: "MapStream") -> bool:
         return (
-            self.type_eq(stream)
-            and stream.upstream.accept(EqualityVisitor(self.other.upstream))
-            and stream._into == self.other._into
-            and stream._concurrency == self.other._concurrency
-            and stream._as_completed == self.other._as_completed
+            self.type_eq(s)
+            and s.upstream.accept(EqualityVisitor(self.other.upstream))
+            and s._into == self.other._into
+            and s._concurrency == self.other._concurrency
+            and s._as_completed == self.other._as_completed
         )
 
-    def visit_observe_stream(self, stream: "ObserveStream") -> bool:
+    def visit_observe_stream(self, s: "ObserveStream") -> bool:
         return (
-            self.type_eq(stream)
-            and stream.upstream.accept(EqualityVisitor(self.other.upstream))
-            and stream._subject == self.other._subject
-            and stream._every == self.other._every
-            and stream._do == self.other._do
+            self.type_eq(s)
+            and s.upstream.accept(EqualityVisitor(self.other.upstream))
+            and s._subject == self.other._subject
+            and s._every == self.other._every
+            and s._do == self.other._do
         )
 
-    def visit_skip_stream(self, stream: "SkipStream") -> bool:
+    def visit_skip_stream(self, s: "SkipStream") -> bool:
         return (
-            self.type_eq(stream)
-            and stream.upstream.accept(EqualityVisitor(self.other.upstream))
-            and stream._until == self.other._until
+            self.type_eq(s)
+            and s.upstream.accept(EqualityVisitor(self.other.upstream))
+            and s._until == self.other._until
         )
 
-    def visit_take_stream(self, stream: "TakeStream") -> bool:
+    def visit_take_stream(self, s: "TakeStream") -> bool:
         return (
-            self.type_eq(stream)
-            and stream.upstream.accept(EqualityVisitor(self.other.upstream))
-            and stream._until == self.other._until
+            self.type_eq(s)
+            and s.upstream.accept(EqualityVisitor(self.other.upstream))
+            and s._until == self.other._until
         )
 
-    def visit_throttle_stream(self, stream: "ThrottleStream") -> bool:
+    def visit_throttle_stream(self, s: "ThrottleStream") -> bool:
         return (
-            self.type_eq(stream)
-            and stream.upstream.accept(EqualityVisitor(self.other.upstream))
-            and stream._up_to == self.other._up_to
-            and stream._per == self.other._per
+            self.type_eq(s)
+            and s.upstream.accept(EqualityVisitor(self.other.upstream))
+            and s._up_to == self.other._up_to
+            and s._per == self.other._per
         )
 
-    def visit_buffer_stream(self, stream: "BufferStream") -> bool:
+    def visit_buffer_stream(self, s: "BufferStream") -> bool:
         return (
-            self.type_eq(stream)
-            and stream.upstream.accept(EqualityVisitor(self.other.upstream))
-            and stream._up_to == self.other._up_to
+            self.type_eq(s)
+            and s.upstream.accept(EqualityVisitor(self.other.upstream))
+            and s._up_to == self.other._up_to
         )
 
-    def visit_stream(self, stream: "stream") -> bool:
-        return self.type_eq(stream) and stream.source == self.other.source
+    def visit_stream(self, s: "stream") -> bool:
+        return self.type_eq(s) and s.source == self.other.source

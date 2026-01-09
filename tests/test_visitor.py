@@ -19,7 +19,7 @@ from streamable.visitors import Visitor
 
 def test_visitor() -> None:
     class ConcreteVisitor(Visitor[None]):
-        def visit_stream(self, stream: stream) -> None:
+        def visit_stream(self, s: stream) -> None:
             return None
 
     visitor = ConcreteVisitor()
@@ -41,10 +41,10 @@ def test_depth_visitor_example() -> None:
     from streamable.visitors import Visitor
 
     class DepthVisitor(Visitor[int]):
-        def visit_stream(self, stream: stream) -> int:
-            if not stream.upstream:
+        def visit_stream(self, s: stream) -> int:
+            if not s.upstream:
                 return 1
-            return 1 + stream.upstream.accept(self)
+            return 1 + s.upstream.accept(self)
 
     def depth(stream: stream) -> int:
         return stream.accept(DepthVisitor())

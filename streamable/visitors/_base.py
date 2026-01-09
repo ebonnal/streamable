@@ -26,38 +26,38 @@ class Visitor(ABC, Generic[V]):
 
     # fmt: off
     @abstractmethod
-    def visit_stream(self, stream: "stream") -> V: ...
+    def visit_stream(self, s: "stream") -> V: ...
     # fmt: on
 
-    def visit_buffer_stream(self, stream: "BufferStream") -> V:
-        return self.visit_stream(stream)
+    def visit_buffer_stream(self, s: "BufferStream") -> V:
+        return self.visit_stream(s)
 
-    def visit_catch_stream(self, stream: "CatchStream") -> V:
-        return self.visit_stream(stream)
+    def visit_catch_stream(self, s: "CatchStream") -> V:
+        return self.visit_stream(s)
 
-    def visit_filter_stream(self, stream: "FilterStream") -> V:
-        return self.visit_stream(stream)
+    def visit_filter_stream(self, s: "FilterStream") -> V:
+        return self.visit_stream(s)
 
-    def visit_flatten_stream(self, stream: "FlattenStream") -> V:
-        return self.visit_stream(stream)
+    def visit_flatten_stream(self, s: "FlattenStream") -> V:
+        return self.visit_stream(s)
 
-    def visit_do_stream(self, stream: "DoStream") -> V:
-        return self.visit_stream(stream)
+    def visit_do_stream(self, s: "DoStream") -> V:
+        return self.visit_stream(s)
 
-    def visit_group_stream(self, stream: "GroupStream") -> V:
-        return self.visit_stream(stream)
+    def visit_group_stream(self, s: "GroupStream") -> V:
+        return self.visit_stream(s)
 
-    def visit_observe_stream(self, stream: "ObserveStream") -> V:
-        return self.visit_stream(stream)
+    def visit_observe_stream(self, s: "ObserveStream") -> V:
+        return self.visit_stream(s)
 
-    def visit_map_stream(self, stream: "MapStream") -> V:
-        return self.visit_stream(stream)
+    def visit_map_stream(self, s: "MapStream") -> V:
+        return self.visit_stream(s)
 
-    def visit_skip_stream(self, stream: "SkipStream") -> V:
-        return self.visit_stream(stream)
+    def visit_skip_stream(self, s: "SkipStream") -> V:
+        return self.visit_stream(s)
 
-    def visit_take_stream(self, stream: "TakeStream") -> V:
-        return self.visit_stream(stream)
+    def visit_take_stream(self, s: "TakeStream") -> V:
+        return self.visit_stream(s)
 
-    def visit_throttle_stream(self, stream: "ThrottleStream") -> V:
-        return self.visit_stream(stream)
+    def visit_throttle_stream(self, s: "ThrottleStream") -> V:
+        return self.visit_stream(s)

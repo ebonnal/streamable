@@ -41,99 +41,97 @@ U = TypeVar("U")
 class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
     __slots__ = ()
 
-    def visit_buffer_stream(self, stream: "BufferStream[T]") -> AsyncIterator[T]:
+    def visit_buffer_stream(self, s: "BufferStream[T]") -> AsyncIterator[T]:
         return _afunctions.buffer(
-            stream.upstream.accept(self),
-            stream._up_to,
+            s.upstream.accept(self),
+            s._up_to,
         )
 
-    def visit_catch_stream(
-        self, stream: "CatchStream[T, U]"
-    ) -> AsyncIterator[Union[T, U]]:
+    def visit_catch_stream(self, s: "CatchStream[T, U]") -> AsyncIterator[Union[T, U]]:
         return _afunctions.catch(
-            stream.upstream.accept(self),
-            stream._errors,
-            where=stream._where,
-            replace=stream._replace,
-            do=stream._do,
-            stop=stream._stop,
+            s.upstream.accept(self),
+            s._errors,
+            where=s._where,
+            replace=s._replace,
+            do=s._do,
+            stop=s._stop,
         )
 
-    def visit_filter_stream(self, stream: "FilterStream[T]") -> AsyncIterator[T]:
-        return _afunctions.filter(stream._where, stream.upstream.accept(self))
+    def visit_filter_stream(self, s: "FilterStream[T]") -> AsyncIterator[T]:
+        return _afunctions.filter(s._where, s.upstream.accept(self))
 
-    def visit_flatten_stream(self, stream: "FlattenStream[T]") -> AsyncIterator[T]:
+    def visit_flatten_stream(self, s: "FlattenStream[T]") -> AsyncIterator[T]:
         return _afunctions.flatten(
-            stream.upstream.accept(
+            s.upstream.accept(
                 cast(AsyncIteratorVisitor[Union[Iterable[T], AsyncIterable[T]]], self)
             ),
-            concurrency=stream._concurrency,
+            concurrency=s._concurrency,
         )
 
-    def visit_do_stream(self, stream: "DoStream[T]") -> AsyncIterator[T]:
+    def visit_do_stream(self, s: "DoStream[T]") -> AsyncIterator[T]:
         return _afunctions.map(
-            sidify(stream._effect),
-            stream.upstream.accept(self),
-            concurrency=stream._concurrency,
-            as_completed=stream._as_completed,
+            sidify(s._effect),
+            s.upstream.accept(self),
+            concurrency=s._concurrency,
+            as_completed=s._as_completed,
         )
 
-    def visit_group_stream(self, stream: "GroupStream[T]") -> AsyncIterator[T]:
+    def visit_group_stream(self, s: "GroupStream[T]") -> AsyncIterator[T]:
         return cast(
             AsyncIterator[T],
             _afunctions.group(
-                stream.upstream.accept(self),
-                stream._up_to,
-                every=stream._every,
-                by=stream._by,
+                s.upstream.accept(self),
+                s._up_to,
+                every=s._every,
+                by=s._by,
             ),
         )
 
-    def visit_map_stream(self, stream: "MapStream[U, T]") -> AsyncIterator[T]:
+    def visit_map_stream(self, s: "MapStream[U, T]") -> AsyncIterator[T]:
         return _afunctions.map(
-            stream._into,
-            stream.upstream.accept(cast(AsyncIteratorVisitor[U], self)),
-            concurrency=stream._concurrency,
-            as_completed=stream._as_completed,
+            s._into,
+            s.upstream.accept(cast(AsyncIteratorVisitor[U], self)),
+            concurrency=s._concurrency,
+            as_completed=s._as_completed,
         )
 
-    def visit_observe_stream(self, stream: "ObserveStream[T]") -> AsyncIterator[T]:
+    def visit_observe_stream(self, s: "ObserveStream[T]") -> AsyncIterator[T]:
         return _afunctions.observe(
-            stream.upstream.accept(self),
-            stream._subject,
-            stream._every,
-            stream._do,
+            s.upstream.accept(self),
+            s._subject,
+            s._every,
+            s._do,
         )
 
-    def visit_skip_stream(self, stream: "SkipStream[T]") -> AsyncIterator[T]:
+    def visit_skip_stream(self, s: "SkipStream[T]") -> AsyncIterator[T]:
         return _afunctions.skip(
-            stream.upstream.accept(self),
-            until=stream._until,
+            s.upstream.accept(self),
+            until=s._until,
         )
 
-    def visit_take_stream(self, stream: "TakeStream[T]") -> AsyncIterator[T]:
+    def visit_take_stream(self, s: "TakeStream[T]") -> AsyncIterator[T]:
         return _afunctions.take(
-            stream.upstream.accept(self),
-            until=stream._until,
+            s.upstream.accept(self),
+            until=s._until,
         )
 
-    def visit_throttle_stream(self, stream: "ThrottleStream[T]") -> AsyncIterator[T]:
+    def visit_throttle_stream(self, s: "ThrottleStream[T]") -> AsyncIterator[T]:
         return _afunctions.throttle(
-            stream.upstream.accept(self),
-            stream._up_to,
-            per=stream._per,
+            s.upstream.accept(self),
+            s._up_to,
+            per=s._per,
         )
 
-    def visit_stream(self, stream: "stream[T]") -> AsyncIterator[T]:
-        if isinstance(stream.source, (Iterable, AsyncIterable)):
-            return async_iter(stream.source)
-        if callable(stream.source):
-            if iscoroutinefunction(stream.source):
+    def visit_stream(self, s: "stream[T]") -> AsyncIterator[T]:
+        if isinstance(s.source, (Iterable, AsyncIterable)):
+            return async_iter(s.source)
+        if callable(s.source):
+            if iscoroutinefunction(s.source):
                 return afn_to_aiter(
-                    cast(Callable[[], Coroutine[Any, Any, T]], stream.source)
+                    cast(Callable[[], Coroutine[Any, Any, T]], s.source)
                 )
             else:
-                return fn_to_aiter(stream.source)
+                return fn_to_aiter(s.source)
         raise TypeError(
-            f"`source` must be Iterable or AsyncIterable or Callable but got {stream.source}"
+            f"`source` must be Iterable or AsyncIterable or Callable but got {s.source}"
         )
