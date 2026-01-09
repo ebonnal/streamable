@@ -21,6 +21,8 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class EqualityVisitor(Visitor[bool]):
+    __slots__ = ("other",)
+
     def __init__(self, other: Any):
         self.other: Any = other
 

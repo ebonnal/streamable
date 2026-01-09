@@ -21,6 +21,8 @@ R = TypeVar("R")
 
 
 class _Sidify(Generic[T]):
+    __slots__ = ("func",)
+
     def __init__(self, func: Callable[[T], Any]) -> None:
         self.func = func
 
@@ -51,6 +53,8 @@ def sidify(func: Callable[[T], Any]) -> Callable[[T], Union[T, Coroutine[Any, An
 
 
 class _Star(Generic[R]):
+    __slots__ = ("func",)
+
     def __init__(self, func: Callable[..., R]) -> None:
         self.func = func
 
@@ -118,6 +122,8 @@ def star(func: Callable[..., R]) -> Callable[[Tuple[Any, ...]], R]:
 
 
 class _Syncify(Generic[T, R], CloseEventLoopMixin):
+    __slots__ = ("async_func", "loop")
+
     def __init__(
         self,
         loop: asyncio.AbstractEventLoop,

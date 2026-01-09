@@ -39,6 +39,8 @@ U = TypeVar("U")
 
 
 class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
+    __slots__ = ()
+
     def visit_buffer_stream(self, stream: "BufferStream[T]") -> AsyncIterator[T]:
         return _afunctions.buffer(
             stream.upstream.accept(self),

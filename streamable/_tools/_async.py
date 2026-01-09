@@ -21,6 +21,7 @@ async def empty_aiter() -> AsyncIterator[Any]:
 
 class CloseEventLoopMixin:
     # Instance variable that subclasses must set in __init__
+    # Note: __slots__ removed to avoid conflicts with ABC in multiple inheritance
     loop: asyncio.AbstractEventLoop  # pragma: no cover
 
     def __del__(self) -> None:

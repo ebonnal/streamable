@@ -65,6 +65,8 @@ U = TypeVar("U")
 
 
 class CatchIterator(Iterator[Union[T, U]]):
+    __slots__ = ("iterator", "errors", "where", "replace", "do", "stop", "_stopped")
+
     def __init__(
         self,
         iterator: Iterator[T],
@@ -108,6 +110,8 @@ class CatchIterator(Iterator[Union[T, U]]):
 
 
 class FlattenIterator(Iterator[T]):
+    __slots__ = ("iterator", "loop_getter", "_current_iterator_elem")
+
     def __init__(
         self,
         loop_getter: Callable[[], asyncio.AbstractEventLoop],
@@ -142,6 +146,8 @@ class FlattenIterator(Iterator[T]):
 
 
 class _BaseGroupIterator(Generic[T]):
+    __slots__ = ("iterator", "up_to", "_every_seconds", "_to_raise", "_last_yield_at")
+
     def __init__(
         self,
         iterator: Iterator[T],
@@ -170,6 +176,8 @@ class _BaseGroupIterator(Generic[T]):
 
 
 class GroupIterator(_BaseGroupIterator[T], Iterator[List[T]]):
+    __slots__ = ("_current_group",)
+
     def __init__(
         self,
         iterator: Iterator[T],
@@ -202,6 +210,8 @@ class GroupIterator(_BaseGroupIterator[T], Iterator[List[T]]):
 
 
 class GroupbyIterator(_BaseGroupIterator[T], Iterator[Tuple[U, List[T]]]):
+    __slots__ = ("by", "_is_exhausted", "_current_groups")
+
     def __init__(
         self,
         iterator: Iterator[T],
@@ -270,6 +280,8 @@ class GroupbyIterator(_BaseGroupIterator[T], Iterator[Tuple[U, List[T]]]):
 
 
 class CountSkipIterator(Iterator[T]):
+    __slots__ = ("iterator", "_remaining_to_skip")
+
     def __init__(self, iterator: Iterator[T], count: int) -> None:
         self.iterator = iterator
         self._remaining_to_skip = count
@@ -283,6 +295,8 @@ class CountSkipIterator(Iterator[T]):
 
 
 class PredicateSkipIterator(Iterator[T]):
+    __slots__ = ("iterator", "until", "_satisfied")
+
     def __init__(self, iterator: Iterator[T], until: Callable[[T], Any]) -> None:
         self.iterator = iterator
         self.until = until
@@ -303,6 +317,8 @@ class PredicateSkipIterator(Iterator[T]):
 
 
 class CountTakeIterator(Iterator[T]):
+    __slots__ = ("iterator", "_remaining_to_take")
+
     def __init__(self, iterator: Iterator[T], count: int) -> None:
         self.iterator = iterator
         self._remaining_to_take = count
@@ -316,6 +332,8 @@ class CountTakeIterator(Iterator[T]):
 
 
 class PredicateTakeIterator(Iterator[T]):
+    __slots__ = ("iterator", "until", "_satisfied")
+
     def __init__(self, iterator: Iterator[T], until: Callable[[T], Any]) -> None:
         self.iterator = iterator
         self.until = until
@@ -337,6 +355,18 @@ class PredicateTakeIterator(Iterator[T]):
 
 
 class _BaseObserveIterator(Iterator[T]):
+    __slots__ = (
+        "iterator",
+        "subject",
+        "do",
+        "_elements",
+        "_errors",
+        "_emissions_logged",
+        "_elements_logged",
+        "_errors_logged",
+        "__start_point",
+    )
+
     def __init__(
         self,
         iterator: Iterator[T],
@@ -408,6 +438,8 @@ class _BaseObserveIterator(Iterator[T]):
 
 
 class PowerObserveIterator(_BaseObserveIterator[T]):
+    __slots__ = ("base",)
+
     def __init__(
         self,
         iterator: Iterator[T],
@@ -426,6 +458,8 @@ class PowerObserveIterator(_BaseObserveIterator[T]):
 
 
 class EveryIntObserveIterator(_BaseObserveIterator[T]):
+    __slots__ = ("every",)
+
     def __init__(
         self,
         iterator: Iterator[T],
@@ -446,6 +480,8 @@ class EveryIntObserveIterator(_BaseObserveIterator[T]):
 
 
 class EveryIntervalObserveIterator(_BaseObserveIterator[T]):
+    __slots__ = ("_every_seconds", "_last_log_time")
+
     def __init__(
         self,
         iterator: Iterator[T],
@@ -480,6 +516,8 @@ class EveryIntervalObserveIterator(_BaseObserveIterator[T]):
 
 
 class ThrottleIterator(Iterator[T]):
+    __slots__ = ("iterator", "up_to", "_window_seconds", "_emission_timestamps")
+
     def __init__(
         self,
         iterator: Iterator[T],
@@ -522,6 +560,8 @@ class ThrottleIterator(Iterator[T]):
 
 
 class _RaisingIterator(Iterator[T]):
+    __slots__ = ("iterator",)
+
     def __init__(
         self,
         iterator: Iterator[Union[T, ExceptionContainer]],
@@ -544,6 +584,8 @@ class _RaisingIterator(Iterator[T]):
 
 
 class BufferIterable(Iterable[Union[T, ExceptionContainer]]):
+    __slots__ = ("iterator", "up_to", "_buffer", "_next")
+
     def __init__(
         self,
         iterator: Iterator[T],
@@ -565,6 +607,8 @@ class BufferIterable(Iterable[Union[T, ExceptionContainer]]):
 
 
 class BufferIterator(_RaisingIterator[T]):
+    __slots__ = ()
+
     def __init__(
         self,
         iterator: Iterator[T],
@@ -581,6 +625,8 @@ class BufferIterator(_RaisingIterator[T]):
 class _BaseConcurrentMapIterable(
     Generic[T, U], ABC, Iterable[Union[U, ExceptionContainer]]
 ):
+    __slots__ = ("iterator", "concurrency", "as_completed", "_context_manager")
+
     def __init__(
         self,
         iterator: Iterator[T],
@@ -634,6 +680,8 @@ class _BaseConcurrentMapIterable(
 
 
 class _ExecutorConcurrentMapIterable(_BaseConcurrentMapIterable[T, U]):
+    __slots__ = ("into", "executor")
+
     def __init__(
         self,
         iterator: Iterator[T],
@@ -669,6 +717,8 @@ class _ExecutorConcurrentMapIterable(_BaseConcurrentMapIterable[T, U]):
 
 
 class ExecutorConcurrentMapIterator(_RaisingIterator[U]):
+    __slots__ = ()
+
     def __init__(
         self,
         iterator: Iterator[T],
@@ -689,6 +739,16 @@ class ExecutorConcurrentMapIterator(_RaisingIterator[U]):
 class _AsyncConcurrentMapIterable(
     _BaseConcurrentMapIterable[T, U], CloseEventLoopMixin
 ):
+    __slots__ = (
+        "iterator",
+        "concurrency",
+        "as_completed",
+        "_context_manager",
+        "loop",
+        "into",
+        "__semaphore",
+    )
+
     def __init__(
         self,
         loop: asyncio.AbstractEventLoop,
@@ -727,6 +787,8 @@ class _AsyncConcurrentMapIterable(
 
 
 class AsyncConcurrentMapIterator(_RaisingIterator[U]):
+    __slots__ = ()
+
     def __init__(
         self,
         loop: asyncio.AbstractEventLoop,
@@ -752,6 +814,15 @@ class AsyncConcurrentMapIterator(_RaisingIterator[U]):
 
 
 class _ConcurrentFlattenIterable(Iterable[Union[T, ExceptionContainer]]):
+    __slots__ = (
+        "loop_getter",
+        "iterables_iterator",
+        "concurrency",
+        "_next",
+        "_anext",
+        "_executor",
+    )
+
     def __init__(
         self,
         loop_getter: Callable[[], asyncio.AbstractEventLoop],
@@ -835,6 +906,8 @@ class _ConcurrentFlattenIterable(Iterable[Union[T, ExceptionContainer]]):
 
 
 class ConcurrentFlattenIterator(_RaisingIterator[T]):
+    __slots__ = ()
+
     def __init__(
         self,
         loop_getter: Callable[[], asyncio.AbstractEventLoop],

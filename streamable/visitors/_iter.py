@@ -41,6 +41,8 @@ U = TypeVar("U")
 
 
 class IteratorVisitor(Visitor[Iterator[T]]):
+    __slots__ = ("loop",)
+
     def __init__(self) -> None:
         # will only be set by `_get_loop` if an operation needs it
         self.loop: Optional[asyncio.AbstractEventLoop] = None
