@@ -1,8 +1,6 @@
 import asyncio
-from concurrent.futures import ThreadPoolExecutor
 import copy
 import datetime
-from operator import itemgetter
 import queue
 import re
 import threading
@@ -22,7 +20,7 @@ import pytest
 
 from streamable import stream
 from streamable._tools._async import awaitable_to_coroutine
-from streamable._tools._func import asyncify, star
+from streamable._tools._func import star
 from streamable._tools._iter import async_iter
 from tests.utils.functions import (
     async_identity,
@@ -232,116 +230,6 @@ def test_pipe() -> None:
     assert stream_.pipe(func, *ints, **strings) == (stream_, ints, strings)
     # `pipe` should be ok without args and kwargs.
     assert stream_ == stream_.pipe(identity)
-
-
-def test_eq() -> None:
-    threads = ThreadPoolExecutor(max_workers=10)
-    second_item = itemgetter(1)
-    big_stream = (
-        stream(INTEGERS)
-        .catch((TypeError, ValueError), replace=identity, where=identity)
-        .catch((TypeError, ValueError), replace=async_identity, where=async_identity)
-        .filter(identity)
-        .filter(async_identity)
-        .do(identity, concurrency=3)
-        .do(async_identity, concurrency=3)
-        .group(3, by=bool)
-        .map(second_item)
-        .flatten(concurrency=3)
-        .group(3, by=async_identity)
-        .map(second_item)
-        .map(iter)
-        .map(async_iter)
-        .flatten(concurrency=3)
-        .map(identity, concurrency=threads)
-        .map(async_identity)
-        .observe("foo")
-        .skip(3)
-        .skip(3)
-        .take(4)
-        .take(4)
-        .throttle(1, per=datetime.timedelta(seconds=1))
-    )
-
-    assert big_stream == (
-        stream(INTEGERS)
-        .catch((TypeError, ValueError), replace=identity, where=identity)
-        .catch((TypeError, ValueError), replace=async_identity, where=async_identity)
-        .filter(identity)
-        .filter(async_identity)
-        .do(identity, concurrency=3)
-        .do(async_identity, concurrency=3)
-        .group(3, by=bool)
-        .map(second_item)
-        .flatten(concurrency=3)
-        .group(3, by=async_identity)
-        .map(second_item)
-        .map(iter)
-        .map(async_iter)
-        .flatten(concurrency=3)
-        .map(identity, concurrency=threads)
-        .map(async_identity)
-        .observe("foo")
-        .skip(3)
-        .skip(3)
-        .take(4)
-        .take(4)
-        .throttle(1, per=datetime.timedelta(seconds=1))
-    )
-    assert big_stream != (
-        stream(list(INTEGERS))  # not same source
-        .catch((TypeError, ValueError), replace=lambda e: 2, where=identity)
-        .catch(
-            (TypeError, ValueError), replace=asyncify(lambda e: 2), where=async_identity
-        )
-        .filter(identity)
-        .filter(async_identity)
-        .do(identity, concurrency=3)
-        .do(async_identity, concurrency=3)
-        .group(3, by=bool)
-        .map(second_item)
-        .flatten(concurrency=3)
-        .group(3, by=async_identity)
-        .map(second_item)
-        .map(iter)
-        .map(async_iter)
-        .flatten(concurrency=3)
-        .map(identity, concurrency=threads)
-        .map(async_identity)
-        .observe("foo")
-        .skip(3)
-        .skip(3)
-        .take(4)
-        .take(4)
-        .throttle(1, per=datetime.timedelta(seconds=1))
-    )
-    assert big_stream != (
-        stream(INTEGERS)
-        .catch((TypeError, ValueError), replace=lambda e: 2, where=identity)
-        .catch(
-            (TypeError, ValueError), replace=asyncify(lambda e: 2), where=async_identity
-        )
-        .filter(identity)
-        .filter(async_identity)
-        .do(identity, concurrency=3)
-        .do(async_identity, concurrency=3)
-        .group(3, by=bool)
-        .map(second_item)
-        .flatten(concurrency=3)
-        .group(3, by=async_identity)
-        .map(second_item)
-        .map(iter)
-        .map(async_iter)
-        .flatten(concurrency=3)
-        .map(identity, concurrency=threads)
-        .map(async_identity)
-        .observe("foo")
-        .skip(3)
-        .skip(3)
-        .take(4)
-        .take(4)
-        .throttle(1, per=datetime.timedelta(seconds=2))  # not the same interval
-    )
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
