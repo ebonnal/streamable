@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     from streamable._stream import stream
 from streamable._tools._async import (
     AsyncFunction,
-    CloseEventLoopMixin,
+    LoopClosingMixin,
 )
 from streamable._tools._contextmanager import noop_context_manager
 from streamable._tools._error import ExceptionContainer
@@ -736,9 +736,7 @@ class ExecutorConcurrentMapIterator(_RaisingIterator[U]):
         )
 
 
-class _AsyncConcurrentMapIterable(
-    _BaseConcurrentMapIterable[T, U], CloseEventLoopMixin
-):
+class _AsyncConcurrentMapIterable(_BaseConcurrentMapIterable[T, U], LoopClosingMixin):
     __slots__ = (
         "iterator",
         "concurrency",

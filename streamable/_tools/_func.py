@@ -14,7 +14,7 @@ from typing import (
     overload,
 )
 
-from streamable._tools._async import AsyncFunction, CloseEventLoopMixin
+from streamable._tools._async import AsyncFunction, LoopClosingMixin
 
 T = TypeVar("T")
 R = TypeVar("R")
@@ -121,7 +121,7 @@ def star(func: Callable[..., R]) -> Callable[[Tuple[Any, ...]], R]:
     return _Star(func)
 
 
-class _Syncify(Generic[T, R], CloseEventLoopMixin):
+class _Syncify(Generic[T, R], LoopClosingMixin):
     __slots__ = ("async_func", "loop")
 
     def __init__(
