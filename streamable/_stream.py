@@ -62,14 +62,45 @@ V = TypeVar("V")
 
 class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
     """
-    Create a ``stream`` from a data source.
+    Fluent concurrent sync/async streams.
 
-    Chain lazy operations, accepting both sync and async functions.
+    ``stream[T]`` wraps any ``Iterable[T]`` or ``AsyncIterable[T]`` with a fluent interface
+    covering concurrency, batching, buffering, rate limiting, progress logging, and error handling.
 
-    A ``stream[T]`` is both ``Iterable[T]`` and ``AsyncIterable[T]``, source elements will be processed on-the-fly during iteration.
+    Create a ``stream[T]`` from an ``Iterable[T]`` or ``AsyncIterable[T]``::
+
+        ints: stream[int] = stream(range(10))
+
+    Chain lazy operations, accepting both sync and async functions::
+
+        import logging
+        from datetime import timedelta
+        from httpx import AsyncClient, Response, HTTPStatusError
+
+        pokemons: stream[str] = (
+            stream(range(10))
+            .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
+            .throttle(5, per=timedelta(seconds=1))
+            .map(AsyncClient().get, concurrency=2)
+            .do(Response.raise_for_status)
+            .catch(HTTPStatusError, do=logging.error)
+            .map(lambda poke: poke.json()["name"])
+        )
+
+    Source elements will be processed on-the-fly during iteration.
+
+    A ``stream[T]`` is both ``Iterable[T]`` and ``AsyncIterable[T]``::
+
+        >>> list(pokemons)
+        ['bulbasaur', 'ivysaur', 'venusaur', ...]
+
+        >>> [poke async for poke in pokemons]
+        ['bulbasaur', 'ivysaur', 'venusaur', ...]
 
     Args:
-        source (``Iterable[T] | AsyncIterable[T] | Callable[[], T] | Callable[[], Coroutine[Any, Any, T]]``): The data source to wrap. Can be specified as an (async) iterable, or as a (async) function that will be called sequentially to get the next source element.
+        source: The data source to wrap. Can be specified as an (async) iterable,
+            or as a (async) function that will be called sequentially to get the next source element.
+            Type: ``Iterable[T] | AsyncIterable[T] | Callable[[], T] | Callable[[], Coroutine[Any, Any, T]]``
     """
 
     __slots__ = ("_source", "_upstream")
