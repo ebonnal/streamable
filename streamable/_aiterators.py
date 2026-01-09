@@ -56,6 +56,8 @@ U = TypeVar("U")
 
 
 class CatchAsyncIterator(AsyncIterator[Union[T, U]]):
+    __slots__ = ("iterator", "errors", "where", "replace", "do", "stop", "_stopped")
+
     def __init__(
         self,
         iterator: AsyncIterator[T],
@@ -99,6 +101,8 @@ class CatchAsyncIterator(AsyncIterator[Union[T, U]]):
 
 
 class FlattenAsyncIterator(AsyncIterator[T]):
+    __slots__ = ("iterator", "_current_iterator_elem")
+
     def __init__(
         self, iterator: AsyncIterator[Union[Iterable[T], AsyncIterable[T]]]
     ) -> None:
@@ -128,6 +132,8 @@ class FlattenAsyncIterator(AsyncIterator[T]):
 
 
 class _BaseGroupAsyncIterator(Generic[T]):
+    __slots__ = ("iterator", "up_to", "_every_seconds", "_to_raise", "_last_yield_at")
+
     def __init__(
         self,
         iterator: AsyncIterator[T],
@@ -156,6 +162,8 @@ class _BaseGroupAsyncIterator(Generic[T]):
 
 
 class GroupAsyncIterator(_BaseGroupAsyncIterator[T], AsyncIterator[List[T]]):
+    __slots__ = ("_current_group",)
+
     def __init__(
         self,
         iterator: AsyncIterator[T],
@@ -190,6 +198,8 @@ class GroupAsyncIterator(_BaseGroupAsyncIterator[T], AsyncIterator[List[T]]):
 class GroupbyAsyncIterator(
     _BaseGroupAsyncIterator[T], AsyncIterator[Tuple[U, List[T]]]
 ):
+    __slots__ = ("by", "_is_exhausted", "_current_groups")
+
     def __init__(
         self,
         iterator: AsyncIterator[T],
@@ -258,6 +268,8 @@ class GroupbyAsyncIterator(
 
 
 class CountSkipAsyncIterator(AsyncIterator[T]):
+    __slots__ = ("iterator", "_remaining_to_skip")
+
     def __init__(self, iterator: AsyncIterator[T], count: int) -> None:
         self.iterator = iterator
         self._remaining_to_skip = count
@@ -271,6 +283,8 @@ class CountSkipAsyncIterator(AsyncIterator[T]):
 
 
 class PredicateSkipAsyncIterator(AsyncIterator[T]):
+    __slots__ = ("iterator", "until", "_satisfied")
+
     def __init__(
         self, iterator: AsyncIterator[T], until: AsyncFunction[T, Any]
     ) -> None:
@@ -293,6 +307,8 @@ class PredicateSkipAsyncIterator(AsyncIterator[T]):
 
 
 class CountTakeAsyncIterator(AsyncIterator[T]):
+    __slots__ = ("iterator", "_remaining_to_take")
+
     def __init__(self, iterator: AsyncIterator[T], count: int) -> None:
         self.iterator = iterator
         self._remaining_to_take = count
@@ -306,6 +322,8 @@ class CountTakeAsyncIterator(AsyncIterator[T]):
 
 
 class PredicateTakeAsyncIterator(AsyncIterator[T]):
+    __slots__ = ("iterator", "until", "_satisfied")
+
     def __init__(
         self, iterator: AsyncIterator[T], until: AsyncFunction[T, Any]
     ) -> None:
@@ -329,6 +347,8 @@ class PredicateTakeAsyncIterator(AsyncIterator[T]):
 
 
 class MapAsyncIterator(AsyncIterator[U]):
+    __slots__ = ("iterator", "to")
+
     def __init__(
         self,
         iterator: AsyncIterator[T],
@@ -347,6 +367,8 @@ class MapAsyncIterator(AsyncIterator[U]):
 
 
 class FilterAsyncIterator(AsyncIterator[T]):
+    __slots__ = ("iterator", "where")
+
     def __init__(
         self,
         iterator: AsyncIterator[T],
@@ -368,6 +390,18 @@ class FilterAsyncIterator(AsyncIterator[T]):
 
 
 class _BaseObserveAsyncIterator(AsyncIterator[T]):
+    __slots__ = (
+        "iterator",
+        "subject",
+        "do",
+        "_elements",
+        "_errors",
+        "_emissions_logged",
+        "_elements_logged",
+        "_errors_logged",
+        "__start_point",
+    )
+
     def __init__(
         self,
         iterator: AsyncIterator[T],
@@ -439,6 +473,8 @@ class _BaseObserveAsyncIterator(AsyncIterator[T]):
 
 
 class PowerObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
+    __slots__ = ("base",)
+
     def __init__(
         self,
         iterator: AsyncIterator[T],
@@ -457,6 +493,8 @@ class PowerObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
 
 
 class EveryIntObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
+    __slots__ = ("every",)
+
     def __init__(
         self,
         iterator: AsyncIterator[T],
@@ -477,6 +515,8 @@ class EveryIntObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
 
 
 class EveryIntervalObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
+    __slots__ = ("_every_seconds", "_last_log_time")
+
     def __init__(
         self,
         iterator: AsyncIterator[T],
@@ -511,6 +551,8 @@ class EveryIntervalObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
 
 
 class ThrottleAsyncIterator(AsyncIterator[T]):
+    __slots__ = ("iterator", "up_to", "_window_seconds", "_emission_timestamps")
+
     def __init__(
         self,
         iterator: AsyncIterator[T],
@@ -553,6 +595,8 @@ class ThrottleAsyncIterator(AsyncIterator[T]):
 
 
 class _RaisingAsyncIterator(AsyncIterator[T]):
+    __slots__ = ("iterator",)
+
     def __init__(
         self,
         iterator: AsyncIterator[Union[T, ExceptionContainer]],
@@ -575,6 +619,8 @@ class _RaisingAsyncIterator(AsyncIterator[T]):
 
 
 class BufferAsyncIterator(AsyncIterator[T]):
+    __slots__ = ("iterator", "up_to", "_buffer", "_lock")
+
     def __init__(
         self,
         iterator: AsyncIterator[T],
@@ -609,6 +655,8 @@ class _BaseConcurrentMapAsyncIterable(
     ABC,
     AsyncIterable[Union[U, ExceptionContainer]],
 ):
+    __slots__ = ("iterator", "concurrency", "as_completed", "_context_manager")
+
     def __init__(
         self,
         iterator: AsyncIterator[T],
@@ -665,6 +713,8 @@ class _BaseConcurrentMapAsyncIterable(
 
 
 class _ExecutorConcurrentMapAsyncIterable(_BaseConcurrentMapAsyncIterable[T, U]):
+    __slots__ = ("into", "executor")
+
     def __init__(
         self,
         iterator: AsyncIterator[T],
@@ -691,6 +741,8 @@ class _ExecutorConcurrentMapAsyncIterable(_BaseConcurrentMapAsyncIterable[T, U])
 
 
 class ExecutorConcurrentMapAsyncIterator(_RaisingAsyncIterator[U]):
+    __slots__ = ()
+
     def __init__(
         self,
         iterator: AsyncIterator[T],
@@ -709,6 +761,8 @@ class ExecutorConcurrentMapAsyncIterator(_RaisingAsyncIterator[U]):
 
 
 class _AsyncConcurrentMapAsyncIterable(_BaseConcurrentMapAsyncIterable[T, U]):
+    __slots__ = ("into", "__semaphore")
+
     def __init__(
         self,
         iterator: AsyncIterator[T],
@@ -735,6 +789,8 @@ class _AsyncConcurrentMapAsyncIterable(_BaseConcurrentMapAsyncIterable[T, U]):
 
 
 class AsyncConcurrentMapAsyncIterator(_RaisingAsyncIterator[U]):
+    __slots__ = ()
+
     def __init__(
         self,
         iterator: AsyncIterator[T],
@@ -758,6 +814,14 @@ class AsyncConcurrentMapAsyncIterator(_RaisingAsyncIterator[U]):
 
 
 class _ConcurrentFlattenAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]]):
+    __slots__ = (
+        "iterables_iterator",
+        "concurrency",
+        "_next",
+        "_anext",
+        "_executor",
+    )
+
     def __init__(
         self,
         iterables_iterator: AsyncIterator[Union[Iterable[T], AsyncIterable[T]]],
@@ -836,6 +900,8 @@ class _ConcurrentFlattenAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]
 
 
 class ConcurrentFlattenAsyncIterator(_RaisingAsyncIterator[T]):
+    __slots__ = ()
+
     def __init__(
         self,
         iterables_iterator: AsyncIterator[Union[Iterable[T], AsyncIterable[T]]],

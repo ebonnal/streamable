@@ -22,6 +22,8 @@ V = TypeVar("V")
 
 
 class Visitor(ABC, Generic[V]):
+    __slots__ = ()
+
     # fmt: off
     @abstractmethod
     def visit_stream(self, stream: "stream") -> V: ...

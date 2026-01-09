@@ -23,6 +23,8 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class ToStringVisitor(Visitor[str], ABC):
+    __slots__ = ("operation_reprs", "max_len")
+
     def __init__(self, max_len: int = 80) -> None:
         self.operation_reprs: List[str] = []
         self.max_len = max_len
@@ -114,6 +116,8 @@ class ToStringVisitor(Visitor[str], ABC):
 
 
 class ReprVisitor(ToStringVisitor):
+    __slots__ = ()
+
     @staticmethod
     def to_string(o: object) -> str:
         if isinstance(o, _Star):
@@ -124,6 +128,8 @@ class ReprVisitor(ToStringVisitor):
 
 
 class StrVisitor(ToStringVisitor):
+    __slots__ = ()
+
     @staticmethod
     def to_string(o: Any) -> str:
         if isinstance(o, _Star):

@@ -17,10 +17,12 @@ T = TypeVar("T")
 
 
 class SyncAsyncIterable(Iterable[T], AsyncIterable[T]):
-    pass
+    __slots__ = ()
 
 
 class SyncToAsyncIterator(AsyncIterator[T]):
+    __slots__ = ("iterator",)
+
     def __init__(self, iterator: Iterator[T]):
         self.iterator = iterator
 
@@ -38,6 +40,8 @@ def async_iter(iterator: Union[Iterable[T], AsyncIterable[T]]) -> AsyncIterator[
 
 
 class AsyncToSyncIterator(Iterator[T], CloseEventLoopMixin):
+    __slots__ = ("aiterator", "loop")
+
     def __init__(
         self,
         loop: asyncio.AbstractEventLoop,
@@ -63,6 +67,8 @@ def sync_iter(
 
 
 class _FnIterator(Iterator[T]):
+    __slots__ = ("fn",)
+
     def __init__(self, fn: Callable[[], T]) -> None:
         self.fn = fn
 
@@ -75,6 +81,8 @@ def fn_to_iter(fn: Callable[[], T]) -> Iterator[T]:
 
 
 class _AsyncFnIterator(Iterator[T]):
+    __slots__ = ("loop", "fn")
+
     def __init__(
         self, loop: asyncio.AbstractEventLoop, fn: Callable[[], Coroutine[Any, Any, T]]
     ) -> None:
@@ -92,6 +100,8 @@ def afn_to_iter(
 
 
 class _AsyncFnAsyncIterator(AsyncIterator[T]):
+    __slots__ = ("fn",)
+
     def __init__(self, fn: Callable[[], Coroutine[Any, Any, T]]) -> None:
         self.fn = fn
 
@@ -104,6 +114,8 @@ def afn_to_aiter(fn: Callable[[], Coroutine[Any, Any, T]]) -> AsyncIterator[T]:
 
 
 class _FnAsyncIterator(AsyncIterator[T]):
+    __slots__ = ("fn",)
+
     def __init__(self, fn: Callable[[], T]) -> None:
         self.fn = fn
 

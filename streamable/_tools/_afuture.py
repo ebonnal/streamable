@@ -13,6 +13,8 @@ T = TypeVar("T")
 
 
 class FutureResult(Future):
+    __slots__ = ()
+
     def __init__(self, result: T):
         super().__init__()
         self.set_result(result)
@@ -23,6 +25,8 @@ class FutureResultCollection(AsyncIterator[T], Sized):
     Iterator over added futures' results. Supports adding new futures after iteration started.
     """
 
+    __slots__ = ()
+
     @abstractmethod
     def add(self, future: "Future[T]") -> None: ...
 
@@ -31,6 +35,8 @@ class FIFOFutureResultCollection(FutureResultCollection[T]):
     """
     First In First Out
     """
+
+    __slots__ = ("_futures",)
 
     def __init__(self) -> None:
         self._futures: Deque["Future[T]"] = deque()
@@ -49,6 +55,8 @@ class FDFOFutureResultCollection(FutureResultCollection[T]):
     """
     First Done First Out
     """
+
+    __slots__ = ("_results", "_n_futures")
 
     def __init__(self) -> None:
         self._results: "asyncio.Queue[T]" = asyncio.Queue()
