@@ -13,14 +13,14 @@ def test_buffer_eq() -> None:
 
 
 def test_catch_eq() -> None:
-    def where(e: Exception) -> bool:
-        return True
+    def where(_: Exception) -> bool:
+        return True  # pragma: no cover
 
-    def do(e: Exception) -> None:
-        pass
+    def do(_: Exception) -> None:
+        pass  # pragma: no cover
 
-    def replace(e: Exception) -> int:
-        return 1
+    def replace(_: Exception) -> int:
+        return 1  # pragma: no cover
 
     s = ints.catch(errors=ValueError, where=where, do=do, replace=replace, stop=True)
     assert s == ints.catch(
@@ -44,8 +44,8 @@ def test_catch_eq() -> None:
 
 
 def test_filter_eq() -> None:
-    def where(x: int) -> bool:
-        return x > 0
+    def where(_: int) -> bool:
+        return True  # pragma: no cover
 
     s = ints.filter(where=where)
     assert s == ints.filter(where=where)
@@ -61,8 +61,8 @@ def test_flatten_eq() -> None:
 
 
 def test_do_eq() -> None:
-    def effect(x: int) -> None:
-        pass
+    def effect(_: int) -> None:
+        pass  # pragma: no cover
 
     s = ints.do(effect=effect, concurrency=2, as_completed=True)
     assert s == ints.do(effect=effect, concurrency=2, as_completed=True)
@@ -72,8 +72,8 @@ def test_do_eq() -> None:
 
 
 def test_group_eq() -> None:
-    def by(x: int) -> int:
-        return x % 2
+    def by(_: int) -> int:
+        return 1  # pragma: no cover
 
     s = ints.group(up_to=5, every=datetime.timedelta(seconds=1), by=by)
     assert s == ints.group(up_to=5, every=datetime.timedelta(seconds=1), by=by)
@@ -85,8 +85,8 @@ def test_group_eq() -> None:
 
 
 def test_map_eq() -> None:
-    def into(x: int) -> int:
-        return x * 2
+    def into(_: int) -> int:
+        return 1  # pragma: no cover
 
     s = ints.map(into=into, concurrency=2, as_completed=True)
     assert s == ints.map(into=into, concurrency=2, as_completed=True)
@@ -97,13 +97,13 @@ def test_map_eq() -> None:
 
 def test_observe_eq() -> None:
     def do(obs: stream.Observation) -> None:
-        pass
+        pass  # pragma: no cover
 
     s = ints.observe(subject="test", every=10, do=do)
     assert s == ints.observe(subject="test", every=10, do=do)
     assert s != ints.observe(subject="other", every=10, do=do)
     assert s != ints.observe(subject="test", every=20, do=do)
-    assert s != ints.observe(subject="test", every=10, do=lambda obs: 1)
+    assert s != ints.observe(subject="test", every=10, do=lambda _: 1)
 
 
 def test_skip_eq() -> None:

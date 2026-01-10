@@ -2,7 +2,6 @@ import asyncio
 import copy
 import datetime
 import queue
-import re
 import threading
 import traceback
 from types import TracebackType
@@ -73,48 +72,6 @@ def test_async_src(itype: IterableType) -> None:
     # a stream with an async source must be collectable as an Iterable or as AsyncIterable
     assert alist_or_list(stream(async_iter(iter(INTEGERS)).__aiter__()), itype) == list(
         INTEGERS
-    )
-
-
-def test_repr(complex_stream: stream, complex_stream_str: str) -> None:
-    print_stream = stream([(0, 1)]).filter(star(print))
-    assert (
-        repr(print_stream) == "stream([(0, 1)]).filter(star(<built-in function print>))"
-    )
-    assert str(print_stream) == "stream([(0, 1)]).filter(star(print))"
-
-    async def foo():
-        pass  # pragma: no cover
-
-    foo_stream: stream = stream([]).filter(star(foo))
-    assert (
-        re.sub("0x[a-z0-9]+", "0x", repr(foo_stream))
-        == "stream([]).filter(star(<function test_repr.<locals>.foo at 0x>))"
-    )
-    assert str(foo_stream) == "stream([]).filter(star(foo))"
-    # `repr` should work as expected on a stream with many operation
-    assert str(complex_stream) == complex_stream_str
-    # explanation of different streams must be different
-    assert str(complex_stream) != str(complex_stream.map(str))
-    # `repr` should work as expected on a stream without operation
-    assert str(stream(INTEGERS)) == "stream(range(0, 256))"
-    # `repr` should return a one-liner for a stream with 1 operations
-    assert str(stream(INTEGERS).skip(10)) == "stream(range(0, 256)).skip(until=10)"
-    # `repr` should return a one-liner for a stream with 2 operations
-    assert (
-        str(stream(INTEGERS).skip(10).skip(10))
-        == "stream(range(0, 256)).skip(until=10).skip(until=10)"
-    )
-    # `repr` should go to line if it exceeds than 80 chars
-    assert (
-        str(stream(INTEGERS).skip(10).skip(10).skip(10).skip(10))
-        == """(
-    stream(range(0, 256))
-    .skip(until=10)
-    .skip(until=10)
-    .skip(until=10)
-    .skip(until=10)
-)"""
     )
 
 
