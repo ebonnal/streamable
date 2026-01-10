@@ -9,6 +9,7 @@ from typing import Any, Dict, Iterator, List, Tuple, TypeVar
 import httpx
 
 import pytest
+import respx
 
 from streamable._stream import stream
 
@@ -205,14 +206,25 @@ def test_catch_example() -> None:
 
     import httpx
 
-    status_codes_ignoring_resolution_errors: stream[int] = (
-        stream(["https://github.com", "https://foo.bar", "https://github.com/foo/bar"])
-        .map(httpx.get, concurrency=2)
-        .catch(httpx.ConnectError, where=lambda exc: "not known" in str(exc))
-        .map(lambda response: response.status_code)
-    )
+    with respx.mock:
+        respx.get("https://github.com/foo/bar").mock(return_value=httpx.Response(404))
+        respx.get("https://github.com").mock(return_value=httpx.Response(200))
+        respx.get("https://foo.bar").mock(
+            side_effect=httpx.ConnectError(
+                "[Errno 8] nodename nor servname provided, or not known"
+            )
+        )
 
-    assert list(status_codes_ignoring_resolution_errors) == [200, 404]
+        status_codes_ignoring_resolution_errors: stream[int] = (
+            stream(
+                ["https://github.com", "https://foo.bar", "https://github.com/foo/bar"]
+            )
+            .map(httpx.get, concurrency=2)
+            .catch(httpx.ConnectError, where=lambda exc: "not known" in str(exc))
+            .map(lambda response: response.status_code)
+        )
+
+        assert list(status_codes_ignoring_resolution_errors) == [200, 404]
 
     errors: List[Exception] = []
     inverses_: stream[float] = ints.map(lambda n: round(1 / n, 2)).catch(
