@@ -62,28 +62,16 @@ V = TypeVar("V")
 
 class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
     """
-    Fluent concurrent sync/async streams for lazy data processing.
+    `stream[T]` wraps any `Iterable[T]` or `AsyncIterable[T]` with a lazy fluent interface covering concurrency, batching, buffering, rate limiting, progress logging, and error handling.
 
-    Wraps any ``Iterable[T]`` or ``AsyncIterable[T]`` with a fluent interface for concurrent
-    processing, batching, buffering, rate limiting, progress logging, and error handling.
-    All operations are lazy and process elements on-the-fly during iteration, enabling
-    zero-overhead processing of large datasets.
+    Chain lazy operations, source elements are processed on-the-fly during iteration.
 
-    Supports both sync and async functions throughout the API. Mix sync and async operations
-    freely within the same stream. Consume as either ``Iterable`` or ``AsyncIterable``.
-    When a stream involving async functions is consumed as an ``Iterable``, a temporary
-    ``asyncio`` event loop is automatically created and managed.
-
-    The stream exposes operations to manipulate elements, but I/O is not its responsibility.
-    Designed to be combined with dedicated libraries like ``csv``, ``json``, ``pyarrow``,
-    ``psycopg2``, ``boto3``, ``aiohttp``, ``httpx``, and ``polars``.
+    Both sync and async functions are accepted by operations, you can freely mix them within the same `stream` and it can then be consumed as an `Iterable` or `AsyncIterable`. When a stream involving async functions is consumed as an `Iterable`, a temporary `asyncio` event loop is attached to it.
 
     Args:
         source (``Iterable[T] | AsyncIterable[T] | Callable[[], T] | Callable[[], Coroutine[Any, Any, T]]``): Data source to wrap:
-          - ``Iterable[T]``: any iterable collection (list, range, generator, etc.)
-          - ``AsyncIterable[T]``: any async iterable
-          - ``Callable[[], T]``: function called sequentially to get the next element
-          - ``Callable[[], Coroutine[Any, Any, T]]``: async function called sequentially
+          ‣ ``Iterable[T] | AsyncIterable[T]``: any iterable (list, set, range, generator, etc...), or async iterable.
+          ‣ ``Callable[[], T] | Callable[[], Coroutine[Any, Any, T]]``: sync or async function called sequentially to get the next element.
 
     Returns:
         ``stream[T]``: Stream instance wrapping the source.
@@ -142,20 +130,17 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         The parent stream in the operation chain, if any.
 
         Returns:
-            ``stream | None``: Upstream stream, or ``None`` if this is the source stream.
+            ``stream | None``
         """
         return self._upstream
 
     @property
     def source(self) -> Union[Iterable, AsyncIterable, Callable]:
         """
-        The original data source of this stream.
-
-        Returns the initial iterable, async iterable, or callable used to create the stream,
-        regardless of operations applied.
+        The source of elements wrapped by this stream.
 
         Returns:
-            ``Iterable | AsyncIterable | Callable``: Original source used to create the stream.
+            ``Iterable | AsyncIterable | Callable``
         """
         return self._source
 
@@ -169,14 +154,13 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         """
         Check if this stream is equal to another stream.
 
-        Two streams are equal if they apply the same operations with the same parameters
-        to the same source.
+        Two streams are equal if they apply the same operations with the same parameters to the same source.
 
         Args:
             other (``Any``): Object to compare with.
 
         Returns:
-            ``bool``: ``True`` if equal, ``False`` otherwise.
+            ``bool``
         """
 
         return self.accept(EqualityVisitor(other))
@@ -229,9 +213,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
     def __add__(self, other: "stream[U]") -> "stream[Union[T, U]]":
         """
-        Concatenate two streams using the ``+`` operator.
-
-        Yields all elements from this stream, then all elements from the other stream.
+        Concatenate two streams into a new stream that will yield all elements from this stream, then all elements from the other stream.
 
         Args:
             other (``stream[U]``): Stream to concatenate with this stream.
@@ -250,9 +232,6 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         """
         Accept a visitor to traverse the stream's operation chain.
 
-        Entry point for the visitor pattern, allowing external code to inspect and process
-        the stream's operation lineage.
-
         Args:
             visitor (``Visitor[V]``): Visitor instance that will traverse the stream chain.
 
@@ -268,15 +247,14 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         **kwargs: "P.kwargs",
     ) -> U:
         """
-        Pipe stream into a function that accepts it as the first argument.
+        Apply a callable on the stream.
 
         Args:
-            fn (``Callable[Concatenate[stream[T], P], U]``): Function to call with this stream as first argument, followed by ``*args``
-                and ``**kwargs``.
+            fn (``Callable[Concatenate[stream[T], P], U]``): Function to call with the stream as first argument, followed by ``*args`` and ``**kwargs``.
 
-            *args: Positional arguments for ``fn``.
+            *args: Positional arguments passed to ``fn``.
 
-            **kwargs: Keyword arguments for ``fn``.
+            **kwargs: Keyword arguments passed to ``fn``.
 
         Returns:
             ``U``: Result of ``fn(self, *args, **kwargs)``.
@@ -291,13 +269,15 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
     def cast(self, into: Type[U]) -> "stream[U]":
         """
-        Cast the elements ``into`` a different type. This is for type checkers only and has no impact on the iteration.
+        Cast the elements ``into`` a different type.
+
+        This is for type checkers only and has no impact on the iteration.
 
         Args:
             into (``type[U]``): Target type for stream elements. Only affects static type checking.
 
         Returns:
-            ``stream[U]``: Stream with different type annotation.
+            ``stream[U]``: Stream with elements casted.
 
         Example::
 
@@ -313,17 +293,15 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         up_to: int,
     ) -> "stream[T]":
         """
-        Buffer elements ahead of consumption.
+        Buffer upstream elements via background tasks, allowing downstream to consume at its own pace
 
-        During iteration, elements are pulled from upstream in a background task and buffered, allowing
-        downstream to consume at its own pace.
+        The background tasks run in a thread during sync iteration, and via the event loop during async iteration.
 
         Args:
-            up_to (``int``): The buffer size. Must be >= 0. When reached, upstream pulling
-                pauses until space becomes available.
+            up_to (``int``): The buffer size. Must be >= 0. When reached, upstream pulling pauses until an element is yielded out of the buffer.
 
         Returns:
-            ``stream[T]``: Stream with buffering enabled.
+            ``stream[T]``: Stream with buffering.
 
         Example::
 
@@ -395,28 +373,25 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         stop: bool = False,
     ) -> "stream[Union[T, U]]":
         """
-        Catch and handle exceptions raised during upstream processing.
+        Catch and handle exceptions raised upstream.
 
-        Exceptions matching the criteria are caught and handled. Processing order:
-        ``where`` (filter) → ``do`` (side effect) → ``replace`` (yield replacement).
+        An exception is caught if it is of the type(s) provided in ``errors`` and if it satisfies the ``where`` predicate.
+
+        If an exception is caught, ``do`` will be called, then ``replace``, if provided.
 
         Args:
-            errors (``type[Exception] | tuple[type[Exception], ...]``): Exception type(s) to catch. Single type or tuple of types.
+            errors (``type[Exception] | tuple[type[Exception], ...]``): Exception type(s) to catch.
 
-            where (``Callable[[Exception], Any] | AsyncCallable[Exception, Any] | None``, optional): Predicate to filter exceptions. Only handles exceptions where
-                ``where(exc)`` is truthy. Default: ``None``.
+            where (``Callable[[Exception], Any] | AsyncCallable[Exception, Any] | None``, optional): Only exceptions for which ``where(exc)`` is truthy are caught.
 
-            do (``Callable[[Exception], Any] | AsyncCallable[Exception, Any] | None``, optional): Side effect function called when exception is caught. Receives
-                the exception as argument. Default: ``None``.
+            do (``Callable[[Exception], Any] | AsyncCallable[Exception, Any] | None``, optional): ``do(exception)`` is called when an exception is caught.
 
-            replace (``Callable[[Exception], U] | AsyncCallable[Exception, U] | None``, optional): Function that generates replacement value. Called with exception,
-                its return value is yielded. If not provided, no replacement is yielded. Default: ``None``.
+            replace (``Callable[[Exception], U] | AsyncCallable[Exception, U] | None``, optional): ``replace(exception)`` is yielded when an exception is caught.
 
-            stop (``bool``, optional): If ``True``, iteration stops when exception is caught. If ``False``,
-                iteration continues with next element. Default: ``False``.
+            stop (``bool``, optional): If ``True``, iteration stops when an exception is caught.
 
         Returns:
-            ``stream[T | U]``: Stream with exceptions handled according to parameters.
+            ``stream[T | U]``: Stream with exception handling.
 
         Example::
 
@@ -469,10 +444,12 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         where: Union[Callable[[T], Any], AsyncFunction[T, Any]] = bool,
     ) -> "stream[T]":
         """
-        Keep only elements that satisfy the predicate.
+        Filter elements satisfying a predicate.
+
+        Filter out falsy elements if no predicate provided.
 
         Args:
-            where (``Callable[[T], Any] | AsyncCallable[T, Any]``, optional): Predicate function. Element is kept if ``where(elem)`` is truthy. Default: ``bool``.
+            where (``Callable[[T], Any] | AsyncCallable[T, Any]``, optional): Predicate function. An element is kept if ``where(elem)`` is truthy.
 
         Returns:
             ``stream[T]``: Stream of elements passing the predicate.
@@ -603,13 +580,10 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         """
         Explode iterable elements into individual elements.
 
-        Each upstream element must be ``Iterable`` or ``AsyncIterable``.
-
         Args:
-            concurrency (``int``, optional): Number of iterables to flatten concurrently:
-              - ``1`` (default): Sequential flattening.
-              - ``int > 1``: Concurrent via threads (``Iterable``) or async tasks (``AsyncIterable``).
-              Default: ``1``.
+            concurrency (``int``, optional): Concurrency control:
+              ‣ ``1`` (default): Fully flatten each upstream iterable before moving on to the next one.
+              ‣ ``int > 1``: Flattens ``concurrency`` upstream iterables concurrently, moving to the next one only when one of the current ones is exhausted. The concurrent flattening happens in a round-robin fashion: each of the ``concurrency`` iterables yields its next element downstream in turn. The concurrency happens via threads, or async tasks for async upstream iterables.
 
         Returns:
             ``stream[U]``: Stream of all elements from upstream iterables.
@@ -651,25 +625,31 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         as_completed: bool = False,
     ) -> "stream[T]":
         """
-        Apply a side effect to each element without modifying the stream.
+        Apply a side effect, yielding the upstream elements unchanged.
+
+        Concurrency:
+
+          - Set the ``concurrency`` parameter to apply the side effect concurrently.
+
+          - Only ``concurrency`` upstream elements are pulled for processing; the next upstream element is pulled only when the side effect completes.
+
+          - It preserves the upstream order by default, but you can set ``as_completed=True`` to yield elements as their side effects complete.
 
         Args:
-            effect (``Callable[[T], Any] | AsyncCallable[T, Any]``): Side effect function called for each element. Return value is ignored.
+            effect (``Callable[[T], Any] | AsyncCallable[T, Any]``): The side effect function.
 
             concurrency (``int | Executor``, optional): Concurrency control:
-              - ``1`` (default): Sequential processing.
-              - ``int > 1``: Concurrent via ``concurrency`` threads (sync) or async tasks (async).
-                Only ``concurrency`` elements are buffered at any time.
-              - ``Executor``: Uses the provided executor (e.g., ``ProcessPoolExecutor``).
-              Default: ``1``.
 
-            as_completed (``bool``, optional): When ``concurrency > 1``, processing order:
-              - ``False`` (default): Preserves upstream order (FIFO).
-              - ``True``: Processes as completed (FDFO).
-              Default: ``False``.
+              ‣ ``1`` (default): Sequential processing.
+              ‣ ``int > 1``: Concurrent via ``concurrency`` threads or async tasks if ``effect`` is async.
+              ‣ ``Executor``: Uses the provided executor (e.g., a ``ProcessPoolExecutor``), the concurrency is the number of workers.
+
+            as_completed (``bool``, optional): Processing order:
+              ‣ ``False`` (default): Preserves upstream order.
+              ‣ ``True``: Processes side effects as they complete.
 
         Returns:
-            ``stream[T]``: Stream of upstream elements.
+            ``stream[T]``: A stream of upstream elements.
 
         Example::
 
@@ -718,39 +698,34 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         by: Union[None, Callable[[T], U], AsyncFunction[T, U]] = None,
     ) -> "Union[stream[List[T]], stream[Tuple[U, List[T]]]]":
         """
-        Batch elements into groups based on size, time, or key.
+        Group elements into lists:
+        - ``up_to`` a given batch size
+        - ``every`` given time interval
+        - ``by`` a given key
 
-        Groups are emitted when conditions are met: size limit reached, time interval elapsed,
-        or upstream exhausted. Without ``by``, elements are grouped sequentially. With ``by``,
-        elements are grouped by key with FIFO ordering.
+        You can combine these parameters.
 
         Args:
-            up_to (``int | None``, optional): Maximum elements per group. Groups are yielded when this limit is reached.
-                Default: ``None``.
+            up_to (``int | None``, optional): If a group reaches that number of elements, it is yielded.
 
-            every (``timedelta | None``, optional): Time interval for periodic emission. Groups are yielded after this duration
-                since the last group. Without ``by``: any group. With ``by``: oldest group (FIFO).
-                Default: ``None``.
+            every (``timedelta | None``, optional): If this duration is elapsed since the last group has been yielded (for that particular key if ``by`` is provided), a new group is yielded. Does not yield an empty group.
 
-            by (``Callable[[T], U] | AsyncCallable[T, U] | None``, optional): Key function for multi-group accumulation. Groups elements by ``by(elem)`` value.
-                Yields ``(key, group)`` tuples instead of lists. On upstream exhaustion or exception,
-                all groups are yielded FIFO. Default: ``None``.
-
+            by (``Callable[[T], U] | AsyncCallable[T, U] | None``, optional): Co-group elements into ``(key, elements)`` tuples.
         Returns:
             ``stream[list[T]]`` if ``by is None``, else ``stream[tuple[U, list[T]]]``.
 
         Example::
 
-            ints_by_5: stream[list[int]] = stream(range(10)).group(5)
-            assert list(ints_by_5) == [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]]
+            int_batches: stream[list[int]] = stream(range(10)).group(5)
+            assert list(int_batches) == [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]]
 
             from datetime import timedelta
-            ints_within_1_sec: stream[list[int]] = (
+            int_1sec_batches: stream[list[int]] = (
                 stream(range(10))
                 .throttle(2, per=timedelta(seconds=1))
                 .group(every=timedelta(seconds=0.99))
             )
-            assert list(ints_within_1_sec) == [[0, 1, 2], [3, 4], [5, 6], [7, 8], [9]]
+            assert list(int_1sec_batches) == [[0, 1, 2], [3, 4], [5, 6], [7, 8], [9]]
 
             ints_by_parity: stream[tuple[str, list[int]]] = (
                 stream(range(10))
@@ -790,25 +765,31 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         as_completed: bool = False,
     ) -> "stream[U]":
         """
-        Transform each upstream element by applying a function.
+        Transform upstream elements.
+
+        Concurrency:
+
+          - Set the ``concurrency`` parameter to apply the transformation concurrently.
+
+          - Only ``concurrency`` upstream elements are pulled for processing; the next upstream element is pulled only when a result is yielded downstream.
+
+          - It preserves the upstream order by default, but you can set ``as_completed=True`` to yield results as they become available.
 
         Args:
-            into (``Callable[[T], U] | AsyncCallable[T, U]``): Transformation function.
+            into (``Callable[[T], U] | AsyncCallable[T, U]``): The transformation function.
 
             concurrency (``int | Executor``, optional): Concurrency control:
-              - ``1`` (default): Sequential processing.
-              - ``int > 1``: Concurrent via ``concurrency`` threads (sync) or async tasks (async).
-                Only ``concurrency`` elements are buffered for processing at any time.
-              - ``Executor``: Uses the provided executor (e.g., ``ProcessPoolExecutor``).
-              Default: ``1``.
 
-            as_completed (``bool``, optional): When ``concurrency > 1``, result order:
-              - ``False`` (default): Preserves upstream order (FIFO).
-              - ``True``: Yields as completed (FDFO).
-              Default: ``False``.
+              ‣ ``1`` (default): Sequential processing.
+              ‣ ``int > 1``: Concurrent via ``concurrency`` threads or async tasks if ``into`` is async.
+              ‣ ``Executor``: Uses the provided executor (e.g., a ``ProcessPoolExecutor``), the concurrency is the number of workers.
+
+            as_completed (``bool``, optional): Results order:
+              ‣ ``False`` (default): Preserves upstream order.
+              ‣ ``True``: Yields results as they become available.
 
         Returns:
-            ``stream[U]``: Stream of transformed elements.
+            ``stream[U]``: A stream of transformed elements.
 
         Example::
 
@@ -872,23 +853,25 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         ] = logging.getLogger("streamable").info,
     ) -> "stream[T]":
         """
-        Observes the iteration progress (elapsed time, element count, and error count), observations are emitted periodically and passed to the callback. The default callback logs the observations.
+        Observe the iteration progress:
+        - elapsed time since the iteration started
+        - number of elements yielded by upstream
+        - number of errors raised by upstream
+
+        Observations are passed to the ``do`` callback, the default emitting a log.
 
         Args:
-            subject (``str``, optional): Description of elements being observed (e.g., "pokemons", "users").
-                Default: ``"elements"``.
+            subject (``str``, optional): Description of elements being observed.
 
             every (``int | timedelta | None``, optional): When to emit observations:
-              - ``None`` (default): When count reaches powers of 2.
-              - ``int``: Every ``every`` elements (or errors).
-              - ``timedelta``: Periodically when ``every`` time has elapsed since last observation.
-              Default: ``None``.
+              ‣ ``None`` (default): When the elements/errors counts reach powers of 2.
+              ‣ ``int``: Periodically when ``every`` elements or errors have been emitted.
+              ‣ ``timedelta``: Periodically ``every`` time interval.
 
             do (``Callable[[stream.Observation], Any] | AsyncCallable[stream.Observation, Any]``, optional): Callback receiving ``stream.Observation`` (subject, elapsed, errors, elements).
-              Default: ``logging.getLogger("streamable").info``.
 
         Returns:
-            ``stream[T]``: Stream with progress monitoring enabled.
+            ``stream[T]``: Stream with progress observation enabled.
 
         Example::
 
@@ -927,8 +910,8 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         Args:
             until (``int | Callable[[T], Any] | AsyncCallable[T, Any]``): Skip control:
-              - ``int``: Skip first ``until`` elements. Must be >= 0.
-              - ``Callable[[T], Any] | AsyncCallable[T, Any]``: Skip until ``until(elem)``
+              ‣ ``int``: Skip first ``until`` elements. Must be >= 0.
+              ‣ ``Callable[[T], Any] | AsyncCallable[T, Any]``: Skip until ``until(elem)``
                 is truthy, then yield that element and all subsequent.
 
         Returns:
@@ -936,11 +919,11 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         Example::
 
-            ints_after_five: stream[int] = stream(range(10)).skip(5)
-            assert list(ints_after_five) == [5, 6, 7, 8, 9]
+            ints_after_5: stream[int] = stream(range(10)).skip(5)
+            assert list(ints_after_5) == [5, 6, 7, 8, 9]
 
-            ints_after_five: stream[int] = stream(range(10)).skip(until=lambda n: n >= 5)
-            assert list(ints_after_five) == [5, 6, 7, 8, 9]
+            ints_after_5: stream[int] = stream(range(10)).skip(until=lambda n: n >= 5)
+            assert list(ints_after_5) == [5, 6, 7, 8, 9]
         """
         if isinstance(until, int):
             validate_int(until, gte=0, name="until")
@@ -959,13 +942,12 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         until: Union[int, Callable[[T], Any], AsyncFunction[T, Any]],
     ) -> "stream[T]":
         """
-        Take elements from the start and stop, remaining upstream
-        elements are not consumed.
+        Take elements from the start and stop according to ``until``, remaining upstream elements are not consumed.
 
         Args:
             until (``int | Callable[[T], Any] | AsyncCallable[T, Any]``): Stop control:
-              - ``int``: Take first ``until`` elements. Must be >= 0.
-              - ``Callable[[T], Any] | AsyncCallable[T, Any]``: Take until ``until(elem)``
+              ‣ ``int``: Take first ``until`` elements. Must be >= 0.
+              ‣ ``Callable[[T], Any] | AsyncCallable[T, Any]``: Take until ``until(elem)``
                 is truthy, then stop. Matching element is not yielded.
 
         Returns:
@@ -973,11 +955,11 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         Example::
 
-            five_first_ints: stream[int] = stream(range(10)).take(5)
-            assert list(five_first_ints) == [0, 1, 2, 3, 4]
+            first_5_ints: stream[int] = stream(range(10)).take(5)
+            assert list(first_5_ints) == [0, 1, 2, 3, 4]
 
-            five_first_ints: stream[int] = stream(range(10)).take(until=lambda n: n == 5)
-            assert list(five_first_ints) == [0, 1, 2, 3, 4]
+            first_5_ints: stream[int] = stream(range(10)).take(until=lambda n: n == 5)
+            assert list(first_5_ints) == [0, 1, 2, 3, 4]
         """
         if isinstance(until, int):
             validate_int(until, gte=0, name="until")
@@ -990,24 +972,23 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         per: datetime.timedelta,
     ) -> "stream[T]":
         """
-        Limit emission rate using a sliding time window.
+        Limit to ``up_to`` elements or exceptions emitted ``per`` time window.
 
-        Enforces maximum of ``up_to`` elements per ``per`` time window. If fewer than ``up_to`` emissions in last ``per`` duration, element emits immediately;
-        otherwise sleeps until oldest emission leaves the window.
+        For each upstream element or exception, if fewer than ``up_to`` were emitted in the last ``per`` interval, emits it immediately; otherwise sleeps until oldest emission leaves the sliding window.
 
         Args:
-            up_to (``int``): Maximum elements (or exceptions) allowed in the sliding window. Must be >= 1.
+            up_to (``int``): Maximum emissions allowed in the sliding window (``per``). Must be >= 1.
 
             per (``timedelta``): Duration of the sliding time window. Must be positive.
 
         Returns:
-            ``stream[T]``: Stream with rate limiting applied.
+            ``stream[T]``: Stream with rate limiting.
 
         Example::
 
             from datetime import timedelta
             three_ints_per_second: stream[int] = stream(range(10)).throttle(3, per=timedelta(seconds=1))
-            # collects the 10 ints in 3 seconds
+            # collects 10 ints in 3 seconds
             assert list(three_ints_per_second) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
         """
         validate_int(up_to, gte=1, name="up_to")
