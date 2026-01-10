@@ -160,17 +160,17 @@ def test_throttle_example() -> None:
 
 
 def test_group_example() -> None:
-    ints_by_5: stream[List[int]] = ints.group(5)
+    int_batches: stream[List[int]] = ints.group(5)
 
-    assert list(ints_by_5) == [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]]
+    assert list(int_batches) == [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]]
 
     from datetime import timedelta
 
-    ints_within_1_sec: stream[List[int]] = ints.throttle(
+    int_1sec_batches: stream[List[int]] = ints.throttle(
         2, per=timedelta(seconds=1)
     ).group(every=timedelta(seconds=0.99))
 
-    assert list(ints_within_1_sec) == [[0, 1, 2], [3, 4], [5, 6], [7, 8], [9]]
+    assert list(int_1sec_batches) == [[0, 1, 2], [3, 4], [5, 6], [7, 8], [9]]
 
     ints_by_parity: stream[Tuple[str, List[int]]] = ints.group(
         by=lambda n: "odd" if n % 2 else "even"
@@ -256,23 +256,23 @@ def test_catch_example() -> None:
 
 
 def test_take_example() -> None:
-    five_first_ints: stream[int] = ints.take(5)
+    first_5_ints: stream[int] = ints.take(5)
 
-    assert list(five_first_ints) == [0, 1, 2, 3, 4]
+    assert list(first_5_ints) == [0, 1, 2, 3, 4]
 
-    five_first_ints = ints.take(until=lambda n: n == 5)
+    first_5_ints = ints.take(until=lambda n: n == 5)
 
-    assert list(five_first_ints) == [0, 1, 2, 3, 4]
+    assert list(first_5_ints) == [0, 1, 2, 3, 4]
 
 
 def test_skip_example() -> None:
-    ints_after_five: stream[int] = ints.skip(5)
+    ints_after_5: stream[int] = ints.skip(5)
 
-    assert list(ints_after_five) == [5, 6, 7, 8, 9]
+    assert list(ints_after_5) == [5, 6, 7, 8, 9]
 
-    ints_after_five = ints.skip(until=lambda n: n >= 5)
+    ints_after_5 = ints.skip(until=lambda n: n >= 5)
 
-    assert list(ints_after_five) == [5, 6, 7, 8, 9]
+    assert list(ints_after_5) == [5, 6, 7, 8, 9]
 
 
 def test_distinct_example() -> None:

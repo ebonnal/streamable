@@ -185,12 +185,12 @@ Same as `.map`.
 
 Group elements into batches...
 
-... `up_to` a given size:
+... `up_to` a given batch size:
 
 ```python
-ints_by_5: stream[list[int]] = ints.group(5)
+int_batches: stream[list[int]] = ints.group(5)
 
-assert list(ints_by_5) == [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]]
+assert list(int_batches) == [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]]
 ```
 
 ... `every` given time interval:
@@ -199,16 +199,16 @@ assert list(ints_by_5) == [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]]
 ```python
 from datetime import timedelta
 
-ints_within_1_sec: stream[list[int]] = (
+int_1sec_batches: stream[list[int]] = (
     ints
     .throttle(2, per=timedelta(seconds=1))
     .group(every=timedelta(seconds=0.99))
 )
 
-assert list(ints_within_1_sec) == [[0, 1, 2], [3, 4], [5, 6], [7, 8], [9]]
+assert list(int_1sec_batches) == [[0, 1, 2], [3, 4], [5, 6], [7, 8], [9]]
 ```
 
-... `by` a given key, yielding `(key, group)` pairs:
+... `by` a given key, yielding `(key, elements)` pairs:
 
 
 ```python
@@ -220,7 +220,7 @@ ints_by_parity: stream[tuple[str, list[int]]] = (
 assert list(ints_by_parity) == [("even", [0, 2, 4, 6, 8]), ("odd", [1, 3, 5, 7, 9])]
 ```
 
-You can mix these parameters.
+You can combine these parameters.
 
 ## ▼ `.flatten`
 
@@ -258,18 +258,18 @@ assert list(even_ints) == [0, 2, 4, 6, 8]
 Take a certain number of elements:
 
 ```python
-five_first_ints: stream[int] = ints.take(5)
+first_5_ints: stream[int] = ints.take(5)
 
-assert list(five_first_ints) == [0, 1, 2, 3, 4]
+assert list(first_5_ints) == [0, 1, 2, 3, 4]
 ```
 
 ... or `until` a predicate is satisfied:
 
 
 ```python
-five_first_ints: stream[int] = ints.take(until=lambda n: n == 5)
+first_5_ints: stream[int] = ints.take(until=lambda n: n == 5)
 
-assert list(five_first_ints) == [0, 1, 2, 3, 4]
+assert list(first_5_ints) == [0, 1, 2, 3, 4]
 ```
 
 ## ▼ `.skip`
@@ -277,18 +277,18 @@ assert list(five_first_ints) == [0, 1, 2, 3, 4]
 Skip a certain number of elements:
 
 ```python
-ints_after_five: stream[int] = ints.skip(5)
+ints_after_5: stream[int] = ints.skip(5)
 
-assert list(ints_after_five) == [5, 6, 7, 8, 9]
+assert list(ints_after_5) == [5, 6, 7, 8, 9]
 ```
 
 ... or `until` a predicate is satisfied:
 
 
 ```python
-ints_after_five: stream[int] = ints.skip(until=lambda n: n >= 5)
+ints_after_5: stream[int] = ints.skip(until=lambda n: n >= 5)
 
-assert list(ints_after_five) == [5, 6, 7, 8, 9]
+assert list(ints_after_5) == [5, 6, 7, 8, 9]
 ```
 
 ## ▼ `.catch`
@@ -353,7 +353,7 @@ inverses: stream[float] = (
 assert list(inverses) == []
 ```
 
-You can mix these parameters.
+You can combine these parameters.
 
 ## ▼ `.throttle`
 
@@ -364,13 +364,13 @@ from datetime import timedelta
 
 three_ints_per_second: stream[int] = ints.throttle(3, per=timedelta(seconds=1))
 
-# collects the 10 ints in 3 seconds
+# collects 10 ints in 3 seconds
 assert list(three_ints_per_second) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 
 ## ▼ `.buffer`
 
-Buffer upstream elements via a background task to decouple upstream and downstream rates:
+Buffer upstream elements via background tasks, allowing downstream to consume at its own pace:
 
 ```python
 pulled: list[int] = []
@@ -381,7 +381,7 @@ assert pulled == [0, 1, 2]
 
 ## ▼ `.observe`
 
-Log the progress of iteration:
+Observe the iteration progress:
 
 ```python
 observed_ints: stream[int] = ints.observe("ints")
@@ -435,7 +435,7 @@ assert dicts is docs
 
 ## ▼ `.__call__`
 
-Iterate over the stream as an `Iterable` until exhaustion (without collecting its elements):
+Iterate as an `Iterable` until exhaustion, without collecting its elements:
 
 ```python
 state: list[int] = []
@@ -448,7 +448,7 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 ## ▼ `await`
 
-Iterate over the stream as an `AsyncIterable` until exhaustion (without collecting its elements):
+Iterate as an `AsyncIterable` until exhaustion, without collecting its elements:
 
 ```python
 state: list[int] = []
