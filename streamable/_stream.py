@@ -246,28 +246,6 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         chain = cast("Iterable[stream[Union[T, U]]]", (self, other))
         return cast("stream[Union[T, U]]", stream(chain).flatten())
 
-    def __iadd__(self, other: "stream[U]") -> "stream[Union[T, U]]":
-        """
-        Concatenate two streams using the ``+=`` operator (in-place).
-
-        Equivalent to ``self + other``. Yields all elements from this stream, then all
-        elements from the other stream.
-
-        Args:
-            other (``stream[U]``): Stream to concatenate with this stream.
-
-        Returns:
-            ``stream[T | U]``: Stream of all elements from both streams.
-
-        Example::
-
-            first = stream(range(3))
-            second = stream(range(3, 6))
-            first += second
-            assert list(first) == [0, 1, 2, 3, 4, 5]
-        """
-        return self + other
-
     def accept(self, visitor: "Visitor[V]") -> V:
         """
         Accept a visitor to traverse the stream's operation chain.
