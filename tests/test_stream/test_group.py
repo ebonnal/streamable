@@ -93,7 +93,6 @@ def test_group_with_exceptions(itype: IterableType) -> None:
 def test_group_every_parameter(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
-    """Group should respect the `every` time interval parameter."""
     # `group` should not yield empty groups even though `every` if smaller than upstream's frequency
     assert alist_or_list(
         stream(map(slow_identity, INTEGERS)).group(
@@ -128,7 +127,6 @@ def test_group_every_parameter(
 def test_group_by_key_basic(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
-    """Group by key function should cogroup elements."""
     groupby_stream_iter: Union[
         Iterator[Tuple[int, List[int]]], AsyncIterator[Tuple[int, List[int]]]
     ] = aiter_or_iter(
@@ -146,7 +144,6 @@ def test_group_by_key_basic(
 def test_group_by_key_with_up_to(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
-    """Group by key with up_to should yield first batch becoming full."""
     stream_iter = aiter_or_iter(
         stream(INTEGERS).group(up_to=2, by=adapt(lambda n: n % 2)).map(itemgetter(1)),
         itype=itype,
@@ -179,7 +176,6 @@ def test_group_by_key_with_up_to(
 def test_group_by_key_infinite_size(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
-    """Group by key with infinite size must cogroup elements and yield groups starting with the group containing the oldest element."""
     # `group` called with a `by` function and an infinite size must cogroup elements and yield groups starting with the group containing the oldest element.
     assert alist_or_list(
         stream(INTEGERS).group(by=adapt(lambda n: n % 2)).map(itemgetter(1)),
@@ -195,7 +191,6 @@ def test_group_by_key_infinite_size(
 def test_group_by_key_on_exhaustion(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
-    """Group by key on exhaustion must yield incomplete groups starting with the oldest element."""
     # `group` called with a `by` function and reaching exhaustion must cogroup elements and yield uncomplete groups starting with the group containing the oldest element, even though it's not the largest.
     assert alist_or_list(
         stream(range(10)).group(by=adapt(lambda n: n % 4 == 0)).map(itemgetter(1)),
@@ -208,7 +203,6 @@ def test_group_by_key_on_exhaustion(
 def test_group_by_key_with_exceptions(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
-    """Group by key with exceptions must cogroup and yield incomplete groups, then raise."""
     stream_iter = aiter_or_iter(
         stream(src_raising_at_exhaustion())
         .group(by=adapt(lambda n: n % 2))

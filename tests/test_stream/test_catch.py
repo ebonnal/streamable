@@ -43,8 +43,6 @@ def test_catch_ignores_matching_exceptions(itype: IterableType) -> None:
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_catch_raises_non_matching_exceptions(itype: IterableType) -> None:
-    """If a non-caught exception type occurs, then it should be raised."""
-
     def fn(i):
         return i / (3 - i)
 
@@ -56,7 +54,6 @@ def test_catch_raises_non_matching_exceptions(itype: IterableType) -> None:
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_catch_raises_first_non_caught_exception(itype: IterableType) -> None:
-    """The first non-caught exception should be raised."""
     first_value = 1
     second_value = 2
     third_value = 3
@@ -80,7 +77,6 @@ def test_catch_raises_first_non_caught_exception(itype: IterableType) -> None:
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_catch_handles_only_exceptions(itype: IterableType) -> None:
-    """When upstream raises exceptions without yielding any element, listing the stream must return empty list, without recursion issue."""
     only_caught_errors_stream = stream(
         map(lambda _: throw(TestError), range(2000))
     ).catch(TestError)
@@ -90,7 +86,6 @@ def test_catch_handles_only_exceptions(itype: IterableType) -> None:
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_catch_raises_stopiteration_on_only_exceptions(itype: IterableType) -> None:
-    """When upstream raise exceptions without yielding any element, then the first call to `next` on a stream catching all errors should raise StopIteration."""
     only_caught_errors_stream = stream(
         map(lambda _: throw(TestError), range(2000))
     ).catch(TestError)
@@ -163,7 +158,6 @@ def test_catch_replace_with_none(
 def test_catch_multiple_exception_types(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
-    """Catch should accept multiple types."""
     errors_counter: Counter[Type[Exception]] = Counter()
     # `catch` should accept multiple types
     assert alist_or_list(
