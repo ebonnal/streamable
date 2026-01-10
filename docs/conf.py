@@ -1,4 +1,3 @@
-# Sphinx configuration for streamable
 import importlib.metadata
 from datetime import datetime
 
@@ -47,7 +46,7 @@ html_theme = "furo"
 
 html_theme_options = {
     "light_css_variables": {
-        "color-brand-primary": "#4f46e5",   # Indigo-ish
+        "color-brand-primary": "#4f46e5",
         "color-brand-content": "#1f2933",
         "color-background-primary": "#ffffff",
     },
@@ -69,4 +68,4 @@ intersphinx_mapping = {
 
 # Type hints in the signature and/or in the description:
 typehints_fully_qualified = False
-typehints_use_signature = True   # or False if you prefer them in the body
+typehints_use_signature = True
