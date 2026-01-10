@@ -46,8 +46,6 @@ def inverse(
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_observe_yields_upstream_elements(itype: IterableType) -> None:
-    """Observe should yield upstream elements."""
-
     # `observe` should yield upstream elements
     assert alist_or_list(inverse("12---3456----7"), itype=itype) == list(
         map(lambda n: 1 / n, range(1, 8))
@@ -56,8 +54,6 @@ def test_observe_yields_upstream_elements(itype: IterableType) -> None:
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_observe_empty_stream(itype: IterableType) -> None:
-    """Observe should produce one last log on StopIteration, even if the stream is empty."""
-
     logs: List[Log] = []
 
     assert alist_or_list(inverse("", logs), itype=itype) == []
@@ -67,8 +63,6 @@ def test_observe_empty_stream(itype: IterableType) -> None:
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_observe_every_none_reraises(itype: IterableType) -> None:
-    """Observe should reraise exceptions when every is None."""
-
     logs: List[Log] = []
 
     # `observe` should reraise
@@ -88,8 +82,6 @@ def test_observe_every_none_reraises(itype: IterableType) -> None:
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_observe_every_none_with_catch(itype: IterableType) -> None:
-    """Observe should produce one last log on StopIteration when exceptions are caught."""
-
     logs: List[Log] = []
 
     alist_or_list(
@@ -110,7 +102,6 @@ def test_observe_every_none_with_catch(itype: IterableType) -> None:
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_observe_every_none_skips_redundant(itype: IterableType) -> None:
-    """Observe should skip redundant last log on StopIteration."""
     logs: List[Log] = []
     alist_or_list(inverse("12---3456----0", logs).catch(ZeroDivisionError), itype=itype)
     # `observe` should skip redundant last log on StopIteration
@@ -127,8 +118,6 @@ def test_observe_every_none_skips_redundant(itype: IterableType) -> None:
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_observe_every_2_reraises(itype: IterableType) -> None:
-    """Observe should reraise exceptions when every is 2."""
-
     logs: List[Log] = []
     # `observe` should reraise
     with pytest.raises(ZeroDivisionError):
@@ -149,8 +138,6 @@ def test_observe_every_2_reraises(itype: IterableType) -> None:
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_observe_every_2_with_catch(itype: IterableType) -> None:
-    """Observe should produce one last log on StopIteration when every is 2 and exceptions are caught."""
-
     logs: List[Log] = []
     alist_or_list(
         inverse("12---3456----07", logs, every=2).catch(ZeroDivisionError), itype=itype
@@ -172,8 +159,6 @@ def test_observe_every_2_with_catch(itype: IterableType) -> None:
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_observe_every_2_skips_redundant(itype: IterableType) -> None:
-    """Observe should skip redundant last log when every is 2."""
-
     logs: List[Log] = []
     alist_or_list(
         inverse("12---3456----0", logs, every=2).catch(ZeroDivisionError), itype=itype
@@ -194,8 +179,6 @@ def test_observe_every_2_skips_redundant(itype: IterableType) -> None:
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_observe_every_timedelta_reraises(itype: IterableType) -> None:
-    """Observe should reraise exceptions when every is a timedelta."""
-
     logs: List[Log] = []
     with pytest.raises(ZeroDivisionError):
         alist_or_list(
@@ -208,8 +191,6 @@ def test_observe_every_timedelta_reraises(itype: IterableType) -> None:
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_observe_every_timedelta_with_catch(itype: IterableType) -> None:
-    """Observe should produce one last log on StopIteration when every is a timedelta and exceptions are caught."""
-
     logs: List[Log] = []
     alist_or_list(
         inverse("12---3456----07", logs, every=datetime.timedelta(seconds=1)).catch(
@@ -226,8 +207,6 @@ def test_observe_every_timedelta_with_catch(itype: IterableType) -> None:
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_observe_every_timedelta_skips_redundant(itype: IterableType) -> None:
-    """Observe should skip redundant last log when every is a timedelta."""
-
     logs: List[Log] = []
     alist_or_list(
         inverse("12---3456----0", logs, every=datetime.timedelta(seconds=1)).catch(
@@ -266,7 +245,6 @@ def test_observe_every_timedelta_frequent(itype: IterableType) -> None:
 def test_observe_do(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
-    """Observe should call the do function with log messages."""
     observations: List[stream.Observation] = []
     ints = list(range(8))
     assert (

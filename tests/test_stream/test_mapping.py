@@ -40,7 +40,6 @@ from tests.utils.timing import timestream
 @pytest.mark.parametrize("concurrency", [1, 2])
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_map(concurrency: int, itype: IterableType) -> None:
-    """At any concurrency the `map` method should act as the builtin map function, transforming elements while preserving input elements order."""
     assert alist_or_list(
         stream(INTEGERS).map(randomly_slowed(square), concurrency=concurrency),
         itype=itype,
@@ -62,7 +61,6 @@ def test_map_async(concurrency: int, itype: IterableType) -> None:
 @pytest.mark.parametrize("concurrency", [1, 2])
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_do(concurrency: int, itype: IterableType) -> None:
-    """At any concurrency the `do` method should return the upstream elements in order."""
     side_collection: Set[int] = set()
 
     def side_effect(x: int, func: Callable[[int], int]):
@@ -85,7 +83,6 @@ def test_do(concurrency: int, itype: IterableType) -> None:
 @pytest.mark.parametrize("concurrency", [1, 100])
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_do_async(concurrency: int, itype: IterableType) -> None:
-    """At any concurrency the `do` method must preserve input elements order."""
     assert alist_or_list(
         stream(INTEGERS).do(
             async_randomly_slowed(async_square), concurrency=concurrency
@@ -152,8 +149,6 @@ def test_process_concurrency(
     order_mutation: Callable[[Iterable], Iterable],
     itype: IterableType,
 ) -> None:
-    """Process-based concurrency must correctly transform elements, respecting `as_completed`."""
-
     def local_identity(x):
         return x  # pragma: no cover
 
@@ -215,7 +210,6 @@ def test_mapping_ordering(
     func: Callable[..., Any],
     itype: IterableType,
 ) -> None:
-    """Operation must respect `as_completed` constraint."""
     seconds = [0.3, 0.01, 0.01, 0.4]
     duration, res = timestream(
         operation(stream(seconds), func, as_completed=as_completed, concurrency=2),
@@ -248,7 +242,6 @@ def test_map_or_do_concurrency(
     concurrency: int,
     itype: IterableType,
 ) -> None:
-    """Increasing the concurrency of mapping should decrease proportionally the iteration's duration."""
     expected_iteration_duration = N * slow_identity_duration / concurrency
     duration, res = timestream(
         method(stream(INTEGERS), func, concurrency=concurrency), itype=itype
@@ -274,7 +267,6 @@ def test_map_or_do_concurrency(
 def test_catched_error_upstream_of_map(
     itype: IterableType, concurrency: int, as_completed: bool, expected: List[float]
 ) -> None:
-    """At any concurrency, map/do should not stop iteration when upstream raises."""
     assert (
         alist_or_list(
             stream([0, 1, 0, 2, 0])
@@ -327,7 +319,6 @@ def test_map_or_do_with_exception(
     throw_for_odd_func: Callable[[Type[Exception]], Callable[[Any], int]],
     itype: IterableType,
 ) -> None:
-    """Map and do must handle exceptions correctly."""
     rasing_stream: stream[int] = method(
         stream(iter(INTEGERS)), throw_func(TestError), concurrency=concurrency
     )  # type: ignore
@@ -354,7 +345,6 @@ def test_map_or_do_with_exception(
 def test_partial_iteration_on_streams_using_concurrency(
     concurrency: int, itype: IterableType
 ) -> None:
-    """Partial iteration should only pull necessary upstream elements."""
     yielded_elems = []
 
     def remembering_src() -> Iterator[int]:

@@ -24,8 +24,6 @@ from tests.utils.source import N, INTEGERS
 def test_filter(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
-    """Filter must act like builtin filter."""
-
     def keep(x) -> int:
         return x % 2
 
