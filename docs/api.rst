@@ -1,6 +1,5 @@
 ༄ ``streamable`` API Reference
-=============
--------
+===============================
 
 .. automodule:: streamable
    :members:
