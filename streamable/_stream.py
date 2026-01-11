@@ -68,6 +68,8 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
     Both sync and async functions are accepted by operations, you can freely mix them within the same `stream` and it can then be consumed as an `Iterable` or `AsyncIterable`. When a stream involving async functions is consumed as an `Iterable`, a temporary `asyncio` event loop is attached to it.
 
+    Operations are implemented so that iteration can resume after caught exceptions.
+
     Args:
         source (``Iterable[T] | AsyncIterable[T] | Callable[[], T] | Callable[[], Coroutine[Any, Any, T]]``): Data source to wrap:
           ‣ ``Iterable[T] | AsyncIterable[T]``: any iterable (list, set, range, generator, etc...), or async iterable.

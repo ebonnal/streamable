@@ -89,10 +89,11 @@ A `stream[T]` is `Iterable[T]`:
   - [`.buffer`](#-buffer) elements
   - [`.observe`](#-observe) the iteration progress
 
+Both sync and async functions are accepted by operations, they can be mixed within the same `stream`, that can then be consumed as an `Iterable` or `AsyncIterable`. When a stream involving async functions is consumed as an `Iterable`, an `asyncio` event loop is attached to it.
+
+Operations are implemented so that iteration can resume after caught exceptions.
+
 A `stream` exposes operations to manipulate its elements, but the I/O is not its responsibility. It's meant to be combined with dedicated libraries like `csv`, `json`, `pyarrow`, `psycopg2`, `boto3`, `aiohttp`, `httpx`, `polars`.
-
-Both sync and async functions are accepted by operations, you can freely mix them within the same `stream` and it can then be consumed as an `Iterable` or `AsyncIterable`. When a stream involving async functions is consumed as an `Iterable`, a temporary `asyncio` event loop is attached to it.
-
 
 ## ▼ `.map`
 
@@ -516,13 +517,7 @@ unique_ints: stream[int] = (
 assert list(unique_ints) == [0, 1]
 ```
 
-## iteration can be resumed after an exception
-
-If at one point during the iteration an exception is raised and caught, the iteration can resume from there.
-
-## performances
-
-All the operations process elements on-the-fly. At any point in time, concurrent operations only keep `concurrency` elements in memory for processing.
+## overhead
 
 There is zero overhead during iteration compared to builtins:
 
@@ -535,9 +530,6 @@ odd_int_strings = stream(range(1_000_000)).filter(lambda n: n % 2).map(str)
 ```python
 map(str, filter(lambda n: n % 2, range(1_000_000)))
 ```
-
-Operations have been [implemented](https://github.com/ebonnal/streamable/blob/main/streamable/_iterators.py) with speed in mind, issues and PRs are very welcome!
-
 
 ## ⭐ highlights from the community
 - [Tryolabs' Top 10 Python libraries of 2024](https://tryolabs.com/blog/top-python-libraries-2024#top-10---general-use) ([LinkedIn](https://www.linkedin.com/posts/tryolabs_top-python-libraries-2024-activity-7273052840984539137-bcGs?utm_source=share&utm_medium=member_desktop), [Reddit](https://www.reddit.com/r/Python/comments/1hbs4t8/the_handpicked_selection_of_the_best_python/))
