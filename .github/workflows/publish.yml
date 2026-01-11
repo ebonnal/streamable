@@ -14,23 +14,25 @@ jobs:
   pypi:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
       - name: Install dependencies
         run: |
-          python3 -m pip install --upgrade pip
-          pip install build twine
+          make venv
+          uv pip install build twine
       - name: Build
-        run: python -m build
+        run: uv run python -m build
       - name: Publish
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.pypi_token }}
         run: |
-          twine upload dist/* --skip-existing
+          uv run twine upload dist/* --skip-existing
       - name: Tag
         run: |
           TAG=$(python -c 'from streamable import __version__; print(__version__)' | sed 's/^/v/')

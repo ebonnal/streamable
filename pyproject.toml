@@ -13,6 +13,34 @@ urls = { Homepage = "https://github.com/ebonnal/streamable" }
 requires-python = ">=3.8"
 dependencies = []
 
+[project.optional-dependencies]
+dev = [
+    "httpx==0.28.1; python_version >= '3.9'",
+    "mypy==1.18.2; python_version >= '3.9'",
+    "mypy-extensions==1.0.0; python_version >= '3.9'",
+    "polars==1.36.1; python_version >= '3.9'",
+    "pytest==7.4.4; python_version >= '3.9'",
+    "pytest-asyncio==0.21.2; python_version >= '3.9'",
+    "pytest-cov==7.0.0; python_version >= '3.9'",
+    "respx==0.22.0; python_version >= '3.9'",
+    "ruff==0.9.10; python_version >= '3.9'",
+    "typing-extensions==4.12.2; python_version >= '3.9'",
+]
+test = [
+    "pytest==7.4.4",
+    "pytest-asyncio==0.21.2",
+    "httpx",
+    "respx",
+    "polars",
+]
+docs = [
+    "sphinx>=7",
+    "furo",
+    "sphinx-autodoc-typehints>=1.23.0",
+    "myst-parser>=2",
+    "sphinx-copybutton",
+]
+
 [tool.setuptools.dynamic]
 version = { attr = "streamable.__version__" }
 

@@ -2,7 +2,7 @@
 
 VENV_DIR := .venv
 
-all: venv test type-check format lint docs
+all: venv format lint type-check test docs
 
 help:
 	@echo "Available commands:"
@@ -15,15 +15,11 @@ help:
 	@echo "  make docs            - Build the docs via sphinx
 
 venv:
-	python3 -m venv $(VENV_DIR) --clear
-	$(VENV_DIR)/bin/pip install -r requirements-dev.txt
-	$(VENV_DIR)/bin/pip install -U pip setuptools wheel
-	$(VENV_DIR)/bin/pip install -e .
+	uv venv $(VENV_DIR) --clear
+	uv pip install -e ".[dev]"
 
 test:
-	$(VENV_DIR)/bin/python -m coverage run -m pytest -sx
-	$(VENV_DIR)/bin/coverage report -m
-	$(VENV_DIR)/bin/coverage html
+	$(VENV_DIR)/bin/python -m pytest --cov=streamable --cov-report=term-missing --cov-fail-under=100 -sx
 
 type-check:
 	$(VENV_DIR)/bin/python -m mypy --install-types --non-interactive streamable tests
@@ -41,5 +37,5 @@ lint-check:
 	$(VENV_DIR)/bin/python -m ruff check streamable tests
 
 docs:
-	$(VENV_DIR)/bin/pip install -r docs/requirements.txt
+	uv pip install -e ".[docs]"
 	sphinx-build -b html docs docs/_build/html
