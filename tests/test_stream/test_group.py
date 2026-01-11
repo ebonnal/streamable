@@ -78,13 +78,10 @@ def test_group_with_exceptions(itype: IterableType) -> None:
 
     stream_iterator = aiter_or_iter(stream(map(f, INTEGERS)).group(100), itype=itype)
     anext_or_next(stream_iterator, itype=itype)
-    # when encountering upstream exception, `group` should yield the current accumulated group...
     assert anext_or_next(stream_iterator, itype=itype) == list(map(f, range(100, 110)))
-    # ... and raise the upstream exception during the next call to `next`...
     with pytest.raises(ZeroDivisionError):
         anext_or_next(stream_iterator, itype=itype)
 
-    # ... and restarting a fresh group to yield after that.
     assert anext_or_next(stream_iterator, itype=itype) == list(map(f, range(111, 211)))
 
 
@@ -93,7 +90,7 @@ def test_group_with_exceptions(itype: IterableType) -> None:
 def test_group_every_parameter(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
-    # `group` should not yield empty groups even though `every` if smaller than upstream's frequency
+    """Group Every Parameter."""
     assert alist_or_list(
         stream(map(slow_identity, INTEGERS)).group(
             up_to=100,
@@ -101,7 +98,6 @@ def test_group_every_parameter(
         ),
         itype=itype,
     ) == list(map(lambda e: [e], INTEGERS))
-    # `group` with `by` argument should not yield empty groups even though `every` if smaller than upstream's frequency
     assert alist_or_list(
         stream(map(slow_identity, INTEGERS))
         .group(
@@ -112,7 +108,6 @@ def test_group_every_parameter(
         .map(itemgetter(1)),
         itype=itype,
     ) == list(map(lambda e: [e], INTEGERS))
-    # `group` should yield upstream elements in a two-element group if `every` inferior to twice the upstream yield period
     assert alist_or_list(
         stream(map(slow_identity, INTEGERS)).group(
             up_to=100,
@@ -127,12 +122,12 @@ def test_group_every_parameter(
 def test_group_by_key_basic(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
+    """Group By Key Basic."""
     groupby_stream_iter: Union[
         Iterator[Tuple[int, List[int]]], AsyncIterator[Tuple[int, List[int]]]
     ] = aiter_or_iter(
         stream(INTEGERS).group(by=adapt(lambda n: n % 2), up_to=2), itype=itype
     )
-    # `group` `by` must cogroup elements.
     assert [
         anext_or_next(groupby_stream_iter, itype=itype),
         anext_or_next(groupby_stream_iter, itype=itype),
@@ -144,11 +139,11 @@ def test_group_by_key_basic(
 def test_group_by_key_with_up_to(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
+    """Group By Key With Up To."""
     stream_iter = aiter_or_iter(
         stream(INTEGERS).group(up_to=2, by=adapt(lambda n: n % 2)).map(itemgetter(1)),
         itype=itype,
     )
-    # `group` called with a `by` function must cogroup elements.
     assert [
         anext_or_next(stream_iter, itype=itype),
         anext_or_next(stream_iter, itype=itype),
@@ -156,7 +151,6 @@ def test_group_by_key_with_up_to(
         [0, 2],
         [1, 3],
     ]
-    # `group` called with a `by` function and a `up_to` should yield the first batch becoming full.
     assert anext_or_next(
         aiter_or_iter(
             stream(src_raising_at_exhaustion())
@@ -176,7 +170,7 @@ def test_group_by_key_with_up_to(
 def test_group_by_key_infinite_size(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
-    # `group` called with a `by` function and an infinite size must cogroup elements and yield groups starting with the group containing the oldest element.
+    """Group By Key Infinite Size."""
     assert alist_or_list(
         stream(INTEGERS).group(by=adapt(lambda n: n % 2)).map(itemgetter(1)),
         itype=itype,
@@ -191,7 +185,7 @@ def test_group_by_key_infinite_size(
 def test_group_by_key_on_exhaustion(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
-    # `group` called with a `by` function and reaching exhaustion must cogroup elements and yield uncomplete groups starting with the group containing the oldest element, even though it's not the largest.
+    """Group By Key On Exhaustion."""
     assert alist_or_list(
         stream(range(10)).group(by=adapt(lambda n: n % 4 == 0)).map(itemgetter(1)),
         itype=itype,
@@ -203,13 +197,13 @@ def test_group_by_key_on_exhaustion(
 def test_group_by_key_with_exceptions(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
+    """Group By Key With Exceptions."""
     stream_iter = aiter_or_iter(
         stream(src_raising_at_exhaustion())
         .group(by=adapt(lambda n: n % 2))
         .map(itemgetter(1)),
         itype=itype,
     )
-    # `group` called with a `by` function and encountering an exception must cogroup elements and yield uncomplete groups starting with the group containing the oldest element.
     assert [
         anext_or_next(stream_iter, itype=itype),
         anext_or_next(stream_iter, itype=itype),
@@ -217,7 +211,6 @@ def test_group_by_key_with_exceptions(
         list(range(0, N, 2)),
         list(range(1, N, 2)),
     ]
-    # `group` called with a `by` function and encountering an exception must raise it after all groups have been yielded
     with pytest.raises(TestError):
         anext_or_next(stream_iter, itype=itype)
 
@@ -228,7 +221,6 @@ def test_group_by_fifo_yield_on_exhaustion(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
     """Group by key should yield groups in FIFO order on exhaustion."""
-    # test `group` `by` FIFO yield on exhaustion
     assert alist_or_list(
         stream([1, 2, 3, 3, 2, 1]).group(by=adapt(str)), itype=itype
     ) == [
@@ -244,7 +236,6 @@ def test_group_by_fifo_yield_on_upstream_exception(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
     """Group by key should yield groups in FIFO order on upstream exception."""
-    # test `group` `by` FIFO yield on upstream exception
     assert alist_or_list(
         stream([1, 2, 2, 0, 3, 1, 3, 2, 2, 3])
         .do(adapt(lambda n: 1 / n))
@@ -260,7 +251,6 @@ def test_group_by_fifo_yield_on_by_exception(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
     """Group by key should yield groups in FIFO order when by function raises."""
-    # test `group` `by` FIFO yield on `by` exception
     assert alist_or_list(
         stream([1, 2, 2, 0, 3, 1, 3, 2, 2, 3])
         .group(by=adapt(lambda n: 1 / n))
@@ -275,7 +265,6 @@ def test_group_by_fifo_yield_on_every_elapsed(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
     """Group by key should yield groups in FIFO order when every interval elapses."""
-    # test `group` `by` FIFO yield on `every` elapsed
     assert alist_or_list(
         stream(map(slow_identity, [1, 2, 2, 2, 2, 3, 3, 1, 3]))
         .group(

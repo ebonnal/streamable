@@ -43,17 +43,19 @@ def test_catch_ignores_matching_exceptions(itype: IterableType) -> None:
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_catch_raises_non_matching_exceptions(itype: IterableType) -> None:
+    """Catch should raise exceptions that don't match the specified exception type."""
+
     def fn(i):
         return i / (3 - i)
 
     s = stream(INTEGERS).map(fn)
-    # If a non-caught exception type occurs, then it should be raised.
     with pytest.raises(ZeroDivisionError):
         alist_or_list(s.catch(TestError), itype=itype)
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_catch_raises_first_non_caught_exception(itype: IterableType) -> None:
+    """Catch should raise the first non-caught exception that occurs."""
     first_value = 1
     second_value = 2
     third_value = 3
@@ -70,26 +72,25 @@ def test_catch_raises_first_non_caught_exception(itype: IterableType) -> None:
     caught_erroring_stream: stream[int] = stream(map(lambda f: f(), functions)).catch(
         TestError
     )
-    # the first non-caught exception should be raised
     with pytest.raises(TypeError):
         alist_or_list(caught_erroring_stream, itype)
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_catch_handles_only_exceptions(itype: IterableType) -> None:
+    """Catch should return empty list when upstream only raises exceptions, without recursion issues."""
     only_caught_errors_stream = stream(
         map(lambda _: throw(TestError), range(2000))
     ).catch(TestError)
-    # When upstream raise exceptions without yielding any element, listing the stream must return empty list, without recursion issue.
     assert alist_or_list(only_caught_errors_stream, itype=itype) == []
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_catch_raises_stopiteration_on_only_exceptions(itype: IterableType) -> None:
+    """Catch should raise StopIteration on first next() when upstream only raises exceptions."""
     only_caught_errors_stream = stream(
         map(lambda _: throw(TestError), range(2000))
     ).catch(TestError)
-    # When upstream raise exceptions without yielding any element, then the first call to `next` on a stream catching all errors should raise StopIteration.
     with pytest.raises(stopiteration_type(itype)):
         anext_or_next(
             aiter_or_iter(only_caught_errors_stream, itype=itype), itype=itype
@@ -98,12 +99,11 @@ def test_catch_raises_stopiteration_on_only_exceptions(itype: IterableType) -> N
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_catch_chained(itype: IterableType) -> None:
-    """Catch chain should behave correctly."""
+    """Chained catch operations should handle multiple exception types correctly."""
     iterator = aiter_or_iter(
         stream(map(throw, [TestError, ValueError])).catch(ValueError).catch(TestError),
         itype=itype,
     )
-    # no non-raising elements so first next leads to StopIteration
     with pytest.raises(stopiteration_type(itype)):
         anext_or_next(iterator, itype=itype)
 
@@ -158,16 +158,16 @@ def test_catch_replace_with_none(
 def test_catch_multiple_exception_types(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
+    """Catch should accept multiple exception types and count them correctly."""
     errors_counter: Counter[Type[Exception]] = Counter()
-    # `catch` should accept multiple types
     assert alist_or_list(
         stream(
             map(
-                lambda n: 1 / n,  # potential ZeroDivisionError
+                lambda n: 1 / n,
                 map(
-                    throw_for_odd_func(TestError),  # potential TestError
+                    throw_for_odd_func(TestError),
                     map(
-                        int,  # potential ValueError
+                        int,
                         "01234foo56789",
                     ),
                 ),
@@ -178,7 +178,6 @@ def test_catch_multiple_exception_types(
         ),
         itype=itype,
     ) == list(map(lambda n: 1 / n, range(2, 10, 2)))
-    # `catch` should accept multiple types
     assert errors_counter == {TestError: 5, ValueError: 3, ZeroDivisionError: 1}
 
 
@@ -187,14 +186,12 @@ def test_catch_multiple_exception_types(
 def test_catch_do_side_effect(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
-    """Do side effect should be correctly applied."""
+    """Catch should correctly apply do side effects for both sync and async combinations."""
     errors: List[Exception] = []
-    # test sync/async combinations
     for where, do in (
         (identity, adapt(errors.append)),
         (adapt(identity), errors.append),
     ):
-        # `do` side effect should be correctly applied
         errors.clear()
         assert alist_or_list(
             stream([0, 1, 0, 1, 0])

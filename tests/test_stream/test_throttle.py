@@ -63,10 +63,8 @@ def test_throttle_enforces_minimum_interval(itype: IterableType) -> None:
         1, per=datetime.timedelta(seconds=interval_seconds)
     )
     duration, res = timestream(s, itype=itype)
-    # `throttle` with `interval` must yield upstream elements
     assert res == list(integers)
     expected_duration = (N - 1) * interval_seconds + super_slow_elem_pull_seconds
-    # avoid bursts after very slow particular upstream elements
     assert duration == pytest.approx(expected_duration, rel=0.1)
 
 
@@ -89,10 +87,8 @@ def test_throttle_with_exceptions_respects_interval(itype: IterableType) -> None
         .catch(TestError)
     )
     duration, res = timestream(s, itype=itype)
-    # `throttle` with `interval` must yield upstream elements
     assert res == []
     expected_duration = (N - 1) * interval_seconds + super_slow_elem_pull_seconds
-    # avoid bursts after very slow particular upstream elements
     assert duration == pytest.approx(expected_duration, rel=0.1)
 
 
@@ -104,7 +100,6 @@ def test_throttle_handles_slow_upstream(itype: IterableType) -> None:
     This tests that sleep calculations don't go negative when upstream
     processing takes longer than the throttle interval.
     """
-    # `throttle` should avoid 'ValueError: sleep length must be non-negative' when upstream is slower than `interval`
     assert (
         anext_or_next(
             aiter_or_iter(
@@ -132,10 +127,8 @@ def test_throttle_limits_per_second(n_items: int, itype: IterableType) -> None:
     per_second = 2
     s = stream(integers).throttle(per_second, per=datetime.timedelta(seconds=1))
     duration, res = timestream(s, itype=itype)
-    # `throttle` with `per_second` must yield upstream elements
     assert res == list(integers)
     expected_duration = math.ceil(n_items / per_second) - 1
-    # `throttle` must slow according to `per_second`
     assert duration == pytest.approx(
         expected_duration, abs=0.01 * expected_duration + 0.01
     )
@@ -155,10 +148,8 @@ def test_throttle_with_exceptions_limits_per_second(
         .catch(TestError)
     )
     duration, res = timestream(s, itype=itype)
-    # `throttle` with `per_second` must yield upstream elements
     assert res == []
     expected_duration = math.ceil(n_items / per_second) - 1
-    # `throttle` must slow according to `per_second`
     assert duration == pytest.approx(
         expected_duration, abs=0.01 * expected_duration + 0.01
     )
@@ -182,7 +173,6 @@ def test_throttle_chained_follows_most_restrictive(itype: IterableType) -> None:
         .throttle(1, per=datetime.timedelta(seconds=0.2)),
     ]:
         duration, _ = timestream(s, itype=itype)
-        # `throttle` with both `per_second` and `interval` set should follow the most restrictive
         assert duration == pytest.approx(expected_duration, rel=0.1)
 
 
@@ -194,27 +184,9 @@ def test_throttle_sliding_window(
     """
     Throttle should behave like a limit on the number of element emitted per sliding window
     """
-    # emissions:
-    # eee................eeeeee.........e
-    # |         |         |         |
-    # 0s        1s        2s        3s
     sleeps = [0, 0.1, 0.1, 1.7, 0.1, 0.1, 0.1, 0.1, 0.1, 1]
     bursty_stream = stream(sleeps).do(time.sleep).map(effect)
 
-    # throttled emissions (4 emissions per 2 seconds window, each window contains at most 3 past emissions):
-    # eee................eeee................ee.........e
-    # |         |         |         |         |         |
-    # 0s        1s        2s        3s        4s        5s
-    # ]
-    # e]
-    # ee]
-    # eee----------------]
-    # ]ee----------------e]
-    #  ]e----------------ee]
-    #   ]----------------eee]
-    #                    ]eee----------------]
-    #                     ]ee----------------e]
-    #                               ]--------ee---------]
     expected_emission_timestamps = [0.0, 0.1, 0.2, 1.9, 2, 2.1, 2.2, 3.9, 4, 5]
     throttled_stream = aiter_or_iter(
         bursty_stream.throttle(4, per=datetime.timedelta(seconds=2)).catch(

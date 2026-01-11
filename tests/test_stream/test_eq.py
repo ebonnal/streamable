@@ -7,12 +7,15 @@ ints = stream(INTEGERS)
 
 
 def test_buffer_eq() -> None:
+    """Buffer Eq."""
     s = ints.buffer(up_to=5)
     assert s == ints.buffer(up_to=5)
     assert s != ints.buffer(up_to=10)
 
 
 def test_catch_eq() -> None:
+    """Catch Eq."""
+
     def where(_: Exception) -> bool:
         return True  # pragma: no cover
 
@@ -44,6 +47,8 @@ def test_catch_eq() -> None:
 
 
 def test_filter_eq() -> None:
+    """Filter Eq."""
+
     def where(_: int) -> bool:
         return True  # pragma: no cover
 
@@ -53,6 +58,7 @@ def test_filter_eq() -> None:
 
 
 def test_flatten_eq() -> None:
+    """Flatten Eq."""
     nested = stream([[1, 2], [3, 4]])
 
     s = nested.flatten(concurrency=2)
@@ -61,6 +67,8 @@ def test_flatten_eq() -> None:
 
 
 def test_do_eq() -> None:
+    """Do Eq."""
+
     def effect(_: int) -> None:
         pass  # pragma: no cover
 
@@ -72,6 +80,8 @@ def test_do_eq() -> None:
 
 
 def test_group_eq() -> None:
+    """Group Eq."""
+
     def by(_: int) -> int:
         return 1  # pragma: no cover
 
@@ -85,6 +95,8 @@ def test_group_eq() -> None:
 
 
 def test_map_eq() -> None:
+    """Map Eq."""
+
     def into(_: int) -> int:
         return 1  # pragma: no cover
 
@@ -96,6 +108,8 @@ def test_map_eq() -> None:
 
 
 def test_observe_eq() -> None:
+    """Observe Eq."""
+
     def do(obs: stream.Observation) -> None:
         pass  # pragma: no cover
 
@@ -107,18 +121,21 @@ def test_observe_eq() -> None:
 
 
 def test_skip_eq() -> None:
+    """Skip Eq."""
     s = ints.skip(until=5)
     assert s == ints.skip(until=5)
     assert s != ints.skip(until=10)
 
 
 def test_take_eq() -> None:
+    """Take Eq."""
     s = ints.take(until=5)
     assert s == ints.take(until=5)
     assert s != ints.take(until=10)
 
 
 def test_throttle_eq() -> None:
+    """Throttle Eq."""
     s = ints.throttle(up_to=5, per=datetime.timedelta(seconds=1))
     assert s == ints.throttle(up_to=5, per=datetime.timedelta(seconds=1))
     assert s != ints.throttle(up_to=10, per=datetime.timedelta(seconds=1))

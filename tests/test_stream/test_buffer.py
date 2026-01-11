@@ -31,6 +31,7 @@ def test_buffer_preserves_elements(itype: IterableType) -> None:
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 @pytest.mark.parametrize("buffer_size", [0, 1, 10])
 def test_buffer_size_is_respected(itype: IterableType, buffer_size: int) -> None:
+    """Buffer should respect the specified buffer size when pulling upstream elements."""
     buffered: List[int] = []
     buffering_ints = (
         stream(INTEGERS)
@@ -49,6 +50,7 @@ def test_buffer_size_is_respected(itype: IterableType, buffer_size: int) -> None
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 @pytest.mark.parametrize("buffer_size", [3])
 def test_buffer_with_exceptions(itype: IterableType, buffer_size: int) -> None:
+    """Buffer should handle exceptions correctly while maintaining buffer size."""
     buffered: List[int] = []
     buffering_ints = (
         stream("0-23--6")

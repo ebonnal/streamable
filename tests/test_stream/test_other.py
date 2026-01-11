@@ -38,12 +38,10 @@ from tests.utils.timing import timecoro
 
 
 def test_init() -> None:
+    """Init."""
     ints = stream(INTEGERS)
-    # The stream's `source` must be the source argument.
     assert ints._source is INTEGERS
-    # "The `upstream` attribute of a base Stream's instance must be None."
     assert ints.upstream is None
-    # `source` must be propagated by operations
     assert (
         stream(INTEGERS)
         .group(100)
@@ -57,19 +55,16 @@ def test_init() -> None:
         .throttle(1, per=datetime.timedelta(seconds=1))
         .source
     ) is INTEGERS
-    # attribute `source` must be read-only
     with pytest.raises(AttributeError):
         stream(INTEGERS).source = INTEGERS  # type: ignore
-    # attribute `upstream` must be read-only
     with pytest.raises(AttributeError):
         stream(INTEGERS).upstream = stream(INTEGERS)  # type: ignore
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_async_src(itype: IterableType) -> None:
-    # a stream with an async source must be collectable as an Iterable or as AsyncIterable
+    """a stream with an async source must be collectable as an Iterable or as AsyncIterable"""
     assert alist_or_list(stream(async_iter(iter(INTEGERS))), itype) == list(INTEGERS)
-    # a stream with an async source must be collectable as an Iterable or as AsyncIterable
     assert alist_or_list(stream(async_iter(iter(INTEGERS)).__aiter__()), itype) == list(
         INTEGERS
     )
@@ -77,9 +72,8 @@ def test_async_src(itype: IterableType) -> None:
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_iter(itype: IterableType) -> None:
-    # iter(stream) must return an Iterator.
+    """iter(stream) must return an Iterator."""
     assert isinstance(aiter_or_iter(stream(INTEGERS), itype=itype), itype)
-    # Getting an Iterator from a Stream with a source not being a Union[Callable[[], Iterator], ITerable] must raise TypeError.
     with pytest.raises(
         TypeError,
         match=r"`source` must be Iterable or AsyncIterable or Callable but got 1",
@@ -89,6 +83,7 @@ def test_iter(itype: IterableType) -> None:
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_queue_source(itype: IterableType) -> None:
+    """Queue Source."""
     from queue import Queue, Empty
 
     ints_queue: Queue[int] = Queue()
@@ -111,6 +106,7 @@ def test_queue_source(itype: IterableType) -> None:
 
 @pytest.mark.asyncio
 async def test_aqueue_source() -> None:
+    """Async queue source should work correctly with asyncio queues."""
     from asyncio import Queue, TimeoutError
 
     ints_queue: Queue[int] = Queue()
@@ -126,6 +122,7 @@ async def test_aqueue_source() -> None:
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_add(itype: IterableType) -> None:
+    """Add."""
     from streamable._stream import FlattenStream
 
     ints = stream(INTEGERS)
@@ -148,33 +145,33 @@ def test_add(itype: IterableType) -> None:
 
 
 def test_call() -> None:
+    """Call."""
     acc: List[int] = []
     ints = stream(INTEGERS).map(acc.append)
-    # `__call__` should return the stream.
     assert ints() is ints
-    # `__call__` should exhaust the stream.
     assert acc == list(INTEGERS)
 
 
 @pytest.mark.asyncio
 async def test_await() -> None:
+    """Await should return the stream and exhaust it."""
     acc: List[int] = []
     ints = stream(INTEGERS).map(acc.append)
-    # __await__ should return the stream.
     assert (await awaitable_to_coroutine(ints)) is ints
-    # __await__ should exhaust the stream.
     assert acc == list(INTEGERS)
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_multiple_iterations(itype: IterableType) -> None:
+    """Multiple Iterations."""
     ints = stream(INTEGERS)
     for _ in range(3):
-        # The first iteration over a stream should yield the same elements as any subsequent iteration on the same stream, even if it is based on a `source` returning an iterator that only support 1 iteration.
         assert alist_or_list(ints, itype=itype) == list(INTEGERS)
 
 
 def test_pipe() -> None:
+    """Pipe."""
+
     def func(
         stream: stream, *ints: int, **strings: str
     ) -> Tuple[stream, Tuple[int, ...], Dict[str, str]]:
@@ -183,14 +180,14 @@ def test_pipe() -> None:
     s = stream(INTEGERS)
     ints = (0, 1, 2, 3)
     strings = {"foo": "bar", "bar": "foo"}
-    # `pipe` should pass the stream and args/kwargs to `func`.
     assert s.pipe(func, *ints, **strings) == (s, ints, strings)
-    # `pipe` should be ok without args and kwargs.
     assert s == s.pipe(identity)
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_ref_cycles(itype: IterableType) -> None:
+    """Ref Cycles."""
+
     async def async_int(o: Any) -> int:
         return int(o)
 
@@ -205,23 +202,18 @@ def test_ref_cycles(itype: IterableType) -> None:
     )
     alist_or_list(ints, itype=itype)
     exception = errors[0]
-    # the exception's traceback should not contain an exception captured in its own traceback
     assert [
         (var, val)
-        # go through the frames of the exception's traceback
         for frame, _ in traceback.walk_tb(exception.__traceback__)
-        # skipping the current frame
         if frame is not cast(TracebackType, exception.__traceback__).tb_frame
-        # go through the locals captured in that frame
         for var, val in frame.f_locals.items()
-        # check if one of them is an exception
         if isinstance(val, Exception)
-        # check if it is captured in its own traceback
         and frame is cast(TracebackType, val.__traceback__).tb_frame
     ] == []
 
 
 def test_on_queue_in_thread() -> None:
+    """On Queue In Thread."""
     zeros: List[str] = []
     src: "queue.Queue[Optional[str]]" = queue.Queue()
     thread = threading.Thread(target=stream(iter(src.get, None)).do(zeros.append))
@@ -230,34 +222,30 @@ def test_on_queue_in_thread() -> None:
     src.put("bar")
     src.put(None)
     thread.join()
-    # stream must work on Queue
     assert zeros == ["foo", "bar"]
 
 
 def test_deepcopy() -> None:
+    """Deepcopy."""
     ints = stream([]).map(str)
     stream_copy = copy.deepcopy(ints)
-    # the copy must be equal
     assert ints == stream_copy
-    # the copy must be a different object
     assert ints is not stream_copy
-    # the copy's source must be a different object
     assert ints.source is not stream_copy.source
 
 
 def test_slots() -> None:
+    """Slots."""
     ints = stream(INTEGERS).filter(bool)
-    # a stream should not have a __dict__
     with pytest.raises(AttributeError):
         stream(INTEGERS).__dict__
-    # a stream should have __slots__
     assert ints.__slots__ == ("_where",)
-    # a stream should not have a __dict__
     with pytest.raises(AttributeError):
         ints.__dict__
 
 
 def test_iter_loop_auto_closing() -> None:
+    """Iter Loop Auto Closing."""
     original_new_event_loop = asyncio.new_event_loop
     created_loop: "queue.Queue[asyncio.AbstractEventLoop]" = queue.Queue(maxsize=1)
 
@@ -271,17 +259,12 @@ def test_iter_loop_auto_closing() -> None:
     loop_a = created_loop.get_nowait()
     iterator_b = iter(stream(INTEGERS).filter(async_identity))
     loop_b = created_loop.get_nowait()
-    # iterator_a is not deleted, its loop should not be closed
     assert not loop_a.is_closed()
-    # iterator_b is not deleted, its loop should not be closed
     assert not loop_b.is_closed()
     del iterator_a
-    # iterator_a is deleted, its loop should be closed
     assert loop_a.is_closed()
-    # iterator_b is not deleted, its loop should not be closed
     assert not loop_b.is_closed()
     del iterator_b
-    # iterator_b is deleted, its loop should be closed
     assert loop_b.is_closed()
     asyncio.new_event_loop = original_new_event_loop
 
