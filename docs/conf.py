@@ -69,3 +69,5 @@ intersphinx_mapping = {
 # Type hints in the signature and/or in the description:
 typehints_fully_qualified = False
 typehints_use_signature = True
+
+python_maximum_signature_line_length = 1
