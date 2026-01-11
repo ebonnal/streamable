@@ -497,21 +497,6 @@ indexed_pokemons: stream[str] = (
 assert list(indexed_pokemons) == ['#1 bulbasaur', '#2 ivysaur', '#3 venusaur', '#4 charmander', '#5 charmeleon', '#6 charizard', '#7 squirtle', '#8 wartortle', '#9 blastoise']
 ```
 
-## zip
-
-Use the builtins' `zip` function:
-
-```python
-from streamable import star
-
-cubes: stream[int] = (
-    stream(zip(ints, ints, ints))  # stream[tuple[int, int, int]]
-    .map(star(lambda a, b, c: a * b * c))  # stream[int]
-)
-
-assert list(cubes) == [0, 1, 8, 27, 64, 125, 216, 343, 512, 729]
-```
-
 ##  distinct
 
 To collect distinct elements you can `set(a_stream)`.

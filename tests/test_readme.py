@@ -356,18 +356,6 @@ async def test_afunc_source() -> None:
     assert [i async for i in ints] == list(range(10))
 
 
-def test_zip_example() -> None:
-    from streamable import star
-
-    cubes: stream[int] = stream(
-        zip(ints, ints, ints)
-    ).map(  # stream[tuple[int, int, int]]
-        star(lambda a, b, c: a * b * c)
-    )  # stream[int]
-
-    assert list(cubes) == [0, 1, 8, 27, 64, 125, 216, 343, 512, 729]
-
-
 def test_call_example() -> None:
     state: List[int] = []
     pipeline: stream[int] = ints.do(state.append)
