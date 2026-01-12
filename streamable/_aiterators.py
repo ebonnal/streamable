@@ -39,7 +39,7 @@ from streamable._tools._afuture import (
 )
 from streamable._tools._async import AsyncFunction, empty_aiter
 from streamable._tools._contextmanager import noop_context_manager
-from streamable._tools._error import ExceptionContainer
+from streamable._tools._error import ExceptionContainer, RaisingAsyncIterator
 
 if sys.version_info < (3, 10):  # pragma: no cover
     from streamable._tools._async import anext
@@ -399,7 +399,8 @@ class _BaseObserveAsyncIterator(AsyncIterator[T]):
         "_emissions_logged",
         "_elements_logged",
         "_errors_logged",
-        "__start_point",
+        "_active",
+        "_start_point",
     )
 
     def __init__(
@@ -416,7 +417,8 @@ class _BaseObserveAsyncIterator(AsyncIterator[T]):
         self._emissions_logged = 0
         self._elements_logged = 0
         self._errors_logged = 0
-        self.__start_point: Optional[datetime.datetime] = None
+        self._active = False
+        self._start_point: datetime.datetime
 
     @property
     def _emissions(self) -> int:
@@ -427,7 +429,7 @@ class _BaseObserveAsyncIterator(AsyncIterator[T]):
 
         return stream.Observation(
             subject=self.subject,
-            elapsed=self._time_point() - self._start_point(),
+            elapsed=self._time_point() - self._start_point,
             errors=self._errors,
             elements=self._elements,
         )
@@ -436,37 +438,36 @@ class _BaseObserveAsyncIterator(AsyncIterator[T]):
     def _time_point() -> datetime.datetime:
         return datetime.datetime.fromtimestamp(time.perf_counter())
 
-    def _start_point(self) -> datetime.datetime:
-        if not self.__start_point:
-            self.__start_point = self._time_point()
-        return self.__start_point
+    def _activate(self) -> None:
+        self._start_point = self._time_point()
+        self._active = True
 
     async def _observe(self) -> None:
         await self.do(self._observation())
         self._emissions_logged = self._emissions
 
     @abstractmethod
-    def _should_observe_yield(self) -> bool: ...
-
-    @abstractmethod
-    def _should_observe_error(self) -> bool: ...
+    def _threshold(self, logged: int) -> int: ...
 
     async def __anext__(self) -> T:
-        self._start_point()
+        if not self._active:
+            self._activate()
+            await asyncio.sleep(0)
         try:
             elem = await self.iterator.__anext__()
             self._elements += 1
-            if self._should_observe_yield():
+            if self._elements >= self._threshold(self._elements_logged):
                 await self._observe()
                 self._elements_logged = self._elements
             return elem
         except StopAsyncIteration:
             if not self._emissions or self._emissions > self._emissions_logged:
                 await self._observe()
+            self._active = False
             raise
         except Exception:
             self._errors += 1
-            if self._should_observe_error():
+            if self._errors >= self._threshold(self._errors_logged):
                 await self._observe()
                 self._errors_logged = self._errors
             raise
@@ -485,11 +486,8 @@ class PowerObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
         super().__init__(iterator, subject, do)
         self.base = base
 
-    def _should_observe_yield(self) -> bool:
-        return self._elements >= self.base * self._elements_logged
-
-    def _should_observe_error(self) -> bool:
-        return self._errors >= self.base * self._errors_logged
+    def _threshold(self, logged: int) -> int:
+        return self.base * logged
 
 
 class EveryIntObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
@@ -505,17 +503,16 @@ class EveryIntObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
         super().__init__(iterator, subject, do)
         self.every = every
 
-    def _should_observe_yield(self) -> bool:
-        # always observe first yield
-        return not self._elements_logged or not self._elements % self.every
-
-    def _should_observe_error(self) -> bool:
-        # always observe first error
-        return not self._errors_logged or not self._errors % self.every
+    def _threshold(self, logged: int) -> int:
+        if logged == 0:
+            return 0
+        elif logged == 1:
+            return self.every
+        return logged + self.every
 
 
 class EveryIntervalObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
-    __slots__ = ("_every_seconds", "_last_log_time")
+    __slots__ = ("every",)
 
     def __init__(
         self,
@@ -525,24 +522,20 @@ class EveryIntervalObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
         do: AsyncFunction["stream.Observation", Any],
     ) -> None:
         super().__init__(iterator, subject, do)
-        self._every_seconds: float = every.total_seconds()
-        self._last_log_time: Optional[float] = None
+        self.every = every
 
-    def _should_observe(self) -> bool:
-        now = time.perf_counter()
-        # always observe first yield/error
-        should = self._last_log_time is None or (
-            (now - self._last_log_time) >= self._every_seconds
-        )
-        if should:
-            self._last_log_time = now
-        return should
+    async def _observer(self) -> None:
+        every_seconds = self.every.total_seconds()
+        while self._active:
+            await self._observe()
+            await asyncio.sleep(every_seconds)
 
-    def _should_observe_yield(self) -> bool:
-        return self._should_observe()
+    def _activate(self) -> None:
+        super()._activate()
+        asyncio.create_task(self._observer())
 
-    def _should_observe_error(self) -> bool:
-        return self._should_observe()
+    def _threshold(self, logged: int) -> int:
+        return cast(int, float("inf"))
 
 
 ############
@@ -594,25 +587,6 @@ class ThrottleAsyncIterator(AsyncIterator[T]):
         return cast(T, elem)
 
 
-class _RaisingAsyncIterator(AsyncIterator[T]):
-    __slots__ = ("iterator",)
-
-    def __init__(
-        self,
-        iterator: AsyncIterator[Union[T, ExceptionContainer]],
-    ) -> None:
-        self.iterator = iterator
-
-    async def __anext__(self) -> T:
-        elem = await self.iterator.__anext__()
-        if isinstance(elem, ExceptionContainer):
-            try:
-                raise elem.exception
-            finally:
-                del elem
-        return elem
-
-
 ##########
 # buffer #
 ##########
@@ -639,9 +613,7 @@ class BufferAsyncIterator(AsyncIterator[T]):
         if not self._lock:
             self._lock = asyncio.Lock()
         while len(self._buffer) <= self.up_to:
-            self._buffer.append(
-                asyncio.get_running_loop().create_task(self._locked_anext(self._lock))
-            )
+            self._buffer.append(asyncio.create_task(self._locked_anext(self._lock)))
         return await self._buffer.popleft()
 
 
@@ -740,7 +712,7 @@ class _ExecutorConcurrentMapAsyncIterable(_BaseConcurrentMapAsyncIterable[T, U])
         )
 
 
-class ExecutorConcurrentMapAsyncIterator(_RaisingAsyncIterator[U]):
+class ExecutorConcurrentMapAsyncIterator(RaisingAsyncIterator[U]):
     __slots__ = ()
 
     def __init__(
@@ -785,10 +757,10 @@ class _AsyncConcurrentMapAsyncIterable(_BaseConcurrentMapAsyncIterable[T, U]):
             return await self.into(elem)
 
     def _launch_task(self, elem: T) -> "Future[Union[U, ExceptionContainer]]":
-        return asyncio.get_running_loop().create_task(self._semaphored(elem))
+        return asyncio.create_task(self._semaphored(elem))
 
 
-class AsyncConcurrentMapAsyncIterator(_RaisingAsyncIterator[U]):
+class AsyncConcurrentMapAsyncIterator(RaisingAsyncIterator[U]):
     __slots__ = ()
 
     def __init__(
@@ -879,9 +851,7 @@ class _ConcurrentFlattenAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]
                         iterator_and_future_pairs.append((iterator_to_queue, future))
                         continue
                 if isinstance(iterator_to_queue, AsyncIterator):
-                    future = asyncio.get_running_loop().create_task(
-                        self._anext(iterator_to_queue)
-                    )
+                    future = asyncio.create_task(self._anext(iterator_to_queue))
                 else:
                     future = asyncio.get_running_loop().run_in_executor(
                         self.executor,
@@ -899,7 +869,7 @@ class _ConcurrentFlattenAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]
             self._executor = None
 
 
-class ConcurrentFlattenAsyncIterator(_RaisingAsyncIterator[T]):
+class ConcurrentFlattenAsyncIterator(RaisingAsyncIterator[T]):
     __slots__ = ()
 
     def __init__(

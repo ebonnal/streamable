@@ -1,6 +1,7 @@
 import asyncio
 import pytest
 from streamable._tools._func import sidify, star
+from streamable._tools._logging import logfmt_str_escape
 
 
 def test_sidify() -> None:
@@ -40,3 +41,12 @@ async def test_star() -> None:
         return a + b
 
     assert (await star(sleepy_add_)((2, 5))) == 7
+
+
+def test_logfmt_str_escape():
+    """Test logfmt string escaping."""
+    assert logfmt_str_escape("") == '""'
+    assert logfmt_str_escape("ints") == "ints"
+    assert logfmt_str_escape("in ts") == '"in ts"'
+    assert logfmt_str_escape("in\\ts") == r'"in\\ts"'
+    assert logfmt_str_escape('"ints"') == r'"\"ints\""'

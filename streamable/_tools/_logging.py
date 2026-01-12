@@ -4,7 +4,8 @@ import time
 
 def logfmt_str_escape(value: str) -> str:
     escaped = value.replace("\\", "\\\\").replace('"', '\\"')
-    return f'"{escaped}"' if " " in escaped or escaped != value else escaped
+    modified = not escaped or " " in escaped or escaped != value
+    return f'"{escaped}"' if modified else escaped
 
 
 def setup_logger() -> None:

@@ -13,6 +13,7 @@ from typing import (
     cast,
 )
 
+from streamable import stream
 from streamable._tools._async import awaitable_to_coroutine
 from typing import Tuple
 
@@ -67,3 +68,10 @@ def alist_or_list(
     if itype is AsyncIterable:
         return aiterable_to_list(cast(AsyncIterable[T], iterable))
     return list(cast(Iterable[T], iterable))
+
+
+def aiterate_or_iterate(s: stream, itype: IterableType) -> None:
+    """Convert an iterable (sync or async) to a list."""
+    if itype is AsyncIterable:
+        asyncio.run(awaitable_to_coroutine(s))
+    s()

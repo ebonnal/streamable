@@ -3,6 +3,7 @@ import datetime
 import multiprocessing
 import queue
 import sys
+from threading import Thread
 import time
 from asyncio import Task
 from abc import ABC, abstractmethod
@@ -38,7 +39,7 @@ from streamable._tools._async import (
     LoopClosingMixin,
 )
 from streamable._tools._contextmanager import noop_context_manager
-from streamable._tools._error import ExceptionContainer
+from streamable._tools._error import ExceptionContainer, RaisingIterator
 
 from streamable._tools._future import (
     AsyncFDFOFutureResultCollection,
@@ -364,7 +365,8 @@ class _BaseObserveIterator(Iterator[T]):
         "_emissions_logged",
         "_elements_logged",
         "_errors_logged",
-        "__start_point",
+        "_active",
+        "_start_point",
     )
 
     def __init__(
@@ -381,7 +383,8 @@ class _BaseObserveIterator(Iterator[T]):
         self._emissions_logged = 0
         self._elements_logged = 0
         self._errors_logged = 0
-        self.__start_point: Optional[datetime.datetime] = None
+        self._active = False
+        self._start_point: datetime.datetime
 
     @property
     def _emissions(self) -> int:
@@ -392,7 +395,7 @@ class _BaseObserveIterator(Iterator[T]):
 
         return stream.Observation(
             subject=self.subject,
-            elapsed=self._time_point() - self._start_point(),
+            elapsed=self._time_point() - self._start_point,
             errors=self._errors,
             elements=self._elements,
         )
@@ -401,37 +404,35 @@ class _BaseObserveIterator(Iterator[T]):
     def _time_point() -> datetime.datetime:
         return datetime.datetime.fromtimestamp(time.perf_counter())
 
-    def _start_point(self) -> datetime.datetime:
-        if not self.__start_point:
-            self.__start_point = self._time_point()
-        return self.__start_point
+    def _activate(self) -> None:
+        self._start_point = self._time_point()
+        self._active = True
 
     def _observe(self) -> None:
         self.do(self._observation())
         self._emissions_logged = self._emissions
 
     @abstractmethod
-    def _should_observe_yield(self) -> bool: ...
-
-    @abstractmethod
-    def _should_observe_error(self) -> bool: ...
+    def _threshold(self, logged: int) -> int: ...
 
     def __next__(self) -> T:
-        self._start_point()
+        if not self._active:
+            self._activate()
         try:
             elem = self.iterator.__next__()
             self._elements += 1
-            if self._should_observe_yield():
+            if self._elements >= self._threshold(self._elements_logged):
                 self._observe()
                 self._elements_logged = self._elements
             return elem
         except StopIteration:
             if not self._emissions or self._emissions > self._emissions_logged:
                 self._observe()
+            self._active = False
             raise
         except Exception:
             self._errors += 1
-            if self._should_observe_error():
+            if self._errors >= self._threshold(self._errors_logged):
                 self._observe()
                 self._errors_logged = self._errors
             raise
@@ -450,11 +451,8 @@ class PowerObserveIterator(_BaseObserveIterator[T]):
         super().__init__(iterator, subject, do)
         self.base = base
 
-    def _should_observe_yield(self) -> bool:
-        return self._elements >= self.base * self._elements_logged
-
-    def _should_observe_error(self) -> bool:
-        return self._errors >= self.base * self._errors_logged
+    def _threshold(self, logged: int) -> int:
+        return self.base * logged
 
 
 class EveryIntObserveIterator(_BaseObserveIterator[T]):
@@ -470,17 +468,16 @@ class EveryIntObserveIterator(_BaseObserveIterator[T]):
         super().__init__(iterator, subject, do)
         self.every = every
 
-    def _should_observe_yield(self) -> bool:
-        # always observe first yield
-        return not self._elements_logged or not self._elements % self.every
-
-    def _should_observe_error(self) -> bool:
-        # always observe first error
-        return not self._errors_logged or not self._errors % self.every
+    def _threshold(self, logged: int) -> int:
+        if logged == 0:
+            return 0
+        elif logged == 1:
+            return self.every
+        return logged + self.every
 
 
 class EveryIntervalObserveIterator(_BaseObserveIterator[T]):
-    __slots__ = ("_every_seconds", "_last_log_time")
+    __slots__ = ("every",)
 
     def __init__(
         self,
@@ -490,24 +487,20 @@ class EveryIntervalObserveIterator(_BaseObserveIterator[T]):
         do: Callable[["stream.Observation"], Any],
     ) -> None:
         super().__init__(iterator, subject, do)
-        self._every_seconds: float = every.total_seconds()
-        self._last_log_time: Optional[float] = None
+        self.every = every
 
-    def _should_observe(self) -> bool:
-        now = time.perf_counter()
-        # always observe first yield/error
-        should = self._last_log_time is None or (
-            (now - self._last_log_time) >= self._every_seconds
-        )
-        if should:
-            self._last_log_time = now
-        return should
+    def _observer(self) -> None:
+        every_seconds = self.every.total_seconds()
+        while self._active:
+            self._observe()
+            time.sleep(every_seconds)
 
-    def _should_observe_yield(self) -> bool:
-        return self._should_observe()
+    def _activate(self) -> None:
+        super()._activate()
+        Thread(target=self._observer, daemon=True).start()
 
-    def _should_observe_error(self) -> bool:
-        return self._should_observe()
+    def _threshold(self, logged: int) -> int:
+        return cast(int, float("inf"))
 
 
 ############
@@ -559,25 +552,6 @@ class ThrottleIterator(Iterator[T]):
         return cast(T, elem)
 
 
-class _RaisingIterator(Iterator[T]):
-    __slots__ = ("iterator",)
-
-    def __init__(
-        self,
-        iterator: Iterator[Union[T, ExceptionContainer]],
-    ) -> None:
-        self.iterator = iterator
-
-    def __next__(self) -> T:
-        elem = self.iterator.__next__()
-        if isinstance(elem, ExceptionContainer):
-            try:
-                raise elem.exception
-            finally:
-                del elem
-        return elem
-
-
 ##########
 # buffer #
 ##########
@@ -606,7 +580,7 @@ class BufferIterable(Iterable[Union[T, ExceptionContainer]]):
                 yield self._buffer.popleft().result()
 
 
-class BufferIterator(_RaisingIterator[T]):
+class BufferIterator(RaisingIterator[T]):
     __slots__ = ()
 
     def __init__(
@@ -716,7 +690,7 @@ class _ExecutorConcurrentMapIterable(_BaseConcurrentMapIterable[T, U]):
         return ExecutorFIFOFutureResultCollection()
 
 
-class ExecutorConcurrentMapIterator(_RaisingIterator[U]):
+class ExecutorConcurrentMapIterator(RaisingIterator[U]):
     __slots__ = ()
 
     def __init__(
@@ -784,7 +758,7 @@ class _AsyncConcurrentMapIterable(_BaseConcurrentMapIterable[T, U], LoopClosingM
         return AsyncFIFOFutureResultCollection(self.loop)
 
 
-class AsyncConcurrentMapIterator(_RaisingIterator[U]):
+class AsyncConcurrentMapIterator(RaisingIterator[U]):
     __slots__ = ()
 
     def __init__(
@@ -903,7 +877,7 @@ class _ConcurrentFlattenIterable(Iterable[Union[T, ExceptionContainer]]):
             self._executor = None
 
 
-class ConcurrentFlattenIterator(_RaisingIterator[T]):
+class ConcurrentFlattenIterator(RaisingIterator[T]):
     __slots__ = ()
 
     def __init__(
