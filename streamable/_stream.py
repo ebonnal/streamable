@@ -295,7 +295,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         up_to: int,
     ) -> "stream[T]":
         """
-        Buffer upstream elements via background tasks, allowing downstream to consume at its own pace
+        Buffer upstream elements via background tasks, decoupling upstream production rate from downstream consumption rate.
 
         The background tasks run in a thread during sync iteration, and via the event loop during async iteration.
 
@@ -579,7 +579,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         concurrency: int = 1,
     ) -> "stream[U]":
         """
-        Explode iterable elements into individual elements.
+        Explode upstream elements (``Iterable`` or ``AsyncIterable``) into individual elements.
 
         Args:
             concurrency (``int``, optional): Concurrency control:
@@ -909,7 +909,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         until: Union[int, Callable[[T], Any], AsyncFunction[T, Any]],
     ) -> "stream[T]":
         """
-        Skip elements from the start of the stream.
+        Skip a given number of elements from the start of the stream, or skip until a predicate is satisfied.
 
         Args:
             until (``int | Callable[[T], Any] | AsyncCallable[T, Any]``): Skip control:
@@ -944,7 +944,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         until: Union[int, Callable[[T], Any], AsyncFunction[T, Any]],
     ) -> "stream[T]":
         """
-        Take elements from the start and stop according to ``until``, remaining upstream elements are not consumed.
+        Take a given number of elements from the start of the stream, or take until a predicate is satisfied, remaining upstream elements are not consumed.
 
         Args:
             until (``int | Callable[[T], Any] | AsyncCallable[T, Any]``): Stop control:

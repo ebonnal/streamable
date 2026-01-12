@@ -157,7 +157,8 @@ if __name__ == "__main__":
         state: list[int] = []
         # ints are mapped
         assert list(
-            stream(range(10)).map(state.append, concurrency=processes)
+            stream(range(10))
+            .map(state.append, concurrency=processes)
         ) == [None] * 10
         # but the `state` of the main process is not mutated
         assert state == []
@@ -223,7 +224,7 @@ You can combine these parameters.
 
 ## ▼ `.flatten`
 
-Explode upstream `Iterable` elements (or `AsyncIterable`):
+Explode upstream elements (`Iterable` or `AsyncIterable`):
 
 ```python
 chars: stream[str] = stream(["hel", "lo!"]).flatten()
@@ -254,7 +255,7 @@ assert list(even_ints) == [0, 2, 4, 6, 8]
 
 ## ▼ `.take`
 
-Take a certain number of elements:
+Take a given number of elements:
 
 ```python
 first_5_ints: stream[int] = stream(range(10)).take(5)
@@ -262,7 +263,7 @@ first_5_ints: stream[int] = stream(range(10)).take(5)
 assert list(first_5_ints) == [0, 1, 2, 3, 4]
 ```
 
-... or `until` a predicate is satisfied:
+... or take `until` a predicate is satisfied:
 
 
 ```python
@@ -273,7 +274,7 @@ assert list(first_5_ints) == [0, 1, 2, 3, 4]
 
 ## ▼ `.skip`
 
-Skip a certain number of elements:
+Skip a given number of elements:
 
 ```python
 ints_after_5: stream[int] = stream(range(10)).skip(5)
@@ -281,7 +282,7 @@ ints_after_5: stream[int] = stream(range(10)).skip(5)
 assert list(ints_after_5) == [5, 6, 7, 8, 9]
 ```
 
-... or `until` a predicate is satisfied:
+... or skip `until` a predicate is satisfied:
 
 
 ```python
@@ -372,7 +373,7 @@ assert list(three_ints_per_second) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 ## ▼ `.buffer`
 
-Buffer upstream elements via background tasks, allowing downstream to consume at its own pace:
+Buffer upstream elements via background tasks (decoupling upstream production rate from downstream consumption rate):
 
 ```python
 pulled: list[int] = []
