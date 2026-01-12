@@ -400,14 +400,13 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             inverses: stream[float] = stream(range(10)).map(lambda n: round(1 / n, 2)).catch(ZeroDivisionError)
             assert list(inverses) == [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
 
-            import httpx
-            status_codes_ignoring_resolution_errors: stream[int] = (
-                stream(["https://github.com", "https://foo.bar", "https://github.com/foo/bar"])
-                .map(httpx.get, concurrency=2)
-                .catch(httpx.ConnectError, where=lambda exc: "not known" in str(exc))
-                .map(lambda response: response.status_code)
+            domains = ["github.com", "foo.bar", "google.com"]
+            resolvable_domains: stream[str] = (
+                stream(domains)
+                .do(lambda domain: httpx.get(f"https://{domain}"), concurrency=2)
+                .catch(httpx.HTTPError, where=lambda e: "not known" in str(e))
             )
-            assert list(status_codes_ignoring_resolution_errors) == [200, 404]
+            assert list(resolvable_domains) == ["github.com", "google.com"]
 
             errors: list[Exception] = []
             inverses: stream[float] = (

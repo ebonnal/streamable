@@ -7,6 +7,7 @@ import time
 from datetime import timedelta
 from typing import Any, Dict, Iterator, List, Tuple, TypeVar
 import httpx
+from httpx import AsyncClient, Response, HTTPStatusError
 
 import pytest
 import respx
@@ -20,9 +21,9 @@ pokemons: stream[str] = (
     stream(range(10))
     .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
     .throttle(5, per=timedelta(seconds=1))
-    .map(httpx.AsyncClient().get, concurrency=2)
-    .do(httpx.Response.raise_for_status)
-    .catch(httpx.HTTPStatusError, do=logging.error)
+    .map(AsyncClient().get, concurrency=2)
+    .do(Response.raise_for_status)
+    .catch(HTTPStatusError, do=logging.error)
     .map(lambda poke: poke.json()["name"])
 )
 
@@ -60,14 +61,11 @@ def test_map_example() -> None:
 
 
 def test_thread_concurrent_map_example() -> None:
-    import httpx
-
     pokemons: stream[str] = (
         stream(range(1, 4))
         .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
         .map(httpx.Client().get, concurrency=2)
-        .map(httpx.Response.json)
-        .map(lambda poke: poke["name"])
+        .map(lambda poke: poke.json()["name"])
     )
     assert list(pokemons) == ["bulbasaur", "ivysaur", "venusaur"]
 
@@ -82,30 +80,26 @@ def test_process_concurrent_map_example() -> None:
 
 
 @pytest.mark.asyncio
-async def test_async_amap_example_aiter() -> None:
-    import httpx
-
-    pokemons: stream[str] = (
-        stream(range(1, 4))
-        .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
-        .map(httpx.Client().get, concurrency=2)
-        .map(lambda poke: poke.json()["name"])
-    )
-    # consume as AsyncIterable
-    assert [name async for name in pokemons] == ["bulbasaur", "ivysaur", "venusaur"]
-
-
-def test_async_amap_example_iter() -> None:
-    import httpx
-
+async def test_async_map_example_async() -> None:
     pokemons: stream[str] = (
         stream(range(1, 4))
         .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
         .map(httpx.AsyncClient().get, concurrency=2)
         .map(lambda poke: poke.json()["name"])
     )
-    # consume as Iterable (the concurrency will happen via a dedicated event loop)
-    assert [name for name in pokemons] == ["bulbasaur", "ivysaur", "venusaur"]
+
+    assert [name async for name in pokemons] == ["bulbasaur", "ivysaur", "venusaur"]
+
+
+def test_async_map_example_sync() -> None:
+    pokemons: stream[str] = (
+        stream(range(1, 4))
+        .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
+        .map(httpx.AsyncClient().get, concurrency=2)
+        .map(lambda poke: poke.json()["name"])
+    )
+
+    assert list(pokemons) == ["bulbasaur", "ivysaur", "venusaur"]
 
 
 def test_starmap_example() -> None:
@@ -204,33 +198,30 @@ def test_catch_example() -> None:
 
     assert list(inverses) == [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
 
-    import httpx
-
     with respx.mock:
-        respx.get("https://github.com/foo/bar").mock(return_value=httpx.Response(404))
         respx.get("https://github.com").mock(return_value=httpx.Response(200))
         respx.get("https://foo.bar").mock(
             side_effect=httpx.ConnectError(
                 "[Errno 8] nodename nor servname provided, or not known"
             )
         )
+        respx.get("https://google.com").mock(return_value=httpx.Response(200))
 
-        status_codes_ignoring_resolution_errors: stream[int] = (
-            stream(
-                ["https://github.com", "https://foo.bar", "https://github.com/foo/bar"]
-            )
-            .map(httpx.get, concurrency=2)
-            .catch(httpx.ConnectError, where=lambda exc: "not known" in str(exc))
-            .map(lambda response: response.status_code)
+        domains = ["github.com", "foo.bar", "google.com"]
+
+        resolvable_domains: stream[str] = (
+            stream(domains)
+            .do(lambda domain: httpx.get(f"https://{domain}"), concurrency=2)
+            .catch(httpx.HTTPError, where=lambda e: "not known" in str(e))
         )
 
-        assert list(status_codes_ignoring_resolution_errors) == [200, 404]
+        assert list(resolvable_domains) == ["github.com", "google.com"]
 
     errors: List[Exception] = []
-    inverses_: stream[float] = ints.map(lambda n: round(1 / n, 2)).catch(
+    inverses = ints.map(lambda n: round(1 / n, 2)).catch(
         ZeroDivisionError, do=errors.append
     )
-    assert list(inverses_) == [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
+    assert list(inverses) == [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
     assert len(errors) == 1
 
     inverses = ints.map(lambda n: round(1 / n, 2)).catch(

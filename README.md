@@ -100,7 +100,7 @@ A `stream` exposes operations to manipulate its elements, but the I/O is not its
 Transform elements:
 
 ```python
-str_ints: stream[str] = ints.map(str)
+str_ints: stream[str] = stream(range(10)).map(str)
 
 assert list(str_ints) == ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
 ```
@@ -120,8 +120,6 @@ If `concurrency > 1`, the transformations will be applied via `concurrency` thre
 
 
 ```python
-import httpx
-
 pokemons: stream[str] = (
     stream(range(1, 4))
     .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
@@ -137,8 +135,6 @@ If `concurrency > 1` and the function is async, the transformations will be appl
 
 
 ```python
-import httpx
-
 pokemons: stream[str] = (
     stream(range(1, 4))
     .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
@@ -160,7 +156,9 @@ if __name__ == "__main__":
     with ProcessPoolExecutor(max_workers=10) as processes:
         state: list[int] = []
         # ints are mapped
-        assert list(ints.map(state.append, concurrency=processes)) == 10 * [None]
+        assert list(
+            stream(range(10)).map(state.append, concurrency=processes)
+        ) == [None] * 10
         # but the `state` of the main process is not mutated
         assert state == []
 ```
@@ -172,7 +170,7 @@ Apply a side effect:
 
 ```python
 state: list[int] = []
-ints_into_state: stream[int] = ints.do(state.append)
+ints_into_state: stream[int] = stream(range(10)).do(state.append)
 
 assert list(ints_into_state) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
@@ -189,7 +187,7 @@ Group elements into batches...
 ... `up_to` a given batch size:
 
 ```python
-int_batches: stream[list[int]] = ints.group(5)
+int_batches: stream[list[int]] = stream(range(10)).group(5)
 
 assert list(int_batches) == [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]]
 ```
@@ -201,7 +199,7 @@ assert list(int_batches) == [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]]
 from datetime import timedelta
 
 int_1sec_batches: stream[list[int]] = (
-    ints
+    stream(range(10))
     .throttle(2, per=timedelta(seconds=1))
     .group(every=timedelta(seconds=0.99))
 )
@@ -214,7 +212,7 @@ assert list(int_1sec_batches) == [[0, 1, 2], [3, 4], [5, 6], [7, 8], [9]]
 
 ```python
 ints_by_parity: stream[tuple[str, list[int]]] = (
-    ints
+    stream(range(10))
     .group(by=lambda n: "odd" if n % 2 else "even")
 )
 
@@ -249,7 +247,7 @@ assert list(chars) == ["h", "l", "e", "o", "l", "!"]
 Filter elements satisfying a predicate:
 
 ```python
-even_ints: stream[int] = ints.filter(lambda n: n % 2 == 0)
+even_ints: stream[int] = stream(range(10)).filter(lambda n: n % 2 == 0)
 
 assert list(even_ints) == [0, 2, 4, 6, 8]
 ```
@@ -259,7 +257,7 @@ assert list(even_ints) == [0, 2, 4, 6, 8]
 Take a certain number of elements:
 
 ```python
-first_5_ints: stream[int] = ints.take(5)
+first_5_ints: stream[int] = stream(range(10)).take(5)
 
 assert list(first_5_ints) == [0, 1, 2, 3, 4]
 ```
@@ -268,7 +266,7 @@ assert list(first_5_ints) == [0, 1, 2, 3, 4]
 
 
 ```python
-first_5_ints: stream[int] = ints.take(until=lambda n: n == 5)
+first_5_ints: stream[int] = stream(range(10)).take(until=lambda n: n == 5)
 
 assert list(first_5_ints) == [0, 1, 2, 3, 4]
 ```
@@ -278,7 +276,7 @@ assert list(first_5_ints) == [0, 1, 2, 3, 4]
 Skip a certain number of elements:
 
 ```python
-ints_after_5: stream[int] = ints.skip(5)
+ints_after_5: stream[int] = stream(range(10)).skip(5)
 
 assert list(ints_after_5) == [5, 6, 7, 8, 9]
 ```
@@ -287,7 +285,7 @@ assert list(ints_after_5) == [5, 6, 7, 8, 9]
 
 
 ```python
-ints_after_5: stream[int] = ints.skip(until=lambda n: n >= 5)
+ints_after_5: stream[int] = stream(range(10)).skip(until=lambda n: n >= 5)
 
 assert list(ints_after_5) == [5, 6, 7, 8, 9]
 ```
@@ -297,7 +295,11 @@ assert list(ints_after_5) == [5, 6, 7, 8, 9]
 Catch exceptions of a given type:
 
 ```python
-inverses: stream[float] = ints.map(lambda n: round(1 / n, 2)).catch(ZeroDivisionError)
+inverses: stream[float] = (
+    stream(range(10))
+    .map(lambda n: round(1 / n, 2))
+    .catch(ZeroDivisionError)
+)
 
 assert list(inverses) == [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
 ```
@@ -305,16 +307,15 @@ assert list(inverses) == [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
 ... `where` a predicate is satisfied:
 
 ```python
-import httpx
+domains = ["github.com", "foo.bar", "google.com"]
 
-status_codes_ignoring_resolution_errors: stream[int] = (
-    stream(["https://github.com", "https://foo.bar", "https://github.com/foo/bar"])
-    .map(httpx.get, concurrency=2)
-    .catch(httpx.ConnectError, where=lambda exc: "not known" in str(exc))
-    .map(lambda response: response.status_code)
+resolvable_domains: stream[str] = (
+    stream(domains)
+    .do(lambda domain: httpx.get(f"https://{domain}"), concurrency=2)
+    .catch(httpx.HTTPError, where=lambda e: "not known" in str(e))
 )
 
-assert list(status_codes_ignoring_resolution_errors) == [200, 404]
+assert list(resolvable_domains) == ["github.com", "google.com"]
 ```
 
 ... `do` a side effect on catch:
@@ -322,7 +323,7 @@ assert list(status_codes_ignoring_resolution_errors) == [200, 404]
 ```python
 errors: list[Exception] = []
 inverses: stream[float] = (
-    ints
+    stream(range(10))
     .map(lambda n: round(1 / n, 2))
     .catch(ZeroDivisionError, do=errors.append)
 )
@@ -334,9 +335,9 @@ assert len(errors) == 1
 
 ```python
 inverses: stream[float] = (
-    ints
+    stream(range(10))
     .map(lambda n: round(1 / n, 2))
-    .catch(ZeroDivisionError, replace=lambda exc: float("inf"))
+    .catch(ZeroDivisionError, replace=lambda e: float("inf"))
 )
 
 assert list(inverses) == [float("inf"), 1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
@@ -346,7 +347,7 @@ assert list(inverses) == [float("inf"), 1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0
 
 ```python
 inverses: stream[float] = (
-    ints
+    stream(range(10))
     .map(lambda n: round(1 / n, 2))
     .catch(ZeroDivisionError, stop=True)
 )
@@ -363,7 +364,7 @@ Limit the number of emissions `per` time interval:
 ```python
 from datetime import timedelta
 
-three_ints_per_second: stream[int] = ints.throttle(3, per=timedelta(seconds=1))
+three_ints_per_second: stream[int] = stream(range(10)).throttle(3, per=timedelta(seconds=1))
 
 # collects 10 ints in 3 seconds
 assert list(three_ints_per_second) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
@@ -375,7 +376,11 @@ Buffer upstream elements via background tasks, allowing downstream to consume at
 
 ```python
 pulled: list[int] = []
-buffered_ints = ints.do(pulled.append).buffer(2)
+buffered_ints = (
+    stream(range(10))
+    .do(pulled.append)
+    .buffer(2)
+)
 assert next(iter(buffered_ints)) == 0
 assert pulled == [0, 1, 2]
 ```
@@ -385,7 +390,7 @@ assert pulled == [0, 1, 2]
 Observe the iteration progress:
 
 ```python
-observed_ints: stream[int] = ints.observe("ints")
+observed_ints: stream[int] = stream(range(10)).observe("ints")
 assert list(observed_ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 
@@ -401,17 +406,17 @@ logs:
 By default, logs are produced when the counts reach powers of 2, but they can instead be produced periodically `every` fixed *n* elements or time interval:
 ```python
 # observe every 1k elements (or errors)
-observed_ints = ints.observe("ints", every=1000)
+observed_ints = stream(range(10)).observe("ints", every=1000)
 # observe every 5 seconds
-observed_ints = ints.observe("ints", every=timedelta(seconds=5))
+observed_ints = stream(range(10)).observe("ints", every=timedelta(seconds=5))
 ```
 
 By default, observations are logged via `logging.getLogger("streamable").info`, but they can instead be passed to a function taking a `stream.Observation`:
 
 ```python
-observed_ints = ints.observe("ints", do=other_logger.info)
-observed_ints = ints.observe("ints", do=logs.append)
-observed_ints = ints.observe("ints", do=print)
+observed_ints = stream(range(10)).observe("ints", do=other_logger.info)
+observed_ints = stream(range(10)).observe("ints", do=logs.append)
+observed_ints = stream(range(10)).observe("ints", do=print)
 ```
 
 
@@ -420,7 +425,8 @@ observed_ints = ints.observe("ints", do=print)
 Concatenate streams:
 
 ```python
-assert list(ints + ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+concatenated = stream(range(10)) + stream(range(10))
+assert list(concatenated) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 
 ## ▼ `.cast`
@@ -440,7 +446,7 @@ Iterate as an `Iterable` until exhaustion, without collecting its elements:
 
 ```python
 state: list[int] = []
-pipeline: stream[int] = ints.do(state.append)
+pipeline: stream[int] = stream(range(10)).do(state.append)
 
 pipeline()
 
@@ -453,7 +459,7 @@ Iterate as an `AsyncIterable` until exhaustion, without collecting its elements:
 
 ```python
 state: list[int] = []
-pipeline: stream[int] = ints.do(state.append)
+pipeline: stream[int] = stream(range(10)).do(state.append)
 
 await pipeline
 
@@ -467,6 +473,7 @@ Apply a callable, passing the stream as first argument, followed by the provided
 ```python
 import polars as pl
 
+pokemons: stream[str] = ...
 pokemons.pipe(pl.DataFrame, schema=["name"]).write_csv("pokemons.csv")
 ```
 
@@ -491,6 +498,7 @@ The `star` function decorator transforms a function (sync or async) that takes s
 ```python
 from streamable import star
 
+pokemons: stream[str] = ...
 indexed_pokemons: stream[str] = (
     stream(enumerate(pokemons))
     .map(star(lambda index, poke: f"#{index + 1} {poke}"))
