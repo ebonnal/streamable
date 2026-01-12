@@ -202,6 +202,23 @@ def test_catch_do_side_effect(
         assert len(errors) == 3
 
 
+@pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_catch_do_raising(
+    itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
+) -> None:
+    ints = [0, 1, 0, 1, 0]
+    errors: List[Exception] = []
+    reraising = (
+        stream(ints)
+        .map(lambda n: round(1 / n, 2))
+        .catch(ZeroDivisionError, do=adapt(lambda e: throw(TestError)))
+        .catch(TestError, do=adapt(errors.append))
+    )
+    assert alist_or_list(reraising, itype=itype) == [1, 1]
+    assert len(errors) == ints.count(0)
+
+
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_catch_stop_on_exception(itype: IterableType) -> None:
     """Test `stop` on exception."""
