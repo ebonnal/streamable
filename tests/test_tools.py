@@ -3,6 +3,39 @@ import pytest
 from streamable._tools._func import sidify, star
 from streamable._tools._logging import logfmt_str_escape
 
+from typing import Any, Callable, List
+
+
+from streamable import stream
+from tests.utils.functions import async_identity, identity
+from tests.utils.source import INTEGERS
+
+##############
+# validation #
+##############
+
+
+@pytest.mark.parametrize(
+    "method, args",
+    (
+        (stream.map, [identity]),
+        (stream.map, [async_identity]),
+        (stream.do, [identity]),
+        (stream.do, [async_identity]),
+        (stream.flatten, []),
+        (stream.flatten, []),
+    ),
+)
+def test_validate_concurrency(method: Callable[..., Any], args: List[Any]) -> None:
+    # should be raising ValueError for concurrency=0.
+    with pytest.raises(ValueError, match="`concurrency` must be >= 1 but got 0"):
+        method(stream(INTEGERS), *args, concurrency=0)
+
+
+########
+# func #
+########
+
 
 def test_sidify() -> None:
     def f(x: int) -> int:
@@ -41,6 +74,11 @@ async def test_star() -> None:
         return a + b
 
     assert (await star(sleepy_add_)((2, 5))) == 7
+
+
+###########
+# logging #
+###########
 
 
 def test_logfmt_str_escape():
