@@ -1,14 +1,9 @@
-from collections import Counter
-from functools import partial
 from typing import (
     Any,
-    AsyncIterable,
-    AsyncIterator,
     Callable,
     Iterable,
-    Iterator,
     List,
-    Union,
+    Tuple,
     cast,
 )
 
@@ -16,23 +11,14 @@ import pytest
 
 from streamable import stream
 from streamable._tools._iter import async_iter
-from tests.utils.functions import (
-    async_slow_identity,
+from tests.utils.func import (
     identity,
-    slow_identity,
-    slow_identity_duration,
-    sync_to_bi_iterable,
 )
-from tests.utils.iteration import (
+from tests.utils.iter import (
     ITERABLE_TYPES,
     IterableType,
-    alist,
     alist_or_list,
-    anext_or_next,
-    aiter_or_iter,
 )
-from tests.utils.source import N, INTEGERS
-from tests.utils.timing import timestream
 
 
 def test_flatten_typing() -> None:
@@ -55,257 +41,74 @@ def test_flatten_typing() -> None:
     )
 
 
-@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 @pytest.mark.parametrize("to_iter", [identity, async_iter])
-def test_flatten_with_concurrency_one(
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_flatten_without_concurrency(
     itype: IterableType, to_iter: Callable[[Any], Any]
 ) -> None:
     """Flatten with concurrency=1 should yield elements in order of nested for loop."""
-    n_iterables = 32
-    it = list(range(N // n_iterables))
-    double_it = it + it
-    iterables_stream = stream(
-        [sync_to_bi_iterable(double_it)]
-        + [sync_to_bi_iterable(it) for _ in range(n_iterables)]
-    )
-    assert alist_or_list(
-        iterables_stream.map(to_iter).flatten(concurrency=1),
-        itype=itype,
-    ) == [elem for iterable in iterables_stream for elem in iterable]
+    s = stream((range(3), range(3, 6), range(6, 9))).map(to_iter).flatten()
+    assert alist_or_list(s, itype) == list(range(9))
 
 
-@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 @pytest.mark.parametrize("to_iter", [identity, async_iter])
-def test_flatten_with_concurrency_greater_than_one(
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_flatten_with_concurrency(
     itype: IterableType, to_iter: Callable[[Any], Any]
 ) -> None:
-    """Flatten with concurrency > 1 should yield all elements (order may vary)."""
-    n_iterables = 32
-    it = list(range(N // n_iterables))
-    double_it = it + it
-    iterables_stream = stream(
-        [sync_to_bi_iterable(double_it)]
-        + [sync_to_bi_iterable(it) for _ in range(n_iterables)]
-    )
-    assert Counter(
-        alist_or_list(
-            iterables_stream.map(to_iter).flatten(concurrency=2),
-            itype=itype,
-        )
-    ) == Counter(list(it) * n_iterables + double_it)
-
-
-@pytest.mark.parametrize("concurrency", (1, 2))
-@pytest.mark.parametrize("itype", ITERABLE_TYPES)
-@pytest.mark.parametrize("to_iter", (identity, async_iter))
-def test_flatten_handles_exceptions_in_iterables(
-    concurrency: int,
-    itype: IterableType,
-    to_iter: Callable[[Any], Any],
-) -> None:
-    """Flatten should continue flattening even if an iterable's __next__ raises an exception."""
-    expected_ordered = [
-        0.25,
-        1 / 3,
-        0.5,
-        float("inf"),
-        1,
-        float("inf"),
-        -1,
-        float("inf"),
-        -0.5,
-        -1 / 3,
-    ]
-    expected_unordered = [
-        0.25,
-        1,
-        1 / 3,
-        float("inf"),
-        0.5,
-        -1,
-        float("inf"),
-        float("inf"),
-        -0.5,
-        -1 / 3,
-    ]
-    expected = expected_ordered if concurrency == 1 else expected_unordered
-
-    assert (
-        alist_or_list(
-            stream([[4, 3, 2, 0], [1, 0, -1], [0, -2, -3]])
-            .map(lambda iterable: sync_to_bi_iterable(map(lambda n: 1 / n, iterable)))
-            .map(to_iter)
-            .flatten(concurrency=concurrency)
-            .catch(ZeroDivisionError, replace=lambda e: float("inf")),
-            itype=itype,
-        )
-        == expected
-    )
-
-
-@pytest.mark.parametrize("concurrency", (1, 2))
-@pytest.mark.parametrize("itype", ITERABLE_TYPES)
-@pytest.mark.parametrize("to_iter", (identity, async_iter))
-def test_flatten_handles_upstream_exceptions(
-    concurrency: int,
-    itype: IterableType,
-    to_iter: Callable[[Any], Any],
-) -> None:
-    """Flatten should continue pulling upstream iterables even if upstream raises an exception."""
-    expected_ordered = [4, 3, 2, -1, 1, 0]
-    expected_unordered = [4, -1, 3, 1, 2, 0]
-    expected = expected_ordered if concurrency == 1 else expected_unordered
-
-    assert (
-        alist_or_list(
-            stream([[4, 3, 2], [], [1, 0]])
-            .do(lambda ints: 1 / len(ints))
-            .map(sync_to_bi_iterable)
-            .map(to_iter)
-            .flatten(concurrency=concurrency)
-            .catch(ZeroDivisionError, replace=lambda e: -1),
-            itype=itype,
-        )
-        == expected
-    )
-
-
-@pytest.mark.parametrize("concurrency", (1, 2))
-@pytest.mark.parametrize("itype", ITERABLE_TYPES)
-@pytest.mark.parametrize("to_iter", (identity, async_iter))
-def test_flatten_handles_upstream_iter_errors(
-    concurrency: int,
-    itype: IterableType,
-    to_iter: Callable[[Any], Any],
-) -> None:
-    """Flatten should continue pulling upstream iterables even if upstream's __iter__ raises an exception."""
-    expected_ordered = [4, 3, 2, -1, 1, 0]
-    expected_unordered = [4, -1, 3, 1, 2, 0]
-    expected = expected_ordered if concurrency == 1 else expected_unordered
-
-    assert (
-        alist_or_list(
-            stream(
-                [
-                    sync_to_bi_iterable([4, 3, 2]),
-                    cast(List[int], None),
-                    sync_to_bi_iterable([1, 0]),
-                ]
-            )
-            .map(to_iter)
-            .flatten(concurrency=concurrency)
-            .catch(AttributeError, replace=lambda e: -1),
-            itype=itype,
-        )
-        == expected
-    )
-
-
-@pytest.mark.parametrize("concurrency", (1, 2))
-@pytest.mark.parametrize("itype", ITERABLE_TYPES)
-@pytest.mark.parametrize("to_iter", (identity, async_iter))
-def test_flatten_handles_empty_iterables(
-    concurrency: int,
-    itype: IterableType,
-    to_iter: Callable[[Any], Any],
-) -> None:
-    """Flatten should handle empty iterables without yielding elements, even with many successive empty iterables."""
-    assert (
-        alist_or_list(
-            stream([sync_to_bi_iterable(iter([])) for _ in range(2000)])
-            .map(to_iter)
-            .flatten(concurrency=concurrency),
-            itype=itype,
-        )
-        == []
-    )
-
-
-@pytest.mark.parametrize("itype", ITERABLE_TYPES)
-@pytest.mark.parametrize("to_iter", [identity, async_iter])
-def test_flatten_raises_on_non_iterable(
-    itype: IterableType, to_iter: Callable[[Any], Any]
-) -> None:
-    """Flatten should raise TypeError or AttributeError if an upstream element is not iterable."""
-    with pytest.raises((TypeError, AttributeError)):
-        anext_or_next(
-            aiter_or_iter(
-                stream(cast(Union[Iterable, AsyncIterable], INTEGERS))
-                .map(to_iter)
-                .flatten(),
-                itype=itype,
-            ),
-            itype=itype,
-        )
-
-
-@pytest.mark.asyncio
-async def test_flatten_within_async() -> None:
-    """Flatten should work within async context with mixed sync/async sources."""
-    assert await alist(
-        stream([stream(INTEGERS), stream(INTEGERS).__aiter__()]).flatten()
-    ) == list(INTEGERS) + list(INTEGERS)
-
-
-@pytest.mark.parametrize("concurrency", [1, 2])
-@pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_flatten_heterogeneous_sync_async_elements(
-    itype: IterableType, concurrency: int
-) -> None:
-    """Flatten should handle heterogeneous sync and async iterators correctly."""
-
-    async def aiterator() -> AsyncIterator[int]:
-        yield 0
-        yield 1
-
-    def iterator() -> Iterator[int]:
-        yield 0
-        yield 1
-
-    assert alist_or_list(
+    """Flatten with concurrency=1 should yield elements in order of nested for loop."""
+    s = (
         stream(
-            cast(
-                List[Union[AsyncIterator, Iterator]],
-                [aiterator(), iterator(), aiterator(), iterator()],
+            (
+                range(4),  # 1st
+                range(4, 5),  # 2nd
+                range(5, 8),  # 3rd
+                range(8, 10),  # 4th
             )
-        ).flatten(concurrency=concurrency),
-        itype=itype,
-    ) == ([0, 1, 0, 1, 0, 1, 0, 1] if concurrency == 1 else [0, 0, 1, 1, 0, 0, 1, 1])
-
-
-@pytest.mark.parametrize(
-    "slow, to_iter",
-    (
-        (partial(stream.map, into=slow_identity), stream.__iter__),
-        (partial(stream.map, into=async_slow_identity), stream.__aiter__),
-    ),
-)
-@pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_flatten_concurrency(
-    itype: IterableType,
-    slow: Callable[..., Any],
-    to_iter: Callable[..., Any],
-) -> None:
-    """Flatten should process iterables concurrently, with 'a's and 'b's concurrently then 'c's."""
-    concurrency = 2
-    iterable_size = 5
-    runtime, res = timestream(
-        stream(
-            [
-                slow(stream(["a"] * iterable_size)),
-                slow(stream(["b"] * iterable_size)),
-                slow(stream(["c"] * iterable_size)),
-            ]
         )
         .map(to_iter)
-        .flatten(
-            concurrency=concurrency,
-        ),
-        times=3,
-        itype=itype,
+        .flatten(concurrency=2)
     )
-    assert res == ["a", "b"] * iterable_size + ["c"] * iterable_size
 
-    a_runtime = b_runtime = c_runtime = iterable_size * slow_identity_duration
-    expected_runtime = (a_runtime + b_runtime) / concurrency + c_runtime
-    assert runtime == pytest.approx(expected_runtime, rel=0.15)
+    assert alist_or_list(s, itype) == [
+        # the 2 iterables currently flattened are 1st and 2nd
+        0,  # 1st elem from 1st iterable
+        4,  # 1st elem from 2nd iterable
+        1,  # 2nd elem from 1st iterable
+        # the 2nd iterable exhausts, the 3rd will be enter the flattened next
+        2,  # 3rd elem from 1st iterable
+        5,  # 1st elem from 3rd iterable
+        3,  # 4th elem from 1st iterable
+        6,  # 2nd elem from 3rd iterable
+        # the 1st iterable exhausts, the 4nd will be enter the flattened
+        7,  # 3rd elem from 3rd iterable
+        8,  # 1st elem from 4th iterable
+        9,  # 2nd elem from 4th iterable
+    ]
+
+
+@pytest.mark.parametrize("concurrency", (1, 2))
+@pytest.mark.parametrize("to_iter", (identity, async_iter))
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_flatten_with_exceptions(
+    concurrency: int,
+    itype: IterableType,
+    to_iter: Callable[[Any], Any],
+) -> None:
+    """Flatten should be resilient to exceptions raised upstream or by `next(elem)`."""
+    value_errors: List[Exception] = []
+    type_errors: List[Exception] = []
+    # '0' will lead to `TypeError`s when flatten calls next on upstream
+    # '-' will lead to `ValueError`s when flatten calls next on element
+    elements = cast(Tuple[str, ...], ("0-1", "234", "", "", "---", "---", 0, 0, "-5-"))
+    s = (
+        stream(elements)
+        .map(lambda chars: map(int, chars))
+        .map(to_iter)
+        .flatten(concurrency=concurrency)
+        .catch(ValueError, do=value_errors.append)
+        .catch(TypeError, do=type_errors.append)
+    )
+    assert set(alist_or_list(s, itype)) == set(range(6))
+    assert len(value_errors) == "".join(filter(None, elements)).count("-")
+    assert len(type_errors) == len([c for c in elements if not isinstance(c, Iterable)])

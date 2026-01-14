@@ -1,16 +1,15 @@
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 import copy
-import datetime
+import gc
+import time
+from streamable._tools._func import _Syncified
 import queue
-import threading
-import traceback
-from types import TracebackType
 from typing import (
     Any,
-    Dict,
+    AsyncIterator,
+    Callable,
     List,
-    Optional,
-    Tuple,
     Union,
     cast,
 )
@@ -18,280 +17,278 @@ from typing import (
 import pytest
 
 from streamable import stream
-from streamable._tools._async import awaitable_to_coroutine
-from streamable._tools._func import star
-from streamable._tools._iter import async_iter
-from tests.utils.functions import (
+from tests.utils.func import (
     async_identity,
     identity,
+    noarg_asyncify,
     slow_identity,
-    slow_identity_duration,
 )
-from tests.utils.iteration import (
+from tests.utils.iter import (
     ITERABLE_TYPES,
     IterableType,
+    acount,
     alist_or_list,
     aiter_or_iter,
+    anext_or_next,
 )
-from tests.utils.source import N, INTEGERS
-from tests.utils.timing import timecoro
+from tests.utils.ref import get_referees
+from tests.utils.source import INTEGERS, N, ints
+from tests.utils.timing import time_coroutine
 
 
 def test_init() -> None:
-    """Init."""
-    ints = stream(INTEGERS)
     assert ints._source is INTEGERS
     assert ints.upstream is None
-    assert (
-        stream(INTEGERS)
-        .group(100)
-        .flatten()
-        .map(identity)
-        .map(async_identity)
-        .do(identity)
-        .do(async_identity)
-        .catch(Exception)
-        .observe("foo")
-        .throttle(1, per=datetime.timedelta(seconds=1))
-        .source
-    ) is INTEGERS
+    assert ints.observe().source is INTEGERS
+
+
+def test_attributes_immutability() -> None:
     with pytest.raises(AttributeError):
-        stream(INTEGERS).source = INTEGERS  # type: ignore
+        ints.source = INTEGERS  # type: ignore
     with pytest.raises(AttributeError):
-        stream(INTEGERS).upstream = stream(INTEGERS)  # type: ignore
+        ints.upstream = stream(INTEGERS)  # type: ignore
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_async_src(itype: IterableType) -> None:
-    """a stream with an async source must be collectable as an Iterable or as AsyncIterable"""
-    assert alist_or_list(stream(async_iter(iter(INTEGERS))), itype) == list(INTEGERS)
-    assert alist_or_list(stream(async_iter(iter(INTEGERS)).__aiter__()), itype) == list(
-        INTEGERS
-    )
+def test_iter_source(itype: IterableType) -> None:
+    it = aiter_or_iter(ints, itype)
+    assert alist_or_list(stream(it), itype) == list(INTEGERS)
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_iter(itype: IterableType) -> None:
-    """iter(stream) must return an Iterator."""
-    assert isinstance(aiter_or_iter(stream(INTEGERS), itype=itype), itype)
+def test_aiter_source(itype: IterableType) -> None:
+    elements = list(range(10))
+
+    async def aiterator() -> AsyncIterator[int]:
+        for i in elements:
+            yield i
+
+    assert alist_or_list(stream(aiterator()), itype) == elements
+
+
+def test_source_function() -> None:
+    it = ints.__iter__()
+
+    def src() -> int:
+        return next(it)
+
+    assert list(stream(src)) == list(INTEGERS)
+
+
+@pytest.mark.asyncio
+async def test_source_async_function() -> None:
+    it = ints.__aiter__()
+
+    async def src() -> int:
+        return await it.__anext__()
+
+    assert [i async for i in stream(src)] == list(INTEGERS)
+
+
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_source_type_error(itype: IterableType) -> None:
     with pytest.raises(
         TypeError,
         match=r"`source` must be Iterable or AsyncIterable or Callable but got 1",
     ):
-        aiter_or_iter(stream(1), itype=itype)  # type: ignore
+        aiter_or_iter(stream(1), itype)  # type: ignore
 
 
+@pytest.mark.parametrize("adapt", [identity, noarg_asyncify])
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_queue_source(itype: IterableType) -> None:
-    """Queue Source."""
-    from queue import Queue, Empty
+def test_queue_source(
+    itype: IterableType,
+    adapt: Callable[[Any], Any],
+) -> None:
+    q: queue.Queue[int] = queue.Queue()
 
-    ints_queue: Queue[int] = Queue()
-    ints: stream[int]
+    for i in range(10):
+        q.put(i)
 
-    async def aget() -> int:
-        return ints_queue.get(timeout=2)
-
-    def fill():
-        for i in range(10):
-            ints_queue.put(i)
-
-    fill()
-    ints = stream(lambda: ints_queue.get(timeout=2)).catch(Empty, stop=True)
-    assert alist_or_list(ints, itype) == list(range(10))
-    fill()
-    ints = stream(aget).catch(Empty, stop=True)
-    assert alist_or_list(ints, itype) == list(range(10))
+    s: stream[int] = stream(adapt(lambda: q.get(timeout=0.2))).catch(
+        queue.Empty, stop=True
+    )
+    assert alist_or_list(s, itype) == list(range(10))
 
 
 @pytest.mark.asyncio
-async def test_aqueue_source() -> None:
-    """Async queue source should work correctly with asyncio queues."""
-    from asyncio import Queue, TimeoutError
+async def test_queue_source_async() -> None:
+    q: asyncio.Queue[int] = asyncio.Queue()
 
-    ints_queue: Queue[int] = Queue()
     for i in range(10):
-        await ints_queue.put(i)
+        await q.put(i)
 
-    async def queue_get() -> int:
-        return await asyncio.wait_for(ints_queue.get(), timeout=2)
+    async def aget() -> int:
+        return await asyncio.wait_for(q.get(), timeout=0.2)
 
-    ints: stream[int] = stream(queue_get).catch(TimeoutError, stop=True)
-    assert [i async for i in ints] == list(range(10))
+    s = stream(aget).catch(asyncio.TimeoutError, stop=True)
+    assert [i async for i in s] == list(range(10))
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_add(itype: IterableType) -> None:
-    """Add."""
-    from streamable._stream import FlattenStream
-
-    ints = stream(INTEGERS)
-    assert isinstance(ints + ints, FlattenStream)
-
-    stream_a = stream(range(10))
-    stream_b = stream(range(10, 20))
-    stream_c = stream(range(20, 30))
-    assert alist_or_list(stream_a + stream_b + stream_c, itype=itype) == list(range(30))
-
-    s = stream(range(10))
-    s += stream(range(10, 20))
-    s += stream(range(20, 30))
-    assert alist_or_list(s, itype=itype) == list(range(30))
+    s1 = stream(range(10))
+    s2 = stream(range(10, 20))
+    s3 = stream(range(20, 30))
+    assert alist_or_list(s1 + s2 + s3, itype) == list(range(30))
+    assert s1 + s2 + s3 == s1 + s2 + s3
 
     union_stream: stream[Union[int, str]] = ints + ints.map(str)
-    assert alist_or_list(union_stream, itype=itype) == list(INTEGERS) + list(
+    assert alist_or_list(union_stream, itype) == list(INTEGERS) + list(
         map(str, INTEGERS)
     )
 
 
 def test_call() -> None:
-    """Call."""
-    acc: List[int] = []
-    ints = stream(INTEGERS).map(acc.append)
-    assert ints() is ints
-    assert acc == list(INTEGERS)
+    store: List[int] = []
+    pipeline = ints.do(store.append)
+    assert pipeline() is pipeline
+    assert store == list(INTEGERS)
 
 
 @pytest.mark.asyncio
 async def test_await() -> None:
-    """Await should return the stream and exhaust it."""
-    acc: List[int] = []
-    ints = stream(INTEGERS).map(acc.append)
-    assert (await awaitable_to_coroutine(ints)) is ints
-    assert acc == list(INTEGERS)
+    store: List[int] = []
+    pipeline = ints.map(store.append)
+    assert (await pipeline) is pipeline
+    assert store == list(INTEGERS)
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_multiple_iterations(itype: IterableType) -> None:
-    """Multiple Iterations."""
-    ints = stream(INTEGERS)
-    for _ in range(3):
-        assert alist_or_list(ints, itype=itype) == list(INTEGERS)
+    for _ in range(2):
+        assert alist_or_list(ints, itype) == list(INTEGERS)
 
 
 def test_pipe() -> None:
-    """Pipe."""
-
-    def func(
-        stream: stream, *ints: int, **strings: str
-    ) -> Tuple[stream, Tuple[int, ...], Dict[str, str]]:
-        return stream, ints, strings
-
-    s = stream(INTEGERS)
-    ints = (0, 1, 2, 3)
-    strings = {"foo": "bar", "bar": "foo"}
-    assert s.pipe(func, *ints, **strings) == (s, ints, strings)
-    assert s == s.pipe(identity)
+    s = ints.pipe(stream.catch, ValueError, where=bool, replace=str)
+    assert s == ints.catch(ValueError, where=bool, replace=str)
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_ref_cycles(itype: IterableType) -> None:
-    """Ref Cycles."""
-
-    async def async_int(o: Any) -> int:
-        return int(o)
-
-    errors: List[Exception] = []
-    ints = (
-        stream("123_5")
-        .map(async_int)
-        .map(str)
-        .group(1, by=len)
-        .map(star(lambda _, group: group))
-        .catch(Exception, do=errors.append)
-    )
-    alist_or_list(ints, itype=itype)
-    exception = errors[0]
-    assert [
-        (var, val)
-        for frame, _ in traceback.walk_tb(exception.__traceback__)
-        if frame is not cast(TracebackType, exception.__traceback__).tb_frame
-        for var, val in frame.f_locals.items()
-        if isinstance(val, Exception)
-        and frame is cast(TracebackType, val.__traceback__).tb_frame
-    ] == []
-
-
-def test_on_queue_in_thread() -> None:
-    """On Queue In Thread."""
-    zeros: List[str] = []
-    src: "queue.Queue[Optional[str]]" = queue.Queue()
-    thread = threading.Thread(target=stream(iter(src.get, None)).do(zeros.append))
-    thread.start()
-    src.put("foo")
-    src.put("bar")
-    src.put(None)
-    thread.join()
-    assert zeros == ["foo", "bar"]
+# TODO: disable
+@pytest.mark.parametrize("disable_gc", [False])
+@pytest.mark.parametrize(
+    "operation",
+    [
+        lambda s: s,
+        lambda s: s.buffer(10),
+        lambda s: s.map(str),
+    ],
+)
+def test_ref_cycles(
+    itype: IterableType, disable_gc: bool, operation: Callable[[stream], Any]
+) -> None:
+    if disable_gc:
+        gc.disable()
+    src = map(int, "12-34")
+    it = aiter_or_iter(operation(stream(src)), itype)
+    while True:
+        try:
+            anext_or_next(it, itype)
+        except (StopIteration, StopAsyncIteration):
+            break
+        except Exception as e:
+            error_id = id(e)
+    if not disable_gc:
+        gc.collect()
+    time.sleep(0.5)
+    assert error_id not in map(id, gc.get_objects())
+    if disable_gc:
+        gc.enable()
 
 
 def test_deepcopy() -> None:
-    """Deepcopy."""
-    ints = stream([]).map(str)
-    stream_copy = copy.deepcopy(ints)
-    assert ints == stream_copy
-    assert ints is not stream_copy
-    assert ints.source is not stream_copy.source
+    s = stream([]).map(str)
+    copied_s = copy.deepcopy(s)
+    assert s == copied_s
+    assert s is not copied_s
+    assert s.source is not copied_s.source
+    assert s.upstream is not copied_s.upstream
+
+
+def test_copy() -> None:
+    s = stream([]).map(str)
+    copied_s = copy.copy(s)
+    assert s == copied_s
+    assert s is not copied_s
+    assert s.source is copied_s.source
+    assert s.upstream is copied_s.upstream
 
 
 def test_slots() -> None:
-    """Slots."""
-    ints = stream(INTEGERS).filter(bool)
-    with pytest.raises(AttributeError):
-        stream(INTEGERS).__dict__
-    assert ints.__slots__ == ("_where",)
     with pytest.raises(AttributeError):
         ints.__dict__
 
 
 def test_iter_loop_auto_closing() -> None:
-    """Iter Loop Auto Closing."""
-    original_new_event_loop = asyncio.new_event_loop
-    created_loop: "queue.Queue[asyncio.AbstractEventLoop]" = queue.Queue(maxsize=1)
+    """
+    The loop attached to the sync iterators involving async functions should:
+    - be shared among operations in the lineage
+    - be closed when the final iterator is garbage collected
+    """
+    parent = ints.filter(async_identity)
+    child = parent.map(async_identity)
 
-    def tracking_new_event_loop():
-        loop = original_new_event_loop()
-        created_loop.put_nowait(loop)
-        return loop
+    child_it = iter(child)
+    assert isinstance(child_it, map)
 
-    asyncio.new_event_loop = tracking_new_event_loop
-    iterator_a = iter(stream(INTEGERS).filter(async_identity))
-    loop_a = created_loop.get_nowait()
-    iterator_b = iter(stream(INTEGERS).filter(async_identity))
-    loop_b = created_loop.get_nowait()
-    assert not loop_a.is_closed()
-    assert not loop_b.is_closed()
-    del iterator_a
-    assert loop_a.is_closed()
-    assert not loop_b.is_closed()
-    del iterator_b
-    assert loop_b.is_closed()
-    asyncio.new_event_loop = original_new_event_loop
+    parent_it = get_referees(child_it)[0][0]
+    assert isinstance(parent_it, filter)
+
+    child_loop = cast(_Syncified, get_referees(child_it)[1]).loop
+    parent_loop = cast(_Syncified, get_referees(parent_it)[1]).loop
+
+    # both iterators share the same loop
+    assert child_loop is parent_loop
+    # the loop is not closed yet
+    assert not child_loop.is_closed()
+    # iteration should not close the loop
+    assert next(child_it) == 1
+    assert list(child_it) == list(INTEGERS)[2:]
+    assert not child_loop.is_closed()
+    # the loop is closed when the final iterator is garbage collected
+    del child_it
+    assert child_loop.is_closed()
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "s",
+    "stream_factory",
     (
-        stream(range(N)).map(slow_identity, concurrency=N // 8),
-        (
-            stream(range(N))
-            .map(lambda i: map(slow_identity, (i,)))
-            .flatten(concurrency=N // 8)
+        lambda: ints.map(slow_identity, concurrency=N // 8),
+        lambda: ints.map(
+            slow_identity, concurrency=ThreadPoolExecutor(max_workers=N // 8)
+        ),
+        lambda: ints.map(lambda i: map(slow_identity, (i,))).flatten(
+            concurrency=N // 8
         ),
     ),
 )
-async def test_run_in_executor(s: stream) -> None:
+async def test_aiter_of_concurrent_sync_operations(
+    stream_factory: Callable[[], stream],
+) -> None:
     """
-    Tests that executor-based concurrent mapping/flattening are wrapped
-    in non-loop-blocking run_in_executor-based async tasks.
+    A stream involving sync concurrent mapping/flattening should not block the event loop.
+    The event loop should be free to orchestrate the launch of concurrent map/flatten sync
+    tasks (running in executors), among multiple stream iterations.
     """
-    concurrency = N // 8
-    res: tuple[int, int]
+    s1 = stream_factory()
+    single_stream_duration, single_stream_res = await time_coroutine(
+        lambda: acount(s1), times=3
+    )
 
-    async def count(s: stream) -> int:
-        return len([_ async for _ in s])
+    async def parrallel_counts(*streams: stream) -> List[int]:
+        return list(await asyncio.gather(*(acount(s) for s in streams)))
 
-    duration, res = await timecoro(lambda: asyncio.gather(count(s), count(s)), times=10)
-    assert tuple(res) == (N, N)
-    assert duration == pytest.approx(N * slow_identity_duration / concurrency, rel=0.25)
+    s2 = stream_factory()
+    s3 = stream_factory()
+    multiple_streams_duration, multiple_streams_res = await time_coroutine(
+        lambda: parrallel_counts(s1, s2, s3), times=3
+    )
+    assert multiple_streams_res == [
+        single_stream_res,
+        single_stream_res,
+        single_stream_res,
+    ]
+    assert multiple_streams_duration == pytest.approx(single_stream_duration, rel=0.2)

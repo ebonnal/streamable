@@ -287,7 +287,7 @@ def test_distinct_example() -> None:
 
 
 def test_buffer_example() -> None:
-    pulled: list[int] = []
+    pulled: List[int] = []
     buffered_ints = stream(range(10)).do(pulled.append).buffer(5)
     assert next(iter(buffered_ints)) == 0
     assert pulled == [0, 1, 2, 3, 4, 5]
