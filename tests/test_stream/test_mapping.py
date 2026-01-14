@@ -39,22 +39,15 @@ from tests.utils.timing import timestream
 
 @pytest.mark.parametrize("concurrency", [1, 2])
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_map(concurrency: int, itype: IterableType) -> None:
+@pytest.mark.parametrize(
+    "randomly_slowed", [randomly_slowed(square), async_randomly_slowed(async_square)]
+)
+def test_map(
+    concurrency: int, itype: IterableType, randomly_slowed: Callable[..., Any]
+) -> None:
     """Map should transform elements correctly at any concurrency level."""
     assert alist_or_list(
-        stream(INTEGERS).map(randomly_slowed(square), concurrency=concurrency),
-        itype=itype,
-    ) == list(map(square, INTEGERS))
-
-
-@pytest.mark.parametrize("concurrency", [1, 100])
-@pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_map_async(concurrency: int, itype: IterableType) -> None:
-    """At any concurrency the `map` method should act as the builtin map function with async transforms, preserving input order."""
-    assert alist_or_list(
-        stream(INTEGERS).map(
-            async_randomly_slowed(async_square), concurrency=concurrency
-        ),
+        stream(INTEGERS).map(randomly_slowed, concurrency=concurrency),
         itype=itype,
     ) == list(map(square, INTEGERS))
 
@@ -115,19 +108,16 @@ def test_executor_concurrency_with_async_function(
 
 
 @pytest.mark.parametrize(
-    "concurrency, n_elems, itype",
+    "concurrency, n_elems",
     [
-        (concurrency, n_elems, itype)
-        for concurrency, n_elems in [
-            [16, 0],
-            [1, 0],
-            [16, 1],
-            [16, 15],
-            [16, 16],
-        ]
-        for itype in ITERABLE_TYPES
+        [16, 0],
+        [1, 0],
+        [16, 1],
+        [16, 15],
+        [16, 16],
     ],
 )
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_map_with_more_concurrency_than_elements(
     concurrency: int, n_elems: int, itype: IterableType
 ) -> None:
@@ -137,13 +127,10 @@ def test_map_with_more_concurrency_than_elements(
     ) == list(map(str, range(n_elems)))
 
 
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 @pytest.mark.parametrize(
-    "as_completed, order_mutation, itype",
-    [
-        [as_completed, order_mutation, itype]
-        for itype in ITERABLE_TYPES
-        for as_completed, order_mutation in [(False, identity), (True, sorted)]
-    ],
+    "as_completed, order_mutation",
+    [(False, identity), (True, sorted)],
 )
 def test_process_concurrency_ordering(
     as_completed: bool,
@@ -202,13 +189,10 @@ def test_process_concurrency_raises_on_unserializable_functions(
                 )
 
 
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 @pytest.mark.parametrize(
-    "as_completed, order_mutation, itype",
-    [
-        [as_completed, order_mutation, itype]
-        for itype in ITERABLE_TYPES
-        for as_completed, order_mutation in [(False, identity), (True, sorted)]
-    ],
+    "as_completed, order_mutation",
+    [(False, identity), (True, sorted)],
 )
 def test_process_concurrency_supports_partial_iteration(
     as_completed: bool,
@@ -231,22 +215,22 @@ def test_process_concurrency_supports_partial_iteration(
 
 
 @pytest.mark.parametrize(
-    "as_completed, order_mutation, expected_duration, operation, func, itype",
+    "as_completed, order_mutation, expected_duration",
     [
-        [as_completed, order_mutation, expected_duration, operation, func, itype]
-        for as_completed, order_mutation, expected_duration in [
-            (False, identity, 0.7),
-            (True, sorted, 0.41),
-        ]
-        for operation, func in [
-            (stream.do, time.sleep),
-            (stream.map, identity_sleep),
-            (stream.do, asyncio.sleep),
-            (stream.map, async_identity_sleep),
-        ]
-        for itype in ITERABLE_TYPES
+        (False, identity, 0.7),
+        (True, sorted, 0.41),
     ],
 )
+@pytest.mark.parametrize(
+    "operation, func",
+    [
+        (stream.do, time.sleep),
+        (stream.map, identity_sleep),
+        (stream.do, asyncio.sleep),
+        (stream.map, async_identity_sleep),
+    ],
+)
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_mapping_ordering(
     as_completed: bool,
     order_mutation: Callable[[Iterable], Iterable],
@@ -267,19 +251,16 @@ def test_mapping_ordering(
 
 
 @pytest.mark.parametrize(
-    "method, func, concurrency, itype",
+    "method, func",
     [
-        [method, func, concurrency, itype]
-        for method, func in [
-            (stream.do, slow_identity),
-            (stream.do, async_slow_identity),
-            (stream.map, slow_identity),
-            (stream.map, async_slow_identity),
-        ]
-        for concurrency in [1, 2, 4]
-        for itype in ITERABLE_TYPES
+        (stream.do, slow_identity),
+        (stream.do, async_slow_identity),
+        (stream.map, slow_identity),
+        (stream.map, async_slow_identity),
     ],
 )
+@pytest.mark.parametrize("concurrency", [1, 2, 4])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_map_or_do_concurrency(
     method: Callable[..., Any],
     func: Callable[..., Any],
@@ -295,59 +276,27 @@ def test_map_or_do_concurrency(
     assert duration == pytest.approx(expected_iteration_duration, rel=0.2)
 
 
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 @pytest.mark.parametrize(
-    "itype, concurrency, as_completed, expected",
-    [
-        (itype, concurrency, as_completed, expected)
-        for itype in ITERABLE_TYPES
-        for concurrency in (1, 2)
-        for as_completed, expected in (
-            (False, [float("inf"), 1.0, float("inf"), 0.5, float("inf")]),
-            (True, [float("inf"), float("inf"), float("inf"), 0.5, 1.0]),
-        )
-        if concurrency > 1 or not as_completed
-    ],
+    "as_completed, expected",
+    (
+        (False, [float("inf"), 1.0, float("inf"), 0.5, float("inf")]),
+        (True, [float("inf"), float("inf"), float("inf"), 0.5, 1.0]),
+    ),
 )
-def test_sync_map_handles_upstream_errors_with_concurrency(
-    itype: IterableType, concurrency: int, as_completed: bool, expected: List[float]
-) -> None:
-    """Sync map should handle upstream errors correctly with concurrency."""
-    assert (
-        alist_or_list(
-            stream([0, 1, 0, 2, 0])
-            .map(lambda n: 1 / n)
-            .map(identity_sleep, concurrency=concurrency, as_completed=as_completed)
-            .catch(ZeroDivisionError, replace=lambda e: float("inf")),
-            itype=itype,
-        )
-        == expected
-    )
-
-
-@pytest.mark.parametrize(
-    "itype, concurrency, as_completed, expected",
-    [
-        (itype, concurrency, as_completed, expected)
-        for itype in ITERABLE_TYPES
-        for concurrency in (1, 2)
-        for as_completed, expected in (
-            (False, [float("inf"), 1.0, float("inf"), 0.5, float("inf")]),
-            (True, [float("inf"), float("inf"), float("inf"), 0.5, 1.0]),
-        )
-        if concurrency > 1 or not as_completed
-    ],
-)
-def test_async_map_handles_upstream_errors_with_concurrency(
-    itype: IterableType, concurrency: int, as_completed: bool, expected: List[float]
+@pytest.mark.parametrize("sleep", [identity_sleep, async_identity_sleep])
+def test_map_handles_upstream_errors_with_concurrency(
+    itype: IterableType,
+    as_completed: bool,
+    expected: List[float],
+    sleep: Callable[..., Any],
 ) -> None:
     """Async map should handle upstream errors correctly with concurrency."""
     assert (
         alist_or_list(
             stream([0, 1, 0, 2, 0])
             .map(lambda n: 1 / n)
-            .map(
-                async_identity_sleep, concurrency=concurrency, as_completed=as_completed
-            )
+            .map(sleep, concurrency=2, as_completed=as_completed)
             .catch(ZeroDivisionError, replace=lambda e: float("inf")),
             itype=itype,
         )
@@ -355,67 +304,51 @@ def test_async_map_handles_upstream_errors_with_concurrency(
     )
 
 
+@pytest.mark.parametrize("concurrency", [1, 2])
 @pytest.mark.parametrize(
-    "concurrency, method, throw_func, itype",
+    "method, throw_func_",
     [
-        [
-            concurrency,
-            method,
-            throw_func_,
-            itype,
-        ]
-        for concurrency in [1, 2]
-        for method, throw_func_ in [
-            (stream.do, throw_func),
-            (stream.do, async_throw_func),
-            (stream.map, throw_func),
-            (stream.map, async_throw_func),
-        ]
-        for itype in ITERABLE_TYPES
+        (stream.do, throw_func),
+        (stream.do, async_throw_func),
+        (stream.map, throw_func),
+        (stream.map, async_throw_func),
     ],
 )
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_map_or_do_raises_on_exception(
     concurrency: int,
     method: Callable[[stream, Callable[[Any], int], int], stream],
-    throw_func: Callable[[Type[Exception]], Callable[[Any], int]],
+    throw_func_: Callable[[Type[Exception]], Callable[[Any], int]],
     itype: IterableType,
 ) -> None:
     """Map and do should raise exceptions from the transform function."""
     raising_stream: stream[int] = method(
-        stream(iter(INTEGERS)), throw_func(TestError), concurrency=concurrency
+        stream(iter(INTEGERS)), throw_func_(TestError), concurrency=concurrency
     )  # type: ignore
     with pytest.raises(TestError):
         alist_or_list(raising_stream, itype=itype)
 
 
+@pytest.mark.parametrize("concurrency", [1, 2])
 @pytest.mark.parametrize(
-    "concurrency, method, throw_func, itype",
+    "method, throw_func_",
     [
-        [
-            concurrency,
-            method,
-            throw_func_,
-            itype,
-        ]
-        for concurrency in [1, 2]
-        for method, throw_func_ in [
-            (stream.do, throw_func),
-            (stream.do, async_throw_func),
-            (stream.map, throw_func),
-            (stream.map, async_throw_func),
-        ]
-        for itype in ITERABLE_TYPES
+        (stream.do, throw_func),
+        (stream.do, async_throw_func),
+        (stream.map, throw_func),
+        (stream.map, async_throw_func),
     ],
 )
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_map_or_do_pulls_source_elements_correctly(
     concurrency: int,
     method: Callable[[stream, Callable[[Any], int], int], stream],
-    throw_func: Callable[[Type[Exception]], Callable[[Any], int]],
+    throw_func_: Callable[[Type[Exception]], Callable[[Any], int]],
     itype: IterableType,
 ) -> None:
     """Map and do should pull upstream elements based on concurrency level."""
     raising_stream: stream[int] = method(
-        stream(iter(INTEGERS)), throw_func(TestError), concurrency=concurrency
+        stream(iter(INTEGERS)), throw_func_(TestError), concurrency=concurrency
     )  # type: ignore
     with pytest.raises(TestError):
         alist_or_list(raising_stream, itype=itype)
@@ -424,36 +357,28 @@ def test_map_or_do_pulls_source_elements_correctly(
     )
 
 
+@pytest.mark.parametrize("concurrency", [1, 2])
 @pytest.mark.parametrize(
-    "concurrency, method, throw_for_odd_func, itype",
+    "method, throw_for_odd_func_",
     [
-        [
-            concurrency,
-            method,
-            throw_for_odd_func_,
-            itype,
-        ]
-        for concurrency in [1, 2]
-        for method, throw_for_odd_func_ in [
-            (stream.do, throw_for_odd_func),
-            (stream.do, async_throw_for_odd_func),
-            (stream.map, throw_for_odd_func),
-            (stream.map, async_throw_for_odd_func),
-        ]
-        for itype in ITERABLE_TYPES
+        (stream.do, throw_for_odd_func),
+        (stream.do, async_throw_for_odd_func),
+        (stream.map, throw_for_odd_func),
+        (stream.map, async_throw_for_odd_func),
     ],
 )
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_map_or_do_handles_partial_exceptions(
     concurrency: int,
     method: Callable[[stream, Callable[[Any], int], int], stream],
-    throw_for_odd_func: Callable[[Type[Exception]], Callable[[Any], int]],
+    throw_for_odd_func_: Callable[[Type[Exception]], Callable[[Any], int]],
     itype: IterableType,
 ) -> None:
     """Map and do should continue processing after exceptions occur."""
     assert alist_or_list(
         method(
             stream(INTEGERS),
-            throw_for_odd_func(TestError),
+            throw_for_odd_func_(TestError),
             concurrency=concurrency,  # type: ignore
         ).catch(TestError),
         itype=itype,

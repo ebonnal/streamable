@@ -95,15 +95,9 @@ def test_flatten_with_concurrency_greater_than_one(
     ) == Counter(list(it) * n_iterables + double_it)
 
 
-@pytest.mark.parametrize(
-    "concurrency, itype, to_iter",
-    [
-        (concurrency, itype, to_iter)
-        for concurrency in (1, 2)
-        for itype in ITERABLE_TYPES
-        for to_iter in (identity, async_iter)
-    ],
-)
+@pytest.mark.parametrize("concurrency", (1, 2))
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+@pytest.mark.parametrize("to_iter", (identity, async_iter))
 def test_flatten_handles_exceptions_in_iterables(
     concurrency: int,
     itype: IterableType,
@@ -149,15 +143,9 @@ def test_flatten_handles_exceptions_in_iterables(
     )
 
 
-@pytest.mark.parametrize(
-    "concurrency, itype, to_iter",
-    [
-        (concurrency, itype, to_iter)
-        for concurrency in (1, 2)
-        for itype in ITERABLE_TYPES
-        for to_iter in (identity, async_iter)
-    ],
-)
+@pytest.mark.parametrize("concurrency", (1, 2))
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+@pytest.mark.parametrize("to_iter", (identity, async_iter))
 def test_flatten_handles_upstream_exceptions(
     concurrency: int,
     itype: IterableType,
@@ -182,15 +170,9 @@ def test_flatten_handles_upstream_exceptions(
     )
 
 
-@pytest.mark.parametrize(
-    "concurrency, itype, to_iter",
-    [
-        (concurrency, itype, to_iter)
-        for concurrency in (1, 2)
-        for itype in ITERABLE_TYPES
-        for to_iter in (identity, async_iter)
-    ],
-)
+@pytest.mark.parametrize("concurrency", (1, 2))
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+@pytest.mark.parametrize("to_iter", (identity, async_iter))
 def test_flatten_handles_upstream_iter_errors(
     concurrency: int,
     itype: IterableType,
@@ -219,15 +201,9 @@ def test_flatten_handles_upstream_iter_errors(
     )
 
 
-@pytest.mark.parametrize(
-    "concurrency, itype, to_iter",
-    [
-        (concurrency, itype, to_iter)
-        for concurrency in (1, 2)
-        for itype in ITERABLE_TYPES
-        for to_iter in (identity, async_iter)
-    ],
-)
+@pytest.mark.parametrize("concurrency", (1, 2))
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+@pytest.mark.parametrize("to_iter", (identity, async_iter))
 def test_flatten_handles_empty_iterables(
     concurrency: int,
     itype: IterableType,
@@ -298,16 +274,13 @@ def test_flatten_heterogeneous_sync_async_elements(
 
 
 @pytest.mark.parametrize(
-    "itype, slow, to_iter",
-    [
-        (itype, slow, to_iter)
-        for slow, to_iter in (
-            (partial(stream.map, into=slow_identity), stream.__iter__),
-            (partial(stream.map, into=async_slow_identity), stream.__aiter__),
-        )
-        for itype in ITERABLE_TYPES
-    ],
+    "slow, to_iter",
+    (
+        (partial(stream.map, into=slow_identity), stream.__iter__),
+        (partial(stream.map, into=async_slow_identity), stream.__aiter__),
+    ),
 )
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_flatten_concurrency(
     itype: IterableType,
     slow: Callable[..., Any],
