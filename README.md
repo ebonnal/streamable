@@ -166,7 +166,7 @@ if __name__ == "__main__":
 
 ## ▼ `.do`
 
-Apply a side effect:
+Perform side effects:
 
 
 ```python

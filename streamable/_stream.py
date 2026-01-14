@@ -295,7 +295,9 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         up_to: int,
     ) -> "stream[T]":
         """
-        Buffer upstream elements via background tasks, decoupling upstream production rate from downstream consumption rate.
+        Buffer upstream elements via background tasks ``up_to`` a given buffer size.
+
+        It decouples upstream production rate from downstream consumption rate.
 
         The background tasks run in a thread during sync iteration, and via the event loop during async iteration.
 
@@ -377,9 +379,9 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         """
         Catch and handle exceptions raised upstream.
 
-        An exception is caught if it is of the type(s) provided in ``errors`` and if it satisfies the ``where`` predicate.
+        An exception is caught if it is of the ``errors`` type(s) provided in and if it satisfies the ``where`` predicate.
 
-        If an exception is caught, ``do`` will be called, then ``replace``, if provided.
+        When an exception is caught: the ``do`` callback is called, followed by ``replace``, if provided.
 
         Args:
             errors (``type[Exception] | tuple[type[Exception], ...]``): Exception type(s) to catch.
@@ -445,7 +447,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         where: Union[Callable[[T], Any], AsyncFunction[T, Any]] = bool,
     ) -> "stream[T]":
         """
-        Filter elements satisfying a predicate.
+        Filter elements ``where`` a predicate is truthy.
 
         Filter out falsy elements if no predicate provided.
 
@@ -626,11 +628,11 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         as_completed: bool = False,
     ) -> "stream[T]":
         """
-        Apply a side effect, yielding the upstream elements unchanged.
+        Perform a side ``effect`` on each upstream element, yielding them unchanged.
 
         Concurrency:
 
-          - Set the ``concurrency`` parameter to apply the side effect concurrently.
+          - Set the ``concurrency`` to apply the side effect concurrently.
 
           - Only ``concurrency`` upstream elements are pulled for processing; the next upstream element is pulled only when the side effect completes.
 
@@ -699,14 +701,14 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         by: Union[None, Callable[[T], U], AsyncFunction[T, U]] = None,
     ) -> "Union[stream[List[T]], stream[Tuple[U, List[T]]]]":
         """
-        Group elements into batch:
+        Group elements into batches:
         - ``up_to`` a given batch size
         - ``every`` given time interval
-        - ``by`` a given key
+        - ``by`` a given key, yielding ``(key, elements)`` pairs
 
         You can combine these parameters.
 
-        If an exception is encountered during grouping, the pending batch (if ``by`` was set, all pending batches) is yielded as is, then the exception is raised.
+        If an exception is encountered during grouping, the pending batch is yielded as is (all pending batches if ``by`` is set), then the exception is raised.
 
         Args:
             up_to (``int | None``, optional): If a batch reaches that number of elements, it is yielded.
@@ -772,7 +774,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         Concurrency:
 
-          - Set the ``concurrency`` parameter to apply the transformation concurrently.
+          - Set the ``concurrency`` to apply the transformation concurrently.
 
           - Only ``concurrency`` upstream elements are pulled for processing; the next upstream element is pulled only when a result is yielded downstream.
 
@@ -807,10 +809,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
     class Observation(NamedTuple):
         """
-        Represents the progress of iteration over a stream.
-
-        Passed to the ``do`` callback in ``.observe()`` to provide iteration progress
-        information.
+        Representation of the progress of iteration over a stream.
 
         Args:
             subject (``str``): Human-readable description of stream elements (e.g., "cats", "dogs", "requests").
@@ -831,15 +830,8 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             """
             Return a logfmt-formatted string representation.
 
-            Output follows the logfmt format, suitable for structured logging systems.
-
             Returns:
                 ``str``: Logfmt string with subject, elapsed, errors, and elements.
-
-            Example:
-                >>> obs = stream.Observation("pokemons", timedelta(seconds=5), 0, 100)
-                >>> str(obs)
-                'observed=pokemons elapsed=0:00:05 errors=0 elements=100'
             """
             subject = logfmt_str_escape(self.subject)
             elapsed = logfmt_str_escape(str(self.elapsed))
@@ -861,7 +853,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         - number of elements yielded by upstream
         - number of errors raised by upstream
 
-        Observations are passed to the ``do`` callback, the default emitting a log.
+        A ``stream.Observation`` is passed to the ``do`` callback (the default emits a log), at a frequency defined by ``every``.
 
         Args:
             subject (``str``, optional): Description of elements being observed.
@@ -909,7 +901,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         until: Union[int, Callable[[T], Any], AsyncFunction[T, Any]],
     ) -> "stream[T]":
         """
-        Skip a given number of elements from the start of the stream, or skip until a predicate is satisfied.
+        Skip a given number of elements, or skip ``until`` a predicate is satisfied.
 
         Args:
             until (``int | Callable[[T], Any] | AsyncCallable[T, Any]``): Skip control:
@@ -944,7 +936,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         until: Union[int, Callable[[T], Any], AsyncFunction[T, Any]],
     ) -> "stream[T]":
         """
-        Take a given number of elements from the start of the stream, or take until a predicate is satisfied, remaining upstream elements are not consumed.
+        Take a given number of elements, or take ``until`` a predicate is satisfied, remaining upstream elements are not consumed.
 
         Args:
             until (``int | Callable[[T], Any] | AsyncCallable[T, Any]``): Stop control:
@@ -973,9 +965,9 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         per: datetime.timedelta,
     ) -> "stream[T]":
         """
-        Limit to ``up_to`` elements or exceptions emitted ``per`` time window.
+        Limit to ``up_to`` emissions (elements or exceptions) ``per`` time window.
 
-        For each upstream element or exception, if fewer than ``up_to`` were emitted in the last ``per`` interval, emits it immediately; otherwise sleeps until oldest emission leaves the sliding window.
+        For each new upstream element or exception, if fewer than ``up_to`` were emitted in the last ``per`` interval, emits it immediately; otherwise sleeps until oldest emission leaves the sliding window.
 
         Args:
             up_to (``int``): Maximum emissions allowed in the sliding window (``per``). Must be >= 1.
