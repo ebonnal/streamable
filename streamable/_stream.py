@@ -310,9 +310,9 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         Example::
 
             pulled: list[int] = []
-            buffered_ints = stream(range(10)).do(pulled.append).buffer(2)
+            buffered_ints = stream(range(10)).do(pulled.append).buffer(5)
             assert next(iter(buffered_ints)) == 0
-            assert pulled == [0, 1, 2]
+            assert pulled == [0, 1, 2, 3, 4, 5]
         """
         validate_int(up_to, gte=0, name="up_to")
         return BufferStream(self, up_to)

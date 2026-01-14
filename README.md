@@ -380,10 +380,10 @@ pulled: list[int] = []
 buffered_ints = (
     stream(range(10))
     .do(pulled.append)
-    .buffer(2)
+    .buffer(5)
 )
 assert next(iter(buffered_ints)) == 0
-assert pulled == [0, 1, 2]
+assert pulled == [0, 1, 2, 3, 4, 5]
 ```
 
 ## ▼ `.observe`
