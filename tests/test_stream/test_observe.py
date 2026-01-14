@@ -5,12 +5,14 @@ import pytest
 
 from streamable import stream
 from streamable._tools._func import asyncify
-from tests.utils.functions import identity
-from tests.utils.iteration import (
+from tests.utils.error import TestError
+from tests.utils.func import identity, inverse, throw_func
+from tests.utils.iter import (
     ITERABLE_TYPES,
     IterableType,
-    aiterate_or_iterate,
+    aiter_or_iter,
     alist_or_list,
+    anext_or_next,
 )
 
 
@@ -31,68 +33,61 @@ class Counts(NamedTuple):
 THROTTLE_PER = datetime.timedelta(seconds=0.1)
 
 
-def inverse(
+def to_inverses(
     chars: Iterable[str],
     logs: List[Counts] = [],
     every: Union[None, int, datetime.timedelta] = None,
 ) -> stream[float]:
+    """
+    Convert characters to integers, inverse, throttle and observe them.
+    The potential `ValueError`s (`int("-")`) are observed and caught.
+    The potential `ZeroDivisionError`s (`inverse(0)`) are observed but not caught.
+    """
+
+    def do(obs: stream.Observation) -> None:
+        logs.append(Counts.from_observation(obs))
+
     return (
         stream(chars)
         .map(int)
-        .map(lambda n: 1 / n)
+        .map(inverse)
         .throttle(1, per=THROTTLE_PER)
-        .observe(
-            "inverses",
-            every=every,
-            do=lambda obs: logs.append(Counts.from_observation(obs)),
-        )
+        .observe("inverses", every=every, do=do)
         .catch(ValueError)
     )
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_observe_yields_upstream_elements(itype: IterableType) -> None:
-    """`observe` should yield upstream elements"""
-    assert alist_or_list(inverse("12---3456----7"), itype=itype) == list(
-        map(lambda n: 1 / n, range(1, 8))
-    )
+    s = to_inverses("12---3456----7")
+    assert alist_or_list(s, itype) == [1 / i for i in range(1, 8)]
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_observe_empty_stream(itype: IterableType) -> None:
-    """Observe Empty Stream."""
     logs: List[Counts] = []
 
-    assert alist_or_list(inverse("", logs), itype=itype) == []
+    assert alist_or_list(to_inverses("", logs), itype) == []
     assert logs == [Counts(errors=0, elements=0)]
 
 
+@pytest.mark.parametrize("every", [None, 2, datetime.timedelta(days=1)])
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_observe_every_none_reraises(itype: IterableType) -> None:
-    """Observe Every None Reraises."""
-    logs: List[Counts] = []
-
+def test_observe_reraises(
+    itype: IterableType, every: Union[None, int, datetime.timedelta]
+) -> None:
+    it = aiter_or_iter(to_inverses("10", every=every), itype)
+    assert anext_or_next(it, itype) == 1
     with pytest.raises(ZeroDivisionError):
-        alist_or_list(inverse("12---3456----07", logs), itype=itype)
-    assert logs == [
-        Counts(errors=0, elements=1),
-        Counts(errors=0, elements=2),
-        Counts(errors=1, elements=2),
-        Counts(errors=2, elements=2),
-        Counts(errors=3, elements=4),
-        Counts(errors=4, elements=6),
-        Counts(errors=8, elements=6),
-    ]
+        anext_or_next(it, itype)
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_observe_every_none_with_catch(itype: IterableType) -> None:
-    """Observe Every None With Catch."""
+    """Observe when error or element counts reach a power of 2"""
     logs: List[Counts] = []
-
-    alist_or_list(
-        inverse("12---3456----07", logs).catch(ZeroDivisionError), itype=itype
-    )
+    s = to_inverses("12---3456----07", logs).catch(ZeroDivisionError)
+    alist_or_list(s, itype)
     assert logs == [
         Counts(errors=0, elements=1),
         Counts(errors=0, elements=2),
@@ -106,10 +101,11 @@ def test_observe_every_none_with_catch(itype: IterableType) -> None:
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_observe_every_none_skips_redundant(itype: IterableType) -> None:
-    """Observe Every None Skips Redundant."""
+def test_observe_every_none_skips_last_observation_if_redundant(
+    itype: IterableType,
+) -> None:
     logs: List[Counts] = []
-    alist_or_list(inverse("12---3456----0", logs).catch(ZeroDivisionError), itype=itype)
+    alist_or_list(to_inverses("12---3456-", logs), itype)
     assert logs == [
         Counts(errors=0, elements=1),
         Counts(errors=0, elements=2),
@@ -117,16 +113,13 @@ def test_observe_every_none_skips_redundant(itype: IterableType) -> None:
         Counts(errors=2, elements=2),
         Counts(errors=3, elements=4),
         Counts(errors=4, elements=6),
-        Counts(errors=8, elements=6),
     ]
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_observe_every_1_reraises(itype: IterableType) -> None:
-    """Observe Every 2 Reraises."""
+def test_observe_every_1(itype: IterableType) -> None:
     logs: List[Counts] = []
-    with pytest.raises(ZeroDivisionError):
-        alist_or_list(inverse("12---3456----07", logs, every=1), itype=itype)
+    alist_or_list(to_inverses("12---3456-----", logs, every=1), itype)
     assert logs == [
         Counts(errors=0, elements=1),
         Counts(errors=0, elements=2),
@@ -146,11 +139,9 @@ def test_observe_every_1_reraises(itype: IterableType) -> None:
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_observe_every_2_reraises(itype: IterableType) -> None:
-    """Observe Every 2 Reraises."""
+def test_observe_every_2(itype: IterableType) -> None:
     logs: List[Counts] = []
-    with pytest.raises(ZeroDivisionError):
-        alist_or_list(inverse("12---3456----07", logs, every=2), itype=itype)
+    alist_or_list(to_inverses("12---3456-----", logs, every=2), itype)
     assert logs == [
         Counts(errors=0, elements=1),
         Counts(errors=0, elements=2),
@@ -165,12 +156,11 @@ def test_observe_every_2_reraises(itype: IterableType) -> None:
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_observe_every_2_with_catch(itype: IterableType) -> None:
-    """Observe Every 2 With Catch."""
+def test_observe_every_2_skips_last_observation_if_redundant(
+    itype: IterableType,
+) -> None:
     logs: List[Counts] = []
-    alist_or_list(
-        inverse("12---3456----07", logs, every=2).catch(ZeroDivisionError), itype=itype
-    )
+    alist_or_list(to_inverses("12---3456-", logs, every=2), itype)
     assert logs == [
         Counts(errors=0, elements=1),
         Counts(errors=0, elements=2),
@@ -179,90 +169,27 @@ def test_observe_every_2_with_catch(itype: IterableType) -> None:
         Counts(errors=3, elements=4),
         Counts(errors=3, elements=6),
         Counts(errors=4, elements=6),
-        Counts(errors=6, elements=6),
-        Counts(errors=8, elements=6),
-        Counts(errors=8, elements=7),
     ]
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_observe_every_2_skips_redundant(itype: IterableType) -> None:
-    """Observe Every 2 Skips Redundant."""
+def test_observe_every_timedelta_adds_last_observation(itype: IterableType) -> None:
     logs: List[Counts] = []
-    alist_or_list(
-        inverse("12---3456----0", logs, every=2).catch(ZeroDivisionError), itype=itype
-    )
-    assert logs == [
-        Counts(errors=0, elements=1),
-        Counts(errors=0, elements=2),
-        Counts(errors=1, elements=2),
-        Counts(errors=2, elements=2),
-        Counts(errors=3, elements=4),
-        Counts(errors=3, elements=6),
-        Counts(errors=4, elements=6),
-        Counts(errors=6, elements=6),
-        Counts(errors=8, elements=6),
-    ]
-
-
-@pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_observe_every_timedelta_reraises(itype: IterableType) -> None:
-    """Observe Every Timedelta Reraises."""
-    logs: List[Counts] = []
-    with pytest.raises(ZeroDivisionError):
-        aiterate_or_iterate(
-            inverse("12---3456----07", logs, every=datetime.timedelta(days=1)),
-            itype=itype,
-        )
-    assert logs == [Counts(errors=0, elements=0)]
-
-
-@pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_observe_every_timedelta_with_catch(itype: IterableType) -> None:
-    """Observe Every Timedelta With Catch."""
-    logs: List[Counts] = []
-    alist_or_list(
-        inverse("12---3456----07", logs, every=datetime.timedelta(days=1)).catch(
-            ZeroDivisionError
-        ),
-        itype=itype,
-    )
+    s = to_inverses("12---3456-----7", logs, every=datetime.timedelta(days=1))
+    alist_or_list(s, itype)
     assert logs == [
         Counts(errors=0, elements=0),
         Counts(errors=8, elements=7),
-    ]
-
-
-@pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_observe_every_timedelta_skips_redundant(itype: IterableType) -> None:
-    """Observe Every Timedelta Skips Redundant."""
-    logs: List[Counts] = []
-    alist_or_list(
-        inverse("12---3456----0", logs, every=datetime.timedelta(days=1)).catch(
-            ZeroDivisionError
-        ),
-        itype=itype,
-    )
-    assert logs == [
-        Counts(errors=0, elements=0),
-        Counts(errors=8, elements=6),
     ]
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_observe_every_timedelta_frequent(itype: IterableType) -> None:
-    """Observe with `every` slightly under slow_identity_duration should emit one log per yield/error."""
-
     logs: List[Counts] = []
-
-    alist_or_list(
-        inverse(
-            "12---3456----0",
-            logs,
-            every=datetime.timedelta(seconds=0.95 * THROTTLE_PER.total_seconds()),
-        ).catch(ZeroDivisionError),
-        itype=itype,
-    )
+    # slightly under slow_identity_duration
+    frequent_every = datetime.timedelta(seconds=0.95 * THROTTLE_PER.total_seconds())
+    s = to_inverses("12---3456-----", logs, every=frequent_every)
+    alist_or_list(s, itype)
     assert logs == [
         Counts(errors=0, elements=0),
         Counts(errors=0, elements=1),
@@ -287,14 +214,7 @@ def test_observe_every_timedelta_frequent(itype: IterableType) -> None:
 def test_observe_do(
     itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
 ) -> None:
-    """Observe Do."""
     observations: List[stream.Observation] = []
-    ints = list(range(8))
-    assert (
-        alist_or_list(
-            stream(ints).observe("ints", every=2, do=adapt(observations.append)),
-            itype,
-        )
-        == ints
-    )
+    s = stream(range(8)).observe("ints", every=2, do=adapt(observations.append))
+    alist_or_list(s, itype)
     assert [observation.elements for observation in observations] == [1, 2, 4, 6, 8]

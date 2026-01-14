@@ -4,6 +4,7 @@ import asyncio
 from typing import (
     AsyncIterable,
     AsyncIterator,
+    Callable,
     Iterator,
     Iterable,
     List,
@@ -16,6 +17,8 @@ from typing import (
 from streamable import stream
 from streamable._tools._async import awaitable_to_coroutine
 from typing import Tuple
+
+from streamable._tools._iter import SyncAsyncIterable, SyncToAsyncIterator
 
 IterableType = Union[Type[Iterable], Type[AsyncIterable]]
 ITERABLE_TYPES: Tuple[IterableType, ...] = (Iterable, AsyncIterable)
@@ -43,10 +46,17 @@ async def alist(iterable: AsyncIterable[T]) -> List[T]:
     return [_ async for _ in iterable]
 
 
+async def acount(iterator: AsyncIterable) -> int:
+    count = 0
+    async for _ in iterator:
+        count += 1
+    return count
+
+
 def aiter_or_iter(
     iterable: Union[Iterable[T], AsyncIterable[T]], itype: IterableType
 ) -> Union[Iterator[T], AsyncIterator[T]]:
-    """Get an iterator from a bi-iterable (supports both sync and async)."""
+    """Get an iterator from an iterable, sync or async according to `itype`."""
     if itype is AsyncIterable:
         return cast(AsyncIterator[T], iterable).__aiter__()
     return cast(Iterator[T], iterable).__iter__()
@@ -75,3 +85,19 @@ def aiterate_or_iterate(s: stream, itype: IterableType) -> None:
     if itype is AsyncIterable:
         asyncio.run(awaitable_to_coroutine(s))
     s()
+
+
+class SyncToBiIterable(SyncAsyncIterable[T]):
+    """Wrapper to make a sync iterable also async-iterable."""
+
+    def __init__(self, iterable: Iterable[T]):
+        self.iterable = iterable
+
+    def __iter__(self) -> Iterator[T]:
+        return self.iterable.__iter__()
+
+    def __aiter__(self) -> AsyncIterator[T]:
+        return SyncToAsyncIterator(self.iterable.__iter__())
+
+
+sync_to_bi_iterable: Callable[[Iterable[T]], SyncAsyncIterable[T]] = SyncToBiIterable

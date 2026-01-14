@@ -1,249 +1,269 @@
-from collections import Counter
-from typing import Any, Callable, List, Type
+from typing import Any, Callable, List, Union
 
 import pytest
 
 from streamable import stream
 from streamable._tools._func import asyncify
 from tests.utils.error import TestError
-from tests.utils.functions import identity, throw, throw_for_odd_func
-from tests.utils.iteration import (
+from tests.utils.func import async_identity, identity, inverse, throw_func
+from tests.utils.iter import (
     ITERABLE_TYPES,
     IterableType,
     alist_or_list,
     anext_or_next,
     aiter_or_iter,
-    stopiteration_type,
 )
-from tests.utils.source import INTEGERS
+from tests.utils.source import INTEGERS, ints
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_catch_yields_elements_without_exceptions(itype: IterableType) -> None:
-    """Catch should yield elements in exception-less scenarios."""
-    assert alist_or_list(stream(INTEGERS).catch(Exception), itype=itype) == list(
-        INTEGERS
-    )
+    s = ints.catch(Exception)
+    assert alist_or_list(s, itype) == list(INTEGERS)
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_catch_ignores_matching_exceptions(itype: IterableType) -> None:
-    """If the exception type matches, then the impacted element should be ignored."""
-
-    def fn(i):
-        return i / (3 - i)
-
-    s = stream(INTEGERS).map(fn)
-    safe_src = list(INTEGERS)
-    del safe_src[3]
-    assert alist_or_list(s.catch(ZeroDivisionError), itype=itype) == list(
-        map(fn, safe_src)
-    )
+    s = stream("12-34").map(int).catch(ValueError)
+    assert alist_or_list(s, itype) == [1, 2, 3, 4]
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_catch_raises_non_matching_exceptions(itype: IterableType) -> None:
-    """Catch should raise exceptions that don't match the specified exception type."""
-
-    def fn(i):
-        return i / (3 - i)
-
-    s = stream(INTEGERS).map(fn)
+    chars = "1-2034"
+    s = stream(chars).map(int).do(inverse).catch(ValueError)
+    stream_iter = aiter_or_iter(s, itype)
+    assert anext_or_next(stream_iter, itype) == 1
+    # ValueError caught for `int("-")`
+    assert anext_or_next(stream_iter, itype) == 2
     with pytest.raises(ZeroDivisionError):
-        alist_or_list(s.catch(TestError), itype=itype)
+        anext_or_next(stream_iter, itype)
+    assert anext_or_next(stream_iter, itype) == 3
+    assert anext_or_next(stream_iter, itype) == 4
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_catch_raises_first_non_caught_exception(itype: IterableType) -> None:
-    """Catch should raise the first non-caught exception that occurs."""
-    first_value = 1
-    second_value = 2
-    third_value = 3
-    functions = [
-        lambda: throw(TestError),
-        lambda: throw(TypeError),
-        lambda: first_value,
-        lambda: second_value,
-        lambda: throw(ValueError),
-        lambda: third_value,
-        lambda: throw(ZeroDivisionError),
-    ]
-
-    caught_erroring_stream: stream[int] = stream(map(lambda f: f(), functions)).catch(
-        TestError
-    )
-    with pytest.raises(TypeError):
-        alist_or_list(caught_erroring_stream, itype)
-
-
-@pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_catch_handles_only_exceptions(itype: IterableType) -> None:
-    """Catch should return empty list when upstream only raises exceptions, without recursion issues."""
-    only_caught_errors_stream = stream(
-        map(lambda _: throw(TestError), range(2000))
-    ).catch(TestError)
-    assert alist_or_list(only_caught_errors_stream, itype=itype) == []
-
-
-@pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_catch_raises_stopiteration_on_only_exceptions(itype: IterableType) -> None:
-    """Catch should raise StopIteration on first next() when upstream only raises exceptions."""
-    only_caught_errors_stream = stream(
-        map(lambda _: throw(TestError), range(2000))
-    ).catch(TestError)
-    with pytest.raises(stopiteration_type(itype)):
-        anext_or_next(
-            aiter_or_iter(only_caught_errors_stream, itype=itype), itype=itype
-        )
+def test_catch_handles_thousands_of_consecutive_exceptions(itype: IterableType) -> None:
+    s = stream(range(2000)).map(throw_func(TestError)).catch(TestError)
+    assert alist_or_list(s, itype) == []
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_catch_chained(itype: IterableType) -> None:
-    """Chained catch operations should handle multiple exception types correctly."""
-    iterator = aiter_or_iter(
-        stream(map(throw, [TestError, ValueError])).catch(ValueError).catch(TestError),
-        itype=itype,
+    chars = "1-2034"
+    s = stream(chars).map(int).do(inverse).catch(ValueError).catch(ZeroDivisionError)
+    assert alist_or_list(s, itype) == [1, 2, 3, 4]
+
+
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_catch_tuple(itype: IterableType) -> None:
+    chars = "1-2034"
+    s = stream(chars).map(int).do(inverse).catch((ValueError, ZeroDivisionError))
+    assert alist_or_list(s, itype) == [1, 2, 3, 4]
+
+
+@pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_catch_where(itype: IterableType, adapt: Callable[[Any], Any]) -> None:
+    inputs: List[Union[str, float]] = ["0", float("nan"), "1", "-", "2"]
+    s: stream[int] = (
+        stream(inputs)
+        .map(int)
+        .catch(ValueError, where=adapt(lambda e: "cannot convert float NaN" in str(e)))
     )
-    with pytest.raises(stopiteration_type(itype)):
-        anext_or_next(iterator, itype=itype)
-
-
-@pytest.mark.parametrize("adapt", [identity, asyncify])
-@pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_catch_where_clause(
-    itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
-) -> None:
-    """Catch does not catch if `where` not satisfied."""
-    with pytest.raises(TypeError):
-        alist_or_list(
-            stream(map(throw, [ValueError, TypeError])).catch(
-                Exception, where=adapt(lambda exc: "ValueError" in repr(exc))
-            ),
-            itype=itype,
-        )
-
-
-@pytest.mark.parametrize("adapt", [identity, asyncify])
-@pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_catch_replace_with_non_none(
-    itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
-) -> None:
-    """Catch should be able to yield a non-None replacement."""
-    assert alist_or_list(
-        stream(map(lambda n: 1 / n, [0, 1, 2, 4])).catch(
-            ZeroDivisionError,
-            replace=adapt(lambda e: float("inf")),
-        ),
-        itype=itype,
-    ) == [float("inf"), 1, 0.5, 0.25]
+    stream_iter = aiter_or_iter(s, itype)
+    assert anext_or_next(stream_iter, itype) == 0
+    # caught ValueError caused by `int("nan")`
+    assert anext_or_next(stream_iter, itype) == 1
+    # but did not catch ValueError caused by `int("-")`
+    with pytest.raises(
+        ValueError, match="invalid literal for int\(\) with base 10: '-'"
+    ):
+        anext_or_next(stream_iter, itype)
+    assert anext_or_next(stream_iter, itype) == 2
 
 
 @pytest.mark.parametrize("adapt", [identity, asyncify])
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_catch_replace_with_none(
-    itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
+    itype: IterableType, adapt: Callable[[Any], Any]
 ) -> None:
-    """Catch should be able to yield a None replacement."""
-    assert alist_or_list(
-        stream(map(lambda n: 1 / n, [0, 1, 2, 4])).catch(
-            ZeroDivisionError,
-            replace=adapt(lambda e: None),
-        ),
-        itype=itype,
-    ) == [None, 1, 0.5, 0.25]
+    s = stream("1-23").map(int).catch(ValueError, replace=adapt(lambda e: None))
+    elems: List[Union[int, None]] = alist_or_list(s, itype)
+    assert elems == [1, None, 2, 3]
 
 
 @pytest.mark.parametrize("adapt", [identity, asyncify])
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_catch_multiple_exception_types(
-    itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
-) -> None:
-    """Catch should accept multiple exception types and count them correctly."""
-    errors_counter: Counter[Type[Exception]] = Counter()
-    assert alist_or_list(
-        stream(
-            map(
-                lambda n: 1 / n,
-                map(
-                    throw_for_odd_func(TestError),
-                    map(
-                        int,
-                        "01234foo56789",
-                    ),
-                ),
-            )
-        ).catch(
-            (ValueError, TestError, ZeroDivisionError),
-            where=adapt(lambda exc: errors_counter.update([type(exc)]) is None),
-        ),
-        itype=itype,
-    ) == list(map(lambda n: 1 / n, range(2, 10, 2)))
-    assert errors_counter == {TestError: 5, ValueError: 3, ZeroDivisionError: 1}
-
-
-@pytest.mark.parametrize("adapt", [identity, asyncify])
-@pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_catch_do_side_effect(
-    itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
-) -> None:
-    """Catch should correctly apply do side effects for both sync and async combinations."""
+def test_catch_do(itype: IterableType, adapt: Callable[[Any], Any]) -> None:
+    ints = [1, 0, 2, 3]
     errors: List[Exception] = []
-    for where, do in (
-        (identity, adapt(errors.append)),
-        (adapt(identity), errors.append),
-    ):
-        errors.clear()
-        assert alist_or_list(
-            stream([0, 1, 0, 1, 0])
-            .map(lambda n: round(1 / n, 2))
-            .catch(ZeroDivisionError, where=where, do=do),
-            itype=itype,
-        ) == [1, 1]
-        assert len(errors) == 3
+    s = stream(ints).do(inverse).catch(ZeroDivisionError, do=adapt(errors.append))
+    assert alist_or_list(s, itype) == [1, 2, 3]
+    assert len(errors) == 1
+    assert isinstance(errors[0], ZeroDivisionError)
 
 
 @pytest.mark.parametrize("adapt", [identity, asyncify])
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_catch_do_raising(
-    itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
+def test_catch_with_do_raising(
+    itype: IterableType, adapt: Callable[[Any], Any]
 ) -> None:
+    """If `do` raises an exception, it is re-raised in place of the caught one."""
     ints = [0, 1, 0, 1, 0]
     errors: List[Exception] = []
-    reraising = (
+    s = (
         stream(ints)
         .map(lambda n: round(1 / n, 2))
-        .catch(ZeroDivisionError, do=adapt(lambda e: throw(TestError)))
+        .catch(ZeroDivisionError, do=throw_func(TestError))
         .catch(TestError, do=adapt(errors.append))
     )
-    assert alist_or_list(reraising, itype=itype) == [1, 1]
+    assert alist_or_list(s, itype) == [1, 1]
     assert len(errors) == ints.count(0)
 
 
+@pytest.mark.parametrize("adapt", [identity, asyncify])
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_catch_stop_on_exception(itype: IterableType) -> None:
-    """Test `stop` on exception."""
-    assert alist_or_list(
-        stream("01-3").map(int).catch(ValueError, stop=True),
-        itype,
-    ) == [0, 1]
+def test_catch_with_replace_raising(
+    itype: IterableType, adapt: Callable[[Any], Any]
+) -> None:
+    ints = [0, 1, 0, 1, 0]
+    s = (
+        stream(ints)
+        .map(lambda n: round(1 / n, 2))
+        .catch(ZeroDivisionError, replace=throw_func(TestError))
+        .catch(TestError, replace=adapt(lambda e: None))
+    )
+    assert alist_or_list(s, itype) == [None, 1, None, 1, None]
+
+
+@pytest.mark.parametrize("where", [identity, async_identity])
+@pytest.mark.parametrize("adapt_do", [identity, asyncify])
+@pytest.mark.parametrize("adapt_replace", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_catch_sync_async_params_combination(
+    where: Callable[[Exception], Any],
+    adapt_do: Callable[[Callable[[Any], Any]], Callable[[Any], Any]],
+    adapt_replace: Callable[[Callable[[Any], Any]], Callable[[Any], Any]],
+    itype: IterableType,
+) -> None:
+    """Catch supports passing a mix of regular and async functions for where, do and replace."""
+    errors: List[Exception] = []
+    s = (
+        stream([0, 1, 0, 1, 0])
+        .do(inverse)
+        .catch(
+            ZeroDivisionError,
+            where=where,
+            do=adapt_do(errors.append),
+            replace=adapt_replace(lambda e: None),
+        )
+    )
+    assert alist_or_list(s, itype) == [None, 1, None, 1, None]
+    assert len(errors) == 3
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_catch_stop_on_exception_not_satisfying_where(itype: IterableType) -> None:
-    """Test `stop` on exception not satisfying `where`."""
-    assert alist_or_list(
+def test_catch_stop(itype: IterableType) -> None:
+    s = stream("01-3").map(int).catch(ValueError, stop=True)
+    assert alist_or_list(s, itype) == [0, 1]
+
+
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_catch_stop_with_falsy_where(itype: IterableType) -> None:
+    """If `stop=True` but the exception does not satisfy `where`, the iteration should not stop."""
+    s = (
         stream("01-3")
         .map(int)
-        .catch(ValueError, where=lambda exc: False, stop=True)
-        .catch(ValueError),
-        itype,
-    ) == [0, 1, 3]
+        .catch(ValueError, where=lambda e: False, stop=True)
+        .catch(ValueError)
+    )
+    assert alist_or_list(s, itype) == [0, 1, 3]
+
+
+@pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_catch_stop_with_where_raising(
+    itype: IterableType, adapt: Callable[[Any], Any]
+) -> None:
+    """`stop=True` does not terminate the iteration if `where` raises."""
+    ints = [0, 1, 0, 1, 0]
+    s = (
+        stream(ints)
+        .map(lambda n: round(1 / n, 2))
+        .catch(ZeroDivisionError, where=throw_func(TestError), stop=True)
+        .catch(TestError)
+    )
+    assert alist_or_list(s, itype) == [1, 1]
+
+
+@pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_catch_stop_with_do_raising(
+    itype: IterableType, adapt: Callable[[Any], Any]
+) -> None:
+    """`stop=True` terminates the iteration even if `do` raises."""
+    ints = [1, 0, 1, 0]
+    s = (
+        stream(ints)
+        .map(lambda n: round(1 / n, 2))
+        .catch(ZeroDivisionError, do=throw_func(TestError), stop=True)
+        .catch(TestError)
+    )
+    assert alist_or_list(s, itype) == [1]
+
+
+@pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_catch_stop_with_replace_raising(
+    itype: IterableType, adapt: Callable[[Any], Any]
+) -> None:
+    """`stop=True` terminates the iteration even if `replace` raises."""
+    ints = [1, 0, 1, 0]
+    s = (
+        stream(ints)
+        .map(lambda n: round(1 / n, 2))
+        .catch(ZeroDivisionError, replace=throw_func(TestError), stop=True)
+        .catch(TestError)
+    )
+    assert alist_or_list(s, itype) == [1]
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_catch_stop_with_replacement(itype: IterableType) -> None:
     """Test `stop` on exception, with replacement as last elem."""
-    assert alist_or_list(
-        stream("01-3").map(int).catch(ValueError, stop=True, replace=lambda exc: -1),
-        itype,
-    ) == [0, 1, -1]
+    s = stream("01-3").map(int).catch(ValueError, stop=True, replace=lambda e: None)
+    assert alist_or_list(s, itype) == [0, 1, None]
+
+
+@pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_catch_replace_occurs_after_do(
+    itype: IterableType, adapt: Callable[[Any], Any]
+) -> None:
+    errors: List[Exception] = []
+    s = (
+        stream("-")
+        .map(int)
+        .catch(
+            ValueError, do=adapt(errors.append), replace=adapt(lambda e: len(errors))
+        )
+    )
+    assert alist_or_list(s, itype) == [len(errors)] == [1]
+
+
+@pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_catch_do_occurs_after_where(
+    itype: IterableType, adapt: Callable[[Any], Any]
+) -> None:
+    errors: List[Exception] = []
+    s = (
+        stream("-")
+        .map(int)
+        .catch(ValueError, where=adapt(lambda e: False), do=adapt(errors.append))
+    )
+    with pytest.raises(ValueError):
+        anext_or_next(aiter_or_iter(s, itype), itype)
+
+    assert errors == []

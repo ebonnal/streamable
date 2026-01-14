@@ -7,7 +7,7 @@ from typing import Any, Callable, List
 
 
 from streamable import stream
-from tests.utils.functions import async_identity, identity
+from tests.utils.func import async_identity, identity
 from tests.utils.source import INTEGERS
 
 ##############
