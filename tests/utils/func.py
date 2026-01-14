@@ -3,15 +3,9 @@
 import asyncio
 import random
 import time
-from typing import Callable, Iterator, Type, TypeVar
+from typing import Any, Callable, Coroutine, Iterator, Type, TypeVar, Union
 
 from streamable._tools._async import AsyncFunction
-from streamable._tools._iter import (
-    AsyncIterator,
-    Iterable,
-    SyncAsyncIterable,
-    SyncToAsyncIterator,
-)
 from tests.utils.error import TestError
 from tests.utils.source import N
 
@@ -32,6 +26,11 @@ async def async_identity(x: T) -> T:
 def square(x):
     """Square a number."""
     return x**2
+
+
+def inverse(n: Union[int, float]) -> float:
+    """Inverse a number."""
+    return 1 / n
 
 
 async def async_square(x):
@@ -72,23 +71,49 @@ def async_throw_for_odd_func(exc):
     return f
 
 
-slow_identity_duration = 0.05
+SLOW_IDENTITY_DURATION = 0.05
 
 
 def slow_identity(x: T) -> T:
     """Identity function that sleeps for a fixed duration."""
-    time.sleep(slow_identity_duration)
+    time.sleep(SLOW_IDENTITY_DURATION)
     return x
 
 
 async def async_slow_identity(x: T) -> T:
     """Async identity function that sleeps for a fixed duration."""
-    await asyncio.sleep(slow_identity_duration)
+    await asyncio.sleep(SLOW_IDENTITY_DURATION)
     return x
 
 
+def identity_sleep(seconds: float) -> float:
+    """Sleep and return the seconds value."""
+    time.sleep(seconds)
+    return seconds
+
+
+def inverse_sleep(seconds: float) -> float:
+    """Sleep for 1/seconds and return it."""
+    inv = inverse(seconds)
+    time.sleep(inv)
+    return inv
+
+
+async def async_identity_sleep(seconds: float) -> float:
+    """Async sleep and return the seconds value."""
+    await asyncio.sleep(seconds)
+    return seconds
+
+
+async def async_inverse_sleep(seconds: float) -> float:
+    """Sleep for 1/seconds and return it."""
+    inv = inverse(seconds)
+    await asyncio.sleep(inv)
+    return inv
+
+
 def randomly_slowed(
-    func: Callable[[T], R], min_sleep: float = 0.001, max_sleep: float = 0.05
+    func: Callable[[T], R], min_sleep: float = 0.001, max_sleep: float = 0.01
 ) -> Callable[[T], R]:
     """Wrap a function to add random sleep delay."""
 
@@ -102,7 +127,7 @@ def randomly_slowed(
 def async_randomly_slowed(
     async_func: AsyncFunction[T, R],
     min_sleep: float = 0.001,
-    max_sleep: float = 0.05,
+    max_sleep: float = 0.01,
 ) -> AsyncFunction[T, R]:
     """Wrap an async function to add random sleep delay."""
 
@@ -111,18 +136,6 @@ def async_randomly_slowed(
         return await async_func(x)
 
     return wrap
-
-
-def identity_sleep(seconds: float) -> float:
-    """Sleep and return the seconds value."""
-    time.sleep(seconds)
-    return seconds
-
-
-async def async_identity_sleep(seconds: float) -> float:
-    """Async sleep and return the seconds value."""
-    await asyncio.sleep(seconds)
-    return seconds
 
 
 def range_raising_at_exhaustion(
@@ -138,17 +151,8 @@ def src_raising_at_exhaustion() -> Iterator[int]:
     return range_raising_at_exhaustion(0, N, 1, TestError())
 
 
-class SyncToBiIterable(SyncAsyncIterable[T]):
-    """Wrapper to make a sync iterable also async-iterable."""
+def noarg_asyncify(fn: Callable[[], T]) -> Callable[[], Coroutine[Any, Any, T]]:
+    async def wrap() -> T:
+        return fn()
 
-    def __init__(self, iterable: Iterable[T]):
-        self.iterable = iterable
-
-    def __iter__(self) -> Iterator[T]:
-        return self.iterable.__iter__()
-
-    def __aiter__(self) -> AsyncIterator[T]:
-        return SyncToAsyncIterator(self.iterable.__iter__())
-
-
-sync_to_bi_iterable: Callable[[Iterable[T]], SyncAsyncIterable[T]] = SyncToBiIterable
+    return wrap

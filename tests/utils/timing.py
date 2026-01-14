@@ -14,12 +14,12 @@ from typing import (
 )
 
 from streamable._stream import stream
-from tests.utils.iteration import IterableType, alist_or_list
+from tests.utils.iter import IterableType, alist_or_list
 
 T = TypeVar("T")
 
 
-def timestream(
+def time_stream(
     stream: stream[T], times: int = 1, itype: IterableType = Iterable
 ) -> Tuple[float, List[T]]:
     """Time how long it takes to iterate a stream."""
@@ -32,7 +32,7 @@ def timestream(
     return timeit.timeit(iterate, number=times) / times, res
 
 
-async def timecoro(
+async def time_coroutine(
     afn: Callable[[], Union[Coroutine[None, None, T], "asyncio.Future[T]"]],
     times: int = 1,
 ) -> Tuple[float, T]:

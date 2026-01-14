@@ -1,276 +1,158 @@
 import datetime
-from operator import itemgetter
-from typing import Any, AsyncIterator, Callable, Iterator, List, Tuple, Union
-
+from typing import Any, Callable, List, Optional
+from datetime import timedelta
 import pytest
 
 from streamable import stream
 from streamable._tools._func import asyncify
-from tests.utils.error import TestError
-from tests.utils.functions import (
-    identity,
-    slow_identity,
-    slow_identity_duration,
-    src_raising_at_exhaustion,
-)
-from tests.utils.iteration import (
+from tests.utils.func import SLOW_IDENTITY_DURATION, identity, slow_identity
+from tests.utils.iter import (
     ITERABLE_TYPES,
     IterableType,
     alist_or_list,
-    anext_or_next,
-    aiter_or_iter,
 )
-from tests.utils.source import N, EVEN_INTEGERS, INTEGERS
 
 
-@pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_group_raises_on_invalid_every(itype: IterableType) -> None:
-    """Group should raise error when called with `every` <= 0."""
-    for seconds in [-1, 0]:
-        with pytest.raises(
-            ValueError,
-            match="`every` must be a positive timedelta but got datetime\.timedelta(.*)",
-        ):
-            alist_or_list(
-                stream([1]).group(up_to=100, every=datetime.timedelta(seconds=seconds)),
-                itype=itype,
-            )
-
-
-@pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_group_raises_on_invalid_up_to(itype: IterableType) -> None:
-    """Group should raise error when called with `up_to` < 1."""
-    for size in [-1, 0]:
-        with pytest.raises(ValueError):
-            alist_or_list(stream([1]).group(up_to=size), itype=itype)
-
-
-@pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_group_up_to(itype: IterableType) -> None:
-    """Group should collect elements into batches of specified size."""
-    assert alist_or_list(stream(range(6)).group(up_to=4), itype=itype) == [
-        [0, 1, 2, 3],
-        [4, 5],
-    ]
-    assert alist_or_list(stream(range(6)).group(up_to=2), itype=itype) == [
-        [0, 1],
-        [2, 3],
-        [4, 5],
-    ]
-    assert alist_or_list(stream([]).group(up_to=2), itype=itype) == []
-
-
-@pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_group_without_arguments(itype: IterableType) -> None:
-    """Group without arguments should group all elements together."""
-    assert anext_or_next(
-        aiter_or_iter(stream(INTEGERS).group(), itype=itype),
-        itype=itype,
-    ) == list(INTEGERS)
-
-
-@pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_group_with_exceptions(itype: IterableType) -> None:
-    """Group should handle exceptions correctly."""
-
-    def f(i):
-        return i / (110 - i)
-
-    stream_iterator = aiter_or_iter(stream(map(f, INTEGERS)).group(100), itype=itype)
-    anext_or_next(stream_iterator, itype=itype)
-    assert anext_or_next(stream_iterator, itype=itype) == list(map(f, range(100, 110)))
-    with pytest.raises(ZeroDivisionError):
-        anext_or_next(stream_iterator, itype=itype)
-
-    assert anext_or_next(stream_iterator, itype=itype) == list(map(f, range(111, 211)))
-
-
-@pytest.mark.parametrize("adapt", [identity, asyncify])
-@pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_group_every_parameter(
-    itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
+@pytest.mark.parametrize(
+    "every,repr_pattern",
+    [
+        (datetime.timedelta(), r"datetime\.timedelta\(0\)"),
+        (datetime.timedelta(days=-1), r"datetime\.timedelta\(days=-1\)"),
+    ],
+)
+def test_group_raises_on_non_positive(
+    every: datetime.timedelta, repr_pattern: str
 ) -> None:
-    """Group Every Parameter."""
-    assert alist_or_list(
-        stream(map(slow_identity, INTEGERS)).group(
-            up_to=100,
-            every=datetime.timedelta(seconds=slow_identity_duration / 1000),
+    with pytest.raises(
+        ValueError,
+        match=rf"`every` must be a positive timedelta but got {repr_pattern}",
+    ):
+        stream([1]).group(up_to=100, every=every)
+
+
+@pytest.mark.parametrize("up_to", [-1, 0])
+def test_group_raises_on_non_positive_up_to(up_to: int) -> None:
+    with pytest.raises(ValueError, match=f"`up_to` must be >= 1 but got {up_to}"):
+        stream([]).group(up_to=up_to)
+
+
+@pytest.mark.parametrize(
+    "upstream, up_to, by, every, expected",
+    [
+        # empty upstream
+        (stream([]), 4, None, None, []),
+        # no up_to
+        (stream(range(10)), None, None, None, [list(range(10))]),
+        # all groups full
+        (stream(range(10)), 2, None, None, [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]]),
+        # incomplete last group
+        (stream(range(10)), 4, None, None, [[0, 1, 2, 3], [4, 5, 6, 7], [8, 9]]),
+        # mono-element last group
+        (stream(range(10)), 3, None, None, [[0, 1, 2], [3, 4, 5], [6, 7, 8], [9]]),
+        # yield incomplete group on upstream exception
+        (
+            stream("01-23456789").map(int),
+            3,
+            None,
+            None,
+            [[0, 1], [2, 3, 4], [5, 6, 7], [8, 9]],
         ),
-        itype=itype,
-    ) == list(map(lambda e: [e], INTEGERS))
-    assert alist_or_list(
-        stream(map(slow_identity, INTEGERS))
-        .group(
-            up_to=100,
-            every=datetime.timedelta(seconds=slow_identity_duration / 1000),
-            by=adapt(lambda _: None),
-        )
-        .map(itemgetter(1)),
-        itype=itype,
-    ) == list(map(lambda e: [e], INTEGERS))
-    assert alist_or_list(
-        stream(map(slow_identity, INTEGERS)).group(
-            up_to=100,
-            every=datetime.timedelta(seconds=2 * slow_identity_duration * 0.99),
+        # by key
+        (
+            stream(range(10)),
+            2,
+            lambda n: n % 2,
+            None,
+            [(0, [0, 2]), (1, [1, 3]), (0, [4, 6]), (1, [5, 7]), (0, [8]), (1, [9])],
         ),
-        itype=itype,
-    ) == list(map(lambda e: [e, e + 1], EVEN_INTEGERS))
-
-
-@pytest.mark.parametrize("adapt", [identity, asyncify])
-@pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_group_by_key_basic(
-    itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
-) -> None:
-    """Group By Key Basic."""
-    groupby_stream_iter: Union[
-        Iterator[Tuple[int, List[int]]], AsyncIterator[Tuple[int, List[int]]]
-    ] = aiter_or_iter(
-        stream(INTEGERS).group(by=adapt(lambda n: n % 2), up_to=2), itype=itype
-    )
-    assert [
-        anext_or_next(groupby_stream_iter, itype=itype),
-        anext_or_next(groupby_stream_iter, itype=itype),
-    ] == [(0, [0, 2]), (1, [1, 3])]
-
-
-@pytest.mark.parametrize("adapt", [identity, asyncify])
-@pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_group_by_key_with_up_to(
-    itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
-) -> None:
-    """Group By Key With Up To."""
-    stream_iter = aiter_or_iter(
-        stream(INTEGERS).group(up_to=2, by=adapt(lambda n: n % 2)).map(itemgetter(1)),
-        itype=itype,
-    )
-    assert [
-        anext_or_next(stream_iter, itype=itype),
-        anext_or_next(stream_iter, itype=itype),
-    ] == [
-        [0, 2],
-        [1, 3],
-    ]
-    assert anext_or_next(
-        aiter_or_iter(
-            stream(src_raising_at_exhaustion())
-            .group(
-                up_to=10,
-                by=adapt(lambda n: n % 4 != 0),
-            )
-            .map(itemgetter(1)),
-            itype=itype,
+        # by with upstream exception, yield all pending groups FIFO
+        (
+            stream("01-23456789").map(int),
+            2,
+            lambda n: n % 2,
+            None,
+            [(0, [0]), (1, [1]), (0, [2, 4]), (1, [3, 5]), (0, [6, 8]), (1, [7, 9])],
         ),
-        itype=itype,
-    ) == [1, 2, 3, 5, 6, 7, 9, 10, 11, 13]
-
-
+        # by with by exception, yield all pending groups FIFO
+        (
+            stream("01-23456789"),
+            2,
+            lambda n: int(n) % 2,
+            None,
+            [
+                (0, ["0"]),
+                (1, ["1"]),
+                (0, ["2", "4"]),
+                (1, ["3", "5"]),
+                (0, ["6", "8"]),
+                (1, ["7", "9"]),
+            ],
+        ),
+        # every
+        (
+            stream(range(10)).map(slow_identity),
+            None,
+            None,
+            timedelta(seconds=3.9 * SLOW_IDENTITY_DURATION),
+            [[0, 1, 2, 3], [4, 5, 6, 7], [8, 9]],
+        ),
+        # every + by + up_to
+        (
+            stream(range(10)).map(slow_identity),
+            3,
+            lambda n: n % 2,
+            timedelta(seconds=3.9 * SLOW_IDENTITY_DURATION),
+            [
+                (0, [0, 2]),  # every triggers
+                (1, [1, 3, 5]),  # up_to triggers
+                (0, [4, 6, 8]),  # up_to triggers
+                (1, [7, 9]),  # exhausted
+            ],
+        ),
+        # every by: yield oldest pending group when every is elapsed
+        (
+            stream(range(10)).map(slow_identity),
+            None,
+            lambda n: n % 2,
+            timedelta(seconds=3.9 * SLOW_IDENTITY_DURATION),
+            [(0, [0, 2]), (1, [1, 3, 5, 7]), (0, [4, 6, 8]), (1, [9])],
+        ),
+        # every by with upstream exception, yield all pending groups FIFO
+        # when every triggers it only yields the oldest group
+        (
+            stream("01-23456789").map(slow_identity).map(int),
+            None,
+            lambda n: n % 2,
+            timedelta(seconds=3.9 * SLOW_IDENTITY_DURATION),
+            [(0, [0]), (1, [1]), (0, [2, 4]), (1, [3, 5, 7, 9]), (0, [6, 8])],
+        ),
+        # every by with by exception, yield all pending groups FIFO
+        # when every triggers it only yields the oldest group
+        (
+            stream("01-23456789").map(slow_identity),
+            None,
+            lambda n: int(n) % 2,
+            timedelta(seconds=3.9 * SLOW_IDENTITY_DURATION),
+            [
+                (0, ["0"]),
+                (1, ["1"]),
+                (0, ["2", "4"]),
+                (1, ["3", "5", "7", "9"]),
+                (0, ["6", "8"]),
+            ],
+        ),
+    ],
+)
 @pytest.mark.parametrize("adapt", [identity, asyncify])
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_group_by_key_infinite_size(
-    itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
+def test_group_cases(
+    itype: IterableType,
+    upstream: stream[Any],
+    up_to: int,
+    by: Optional[Callable[[int], int]],
+    every: Optional[datetime.timedelta],
+    expected: List[List[int]],
+    adapt: Callable[[Any], Any],
 ) -> None:
-    """Group By Key Infinite Size."""
-    assert alist_or_list(
-        stream(INTEGERS).group(by=adapt(lambda n: n % 2)).map(itemgetter(1)),
-        itype=itype,
-    ) == [
-        list(range(0, N, 2)),
-        list(range(1, N, 2)),
-    ]
-
-
-@pytest.mark.parametrize("adapt", [identity, asyncify])
-@pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_group_by_key_on_exhaustion(
-    itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
-) -> None:
-    """Group By Key On Exhaustion."""
-    assert alist_or_list(
-        stream(range(10)).group(by=adapt(lambda n: n % 4 == 0)).map(itemgetter(1)),
-        itype=itype,
-    ) == [[0, 4, 8], [1, 2, 3, 5, 6, 7, 9]]
-
-
-@pytest.mark.parametrize("adapt", [identity, asyncify])
-@pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_group_by_key_with_exceptions(
-    itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
-) -> None:
-    """Group By Key With Exceptions."""
-    stream_iter = aiter_or_iter(
-        stream(src_raising_at_exhaustion())
-        .group(by=adapt(lambda n: n % 2))
-        .map(itemgetter(1)),
-        itype=itype,
-    )
-    assert [
-        anext_or_next(stream_iter, itype=itype),
-        anext_or_next(stream_iter, itype=itype),
-    ] == [
-        list(range(0, N, 2)),
-        list(range(1, N, 2)),
-    ]
-    with pytest.raises(TestError):
-        anext_or_next(stream_iter, itype=itype)
-
-
-@pytest.mark.parametrize("adapt", [identity, asyncify])
-@pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_group_by_fifo_yield_on_exhaustion(
-    itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
-) -> None:
-    """Group by key should yield groups in FIFO order on exhaustion."""
-    assert alist_or_list(
-        stream([1, 2, 3, 3, 2, 1]).group(by=adapt(str)), itype=itype
-    ) == [
-        ("1", [1, 1]),
-        ("2", [2, 2]),
-        ("3", [3, 3]),
-    ]
-
-
-@pytest.mark.parametrize("adapt", [identity, asyncify])
-@pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_group_by_fifo_yield_on_upstream_exception(
-    itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
-) -> None:
-    """Group by key should yield groups in FIFO order on upstream exception."""
-    assert alist_or_list(
-        stream([1, 2, 2, 0, 3, 1, 3, 2, 2, 3])
-        .do(adapt(lambda n: 1 / n))
-        .group(by=adapt(str))
-        .catch(ZeroDivisionError),
-        itype=itype,
-    ) == [("1", [1]), ("2", [2, 2]), ("3", [3, 3, 3]), ("1", [1]), ("2", [2, 2])]
-
-
-@pytest.mark.parametrize("adapt", [identity, asyncify])
-@pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_group_by_fifo_yield_on_by_exception(
-    itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
-) -> None:
-    """Group by key should yield groups in FIFO order when by function raises."""
-    assert alist_or_list(
-        stream([1, 2, 2, 0, 3, 1, 3, 2, 2, 3])
-        .group(by=adapt(lambda n: 1 / n))
-        .catch(ZeroDivisionError),
-        itype=itype,
-    ) == [(1, [1]), (1 / 2, [2, 2]), (1 / 3, [3, 3, 3]), (1, [1]), (1 / 2, [2, 2])]
-
-
-@pytest.mark.parametrize("adapt", [identity, asyncify])
-@pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_group_by_fifo_yield_on_every_elapsed(
-    itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
-) -> None:
-    """Group by key should yield groups in FIFO order when every interval elapses."""
-    assert alist_or_list(
-        stream(map(slow_identity, [1, 2, 2, 2, 2, 3, 3, 1, 3]))
-        .group(
-            by=adapt(str),
-            every=datetime.timedelta(seconds=2.9 * slow_identity_duration),
-        )
-        .catch(ZeroDivisionError),
-        itype=itype,
-    ) == [("1", [1]), ("2", [2, 2, 2, 2]), ("3", [3, 3, 3]), ("1", [1])]
+    s = upstream.group(up_to=up_to, by=adapt(by), every=every).catch(ValueError)
+    assert alist_or_list(s, itype) == expected

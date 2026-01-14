@@ -20,7 +20,7 @@ T = TypeVar("T")
 R = TypeVar("R")
 
 
-class _Sidify(Generic[T]):
+class _Sidified(Generic[T]):
     __slots__ = ("func",)
 
     def __init__(self, func: Callable[[T], Any]) -> None:
@@ -49,7 +49,7 @@ def sidify(func: Callable[[T], Any]) -> Callable[[T], Union[T, Coroutine[Any, An
             return arg
 
         return wrap
-    return _Sidify(func)
+    return _Sidified(func)
 
 
 class _Star(Generic[R]):
@@ -121,7 +121,7 @@ def star(func: Callable[..., R]) -> Callable[[Tuple[Any, ...]], R]:
     return _Star(func)
 
 
-class _Syncify(Generic[T, R], LoopClosingMixin):
+class _Syncified(Generic[T, R], LoopClosingMixin):
     __slots__ = ("async_func", "loop")
 
     def __init__(
@@ -163,7 +163,7 @@ def syncify(
 ) -> Optional[Callable[[T], R]]:
     if not async_func or not iscoroutinefunction(async_func):
         return cast(Optional[Callable[[T], R]], async_func)
-    return _Syncify(loop_getter(), async_func)
+    return _Syncified(loop_getter(), async_func)
 
 
 async def _async_call(func: Callable[[T], R], o: T) -> R:
