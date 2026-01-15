@@ -38,9 +38,12 @@ async def async_square(x):
     return x**2
 
 
-def throw(exc: Type[Exception]):
+def throw(exc: Union[Type[Exception], Exception]):
     """Raise an exception."""
-    raise exc()
+    if isinstance(exc, Exception):
+        raise exc
+    else:
+        raise exc()
 
 
 def throw_func(exc: Type[Exception]) -> Callable[[T], T]:

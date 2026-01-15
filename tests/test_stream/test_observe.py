@@ -6,7 +6,7 @@ import pytest
 from streamable import stream
 from streamable._tools._func import asyncify
 from tests.utils.error import TestError
-from tests.utils.func import identity, inverse, throw_func
+from tests.utils.func import identity, inverse, throw, throw_func
 from tests.utils.iter import (
     ITERABLE_TYPES,
     IterableType,
@@ -211,10 +211,51 @@ def test_observe_every_timedelta_frequent(itype: IterableType) -> None:
 
 @pytest.mark.parametrize("adapt", [identity, asyncify])
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_observe_do(
-    itype: IterableType, adapt: Callable[[Callable[[Any], Any]], Callable[[Any], Any]]
-) -> None:
+def test_observe_do(itype: IterableType, adapt: Callable[[Any], Any]) -> None:
     observations: List[stream.Observation] = []
     s = stream(range(8)).observe("ints", every=2, do=adapt(observations.append))
     alist_or_list(s, itype)
     assert [observation.elements for observation in observations] == [1, 2, 4, 6, 8]
+
+
+@pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_observe_do_raising_every_n(
+    itype: IterableType, adapt: Callable[[Any], Any]
+) -> None:
+    errors: List[Exception] = []
+    elements = [1, 2, 3, 4, 5, 6, 7]
+    s = (
+        stream(elements)
+        .observe("ints", every=2, do=adapt(throw_func(TestError)))
+        .catch(TestError, do=errors.append)
+    )
+    assert alist_or_list(s, itype) == elements
+    assert len(errors) == 4
+
+
+@pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_observe_do_raising_with_every_timedelta(
+    itype: IterableType, adapt: Callable[[Any], Any]
+) -> None:
+    """
+    When every has a faster rate than upstream, the errors should not accumulate
+    and only the latest should be emitted on the next `__next__` call.
+    """
+    errors: List[Exception] = []
+    elements = [0, 1, 2, 3, 4, 5, 6]
+    s = (
+        stream(elements)
+        .observe(
+            "ints",
+            every=datetime.timedelta(milliseconds=10),
+            do=adapt(lambda obs: throw(TestError(obs.elements))),
+        )
+        .catch(TestError, do=errors.append)
+        .throttle(1, per=datetime.timedelta(milliseconds=200))
+    )
+    assert alist_or_list(s, itype) == elements
+    # close to one error raised per element
+    assert len(elements) - 1 <= len(errors) <= len(elements)
+    assert int(str(errors[-1])) == 7

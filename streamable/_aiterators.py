@@ -396,10 +396,12 @@ class _BaseObserveAsyncIterator(AsyncIterator[T]):
         "do",
         "_elements",
         "_errors",
-        "_emissions_logged",
-        "_elements_logged",
-        "_errors_logged",
+        "_emissions_observed",
+        "_elements_observed",
+        "_errors_observed",
         "_active",
+        "_to_raise",
+        "_just_raised",
         "_start_point",
     )
 
@@ -414,10 +416,12 @@ class _BaseObserveAsyncIterator(AsyncIterator[T]):
         self.do = do
         self._elements = 0
         self._errors = 0
-        self._emissions_logged = 0
-        self._elements_logged = 0
-        self._errors_logged = 0
+        self._emissions_observed = 0
+        self._elements_observed = 0
+        self._errors_observed = 0
         self._active = False
+        self._to_raise: Optional[Exception] = None
+        self._just_raised = False
         self._start_point: datetime.datetime
 
     @property
@@ -438,38 +442,50 @@ class _BaseObserveAsyncIterator(AsyncIterator[T]):
     def _time_point() -> datetime.datetime:
         return datetime.datetime.fromtimestamp(time.perf_counter())
 
-    def _activate(self) -> None:
+    async def _activate(self) -> None:
         self._start_point = self._time_point()
         self._active = True
 
     async def _observe(self) -> None:
-        await self.do(self._observation())
-        self._emissions_logged = self._emissions
+        self._emissions_observed = self._emissions
+        try:
+            await self.do(self._observation())
+        except Exception as e:
+            self._to_raise = e
+
+    def _raise_next(self) -> None:
+        if self._to_raise and not self._just_raised:
+            self._just_raised = True
+            try:
+                raise self._to_raise
+            finally:
+                self._to_raise = None
+        self._just_raised = False
 
     @abstractmethod
-    def _threshold(self, logged: int) -> int: ...
+    def _threshold(self, observed: int) -> int: ...
 
     async def __anext__(self) -> T:
         if not self._active:
-            self._activate()
-            await asyncio.sleep(0)
+            await self._activate()
+        self._raise_next()
         try:
             elem = await self.iterator.__anext__()
             self._elements += 1
-            if self._elements >= self._threshold(self._elements_logged):
+            if self._elements >= self._threshold(self._elements_observed):
                 await self._observe()
-                self._elements_logged = self._elements
+                self._elements_observed = self._elements
             return elem
         except StopAsyncIteration:
-            if not self._emissions or self._emissions > self._emissions_logged:
+            if not self._emissions or self._emissions > self._emissions_observed:
                 await self._observe()
             self._active = False
             raise
         except Exception:
             self._errors += 1
-            if self._errors >= self._threshold(self._errors_logged):
+            if self._errors >= self._threshold(self._errors_observed):
                 await self._observe()
-                self._errors_logged = self._errors
+                self._errors_observed = self._errors
             raise
 
 
@@ -486,8 +502,8 @@ class PowerObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
         super().__init__(iterator, subject, do)
         self.base = base
 
-    def _threshold(self, logged: int) -> int:
-        return self.base * logged
+    def _threshold(self, observed: int) -> int:
+        return self.base * observed
 
 
 class EveryIntObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
@@ -503,12 +519,12 @@ class EveryIntObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
         super().__init__(iterator, subject, do)
         self.every = every
 
-    def _threshold(self, logged: int) -> int:
-        if logged == 0:
+    def _threshold(self, observed: int) -> int:
+        if not observed:
             return 0
-        elif logged == 1:
+        if observed == 1:
             return self.every
-        return logged + self.every
+        return observed + self.every
 
 
 class EveryIntervalObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
@@ -530,11 +546,12 @@ class EveryIntervalObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
             await self._observe()
             await asyncio.sleep(every_seconds)
 
-    def _activate(self) -> None:
-        super()._activate()
+    async def _activate(self) -> None:
+        await super()._activate()
         asyncio.create_task(self._observer())
+        await asyncio.sleep(0)
 
-    def _threshold(self, logged: int) -> int:
+    def _threshold(self, observed: int) -> int:
         return cast(int, float("inf"))
 
 
