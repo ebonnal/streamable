@@ -362,11 +362,13 @@ class _BaseObserveIterator(Iterator[T]):
         "do",
         "_elements",
         "_errors",
-        "_emissions_logged",
-        "_elements_logged",
-        "_errors_logged",
+        "_emissions_observed",
+        "_elements_observed",
+        "_errors_observed",
         "_active",
+        "_to_raise",
         "_start_point",
+        "_just_raised",
     )
 
     def __init__(
@@ -380,10 +382,12 @@ class _BaseObserveIterator(Iterator[T]):
         self.do = do
         self._elements = 0
         self._errors = 0
-        self._emissions_logged = 0
-        self._elements_logged = 0
-        self._errors_logged = 0
+        self._emissions_observed = 0
+        self._elements_observed = 0
+        self._errors_observed = 0
         self._active = False
+        self._to_raise: Optional[Exception] = None
+        self._just_raised = False
         self._start_point: datetime.datetime
 
     @property
@@ -409,32 +413,45 @@ class _BaseObserveIterator(Iterator[T]):
         self._active = True
 
     def _observe(self) -> None:
-        self.do(self._observation())
-        self._emissions_logged = self._emissions
+        self._emissions_observed = self._emissions
+        try:
+            self.do(self._observation())
+        except Exception as e:
+            self._to_raise = e
+
+    def _raise_next(self) -> None:
+        if self._to_raise and not self._just_raised:
+            self._just_raised = True
+            try:
+                raise self._to_raise
+            finally:
+                self._to_raise = None
+        self._just_raised = False
 
     @abstractmethod
-    def _threshold(self, logged: int) -> int: ...
+    def _threshold(self, observed: int) -> int: ...
 
     def __next__(self) -> T:
         if not self._active:
             self._activate()
+        self._raise_next()
         try:
             elem = self.iterator.__next__()
             self._elements += 1
-            if self._elements >= self._threshold(self._elements_logged):
+            if self._elements >= self._threshold(self._elements_observed):
                 self._observe()
-                self._elements_logged = self._elements
+                self._elements_observed = self._elements
             return elem
         except StopIteration:
-            if not self._emissions or self._emissions > self._emissions_logged:
+            if not self._emissions or self._emissions > self._emissions_observed:
                 self._observe()
             self._active = False
             raise
         except Exception:
             self._errors += 1
-            if self._errors >= self._threshold(self._errors_logged):
+            if self._errors >= self._threshold(self._errors_observed):
                 self._observe()
-                self._errors_logged = self._errors
+                self._errors_observed = self._errors
             raise
 
 
@@ -451,8 +468,8 @@ class PowerObserveIterator(_BaseObserveIterator[T]):
         super().__init__(iterator, subject, do)
         self.base = base
 
-    def _threshold(self, logged: int) -> int:
-        return self.base * logged
+    def _threshold(self, observed: int) -> int:
+        return self.base * observed
 
 
 class EveryIntObserveIterator(_BaseObserveIterator[T]):
@@ -468,12 +485,12 @@ class EveryIntObserveIterator(_BaseObserveIterator[T]):
         super().__init__(iterator, subject, do)
         self.every = every
 
-    def _threshold(self, logged: int) -> int:
-        if logged == 0:
+    def _threshold(self, observed: int) -> int:
+        if not observed:
             return 0
-        elif logged == 1:
+        if observed == 1:
             return self.every
-        return logged + self.every
+        return observed + self.every
 
 
 class EveryIntervalObserveIterator(_BaseObserveIterator[T]):
@@ -499,7 +516,7 @@ class EveryIntervalObserveIterator(_BaseObserveIterator[T]):
         super()._activate()
         Thread(target=self._observer, daemon=True).start()
 
-    def _threshold(self, logged: int) -> int:
+    def _threshold(self, observed: int) -> int:
         return cast(int, float("inf"))
 
 
