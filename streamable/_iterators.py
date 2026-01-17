@@ -1,7 +1,5 @@
 import asyncio
 import datetime
-import multiprocessing
-import queue
 import sys
 from threading import Thread
 import time
@@ -633,7 +631,6 @@ class _BaseConcurrentMapIterable(
     @abstractmethod
     def _launch_task(self, elem: T) -> "Future[Union[U, ExceptionContainer]]": ...
 
-    # factory method
     @abstractmethod
     def _future_result_collection(
         self,
@@ -699,11 +696,7 @@ class _ExecutorConcurrentMapIterable(_BaseConcurrentMapIterable[T, U]):
         self,
     ) -> FutureResultCollection[Union[U, ExceptionContainer]]:
         if self.as_completed:
-            return ExecutorFDFOFutureResultCollection(
-                queue.Queue
-                if isinstance(self.executor, ThreadPoolExecutor)
-                else multiprocessing.Queue
-            )
+            return ExecutorFDFOFutureResultCollection()
         return ExecutorFIFOFutureResultCollection()
 
 

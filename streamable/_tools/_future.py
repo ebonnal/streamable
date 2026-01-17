@@ -2,7 +2,7 @@ import asyncio
 from abc import abstractmethod
 from collections import deque
 from concurrent.futures import Future
-from contextlib import suppress
+from queue import Queue
 import sys
 from typing import (
     Awaitable,
@@ -10,15 +10,11 @@ from typing import (
     Generator,
     Iterator,
     Sized,
-    Type,
     TypeVar,
     Union,
     cast,
 )
 
-
-with suppress(ImportError):
-    from streamable._tools._queue import Queue
 
 T = TypeVar("T")
 
@@ -95,9 +91,9 @@ class ExecutorFDFOFutureResultCollection(FDFOFutureResultCollection[T]):
 
     __slots__ = ()
 
-    def __init__(self, queue_type: Type["Queue"]) -> None:
+    def __init__(self) -> None:
         super().__init__()
-        self._results: "Queue[T]" = queue_type()
+        self._results: "Queue[T]" = Queue()
 
     def __next__(self) -> T:
         result = self._results.get()
