@@ -1,5 +1,4 @@
 from concurrent.futures import Executor
-import copy
 import datetime
 import logging
 from typing import (
@@ -11,7 +10,6 @@ from typing import (
     Callable,
     Collection,
     Coroutine,
-    Dict,
     Generator,
     Generic,
     Iterable,
@@ -998,11 +996,6 @@ class DownStream(stream[U], Generic[T, U]):
 
     def __init__(self, upstream: stream[T]) -> None:
         self._upstream: stream[T] = upstream
-
-    def __deepcopy__(self, memo: Dict[int, Any]) -> "DownStream[T, U]":
-        new = copy.copy(self)
-        new._upstream = copy.deepcopy(self._upstream, memo)
-        return new
 
     @property
     def source(self) -> Union[Iterable, AsyncIterable, Callable]:
