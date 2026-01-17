@@ -1,8 +1,7 @@
-from abc import ABC, abstractmethod
+from abc import ABC
 import logging
-from typing import TYPE_CHECKING, Any, List
+from typing import TYPE_CHECKING, List
 
-from streamable._tools._func import _Star
 from streamable.visitors import Visitor
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -22,16 +21,12 @@ if TYPE_CHECKING:  # pragma: no cover
     )
 
 
-class ToStringVisitor(Visitor[str], ABC):
+class ReprVisitor(Visitor[str], ABC):
     __slots__ = ("operation_reprs", "max_len")
 
     def __init__(self, max_len: int = 80) -> None:
         self.operation_reprs: List[str] = []
         self.max_len = max_len
-
-    @staticmethod
-    @abstractmethod
-    def to_string(o: object) -> str: ...
 
     def visit_buffer_stream(self, s: "BufferStream") -> str:
         self.operation_reprs.append(f"buffer({self.to_string(s._up_to)})")
@@ -114,30 +109,8 @@ class ToStringVisitor(Visitor[str], ABC):
         )
         return f"(\n    {source_stream}\n{operations_repr})"
 
-
-class ReprVisitor(ToStringVisitor):
-    __slots__ = ()
-
-    @staticmethod
-    def to_string(o: object) -> str:
-        if isinstance(o, _Star):
-            return f"star({ReprVisitor.to_string(o.func)})"
-        if hasattr(o, "__astarred__"):
-            return f"star({ReprVisitor.to_string(getattr(o, '__astarred__'))})"
-        return repr(o)
-
-
-class StrVisitor(ToStringVisitor):
-    __slots__ = ()
-
-    @staticmethod
-    def to_string(o: Any) -> str:
-        if isinstance(o, _Star):
-            return f"star({StrVisitor.to_string(o.func)})"
-        if hasattr(o, "__astarred__"):
-            return f"star({StrVisitor.to_string(getattr(o, '__astarred__'))})"
-        if type(o) is type and issubclass(o, Exception):
-            return o.__name__
+    @classmethod
+    def to_string(cls, o: object) -> str:
         if repr(o).startswith("<"):
             return getattr(o, "__name__", repr(o))
         return repr(o)

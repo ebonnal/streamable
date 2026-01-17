@@ -40,7 +40,6 @@ from streamable.visitors._iter import IteratorVisitor
 from streamable.visitors._aiter import AsyncIteratorVisitor
 from streamable.visitors._eq import EqualityVisitor
 from streamable.visitors._repr import ReprVisitor
-from streamable.visitors._repr import StrVisitor
 
 # Initialize "streamable" logger
 setup_logger()
@@ -167,9 +166,6 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
     def __repr__(self) -> str:
         return self.accept(ReprVisitor())
-
-    def __str__(self) -> str:
-        return self.accept(StrVisitor())
 
     def __call__(self) -> "stream[T]":
         """

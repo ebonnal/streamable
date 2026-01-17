@@ -61,6 +61,9 @@ class _Star(Generic[R]):
     def __call__(self, args: Tuple) -> R:
         return self.func(*args)
 
+    def __repr__(self) -> str:
+        return f"star({self.func.__name__})"
+
 
 T1 = TypeVar("T1")
 T2 = TypeVar("T2")
@@ -113,11 +116,11 @@ def star(func: Callable[..., R]) -> Callable[[Tuple[Any, ...]], R]:
     """
     if iscoroutinefunction(func):
 
-        async def __astarred__(args: Tuple[Any, ...]) -> R:
+        async def astared(args: Tuple[Any, ...]) -> R:
             return await func(*args)
 
-        setattr(__astarred__, "__astarred__", func)
-        return cast(Callable[[Tuple[Any, ...]], R], __astarred__)
+        astared.__name__ = f"star({func.__name__})"
+        return cast(Callable[[Tuple[Any, ...]], R], astared)
     return _Star(func)
 
 
