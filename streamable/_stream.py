@@ -522,6 +522,13 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
     @overload
     def flatten(
+        self: "stream[Tuple[U, ...]]",
+        *,
+        concurrency: int = 1,
+    ) -> "stream[U]": ...
+
+    @overload
+    def flatten(
         self: "stream[builtins.map[U]]",
         *,
         concurrency: int = 1,

@@ -22,23 +22,15 @@ from tests.utils.iter import (
 
 
 def test_flatten_typing() -> None:
-    """Test that flatten works with various iterable types for type checking."""
-    flattened_iterator_stream: stream[str] = stream("abc").map(iter).flatten()  # noqa: F841
-    flattened_list_stream: stream[str] = stream("abc").map(list).flatten()  # noqa: F841
-    flattened_set_stream: stream[str] = stream("abc").map(set).flatten()  # noqa: F841
-    flattened_map_stream: stream[str] = (  # noqa: F841
-        stream("abc").map(lambda char: map(lambda x: x, char)).flatten()
-    )
-    flattened_filter_stream: stream[str] = (  # noqa: F841
-        stream("abc").map(lambda char: filter(lambda _: True, char)).flatten()
-    )
-
-    flattened_asynciter_stream: stream[str] = (  # noqa: F841
-        stream("abc").map(iter).map(async_iter).flatten()
-    )
-    flattened_range_stream: stream[int] = (  # noqa: F841
-        stream((INTEGERS, INTEGERS)).flatten()
-    )
+    s: stream[int] = stream([[0]]).map(iter).flatten()
+    s = stream([[0]]).map(list).flatten()
+    s = stream([[0]]).map(set).flatten()
+    s = stream([[0]]).map(tuple).flatten()
+    s = stream(([0], [0])).flatten()
+    s = stream([[0]]).map(lambda _: map(identity, _)).flatten()
+    s = stream([[0]]).map(lambda _: filter(identity, _)).flatten()
+    s = stream([[0]]).map(async_iter).flatten()
+    s = stream((range(1), range(1))).flatten()  # noqa: F841
 
 
 @pytest.mark.parametrize("to_iter", [identity, async_iter])
