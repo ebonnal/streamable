@@ -292,3 +292,29 @@ async def test_aiter_of_concurrent_sync_operations(
         single_stream_res,
     ]
     assert multiple_streams_duration == pytest.approx(single_stream_duration, rel=0.2)
+
+
+def test_in() -> None:
+    """stream behaves like a basic iterable for the `in` operator"""
+    s = stream(map(str, ints))
+    # finds 0
+    assert "0" in s
+    # finds 1
+    assert "1" in s
+
+    s = stream(map(str, ints))
+    # finds 0
+    assert "0" in s
+    # doesn't find 0, exhausts the stream in the process
+    assert "0" not in s
+    # doesn't find 1 because the stream is exhausted
+    assert "1" not in s
+
+    # source that support multiple iteration:
+    s = stream(ints.map(str))
+    # finds 0
+    assert "0" in s
+    # finds 0 again on a fresh source
+    assert "0" in s
+    # finds 1 on a fresh source
+    assert "1" in s
