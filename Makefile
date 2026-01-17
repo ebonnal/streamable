@@ -3,6 +3,7 @@
 VENV_DIR := .venv
 
 all: venv format lint type-check test docs
+qa: format lint type-check
 
 help:
 	@echo "Available commands:"
