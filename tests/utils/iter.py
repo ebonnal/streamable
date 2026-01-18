@@ -1,6 +1,5 @@
 """Helpers for converting between sync and async iterables."""
 
-import asyncio
 from typing import (
     AsyncIterable,
     AsyncIterator,
@@ -19,6 +18,7 @@ from streamable._tools._async import awaitable_to_coroutine
 from typing import Tuple
 
 from streamable._tools._iter import SyncAsyncIterable, SyncToAsyncIterator
+from tests.utils.loop import TEST_LOOP
 
 IterableType = Union[Type[Iterable], Type[AsyncIterable]]
 ITERABLE_TYPES: Tuple[IterableType, ...] = (Iterable, AsyncIterable)
@@ -31,7 +31,7 @@ async def _aiter_to_list(aiterable: AsyncIterable[T]) -> List[T]:
 
 
 def aiterable_to_list(aiterable: AsyncIterable[T]) -> List[T]:
-    return asyncio.run(_aiter_to_list(aiterable))
+    return TEST_LOOP.run_until_complete(_aiter_to_list(aiterable))
 
 
 def stopiteration_type(itype: IterableType) -> Type[Exception]:
@@ -65,7 +65,7 @@ def aiter_or_iter(
 def anext_or_next(it: Union[Iterator[T], AsyncIterator[T]], itype: IterableType) -> T:
     """Get next item from either a sync or async iterator."""
     if itype is AsyncIterable:
-        return asyncio.run(
+        return TEST_LOOP.run_until_complete(
             awaitable_to_coroutine(cast(AsyncIterator[T], it).__anext__())
         )
     return next(cast(Iterator[T], it))
@@ -83,7 +83,7 @@ def alist_or_list(
 def aiterate_or_iterate(s: stream, itype: IterableType) -> None:
     """Convert an iterable (sync or async) to a list."""
     if itype is AsyncIterable:
-        asyncio.run(awaitable_to_coroutine(s))
+        TEST_LOOP.run_until_complete(awaitable_to_coroutine(s))
     s()
 
 
