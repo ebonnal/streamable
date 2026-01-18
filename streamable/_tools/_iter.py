@@ -17,7 +17,7 @@ T = TypeVar("T")
 
 
 class SyncAsyncIterable(Iterable[T], AsyncIterable[T]):
-    __slots__ = ()
+    """Both sync and async iterable."""
 
 
 class SyncToAsyncIterator(AsyncIterator[T]):
