@@ -658,8 +658,8 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         Example::
 
             state: list[int] = []
-            ints_into_state: stream[int] = stream(range(10)).do(state.append)
-            assert list(ints_into_state) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+            store_ints: stream[int] = stream(range(10)).do(state.append)
+            assert list(store_ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
             assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
         """
         if isinstance(concurrency, int):
@@ -799,8 +799,8 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         Example::
 
-            str_ints: stream[str] = stream(range(10)).map(str)
-            assert list(str_ints) == ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+            int_chars: stream[str] = stream(range(10)).map(str)
+            assert list(int_chars) == ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
         """
         if isinstance(concurrency, int):
             validate_int(concurrency, gte=1, name="concurrency")

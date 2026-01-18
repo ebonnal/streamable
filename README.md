@@ -100,9 +100,9 @@ A `stream` exposes operations to manipulate its elements, but the I/O is not its
 Transform elements:
 
 ```python
-str_ints: stream[str] = stream(range(10)).map(str)
+int_chars: stream[str] = stream(range(10)).map(str)
 
-assert list(str_ints) == ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+assert list(int_chars) == ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
 ```
 
 
@@ -171,9 +171,9 @@ Perform side effects:
 
 ```python
 state: list[int] = []
-ints_into_state: stream[int] = stream(range(10)).do(state.append)
+store_ints: stream[int] = stream(range(10)).do(state.append)
 
-assert list(ints_into_state) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+assert list(store_ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 
@@ -426,8 +426,8 @@ observed_ints = stream(range(10)).observe("ints", do=print)
 Concatenate streams:
 
 ```python
-concatenated = stream(range(10)) + stream(range(10))
-assert list(concatenated) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+concatenated_ints = stream(range(10)) + stream(range(10))
+assert list(concatenated_ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 
 ## ▼ `.cast`
@@ -500,11 +500,11 @@ The `star` function decorator transforms a function (sync or async) that takes s
 from streamable import star
 
 pokemons: stream[str] = ...
-indexed_pokemons: stream[str] = (
+enumerated_pokes: stream[str] = (
     stream(enumerate(pokemons))
     .map(star(lambda index, poke: f"#{index + 1} {poke}"))
 )
-assert list(indexed_pokemons) == ['#1 bulbasaur', '#2 ivysaur', '#3 venusaur', '#4 charmander', '#5 charmeleon', '#6 charizard', '#7 squirtle', '#8 wartortle', '#9 blastoise']
+assert list(enumerated_pokes) == ['#1 bulbasaur', '#2 ivysaur', '#3 venusaur', '#4 charmander', '#5 charmeleon', '#6 charizard', '#7 squirtle', '#8 wartortle', '#9 blastoise']
 ```
 
 ##  distinct
@@ -531,10 +531,10 @@ assert list(unique_ints) == [0, 1]
 There is zero overhead during iteration compared to builtins:
 
 ```python
-odd_int_strings = stream(range(1_000_000)).filter(lambda n: n % 2).map(str)
+odd_int_chars = stream(range(1_000_000)).filter(lambda n: n % 2).map(str)
 ```
 
-`iter(odd_int_strings)` visits the operations lineage and returns exactly this iterator:
+`iter(odd_int_chars)` visits the operations lineage and returns exactly this iterator:
 
 ```python
 map(str, filter(lambda n: n % 2, range(1_000_000)))
