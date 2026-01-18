@@ -48,9 +48,9 @@ async def test_aiterate() -> None:
 
 
 def test_map_example() -> None:
-    str_ints: stream[str] = stream(range(10)).map(str)
+    int_chars: stream[str] = stream(range(10)).map(str)
 
-    assert list(str_ints) == ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+    assert list(int_chars) == ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
 
 
 def test_map_example_thread_concurrency() -> None:
@@ -101,10 +101,10 @@ def test_map_example_async_concurrency_iter() -> None:
 def test_starmap_example() -> None:
     from streamable import star
 
-    indexed_pokemons: stream[str] = stream(enumerate(pokemons)).map(
+    enumerated_pokes: stream[str] = stream(enumerate(pokemons)).map(
         star(lambda index, poke: f"#{index + 1} {poke}")
     )
-    assert list(indexed_pokemons) == [
+    assert list(enumerated_pokes) == [
         "#1 bulbasaur",
         "#2 ivysaur",
         "#3 venusaur",
@@ -119,9 +119,9 @@ def test_starmap_example() -> None:
 
 def test_do_example() -> None:
     state: List[int] = []
-    ints_into_state: stream[int] = stream(range(10)).do(state.append)
+    store_ints: stream[int] = stream(range(10)).do(state.append)
 
-    assert list(ints_into_state) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    assert list(store_ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 
@@ -299,7 +299,8 @@ def test_observe_example() -> None:
 
 
 def test_plus_example() -> None:
-    assert list(stream(range(10)) + stream(range(10))) == [
+    concatenated_ints = stream(range(10)) + stream(range(10))
+    assert list(concatenated_ints) == [
         0,
         1,
         2,
