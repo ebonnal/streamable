@@ -44,10 +44,8 @@ docs = [
 [tool.setuptools.dynamic]
 version = { attr = "streamable.__version__" }
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["streamable*"]
-exclude = ["tests*"]
+[tool.setuptools]
+packages = ["streamable"]
 
 [tool.setuptools.package-data]
 streamable = ["py.typed"]
