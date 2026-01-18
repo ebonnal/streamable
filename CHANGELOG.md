@@ -1,120 +1,56 @@
 # Changelog
 
+Note: This library follows *MAJOR.MINOR.PATCH* semantic versioning, breaking changes require a *MAJOR* version bump.
+
 ## [2.0.0]
 
-### 🚨 Breaking Changes
+Multiple breaking changes in this new major version, let's do a tour of them:
 
-#### Class Name
-- **BREAKING**: Renamed `Stream` → `stream`
-  ```python
-  # v1.6.6
-  from streamable import Stream
-  ints = Stream(range(10))
-  
-  # v2.0.0
-  from streamable import stream
-  ints = stream(range(10))
-  ```
-
-#### Unified Sync/Async Methods
-- **BREAKING**: All `a*` methods merged into their sync counterparts. All operations now accept both sync and async functions automatically.
-  - `.acatch` → merged into `.catch`
-  - `.afilter` → merged into `.filter`
-  - `.aflatten` → merged into `.flatten`
-  - `.aforeach` → merged into `.do` (see below)
-  - `.agroup` → merged into `.group`
-  - `.agroupby` → merged into `.group` with `by` parameter (see below)
-  - `.amap` → merged into `.map`
-  - `.askip` → merged into `.skip`
-  - `.atruncate` → merged into `.take` (see below)
-
-#### Method Renames
-- **BREAKING**: `.foreach` / `.aforeach` → `.do`
-
-- **BREAKING**: `.truncate` / `.atruncate` → `.take`
-
-- **BREAKING**: `.groupby` / `.agroupby` → merged into `.group`
-  ```python
-  # v1.6.6
-  ints.groupby(key=lambda x: x % 2)
-  
-  # v2.0.0
-  ints.group(by=lambda x: x % 2)
-  ```
-
-#### Parameter Renames
-- **BREAKING**: `.catch` parameter changes:
-  - Parameter renames: `when` → `where`, `replacement` → `replace` (now a callable instead of a value)
-  - Parameter removed: `finally_raise` (use the new `do` parameter to save and manually raise errors after iteration if needed)
-  
-  ```python
-  # v1.6.6
-  ints.catch(
-      errors=ValueError,
-      when=lambda e: "error" in str(e),
-      replacement=42,
-  )
-  
-  # v2.0.0
-  ints.catch(
-      errors=ValueError,
-      where=lambda e: "error" in str(e),  # when → where
-      replace=lambda e: 42,  # replacement → replace, now a callable
-  )
-  ```
-
-- **BREAKING**: `.filter` positional parameter rename: `when` → `where`
-
-- **BREAKING**: `.map`/`.do` positional parameter rename: `ordered` → `as_completed` (of opposite boolean value)
-
-- **BREAKING**: `.skip` API changes: merge `count` and `until` params
-
-- **BREAKING**: `.group` parameter renames:
-  - `size` → `up_to` (positional)
-  - `interval` → `every` (keyword-only)
-
-- **BREAKING**: `.throttle` parameter changes:
-  - `count` → `up_to`, now required
-  - `per` is now required
-
-- **BREAKING**: `.map` parameter rename:
-  - `transformation` → `into` (positional)
-  - Removed `via` parameter, for process-based concurrency you can now pass a `ProcessPoolExecutor` as `concurrency`
-  
-  ```python
-  # v1.6.6
-  ints.map(fn, concurrency=2, via="thread")
-  # v2.0.0
-  ints.map(fn, concurrency=2)
-  
-  # v1.6.6
-  ints.map(fn, concurrency=2, via="process")
-  # v2.0.0
-  with ProcessPoolExecutor(max_workers=2) as processes:
-    ints.map(fn, concurrency=processes)
-  ```
-
-#### Removed Methods
-- **BREAKING**: `.display` removed
-- **BREAKING**: `.count` / `.acount` removed
-- **BREAKING**: `.distinct` / `.adistinct` removed
-
+`Stream` renamed lowercase `stream`
 ```python
 # v1.6.6
-stream(...).distinct()
+from streamable import Stream
+ints = Stream(range(10))
 
 # v2.0.0
-seen: set[...] = set()
-
-stream(...).filter(lambda _: _ not in seen).do(seen.add)
+from streamable import stream
+ints = stream(range(10))
 ```
+All `a*` methods have been merged into their sync counterparts. All operations now accept both sync and async functions.
 
-#### Redesigned Methods
-- **BREAKING**: `.observe`: positional parameter rename: `what` → `subject`
+Operations changes:
 
-### ✨ New Features
+- **[methods merged]** `.map`/`.amap` → `.map`
+  - **[kwarg renamed]** `ordered` → `as_completed` (opposite value)
+  - **[kwarg removed]**: `via`
+  - *[kwarg extended]* `concurrency` can now be an `Executor`
+  - *[pos arg renamed]* `transformation` → `into`
+- **[methods merged + renamed]** `.foreach`/`.aforeach` → `.do`
+  - + same changes as `.map`
+- **[methods merged]** `.filter`/`.afilter` → `.filter`
+  - *[pos arg renamed]* `predicate` → `where`
+- **[methods merged]** `.flatten`/`.aflatten` → `.flatten`
+- **[methods merged]** `.group`/`.agroup`/`.groupby`/`.agroupby` → `.group`
+  - **[output change]** now `.group(by=...)` yields `(key, elements)` tuples.
+  - **[kwarg renamed]** `interval` → `every`
+  - **[kwarg renamed]** `size` → `up_to`
+- **[methods merged]** `.skip`/`.askip` → `.skip`
+  - **[kwargs merged]** `count` and `until` params merged into one `until: int | Callable`
+- **[methods merged+ renamed]** `.truncate`/`.atruncate` → `.take`
+  - **[kwargs merged]** `count` and `when` params merged into one `until: int | Callable`
+- **[methods merged]** `.catch`/`.acatch` → `.catch`
+  - **[kwarg removed]** `finally_raise`
+  - **[kwarg renamed + retyped]** `replacement: T` → `replace: Callable[[Exception], U]` 
+  - **[kwarg renamed]** `when` → `where`
+  - *[new kwarg]* add `do` for side effect on catch
+- **[methods merged]** `.throttle`/`.athrottle` → `.throttle`
+  - **[pos arg renamed + required]** `count` → `up_to`, now required
+  - **[kwarg required]** `per`, now required
+- `.observe`
+  - **[pos arg renamed]** `what` → `subject`
+  - *[new kwarg]* add optional `every: int | timedelta` param for periodic observation
+  - *[new kwarg]* add `do` for custom observation
 
-- Unified sync/async operations: All methods now automatically handle both sync and async functions without needing separate `a*` methods
-- `__iadd__` support: In-place addition operator (`+=`) support for streams
-- Enhanced `.observe`: New flexible observation with configurable `every` intervals and custom `do` to process observations.
-- Improved `.catch`: Now supports `do` side effects in addition to `replace`, and new `stop` parameter to halt iteration on caught exception.
+- **[methods removed]** `.distinct`/`.adistinct`
+- **[methods removed]** `.count` / `.acount`
+- **[methods removed]** `.display`
