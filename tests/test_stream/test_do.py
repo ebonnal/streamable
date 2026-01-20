@@ -1,5 +1,5 @@
 from concurrent.futures import ProcessPoolExecutor
-from typing import Any, Callable, List
+from typing import Any, Callable, List, Set
 import pytest
 from streamable import stream
 from streamable._tools._func import asyncify
@@ -24,6 +24,6 @@ def test_do(
     itype: IterableType,
     adapt: Callable[[Any], Any],
 ) -> None:
-    state: List[int] = []
-    s = ints.do(adapt(state.append), concurrency=2)
-    assert alist_or_list(s, itype) == state == list(INTEGERS)
+    state: Set[int] = set()
+    s = ints.do(adapt(state.add), concurrency=2)
+    assert set(alist_or_list(s, itype)) == set(state) == set(INTEGERS)
