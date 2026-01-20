@@ -41,15 +41,15 @@ def test_buffer_size_is_respected(itype: IterableType, buffer_size: int) -> None
     assert buffered == list(INTEGERS)[: buffer_size + 2]
 
 
-@pytest.mark.parametrize("buffer_size", [3])
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_buffer_with_exceptions(itype: IterableType, buffer_size: int) -> None:
+def test_buffer_with_exceptions(itype: IterableType) -> None:
     buffered: List[int] = []
+    buffersize = 3
     buffering_ints = (
         stream("0-23--6")
         .map(int)
         .do(buffered.append)
-        .buffer(buffer_size)
+        .buffer(buffersize)
         .map(async_slow_identity)
     )
     buffering_ints_iter = aiter_or_iter(buffering_ints, itype)
