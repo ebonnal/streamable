@@ -404,7 +404,7 @@ logs:
 2025-12-23T16:43:07Z INFO observed=ints elapsed=0:00:00.001179 errors=0 elements=10
 ```
 
-By default, logs are produced when the counts reach powers of 2, but they can instead be produced periodically `every` fixed *n* elements or time interval:
+Logs are produced when the counts reach powers of 2. Set `every` to produce them periodically:
 ```python
 # observe every 1k elements (or errors)
 observed_ints = stream(range(10)).observe("ints", every=1000)
@@ -412,11 +412,11 @@ observed_ints = stream(range(10)).observe("ints", every=1000)
 observed_ints = stream(range(10)).observe("ints", every=timedelta(seconds=5))
 ```
 
-By default, observations are logged via `logging.getLogger("streamable").info`, but they can instead be passed to a function taking a `stream.Observation`:
+Observations are logged via `logging.getLogger("streamable").info`. Set `do` to do something else instead:
 
 ```python
-observed_ints = stream(range(10)).observe("ints", do=other_logger.info)
-observed_ints = stream(range(10)).observe("ints", do=logs.append)
+observed_ints = stream(range(10)).observe("ints", do=custom_logger.info)
+observed_ints = stream(range(10)).observe("ints", do=observations.append)
 observed_ints = stream(range(10)).observe("ints", do=print)
 ```
 
@@ -540,7 +540,8 @@ odd_int_chars = stream(range(1_000_000)).filter(lambda n: n % 2).map(str)
 map(str, filter(lambda n: n % 2, range(1_000_000)))
 ```
 
-## ⭐ highlights from the community
+# links
+
 - [Tryolabs' Top 10 Python libraries of 2024](https://tryolabs.com/blog/top-python-libraries-2024#top-10---general-use) ([LinkedIn](https://www.linkedin.com/posts/tryolabs_top-python-libraries-2024-activity-7273052840984539137-bcGs?utm_source=share&utm_medium=member_desktop), [Reddit](https://www.reddit.com/r/Python/comments/1hbs4t8/the_handpicked_selection_of_the_best_python/))
 - [PyCoder’s Weekly](https://pycoders.com/issues/651) x [Real Python](https://realpython.com/)
 - [@PythonHub's tweet](https://x.com/PythonHub/status/1842886311369142713)
