@@ -728,7 +728,7 @@ class _AsyncConcurrentMapIterable(_BaseConcurrentMapIterable[T, U], LoopClosingM
         "_context_manager",
         "loop",
         "into",
-        "__semaphore",
+        "_semaphore",
     )
 
     def __init__(
@@ -742,16 +742,16 @@ class _AsyncConcurrentMapIterable(_BaseConcurrentMapIterable[T, U], LoopClosingM
         super().__init__(iterator, concurrency, as_completed)
         self.into = ExceptionContainer.awrap(into)
         self.loop = loop
-        self.__semaphore: Optional[asyncio.Semaphore] = None
+        self._semaphore: Optional[asyncio.Semaphore] = None
 
     @property
-    def _semaphore(self) -> asyncio.Semaphore:
-        if not self.__semaphore:
-            self.__semaphore = asyncio.Semaphore(self.concurrency)
-        return self.__semaphore
+    def _lazy_semaphore(self) -> asyncio.Semaphore:
+        if not self._semaphore:
+            self._semaphore = asyncio.Semaphore(self.concurrency)
+        return self._semaphore
 
     async def _semaphored(self, elem: T) -> Union[U, ExceptionContainer]:
-        async with self._semaphore:
+        async with self._lazy_semaphore:
             return await self.into(elem)
 
     def _launch_task(self, elem: T) -> "Future[Union[U, ExceptionContainer]]":
@@ -819,7 +819,7 @@ class _ConcurrentFlattenIterable(Iterable[Union[T, ExceptionContainer]]):
         self._executor: Optional[Executor] = None
 
     @property
-    def executor(self) -> Executor:
+    def _lazy_executor(self) -> Executor:
         if not self._executor:
             self._executor = ThreadPoolExecutor(max_workers=self.concurrency)
         return self._executor
@@ -871,7 +871,7 @@ class _ConcurrentFlattenIterable(Iterable[Union[T, ExceptionContainer]]):
                         iterator_and_future_pairs.append((iterator_to_queue, future))
                         continue
                 if isinstance(iterator_to_queue, Iterator):
-                    future = self.executor.submit(self._next, iterator_to_queue)
+                    future = self._lazy_executor.submit(self._next, iterator_to_queue)
                 else:
                     future = self.loop_getter().create_task(
                         self._anext(iterator_to_queue)
