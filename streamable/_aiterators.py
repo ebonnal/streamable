@@ -750,7 +750,7 @@ class ExecutorConcurrentMapAsyncIterator(RaisingAsyncIterator[U]):
 
 
 class _AsyncConcurrentMapAsyncIterable(_BaseConcurrentMapAsyncIterable[T, U]):
-    __slots__ = ("into", "__semaphore")
+    __slots__ = ("into", "_semaphore")
 
     def __init__(
         self,
@@ -761,16 +761,16 @@ class _AsyncConcurrentMapAsyncIterable(_BaseConcurrentMapAsyncIterable[T, U]):
     ) -> None:
         super().__init__(iterator, concurrency, as_completed)
         self.into = ExceptionContainer.awrap(into)
-        self.__semaphore: Optional[asyncio.Semaphore] = None
+        self._semaphore: Optional[asyncio.Semaphore] = None
 
     @property
-    def _semaphore(self) -> asyncio.Semaphore:
-        if not self.__semaphore:
-            self.__semaphore = asyncio.Semaphore(self.concurrency)
-        return self.__semaphore
+    def _lazy_semaphore(self) -> asyncio.Semaphore:
+        if not self._semaphore:
+            self._semaphore = asyncio.Semaphore(self.concurrency)
+        return self._semaphore
 
     async def _semaphored(self, elem: T) -> Union[U, ExceptionContainer]:
-        async with self._semaphore:
+        async with self._lazy_semaphore:
             return await self.into(elem)
 
     def _launch_task(self, elem: T) -> "Future[Union[U, ExceptionContainer]]":
@@ -823,7 +823,7 @@ class _ConcurrentFlattenAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]
         self._executor: Optional[Executor] = None
 
     @property
-    def executor(self) -> Executor:
+    def _lazy_executor(self) -> Executor:
         if not self._executor:
             self._executor = ThreadPoolExecutor(max_workers=self.concurrency)
         return self._executor
@@ -871,7 +871,7 @@ class _ConcurrentFlattenAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]
                     future = asyncio.create_task(self._anext(iterator_to_queue))
                 else:
                     future = asyncio.get_running_loop().run_in_executor(
-                        self.executor,
+                        self._lazy_executor,
                         self._next,
                         iterator_to_queue,
                     )
