@@ -11,7 +11,7 @@ from typing import (
     Union,
 )
 
-from streamable._tools._async import LoopClosingMixin
+from streamable._tools._error import ExceptionContainer, RaisingIterator
 
 T = TypeVar("T")
 
@@ -39,7 +39,7 @@ def async_iter(iterator: Union[Iterable[T], AsyncIterable[T]]) -> AsyncIterator[
     return SyncToAsyncIterator(iterator.__iter__())
 
 
-class AsyncToSyncIterator(Iterator[T], LoopClosingMixin):
+class AsyncToSyncIterator(Iterator[T]):
     __slots__ = ("aiterator", "loop")
 
     def __init__(
@@ -125,3 +125,35 @@ class _FnAsyncIterator(AsyncIterator[T]):
 
 def fn_to_aiter(fn: Callable[[], T]) -> AsyncIterator[T]:
     return _FnAsyncIterator(fn)
+
+
+class _LoopClosingIterable(Iterable[Union[T, ExceptionContainer]]):
+    __slots__ = ("iterator", "loop")
+
+    def __init__(self, iterator: Iterator[T], loop: asyncio.AbstractEventLoop) -> None:
+        self.iterator = iterator
+        self.loop = loop
+
+    def __iter__(self) -> Iterator[Union[T, ExceptionContainer]]:
+        try:
+            while True:
+                try:
+                    elem = self.iterator.__next__()
+                except StopIteration:
+                    break
+                except Exception as e:
+                    yield ExceptionContainer(e)
+                else:
+                    yield elem
+        finally:
+            if self.loop.is_running():
+                self.loop.stop()
+            if not self.loop.is_closed():
+                self.loop.close()
+
+
+class LoopClosingIterator(RaisingIterator[T]):
+    __slots__ = ()
+
+    def __init__(self, iterator: Iterator[T], loop: asyncio.AbstractEventLoop) -> None:
+        super().__init__(_LoopClosingIterable(iterator, loop).__iter__())

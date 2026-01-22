@@ -1,8 +1,16 @@
-import asyncio
-from typing import Any, AsyncIterator, Awaitable, Callable, Coroutine, TypeVar
+from typing import (
+    Any,
+    AsyncIterator,
+    Awaitable,
+    Callable,
+    Coroutine,
+    TypeVar,
+)
 
 T = TypeVar("T")
 R = TypeVar("R")
+
+AsyncFunction = Callable[[T], Coroutine[Any, Any, R]]
 
 
 # pre 3.10 to builtin `anext`
@@ -17,14 +25,3 @@ async def awaitable_to_coroutine(aw: Awaitable[T]) -> T:
 async def empty_aiter() -> AsyncIterator[Any]:
     return
     yield  # pragma: no cover
-
-
-class LoopClosingMixin:
-    loop: asyncio.AbstractEventLoop  # pragma: no cover
-
-    def __del__(self) -> None:
-        if not self.loop.is_closed():
-            self.loop.close()
-
-
-AsyncFunction = Callable[[T], Coroutine[Any, Any, R]]

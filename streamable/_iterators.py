@@ -32,10 +32,7 @@ from typing import (
 
 if TYPE_CHECKING:
     from streamable._stream import stream
-from streamable._tools._async import (
-    AsyncFunction,
-    LoopClosingMixin,
-)
+from streamable._tools._async import AsyncFunction
 from streamable._tools._contextmanager import noop_context_manager
 from streamable._tools._error import ExceptionContainer, RaisingIterator
 
@@ -720,7 +717,7 @@ class ExecutorConcurrentMapIterator(RaisingIterator[U]):
         )
 
 
-class _AsyncConcurrentMapIterable(_BaseConcurrentMapIterable[T, U], LoopClosingMixin):
+class _AsyncConcurrentMapIterable(_BaseConcurrentMapIterable[T, U]):
     __slots__ = (
         "iterator",
         "concurrency",
