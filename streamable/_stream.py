@@ -28,7 +28,7 @@ from typing import (
 )
 
 from streamable._tools._async import AsyncFunction
-from streamable._tools._iter import SyncAsyncIterable
+from streamable._tools._iter import LoopClosingIterator, SyncAsyncIterable
 from streamable._tools._logging import logfmt_str_escape, setup_logger
 from streamable._tools._validation import (
     validate_concurrency_executor,
@@ -144,7 +144,11 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         return self._source
 
     def __iter__(self) -> Iterator[T]:
-        return self.accept(IteratorVisitor[T]())
+        visitor = IteratorVisitor[T]()
+        iterator = self.accept(visitor)
+        if visitor.loop is None:
+            return iterator
+        return LoopClosingIterator(iterator, visitor.loop)
 
     def __aiter__(self) -> AsyncIterator[T]:
         return self.accept(AsyncIteratorVisitor[T]())

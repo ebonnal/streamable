@@ -1,22 +1,24 @@
 from datetime import timedelta
 import gc
-from streamable._tools._func import _Syncified
+from unittest.mock import Mock, patch
 from typing import (
     Any,
     Callable,
     Iterator,
+    TypeVar,
     cast,
 )
 
 import pytest
 
 from streamable import stream
+from streamable.visitors._iter import IteratorVisitor
 from tests.utils.func import (
     async_identity,
     identity,
 )
 from tests.utils.error import TestError
-from tests.utils.gc import disabled_gc, get_referees
+from tests.utils.gc import disabled_gc
 from tests.utils.iter import (
     ITERABLE_TYPES,
     IterableType,
@@ -24,6 +26,8 @@ from tests.utils.iter import (
     anext_or_next,
 )
 from tests.utils.source import INTEGERS, ints
+
+T = TypeVar("T")
 
 
 @pytest.mark.skip(reason="exceptions lead to reference cycles")
@@ -60,32 +64,31 @@ def test_ref_cycles(
         assert error_id not in map(id, gc.get_objects())
 
 
-def test_iter_loop_auto_closing() -> None:
+def test_attached_loop_auto_closing() -> None:
     """
-    The loop attached to the sync iterators involving async functions should:
-    - be shared among operations in the lineage
-    - be closed when the final iterator is garbage collected
+    The loop attached to the sync iterators involving async functions should be closed when the iteration stops or the iterator is garbage collected.
     """
-    parent = ints.filter(async_identity)
-    child = parent.map(async_identity)
 
-    child_it = iter(child)
-    assert isinstance(child_it, map)
+    visitor: IteratorVisitor = Mock()
 
-    parent_it = get_referees(child_it)[0][0]
-    assert isinstance(parent_it, filter)
+    class FakeIteratorVisitor(IteratorVisitor[T]):
+        def __init__(self) -> None:
+            nonlocal visitor
+            super().__init__()
+            visitor = self
 
-    child_loop = cast(_Syncified, get_referees(child_it)[1]).loop
-    parent_loop = cast(_Syncified, get_referees(parent_it)[1]).loop
+    with patch("streamable._stream.IteratorVisitor", new=FakeIteratorVisitor):
+        # closed on finalisation
+        it = iter(ints.filter(async_identity).map(async_identity))
+        assert visitor.loop is not None
+        assert not visitor.loop.is_closed()
+        assert list(it) == list(INTEGERS)[1:]
+        assert visitor.loop.is_closed()
 
-    # both iterators share the same loop
-    assert child_loop is parent_loop
-    # the loop is not closed yet
-    assert not child_loop.is_closed()
-    # iteration should not close the loop
-    assert next(child_it) == 1
-    assert list(child_it) == list(INTEGERS)[2:]
-    assert not child_loop.is_closed()
-    # the loop is closed when the final iterator is garbage collected
-    del child_it
-    assert child_loop.is_closed()
+        # closed on garbage collection
+        it = iter(ints.filter(async_identity).map(async_identity))
+        assert visitor.loop is not None
+        assert not visitor.loop.is_closed()
+        assert next(it) == 1
+        del it
+        assert visitor.loop.is_closed()
