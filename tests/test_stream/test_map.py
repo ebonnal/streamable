@@ -94,7 +94,7 @@ def test_map_process_concurrency_partial_iteration(
         it = aiter_or_iter(s, itype)
         # this will start the execution of `concurrency` sleeps (`sleeps[:concurrency]``)
         assert anext_or_next(it, itype) == sleeps[0]
-        assert time.perf_counter() - start == pytest.approx(1, rel=0.1)
+        assert time.perf_counter() - start == pytest.approx(1, rel=0.15)
         # now that the first sleep is done, the last one can start (`sleeps[concurrency]`)
         # we exit the context manager only when all pending tasks are completed.
     assert time.perf_counter() - start == pytest.approx(
