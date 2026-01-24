@@ -617,7 +617,7 @@ class BufferAsyncIterator(AsyncIterator[T]):
     ) -> None:
         self.iterator = iterator
         self.up_to = up_to
-        self._buffer: Deque[asyncio.Task[T]] = deque(maxlen=up_to + 1)
+        self._buffer: Deque[asyncio.Task[T]] = deque()
         self._lock: Optional[asyncio.Lock] = None
 
     async def _locked_anext(self, lock: asyncio.Lock) -> T:

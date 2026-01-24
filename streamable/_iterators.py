@@ -559,9 +559,7 @@ class BufferIterable(Iterable[Union[T, ExceptionContainer]]):
     ) -> None:
         self.iterator = iterator
         self.up_to = up_to
-        self._buffer: Deque[Future[Union[T, ExceptionContainer]]] = deque(
-            maxlen=up_to + 1
-        )
+        self._buffer: Deque[Future[Union[T, ExceptionContainer]]] = deque()
         self._next = ExceptionContainer.wrap(next)
 
     def __iter__(self) -> Iterator[Union[T, ExceptionContainer]]:
