@@ -1,4 +1,3 @@
-import asyncio
 from functools import partial
 from inspect import iscoroutinefunction
 from typing import (
@@ -122,51 +121,6 @@ def star(func: Callable[..., R]) -> Callable[[Tuple[Any, ...]], R]:
         astared.__name__ = f"star({func.__name__})"
         return cast(Callable[[Tuple[Any, ...]], R], astared)
     return _Star(func)
-
-
-class _Syncified(Generic[T, R]):
-    __slots__ = ("async_func", "loop")
-
-    def __init__(
-        self,
-        loop: asyncio.AbstractEventLoop,
-        async_func: AsyncFunction[T, R],
-    ) -> None:
-        self.async_func = async_func
-        self.loop = loop
-
-    def __call__(self, arg: T) -> R:
-        return self.loop.run_until_complete(self.async_func(arg))
-
-
-@overload
-def syncify(
-    loop_getter: Callable[[], asyncio.AbstractEventLoop],
-    async_func: AsyncFunction[T, R],
-) -> Callable[[T], R]: ...
-
-
-@overload
-def syncify(
-    loop_getter: Callable[[], asyncio.AbstractEventLoop],
-    async_func: Callable[[T], R],
-) -> Callable[[T], R]: ...
-
-
-@overload
-def syncify(
-    loop_getter: Callable[[], asyncio.AbstractEventLoop],
-    async_func: None,
-) -> None: ...
-
-
-def syncify(
-    loop_getter: Callable[[], asyncio.AbstractEventLoop],
-    async_func: Union[None, AsyncFunction[T, R], Callable[[T], R]],
-) -> Optional[Callable[[T], R]]:
-    if not async_func or not iscoroutinefunction(async_func):
-        return cast(Optional[Callable[[T], R]], async_func)
-    return _Syncified(loop_getter(), async_func)
 
 
 async def _async_call(func: Callable[[T], R], o: T) -> R:

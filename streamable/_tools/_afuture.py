@@ -20,7 +20,7 @@ class FutureResult(Future):
         self.set_result(result)
 
 
-class FutureResultCollection(AsyncIterator[T], Sized):
+class FutureResults(AsyncIterator[T], Sized):
     """
     Iterator over added futures' results. Supports adding new futures after iteration started.
     """
@@ -31,7 +31,7 @@ class FutureResultCollection(AsyncIterator[T], Sized):
     def add(self, future: "Future[T]") -> None: ...
 
 
-class FIFOFutureResultCollection(FutureResultCollection[T]):
+class FIFOFutureResults(FutureResults[T]):
     """
     First In First Out
     """
@@ -51,7 +51,7 @@ class FIFOFutureResultCollection(FutureResultCollection[T]):
         return await self._futures.popleft()
 
 
-class FDFOFutureResultCollection(FutureResultCollection[T]):
+class FDFOFutureResults(FutureResults[T]):
     """
     First Done First Out
     """

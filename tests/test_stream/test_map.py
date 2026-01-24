@@ -53,7 +53,7 @@ def test_map_preserves_order(
 
 @pytest.mark.parametrize("as_completed, order", [(False, identity), (True, sorted)])
 @pytest.mark.parametrize(
-    "identity_sleep,concurrency",
+    "identity_sleep, concurrency",
     [
         (identity_sleep, 2),
         (identity_sleep, ProcessPoolExecutor(2)),

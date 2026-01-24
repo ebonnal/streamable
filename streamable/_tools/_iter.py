@@ -39,31 +39,34 @@ def async_iter(iterator: Union[Iterable[T], AsyncIterable[T]]) -> AsyncIterator[
     return SyncToAsyncIterator(iterator.__iter__())
 
 
-class AsyncToSyncIterator(Iterator[T]):
-    __slots__ = ("aiterator", "loop")
+class AsyncToSyncIterable(Iterable[Union[T, ExceptionContainer]]):
+    __slots__ = "iterator"
 
-    def __init__(
-        self,
-        loop: asyncio.AbstractEventLoop,
-        aiterator: AsyncIterator[T],
-    ):
-        self.aiterator = aiterator
-        self.loop = loop
+    def __init__(self, iterator: AsyncIterator[T]):
+        self.iterator = iterator
 
-    def __next__(self) -> T:
+    def __iter__(self) -> Iterator[Union[T, ExceptionContainer]]:
+        loop = asyncio.new_event_loop()
         try:
-            return self.loop.run_until_complete(self.aiterator.__anext__())
-        except StopAsyncIteration as e:
-            raise StopIteration from e
+            while True:
+                try:
+                    elem = loop.run_until_complete(self.iterator.__anext__())
+                except StopAsyncIteration:
+                    break
+                except Exception as e:
+                    yield ExceptionContainer(e)
+                else:
+                    yield elem
+        finally:
+            loop.stop()
+            loop.close()
 
 
-def sync_iter(
-    loop_getter: Callable[[], asyncio.AbstractEventLoop],
-    iterator: Union[AsyncIterable[T], Iterable[T]],
-) -> Iterator[T]:
-    if isinstance(iterator, Iterable):
-        return iterator.__iter__()
-    return AsyncToSyncIterator(loop_getter(), iterator.__aiter__())
+class AsyncToSyncIterator(RaisingIterator[T]):
+    __slots__ = "iterator"
+
+    def __init__(self, iterator: AsyncIterator[T]):
+        super().__init__(AsyncToSyncIterable(iterator).__iter__())
 
 
 class _FnIterator(Iterator[T]):
@@ -78,25 +81,6 @@ class _FnIterator(Iterator[T]):
 
 def fn_to_iter(fn: Callable[[], T]) -> Iterator[T]:
     return _FnIterator(fn)
-
-
-class _AsyncFnIterator(Iterator[T]):
-    __slots__ = ("loop", "fn")
-
-    def __init__(
-        self, loop: asyncio.AbstractEventLoop, fn: Callable[[], Coroutine[Any, Any, T]]
-    ) -> None:
-        self.loop = loop
-        self.fn = fn
-
-    def __next__(self) -> T:
-        return self.loop.run_until_complete(self.fn())
-
-
-def afn_to_iter(
-    loop: asyncio.AbstractEventLoop, fn: Callable[[], Coroutine[Any, Any, T]]
-) -> Iterator[T]:
-    return _AsyncFnIterator(loop, fn)
 
 
 class _AsyncFnAsyncIterator(AsyncIterator[T]):
@@ -125,35 +109,3 @@ class _FnAsyncIterator(AsyncIterator[T]):
 
 def fn_to_aiter(fn: Callable[[], T]) -> AsyncIterator[T]:
     return _FnAsyncIterator(fn)
-
-
-class _LoopClosingIterable(Iterable[Union[T, ExceptionContainer]]):
-    __slots__ = ("iterator", "loop")
-
-    def __init__(self, iterator: Iterator[T], loop: asyncio.AbstractEventLoop) -> None:
-        self.iterator = iterator
-        self.loop = loop
-
-    def __iter__(self) -> Iterator[Union[T, ExceptionContainer]]:
-        try:
-            while True:
-                try:
-                    elem = self.iterator.__next__()
-                except StopIteration:
-                    break
-                except Exception as e:
-                    yield ExceptionContainer(e)
-                else:
-                    yield elem
-        finally:
-            if self.loop.is_running():
-                self.loop.stop()
-            if not self.loop.is_closed():
-                self.loop.close()
-
-
-class LoopClosingIterator(RaisingIterator[T]):
-    __slots__ = ()
-
-    def __init__(self, iterator: Iterator[T], loop: asyncio.AbstractEventLoop) -> None:
-        super().__init__(_LoopClosingIterable(iterator, loop).__iter__())

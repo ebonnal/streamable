@@ -3,7 +3,9 @@ import datetime
 from inspect import iscoroutinefunction
 from typing import (
     Any,
+    AsyncIterable,
     Callable,
+    Iterable,
 )
 
 
@@ -26,3 +28,19 @@ def validate_positive_timedelta(interval: datetime.timedelta, *, name: str) -> N
 def validate_int(integer: int, *, gte: int, name: str) -> None:
     if integer < gte:
         raise ValueError(f"`{name}` must be >= {gte} but got {integer}")
+
+
+def validate_sync_flatten_iterable(iterable: Any) -> None:
+    if isinstance(iterable, Iterable):
+        return
+    if isinstance(iterable, AsyncIterable):
+        raise TypeError(
+            "async iterables flattening is only possible during async iteration"
+        )
+    raise TypeError(f"flatten expects iterables but got {repr(iterable)}")
+
+
+def validate_async_flatten_iterable(iterable: Any) -> None:
+    if isinstance(iterable, (AsyncIterable, Iterable)):
+        return
+    raise TypeError(f"flatten expects iterables but got {repr(iterable)}")

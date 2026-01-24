@@ -181,7 +181,6 @@ def test_slots() -> None:
         ints.__dict__
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "stream_factory",
     (
@@ -194,6 +193,7 @@ def test_slots() -> None:
         ),
     ),
 )
+@pytest.mark.asyncio
 async def test_aiter_of_concurrent_sync_operations(
     stream_factory: Callable[[], stream],
 ) -> None:
