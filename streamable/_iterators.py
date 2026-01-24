@@ -684,7 +684,6 @@ class _ConcurrentFlattenIterable(Iterable[Union[T, ExceptionContainer]]):
         "iterables_iterator",
         "concurrency",
         "_next",
-        "_executor",
     )
 
     def __init__(
@@ -695,59 +694,52 @@ class _ConcurrentFlattenIterable(Iterable[Union[T, ExceptionContainer]]):
         self.iterables_iterator = iterables_iterator
         self.concurrency = concurrency
         self._next = ExceptionContainer.wrap(next)
-        self._executor: Optional[Executor] = None
-
-    @property
-    def _lazy_executor(self) -> Executor:
-        if not self._executor:
-            self._executor = ThreadPoolExecutor(max_workers=self.concurrency)
-        return self._executor
 
     def __iter__(self) -> Iterator[Union[T, ExceptionContainer]]:
-        iterator_and_future_pairs: Deque[
-            Tuple[
-                Optional[Iterator[T]],
-                "Future[Union[T, ExceptionContainer]]",
-            ]
-        ] = deque()
-        to_yield: Deque[Union[T, ExceptionContainer]] = deque(maxlen=1)
-        iterator_to_queue: Optional[Iterator[T]] = None
-        # wait, queue, yield (FIFO)
-        while True:
-            if iterator_and_future_pairs:
-                iterator, future = iterator_and_future_pairs.popleft()
-                elem = future.result()
-                if not isinstance(elem, ExceptionContainer) or not isinstance(
-                    elem.exception, StopIteration
-                ):
-                    to_yield.append(elem)
-                    iterator_to_queue = iterator
+        with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
+            iterator_and_future_pairs: Deque[
+                Tuple[
+                    Optional[Iterator[T]],
+                    "Future[Union[T, ExceptionContainer]]",
+                ]
+            ] = deque()
+            to_yield: Deque[Union[T, ExceptionContainer]] = deque(maxlen=1)
+            iterator_to_queue: Optional[Iterator[T]] = None
+            # wait, queue, yield (FIFO)
+            while True:
+                if iterator_and_future_pairs:
+                    iterator, future = iterator_and_future_pairs.popleft()
+                    elem = future.result()
+                    if not isinstance(elem, ExceptionContainer) or not isinstance(
+                        elem.exception, StopIteration
+                    ):
+                        to_yield.append(elem)
+                        iterator_to_queue = iterator
 
-            # queue tasks up to buffersize
-            while len(iterator_and_future_pairs) < self.concurrency:
-                if not iterator_to_queue:
-                    try:
+                # queue tasks up to buffersize
+                while len(iterator_and_future_pairs) < self.concurrency:
+                    if not iterator_to_queue:
                         try:
-                            iterable = self.iterables_iterator.__next__()
-                        except StopIteration:
-                            break
-                        validate_sync_flatten_iterable(iterable)
-                        iterator_to_queue = iterable.__iter__()
-                    except Exception as e:
-                        iterator_to_queue = None
-                        future = FutureResult(ExceptionContainer(e))
-                        iterator_and_future_pairs.append((iterator_to_queue, future))
-                        continue
-                future = self._lazy_executor.submit(self._next, iterator_to_queue)
-                iterator_and_future_pairs.append((iterator_to_queue, future))
-                iterator_to_queue = None
-            if to_yield:
-                yield to_yield.pop()
-            if not iterator_and_future_pairs:
-                break
-        if self._executor:
-            self._executor.shutdown()
-            self._executor = None
+                            try:
+                                iterable = self.iterables_iterator.__next__()
+                            except StopIteration:
+                                break
+                            validate_sync_flatten_iterable(iterable)
+                            iterator_to_queue = iterable.__iter__()
+                        except Exception as e:
+                            iterator_to_queue = None
+                            future = FutureResult(ExceptionContainer(e))
+                            iterator_and_future_pairs.append(
+                                (iterator_to_queue, future)
+                            )
+                            continue
+                    future = executor.submit(self._next, iterator_to_queue)
+                    iterator_and_future_pairs.append((iterator_to_queue, future))
+                    iterator_to_queue = None
+                if to_yield:
+                    yield to_yield.pop()
+                if not iterator_and_future_pairs:
+                    break
 
 
 class ConcurrentFlattenIterator(RaisingIterator[T]):

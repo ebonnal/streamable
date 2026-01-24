@@ -826,51 +826,54 @@ class _ConcurrentFlattenAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]
         to_yield: Deque[Union[T, ExceptionContainer]] = deque(maxlen=1)
         iterator_to_queue: Union[None, Iterator[T], AsyncIterator[T]] = None
         # wait, queue, yield (FIFO)
-        while True:
-            if iterator_and_future_pairs:
-                iterator, future = iterator_and_future_pairs.popleft()
-                elem = await future
-                if not isinstance(elem, ExceptionContainer) or not isinstance(
-                    elem.exception, (StopIteration, StopAsyncIteration)
-                ):
-                    to_yield.append(elem)
-                    iterator_to_queue = iterator
+        try:
+            while True:
+                if iterator_and_future_pairs:
+                    iterator, future = iterator_and_future_pairs.popleft()
+                    elem = await future
+                    if not isinstance(elem, ExceptionContainer) or not isinstance(
+                        elem.exception, (StopIteration, StopAsyncIteration)
+                    ):
+                        to_yield.append(elem)
+                        iterator_to_queue = iterator
 
-            # queue tasks up to buffersize
-            while len(iterator_and_future_pairs) < self.concurrency:
-                if not iterator_to_queue:
-                    try:
+                # queue tasks up to buffersize
+                while len(iterator_and_future_pairs) < self.concurrency:
+                    if not iterator_to_queue:
                         try:
-                            iterable = await self.iterables_iterator.__anext__()
-                        except StopAsyncIteration:
-                            break
-                        validate_async_flatten_iterable(iterable)
-                        if isinstance(iterable, AsyncIterable):
-                            iterator_to_queue = iterable.__aiter__()
-                        else:
-                            iterator_to_queue = iterable.__iter__()
-                    except Exception as e:
-                        iterator_to_queue = None
-                        future = FutureResult(ExceptionContainer(e))
-                        iterator_and_future_pairs.append((iterator_to_queue, future))
-                        continue
-                if isinstance(iterator_to_queue, AsyncIterator):
-                    future = asyncio.create_task(self._anext(iterator_to_queue))
-                else:
-                    future = asyncio.get_running_loop().run_in_executor(
-                        self._lazy_executor,
-                        self._next,
-                        iterator_to_queue,
-                    )
-                iterator_and_future_pairs.append((iterator_to_queue, future))
-                iterator_to_queue = None
-            if to_yield:
-                yield to_yield.pop()
-            if not iterator_and_future_pairs:
-                break
-        if self._executor:
-            self._executor.shutdown()
-            self._executor = None
+                            try:
+                                iterable = await self.iterables_iterator.__anext__()
+                            except StopAsyncIteration:
+                                break
+                            validate_async_flatten_iterable(iterable)
+                            if isinstance(iterable, AsyncIterable):
+                                iterator_to_queue = iterable.__aiter__()
+                            else:
+                                iterator_to_queue = iterable.__iter__()
+                        except Exception as e:
+                            iterator_to_queue = None
+                            future = FutureResult(ExceptionContainer(e))
+                            iterator_and_future_pairs.append(
+                                (iterator_to_queue, future)
+                            )
+                            continue
+                    if isinstance(iterator_to_queue, AsyncIterator):
+                        future = asyncio.create_task(self._anext(iterator_to_queue))
+                    else:
+                        future = asyncio.get_running_loop().run_in_executor(
+                            self._lazy_executor,
+                            self._next,
+                            iterator_to_queue,
+                        )
+                    iterator_and_future_pairs.append((iterator_to_queue, future))
+                    iterator_to_queue = None
+                if to_yield:
+                    yield to_yield.pop()
+                if not iterator_and_future_pairs:
+                    break
+        finally:
+            if self._executor:
+                self._executor.shutdown()
 
 
 class ConcurrentFlattenAsyncIterator(RaisingAsyncIterator[T]):
