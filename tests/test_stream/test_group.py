@@ -25,14 +25,14 @@ def test_group_raises_on_non_positive(
 ) -> None:
     with pytest.raises(
         ValueError,
-        match=rf"`every` must be a positive timedelta but got {repr_pattern}",
+        match=rf"`every` must be a positive timedelta but got: {repr_pattern}",
     ):
         stream([1]).group(up_to=100, every=every)
 
 
 @pytest.mark.parametrize("up_to", [-1, 0])
 def test_group_raises_on_non_positive_up_to(up_to: int) -> None:
-    with pytest.raises(ValueError, match=f"`up_to` must be >= 1 but got {up_to}"):
+    with pytest.raises(ValueError, match=f"`up_to` must be >= 1 but got: {up_to}"):
         stream([]).group(up_to=up_to)
 
 

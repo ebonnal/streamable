@@ -20,7 +20,7 @@ from tests.utils.source import INTEGERS, ints
 def test_take_raises_on_negative_limit() -> None:
     with pytest.raises(
         ValueError,
-        match="`until` must be >= 0 but got -1",
+        match="`until` must be >= 0 but got: -1",
     ):
         ints.take(-1)
 

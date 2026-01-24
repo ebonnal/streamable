@@ -125,5 +125,5 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         if callable(s.source):
             return fn_to_iter(s.source)
         raise TypeError(
-            f"`source` must be Iterable or AsyncIterable or Callable but got {s.source}"
+            f"`source` must be Iterable or AsyncIterable or Callable but got: {s.source}"
         )

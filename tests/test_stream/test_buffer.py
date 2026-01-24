@@ -17,7 +17,7 @@ from tests.utils.source import INTEGERS, ints
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_buffer_raises_on_invalid_up_to(itype: IterableType) -> None:
-    with pytest.raises(ValueError, match="`up_to` must be >= 0 but got -1"):
+    with pytest.raises(ValueError, match="`up_to` must be >= 0 but got: -1"):
         alist_or_list(stream([1]).buffer(-1), itype)
 
 
