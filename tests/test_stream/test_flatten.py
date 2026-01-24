@@ -18,7 +18,9 @@ from tests.utils.func import (
 from tests.utils.iter import (
     ITERABLE_TYPES,
     IterableType,
+    aiter_or_iter,
     alist_or_list,
+    anext_or_next,
 )
 
 
@@ -116,8 +118,11 @@ def test_flatten_with_exceptions(
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 @pytest.mark.parametrize("concurrency", (1, 2))
 def test_flatten_on_non_iterable(itype: IterableType, concurrency: int) -> None:
+    s = stream([1, [1]]).flatten(concurrency=concurrency)  # type: ignore
+    it = aiter_or_iter(s, itype)
     with pytest.raises(TypeError, match="flatten expects iterables but got: 1"):
-        alist_or_list(stream([1]).flatten(concurrency=concurrency), itype)  # type: ignore
+        anext_or_next(it, itype)
+    assert anext_or_next(it, itype) == 1
 
 
 @pytest.mark.parametrize(
