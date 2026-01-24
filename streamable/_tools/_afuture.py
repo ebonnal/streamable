@@ -5,6 +5,7 @@ from collections import deque
 from typing import (
     AsyncIterator,
     Deque,
+    Optional,
     Sized,
     TypeVar,
 )
@@ -59,20 +60,26 @@ class FDFOFutureResults(FutureResults[T]):
     __slots__ = ("_results", "_n_futures")
 
     def __init__(self) -> None:
-        self._results: "asyncio.Queue[T]" = asyncio.Queue()
+        self._results: "Optional[asyncio.Queue[T]]" = None
         self._n_futures = 0
+
+    @property
+    def _lazy_results(self) -> "asyncio.Queue[T]":
+        if self._results is None:
+            self._results = asyncio.Queue()
+        return self._results
 
     def __len__(self) -> int:
         return self._n_futures
 
     def _done_callback(self, future: "Future[T]") -> None:
-        self._results.put_nowait(future.result())
+        self._lazy_results.put_nowait(future.result())
 
     def add(self, future: "Future[T]") -> None:
         future.add_done_callback(self._done_callback)
         self._n_futures += 1
 
     async def __anext__(self) -> T:
-        result = await self._results.get()
+        result = await self._lazy_results.get()
         self._n_futures -= 1
         return result
