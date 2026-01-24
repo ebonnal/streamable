@@ -1,12 +1,10 @@
 import asyncio
 from asyncio.futures import Future
 import datetime
-import sys
 import time
 from abc import ABC, abstractmethod
 from collections import defaultdict, deque
 from concurrent.futures import Executor, ThreadPoolExecutor
-from contextlib import suppress
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -29,22 +27,21 @@ from typing import (
     cast,
 )
 
+from streamable._tools._validation import validate_async_flatten_iterable
+
 if TYPE_CHECKING:
     from streamable._stream import stream
 from streamable._tools._afuture import (
     FutureResult,
-    FutureResultCollection,
-    FDFOFutureResultCollection,
-    FIFOFutureResultCollection,
+    FDFOFutureResults,
+    FIFOFutureResults,
+    FutureResults,
 )
 from streamable._tools._async import AsyncFunction, empty_aiter
 from streamable._tools._contextmanager import noop_context_manager
 from streamable._tools._error import ExceptionContainer, RaisingAsyncIterator
 
-if sys.version_info < (3, 10):  # pragma: no cover
-    from streamable._tools._async import anext
-with suppress(ImportError):
-    pass
+from streamable._tools._async import anext
 
 T = TypeVar("T")
 U = TypeVar("U")
@@ -120,6 +117,7 @@ class FlattenAsyncIterator(AsyncIterator[T]):
                     return self._current_iterator_elem.__next__()
             except (StopIteration, StopAsyncIteration):
                 iterable = await self.iterator.__anext__()
+                validate_async_flatten_iterable(iterable)
                 if isinstance(iterable, AsyncIterable):
                     self._current_iterator_elem = iterable.__aiter__()
                 else:
@@ -644,7 +642,7 @@ class _BaseConcurrentMapAsyncIterable(
     ABC,
     AsyncIterable[Union[U, ExceptionContainer]],
 ):
-    __slots__ = ("iterator", "concurrency", "as_completed", "_context_manager")
+    __slots__ = ("iterator", "concurrency", "_context_manager", "_future_results")
 
     def __init__(
         self,
@@ -655,18 +653,13 @@ class _BaseConcurrentMapAsyncIterable(
     ) -> None:
         self.iterator = iterator
         self.concurrency = concurrency
-        self.as_completed = as_completed
         self._context_manager = context_manager or noop_context_manager()
+        self._future_results: FutureResults[Union[U, ExceptionContainer]] = (
+            FDFOFutureResults() if as_completed else FIFOFutureResults()
+        )
 
     @abstractmethod
     def _launch_task(self, elem: T) -> "Future[Union[U, ExceptionContainer]]": ...
-
-    def _future_result_collection(
-        self,
-    ) -> FutureResultCollection[Union[U, ExceptionContainer]]:
-        if self.as_completed:
-            return FDFOFutureResultCollection()
-        return FIFOFutureResultCollection()
 
     async def _next_future(
         self,
@@ -683,70 +676,20 @@ class _BaseConcurrentMapAsyncIterable(
         self,
     ) -> AsyncIterator[Union[U, ExceptionContainer]]:
         with self._context_manager:
-            future_results = self._future_result_collection()
-
             # queue tasks up to buffersize
-            while len(future_results) < self.concurrency:
+            while len(self._future_results) < self.concurrency:
                 future = await self._next_future()
                 if not future:
                     # no more tasks to queue
                     break
-                future_results.add(future)
+                self._future_results.add(future)
 
             # queue, wait, yield
-            while future_results:
+            while self._future_results:
                 future = await self._next_future()
                 if future:
-                    future_results.add(future)
-                yield await future_results.__anext__()
-
-
-class _ExecutorConcurrentMapAsyncIterable(_BaseConcurrentMapAsyncIterable[T, U]):
-    __slots__ = ("into", "executor")
-
-    def __init__(
-        self,
-        iterator: AsyncIterator[T],
-        into: Callable[[T], U],
-        concurrency: Union[int, Executor],
-        as_completed: bool,
-    ) -> None:
-        self.into = ExceptionContainer.wrap(into)
-        if isinstance(concurrency, int):
-            self.executor: Executor = ThreadPoolExecutor(max_workers=concurrency)
-            super().__init__(
-                iterator, concurrency, as_completed, context_manager=self.executor
-            )
-        else:
-            self.executor = concurrency
-            super().__init__(
-                iterator, getattr(self.executor, "_max_workers"), as_completed
-            )
-
-    def _launch_task(self, elem: T) -> "Future[Union[U, ExceptionContainer]]":
-        return asyncio.get_running_loop().run_in_executor(
-            self.executor, self.into, elem
-        )
-
-
-class ExecutorConcurrentMapAsyncIterator(RaisingAsyncIterator[U]):
-    __slots__ = ()
-
-    def __init__(
-        self,
-        iterator: AsyncIterator[T],
-        into: Callable[[T], U],
-        concurrency: Union[int, Executor],
-        as_completed: bool,
-    ) -> None:
-        super().__init__(
-            _ExecutorConcurrentMapAsyncIterable(
-                iterator,
-                into,
-                concurrency,
-                as_completed,
-            ).__aiter__()
-        )
+                    self._future_results.add(future)
+                yield await self._future_results.__anext__()
 
 
 class _AsyncConcurrentMapAsyncIterable(_BaseConcurrentMapAsyncIterable[T, U]):
@@ -763,14 +706,9 @@ class _AsyncConcurrentMapAsyncIterable(_BaseConcurrentMapAsyncIterable[T, U]):
         self.into = ExceptionContainer.awrap(into)
         self._semaphore: Optional[asyncio.Semaphore] = None
 
-    @property
-    def _lazy_semaphore(self) -> asyncio.Semaphore:
-        if not self._semaphore:
-            self._semaphore = asyncio.Semaphore(self.concurrency)
-        return self._semaphore
-
     async def _semaphored(self, elem: T) -> Union[U, ExceptionContainer]:
-        async with self._lazy_semaphore:
+        self._semaphore = self._semaphore or asyncio.Semaphore(self.concurrency)
+        async with self._semaphore:
             return await self.into(elem)
 
     def _launch_task(self, elem: T) -> "Future[Union[U, ExceptionContainer]]":
@@ -789,6 +727,54 @@ class AsyncConcurrentMapAsyncIterator(RaisingAsyncIterator[U]):
     ) -> None:
         super().__init__(
             _AsyncConcurrentMapAsyncIterable(
+                iterator,
+                into,
+                concurrency,
+                as_completed,
+            ).__aiter__()
+        )
+
+
+class _ExecutorConcurrentMapAsyncIterable(_BaseConcurrentMapAsyncIterable[T, U]):
+    __slots__ = ("into", "_executor")
+
+    def __init__(
+        self,
+        iterator: AsyncIterator[T],
+        into: Callable[[T], U],
+        concurrency: Union[int, Executor],
+        as_completed: bool,
+    ) -> None:
+        self.into = ExceptionContainer.wrap(into)
+        if isinstance(concurrency, int):
+            self._executor: Executor = ThreadPoolExecutor(max_workers=concurrency)
+            super().__init__(
+                iterator, concurrency, as_completed, context_manager=self._executor
+            )
+        else:
+            self._executor = concurrency
+            super().__init__(
+                iterator, getattr(self._executor, "_max_workers"), as_completed
+            )
+
+    def _launch_task(self, elem: T) -> "Future[Union[U, ExceptionContainer]]":
+        return asyncio.get_running_loop().run_in_executor(
+            self._executor, self.into, elem
+        )
+
+
+class ExecutorConcurrentMapAsyncIterator(RaisingAsyncIterator[U]):
+    __slots__ = ()
+
+    def __init__(
+        self,
+        iterator: AsyncIterator[T],
+        into: Callable[[T], U],
+        concurrency: Union[int, Executor],
+        as_completed: bool,
+    ) -> None:
+        super().__init__(
+            _ExecutorConcurrentMapAsyncIterable(
                 iterator,
                 into,
                 concurrency,
@@ -858,6 +844,7 @@ class _ConcurrentFlattenAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]
                             iterable = await self.iterables_iterator.__anext__()
                         except StopAsyncIteration:
                             break
+                        validate_async_flatten_iterable(iterable)
                         if isinstance(iterable, AsyncIterable):
                             iterator_to_queue = iterable.__aiter__()
                         else:

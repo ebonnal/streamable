@@ -1,10 +1,12 @@
+import asyncio
 from datetime import timedelta
 import gc
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 from typing import (
     Any,
     Callable,
     Iterator,
+    List,
     TypeVar,
     cast,
 )
@@ -12,7 +14,6 @@ from typing import (
 import pytest
 
 from streamable import stream
-from streamable.visitors._iter import IteratorVisitor
 from tests.utils.func import (
     async_identity,
     identity,
@@ -69,26 +70,31 @@ def test_attached_loop_auto_closing() -> None:
     The loop attached to the sync iterators involving async functions should be closed when the iteration stops or the iterator is garbage collected.
     """
 
-    visitor: IteratorVisitor = Mock()
+    loops: List[asyncio.AbstractEventLoop] = []
+    new_event_loop = asyncio.new_event_loop
 
-    class FakeIteratorVisitor(IteratorVisitor[T]):
-        def __init__(self) -> None:
-            nonlocal visitor
-            super().__init__()
-            visitor = self
+    def spy_new_event_loop() -> asyncio.AbstractEventLoop:
+        loops.append(new_event_loop())
+        return loops[-1]
 
-    with patch("streamable._stream.IteratorVisitor", new=FakeIteratorVisitor):
+    with patch(
+        "streamable._tools._iter.asyncio.new_event_loop", new=spy_new_event_loop
+    ):
         # closed on finalisation
         it = iter(ints.filter(async_identity).map(async_identity))
-        assert visitor.loop is not None
-        assert not visitor.loop.is_closed()
-        assert list(it) == list(INTEGERS)[1:]
-        assert visitor.loop.is_closed()
+        assert not loops
+        assert next(it) == 1
+        assert len(loops) == 1
+        assert not loops[-1].is_closed()
+        assert list(it) == list(INTEGERS)[2:]
+        assert loops[-1].is_closed()
 
         # closed on garbage collection
         it = iter(ints.filter(async_identity).map(async_identity))
-        assert visitor.loop is not None
-        assert not visitor.loop.is_closed()
+        assert len(loops) == 1
         assert next(it) == 1
+        assert len(loops) == 2
+        assert not loops[-1].is_closed()
         del it
-        assert visitor.loop.is_closed()
+        # ref count drops to 0, generator gets finalised, should close the loop
+        assert loops[-1].is_closed()

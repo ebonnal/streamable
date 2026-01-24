@@ -1,5 +1,6 @@
 from typing import (
     Any,
+    AsyncIterable,
     Callable,
     Iterable,
     List,
@@ -33,8 +34,10 @@ def test_flatten_typing() -> None:
     s = stream((range(1), range(1))).flatten()  # noqa: F841
 
 
-@pytest.mark.parametrize("to_iter", [identity, async_iter])
-@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+@pytest.mark.parametrize(
+    "itype, to_iter",
+    [(Iterable, identity), (AsyncIterable, identity), (AsyncIterable, async_iter)],
+)
 def test_flatten_without_concurrency(
     itype: IterableType, to_iter: Callable[[Any], Any]
 ) -> None:
@@ -43,8 +46,10 @@ def test_flatten_without_concurrency(
     assert alist_or_list(s, itype) == list(range(9))
 
 
-@pytest.mark.parametrize("to_iter", [identity, async_iter])
-@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+@pytest.mark.parametrize(
+    "itype, to_iter",
+    [(Iterable, identity), (AsyncIterable, identity), (AsyncIterable, async_iter)],
+)
 def test_flatten_with_concurrency(
     itype: IterableType, to_iter: Callable[[Any], Any]
 ) -> None:
@@ -80,8 +85,10 @@ def test_flatten_with_concurrency(
 
 
 @pytest.mark.parametrize("concurrency", (1, 2))
-@pytest.mark.parametrize("to_iter", (identity, async_iter))
-@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+@pytest.mark.parametrize(
+    "itype, to_iter",
+    [(Iterable, identity), (AsyncIterable, identity), (AsyncIterable, async_iter)],
+)
 def test_flatten_with_exceptions(
     concurrency: int,
     itype: IterableType,
@@ -104,3 +111,26 @@ def test_flatten_with_exceptions(
     assert set(alist_or_list(s, itype)) == set(range(6))
     assert len(value_errors) == "".join(filter(None, elements)).count("-")
     assert len(type_errors) == len([c for c in elements if not isinstance(c, Iterable)])
+
+
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+@pytest.mark.parametrize("concurrency", (1, 2))
+def test_flatten_on_non_iterable(itype: IterableType, concurrency: int) -> None:
+    with pytest.raises(TypeError, match="flatten expects iterables but got 1"):
+        alist_or_list(stream([1]).flatten(concurrency=concurrency), itype)  # type: ignore
+
+
+@pytest.mark.parametrize(
+    "concurrency, expected",
+    [(1, [0, 1, 0, 1]), (2, [0, 0, 1, 1])],
+)
+def test_flatten_on_async_iterables(concurrency: int, expected: List[int]) -> None:
+    s = stream([async_iter([0, 1]), async_iter([0, 1])]).flatten(
+        concurrency=concurrency
+    )
+    assert alist_or_list(s, AsyncIterable) == expected
+    with pytest.raises(
+        TypeError,
+        match="async iterables flattening is only possible during async iteration",
+    ):
+        list(s)

@@ -19,7 +19,7 @@ def test_etl_example(tmp_path: Path) -> None:  # pragma: no cover
             # Infinite stream[int] of Pokemon ids starting from Pokémon #1: Bulbasaur
             stream(count(1))
             # Limit to 16 requests per second to be friendly to our fellow PokéAPI devs
-            .throttle(16, per=timedelta(seconds=1))
+            .throttle(16, per=timedelta(milliseconds=1))
             # GET pokemons concurrently using a pool of 8 threads
             .map(lambda poke_id: f"https://pokeapi.co/api/v2/pokemon-species/{poke_id}")
             .map(httpx.Client().get, concurrency=8)
@@ -57,7 +57,7 @@ async def test_async_etl_example(tmp_path: Path) -> None:  # pragma: no cover
             # Infinite stream[int] of Pokemon ids starting from Pokémon #1: Bulbasaur
             stream(count(1))
             # Limit to 16 requests per second to be friendly to our fellow PokéAPI devs
-            .throttle(16, per=timedelta(seconds=1))
+            .throttle(16, per=timedelta(milliseconds=1))
             # GET pokemons via 8 concurrent coroutines
             .map(lambda poke_id: f"https://pokeapi.co/api/v2/pokemon-species/{poke_id}")
             .map(httpx.AsyncClient().get, concurrency=8)

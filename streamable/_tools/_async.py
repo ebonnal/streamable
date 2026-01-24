@@ -13,7 +13,7 @@ R = TypeVar("R")
 AsyncFunction = Callable[[T], Coroutine[Any, Any, R]]
 
 
-# pre 3.10 to builtin `anext`
+# `builtins.anext` for pre 3.10
 async def anext(aiterator: AsyncIterator[T]) -> T:  # pragma: nocover
     return await aiterator.__anext__()
 
