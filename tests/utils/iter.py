@@ -31,7 +31,7 @@ async def _aiter_to_list(aiterable: AsyncIterable[T]) -> List[T]:
 
 
 def aiterable_to_list(aiterable: AsyncIterable[T]) -> List[T]:
-    return TEST_LOOP.run_until_complete(_aiter_to_list(aiterable))
+    return TEST_LOOP.run_until_complete(_aiter_to_list(aiterable.__aiter__()))
 
 
 def stopiteration_type(itype: IterableType) -> Type[Exception]:
