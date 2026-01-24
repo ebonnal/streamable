@@ -82,7 +82,7 @@ async def test_source_async_function() -> None:
 def test_source_type_error(itype: IterableType) -> None:
     with pytest.raises(
         TypeError,
-        match=r"`source` must be Iterable or AsyncIterable or Callable but got 1",
+        match=r"`source` must be Iterable or AsyncIterable or Callable but got: 1",
     ):
         aiter_or_iter(stream(1), itype)  # type: ignore
 

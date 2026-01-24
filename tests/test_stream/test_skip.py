@@ -11,7 +11,7 @@ from tests.utils.source import INTEGERS, ints
 
 
 def test_skip_raises_on_negative_until() -> None:
-    with pytest.raises(ValueError, match="`until` must be >= 0 but got -1"):
+    with pytest.raises(ValueError, match="`until` must be >= 0 but got: -1"):
         ints.skip(-1)
 
 

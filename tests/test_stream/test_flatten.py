@@ -116,7 +116,7 @@ def test_flatten_with_exceptions(
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 @pytest.mark.parametrize("concurrency", (1, 2))
 def test_flatten_on_non_iterable(itype: IterableType, concurrency: int) -> None:
-    with pytest.raises(TypeError, match="flatten expects iterables but got 1"):
+    with pytest.raises(TypeError, match="flatten expects iterables but got: 1"):
         alist_or_list(stream([1]).flatten(concurrency=concurrency), itype)  # type: ignore
 
 

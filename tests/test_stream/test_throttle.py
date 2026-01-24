@@ -27,14 +27,14 @@ def test_throttle_raises_when_per_is_not_positive(
 ) -> None:
     with pytest.raises(
         ValueError,
-        match=rf"`per` must be a positive timedelta but got {repr_pattern}",
+        match=rf"`per` must be a positive timedelta but got: {repr_pattern}",
     ):
         stream([1]).throttle(1, per=per)
 
 
 @pytest.mark.parametrize("up_to", [0, -1])
 def test_throttle_raises_when_up_to_not_positive(up_to: int) -> None:
-    with pytest.raises(ValueError, match=rf"`up_to` must be >= 1 but got {up_to}"):
+    with pytest.raises(ValueError, match=rf"`up_to` must be >= 1 but got: {up_to}"):
         stream([1]).throttle(up_to, per=datetime.timedelta(seconds=1))
 
 
