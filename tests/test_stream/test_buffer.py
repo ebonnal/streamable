@@ -1,9 +1,9 @@
-from typing import List
+from typing import Any, AsyncIterable, Callable, Iterable, List
 
 import pytest
 
 from streamable import stream
-from tests.utils.func import async_slow_identity
+from tests.utils.func import async_slow_identity, slow_identity
 from tests.utils.iter import (
     ITERABLE_TYPES,
     IterableType,
@@ -27,12 +27,15 @@ def test_buffer_preserves_elements(itype: IterableType) -> None:
 
 
 @pytest.mark.parametrize("buffer_size", [0, 1, 10])
-@pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_buffer_size_is_respected(itype: IterableType, buffer_size: int) -> None:
+@pytest.mark.parametrize(
+    "itype, slow_identity",
+    [(Iterable, slow_identity), (AsyncIterable, async_slow_identity)],
+)
+def test_buffer_size_is_respected(
+    itype: IterableType, buffer_size: int, slow_identity: Callable[..., Any]
+) -> None:
     buffered: List[int] = []
-    buffering_ints = (
-        ints.do(buffered.append).buffer(buffer_size).map(async_slow_identity)
-    )
+    buffering_ints = ints.do(buffered.append).buffer(buffer_size).map(slow_identity)
     buffering_ints_iter = aiter_or_iter(buffering_ints, itype)
     assert buffered == []
     assert anext_or_next(buffering_ints_iter, itype) == 0
@@ -41,8 +44,13 @@ def test_buffer_size_is_respected(itype: IterableType, buffer_size: int) -> None
     assert buffered == list(INTEGERS)[: buffer_size + 2]
 
 
-@pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_buffer_with_exceptions(itype: IterableType) -> None:
+@pytest.mark.parametrize(
+    "itype, slow_identity",
+    [(Iterable, slow_identity), (AsyncIterable, async_slow_identity)],
+)
+def test_buffer_with_exceptions(
+    itype: IterableType, slow_identity: Callable[..., Any]
+) -> None:
     buffered: List[int] = []
     buffersize = 3
     buffering_ints = (
@@ -50,7 +58,7 @@ def test_buffer_with_exceptions(itype: IterableType) -> None:
         .map(int)
         .do(buffered.append)
         .buffer(buffersize)
-        .map(async_slow_identity)
+        .map(slow_identity)
     )
     buffering_ints_iter = aiter_or_iter(buffering_ints, itype)
     assert buffered == []
