@@ -26,6 +26,7 @@ from typing import (
     Union,
     cast,
 )
+import weakref
 
 from streamable._tools._validation import validate_async_flatten_iterable
 
@@ -526,7 +527,7 @@ class EveryIntObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
 
 
 class EveryIntervalObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
-    __slots__ = ("every",)
+    __slots__ = ("__weakref__", "every")
 
     def __init__(
         self,
@@ -538,15 +539,23 @@ class EveryIntervalObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
         super().__init__(iterator, subject, do)
         self.every = every
 
-    async def _observer(self) -> None:
-        every_seconds = self.every.total_seconds()
-        while self._active:
+    @staticmethod
+    async def _observer(
+        weak_self: "weakref.ReferenceType[EveryIntervalObserveAsyncIterator[T]]",
+        every_seconds: float,
+    ) -> None:
+        self = weak_self()
+        while self and self._active:
             await self._observe()
+            self = None
             await asyncio.sleep(every_seconds)
+            self = weak_self()
 
     async def _activate(self) -> None:
         await super()._activate()
-        asyncio.create_task(self._observer())
+        asyncio.create_task(
+            self._observer(weakref.ref(self), self.every.total_seconds())
+        )
         await asyncio.sleep(0)
 
     def _threshold(self, observed: int) -> int:
