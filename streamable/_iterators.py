@@ -1,5 +1,6 @@
 import datetime
-from threading import Thread
+import queue
+from threading import Semaphore, Thread
 import time
 from abc import ABC, abstractmethod
 from collections import defaultdict, deque
@@ -27,6 +28,7 @@ from typing import (
 import weakref
 
 from streamable._tools._contextmanager import noop_context_manager
+from streamable._tools._sentinel import STOP_ITERATION
 from streamable._tools._validation import validate_sync_flatten_iterable
 
 if TYPE_CHECKING:
@@ -560,8 +562,8 @@ class ThrottleIterator(Iterator[T]):
 ##########
 
 
-class BufferIterable(Iterable[Union[T, ExceptionContainer]]):
-    __slots__ = ("iterator", "up_to", "_buffer", "_next")
+class _BufferIterable(Iterable[Union[T, ExceptionContainer]]):
+    __slots__ = ("iterator", "_buffer", "_slots", "_stopped")
 
     def __init__(
         self,
@@ -569,16 +571,38 @@ class BufferIterable(Iterable[Union[T, ExceptionContainer]]):
         up_to: int,
     ) -> None:
         self.iterator = iterator
-        self.up_to = up_to
-        self._buffer: Deque[Future[Union[T, ExceptionContainer]]] = deque()
-        self._next = ExceptionContainer.wrap(next)
+        self._buffer: "queue.Queue[Union[T, ExceptionContainer]]" = queue.Queue()
+        self._slots = Semaphore(up_to)
+        self._stopped = False
+
+    def _buffer_upstream(self) -> None:
+        elem: Union[T, ExceptionContainer]
+        self._slots.acquire()
+        while not self._stopped:
+            try:
+                elem = self.iterator.__next__()
+            except StopIteration:
+                elem = STOP_ITERATION
+                self._stopped = True
+            except Exception as e:
+                elem = ExceptionContainer(e)
+            self._buffer.put_nowait(elem)
+            self._slots.acquire()
 
     def __iter__(self) -> Iterator[Union[T, ExceptionContainer]]:
-        with ThreadPoolExecutor(max_workers=1) as executor:
+        thread = Thread(target=self._buffer_upstream, daemon=True)
+        try:
+            thread.start()
             while True:
-                while len(self._buffer) <= self.up_to:
-                    self._buffer.append(executor.submit(self._next, self.iterator))
-                yield self._buffer.popleft().result()
+                elem = self._buffer.get()
+                if elem is STOP_ITERATION:
+                    break
+                self._slots.release()
+                yield elem
+        finally:
+            self._stopped = True
+            self._slots.release()
+            thread.join()
 
 
 class BufferIterator(RaisingIterator[T]):
@@ -589,7 +613,7 @@ class BufferIterator(RaisingIterator[T]):
         iterator: Iterator[T],
         up_to: int,
     ) -> None:
-        super().__init__(BufferIterable(iterator, up_to).__iter__())
+        super().__init__(_BufferIterable(iterator, up_to).__iter__())
 
 
 ##################

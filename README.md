@@ -377,12 +377,13 @@ Buffer upstream elements via background tasks (decoupling upstream production ra
 
 ```python
 pulled: list[int] = []
-buffered_ints = (
+buffered_ints = iter(
     stream(range(10))
     .do(pulled.append)
     .buffer(5)
 )
-assert next(iter(buffered_ints)) == 0
+assert next(buffered_ints) == 0
+time.sleep(1e-3)
 assert pulled == [0, 1, 2, 3, 4, 5]
 ```
 

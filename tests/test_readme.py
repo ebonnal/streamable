@@ -288,8 +288,9 @@ def test_distinct_example() -> None:
 
 def test_buffer_example() -> None:
     pulled: List[int] = []
-    buffered_ints = stream(range(10)).do(pulled.append).buffer(5)
-    assert next(iter(buffered_ints)) == 0
+    buffered_ints = iter(stream(range(10)).do(pulled.append).buffer(5))
+    assert next(buffered_ints) == 0
+    time.sleep(1e-3)
     assert pulled == [0, 1, 2, 3, 4, 5]
 
 

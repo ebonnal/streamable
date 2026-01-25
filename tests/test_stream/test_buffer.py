@@ -17,8 +17,8 @@ from tests.utils.source import INTEGERS, ints
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_buffer_raises_on_invalid_up_to(itype: IterableType) -> None:
-    with pytest.raises(ValueError, match="`up_to` must be >= 0 but got: -1"):
-        alist_or_list(stream([1]).buffer(-1), itype)
+    with pytest.raises(ValueError, match="`up_to` must be >= 1 but got: 0"):
+        alist_or_list(stream([1]).buffer(0), itype)
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
@@ -26,7 +26,7 @@ def test_buffer_preserves_elements(itype: IterableType) -> None:
     assert alist_or_list(ints.buffer(5), itype) == list(INTEGERS)
 
 
-@pytest.mark.parametrize("buffer_size", [0, 1, 10])
+@pytest.mark.parametrize("buffer_size", [1, 10])
 @pytest.mark.parametrize(
     "itype, slow_identity",
     [(Iterable, slow_identity), (AsyncIterable, async_slow_identity)],
