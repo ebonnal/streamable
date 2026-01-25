@@ -24,6 +24,7 @@ from typing import (
     Union,
     cast,
 )
+import weakref
 
 from streamable._tools._contextmanager import noop_context_manager
 from streamable._tools._validation import validate_sync_flatten_iterable
@@ -469,7 +470,7 @@ class EveryIntObserveIterator(_BaseObserveIterator[T]):
 
 
 class EveryIntervalObserveIterator(_BaseObserveIterator[T]):
-    __slots__ = ("every",)
+    __slots__ = ("__weakref__", "every")
 
     def __init__(
         self,
@@ -481,15 +482,25 @@ class EveryIntervalObserveIterator(_BaseObserveIterator[T]):
         super().__init__(iterator, subject, do)
         self.every = every
 
-    def _observer(self) -> None:
-        every_seconds = self.every.total_seconds()
-        while self._active:
+    @staticmethod
+    def _observer(
+        weak_self: "weakref.ReferenceType[EveryIntervalObserveIterator[T]]",
+        every_seconds: float,
+    ) -> None:
+        self = weak_self()
+        while self and self._active:
             self._observe()
+            self = None
             time.sleep(every_seconds)
+            self = weak_self()
 
     def _activate(self) -> None:
         super()._activate()
-        Thread(target=self._observer, daemon=True).start()
+        Thread(
+            target=self._observer,
+            args=(weakref.ref(self), self.every.total_seconds()),
+            daemon=True,
+        ).start()
 
     def _threshold(self, observed: int) -> int:
         return cast(int, float("inf"))

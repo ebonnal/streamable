@@ -1,5 +1,15 @@
+import asyncio
 import datetime
-from typing import Any, Callable, Iterable, List, NamedTuple, Union
+import time
+from typing import (
+    Any,
+    Callable,
+    Iterable,
+    Iterator,
+    List,
+    NamedTuple,
+    Union,
+)
 
 import pytest
 
@@ -14,6 +24,7 @@ from tests.utils.iter import (
     alist_or_list,
     anext_or_next,
 )
+from tests.utils.source import ints
 
 
 class Counts(NamedTuple):
@@ -259,3 +270,32 @@ def test_observe_do_raising_with_every_timedelta(
     # close to one error raised per element
     assert len(elements) - 1 <= len(errors) <= len(elements)
     assert int(str(errors[-1])) == 7
+
+
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+@pytest.mark.asyncio
+async def test_observe_every_timedelta_observation_stops_on_gc(
+    itype: IterableType,
+) -> None:
+    observations: List[stream.Observation] = []
+    sleep_time = 1
+    every_seconds = 0.1
+    s = ints.observe(
+        "ints", every=datetime.timedelta(seconds=every_seconds), do=observations.append
+    )
+    it = aiter_or_iter(s, itype)
+    if isinstance(it, Iterator):
+        assert it.__next__() == 0
+        time.sleep(sleep_time)
+    else:
+        assert await it.__anext__() == 0
+        await asyncio.sleep(sleep_time)
+    del it
+    n_observations = len(observations)
+    assert n_observations >= sleep_time / every_seconds
+    if itype is Iterable:
+        time.sleep(sleep_time)
+    else:
+        await asyncio.sleep(sleep_time)
+    # no more observations after `del`
+    assert n_observations == len(observations)
