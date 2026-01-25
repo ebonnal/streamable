@@ -28,6 +28,7 @@ from typing import (
 )
 import weakref
 
+from streamable._tools._sentinel import STOP_ITERATION
 from streamable._tools._validation import validate_async_flatten_iterable
 
 if TYPE_CHECKING:
@@ -616,8 +617,8 @@ class ThrottleAsyncIterator(AsyncIterator[T]):
 ##########
 
 
-class BufferAsyncIterator(AsyncIterator[T]):
-    __slots__ = ("iterator", "up_to", "_buffer", "_lock")
+class _BufferAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]]):
+    __slots__ = ("iterator", "up_to", "_buffer", "_slots", "_stopped")
 
     def __init__(
         self,
@@ -626,19 +627,60 @@ class BufferAsyncIterator(AsyncIterator[T]):
     ) -> None:
         self.iterator = iterator
         self.up_to = up_to
-        self._buffer: Deque[asyncio.Task[T]] = deque()
-        self._lock: Optional[asyncio.Lock] = None
+        self._buffer: "Optional[asyncio.Queue[Union[T, ExceptionContainer]]]" = None
+        self._slots: Optional[asyncio.Semaphore] = None
+        self._stopped = False
 
-    async def _locked_anext(self, lock: asyncio.Lock) -> T:
-        async with lock:
-            return await self.iterator.__anext__()
+    @property
+    def _lazy_buffer(self) -> "asyncio.Queue[Union[T, ExceptionContainer]]":
+        if not self._buffer:
+            self._buffer = asyncio.Queue()
+        return self._buffer
 
-    async def __anext__(self) -> T:
-        if not self._lock:
-            self._lock = asyncio.Lock()
-        while len(self._buffer) <= self.up_to:
-            self._buffer.append(asyncio.create_task(self._locked_anext(self._lock)))
-        return await self._buffer.popleft()
+    @property
+    def _lazy_slots(self) -> asyncio.Semaphore:
+        if not self._slots:
+            self._slots = asyncio.Semaphore(self.up_to)
+        return self._slots
+
+    async def _buffer_upstream(self) -> None:
+        elem: Union[T, ExceptionContainer]
+        await self._lazy_slots.acquire()
+        while not self._stopped:
+            try:
+                elem = await self.iterator.__anext__()
+            except StopAsyncIteration:
+                elem = STOP_ITERATION
+                self._stopped = True
+            except Exception as e:
+                elem = ExceptionContainer(e)
+            self._lazy_buffer.put_nowait(elem)
+            await self._lazy_slots.acquire()
+
+    async def __aiter__(self) -> AsyncIterator[Union[T, ExceptionContainer]]:
+        task = asyncio.create_task(self._buffer_upstream())
+        try:
+            while True:
+                elem = await self._lazy_buffer.get()
+                if elem is STOP_ITERATION:
+                    break
+                self._lazy_slots.release()
+                yield elem
+        finally:
+            self._stopped = True
+            self._lazy_slots.release()
+            await task
+
+
+class BufferAsyncIterator(RaisingAsyncIterator[T]):
+    __slots__ = ()
+
+    def __init__(
+        self,
+        iterator: AsyncIterator[T],
+        up_to: int,
+    ) -> None:
+        super().__init__(_BufferAsyncIterable(iterator, up_to).__aiter__())
 
 
 ##################

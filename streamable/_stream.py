@@ -314,7 +314,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             assert next(iter(buffered_ints)) == 0
             assert pulled == [0, 1, 2, 3, 4, 5]
         """
-        validate_int(up_to, gte=0, name="up_to")
+        validate_int(up_to, gte=1, name="up_to")
         return BufferStream(self, up_to)
 
     @overload
