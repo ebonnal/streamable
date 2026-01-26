@@ -715,12 +715,12 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         You can combine these parameters.
 
-        If an exception is encountered during grouping, the pending batch is yielded as is (all pending batches if ``by`` is set), then the exception is raised.
+        If an exception is encountered during grouping, the pending batch is yielded (all the pending batches if `by` is set), and the exception is then raised.
 
         Args:
             up_to (``int | None``, optional): If a batch reaches that number of elements, it is yielded.
 
-            every (``timedelta | None``, optional): If this duration is elapsed since the last batch has been yielded (for that particular key if ``by`` is provided), a new batch is yielded. Does not yield an empty batch.
+            every (``timedelta | None``, optional): If this duration is elapsed since the last batch has been yielded (for a particular key if ``by`` is set), the pending batch is yielded if any.
 
             by (``Callable[[T], U] | AsyncCallable[T, U] | None``, optional): Co-group elements into ``(key, elements)`` tuples.
         Returns:

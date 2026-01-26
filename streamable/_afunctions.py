@@ -2,6 +2,7 @@ from concurrent.futures import Executor
 import datetime
 from contextlib import suppress
 from inspect import iscoroutinefunction
+from operator import itemgetter
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -91,13 +92,26 @@ def group(
     every: Optional[datetime.timedelta] = None,
     by: Union[None, Callable[[T], U], AsyncFunction[T, U]] = None,
 ) -> Union[AsyncIterator[List[T]], AsyncIterator[Tuple[U, List[T]]]]:
+    if every is None:
+        if by is None:
+            return _aiterators.GroupAsyncIterator(aiterator, up_to=up_to)
+        return _aiterators.FlattenAsyncIterator(
+            _aiterators.GroupByAsyncIterator(
+                aiterator, by=cast(AsyncFunction[T, U], asyncify(by)), up_to=up_to
+            )
+        )
     if by is None:
-        return _aiterators.GroupAsyncIterator(aiterator, up_to, every)
-    return _aiterators.GroupbyAsyncIterator(
-        aiterator,
-        by=asyncify(by),
-        up_to=up_to,
-        every=every,
+        return _aiterators.MapAsyncIterator(
+            _aiterators.GroupByEveryAsyncIterator(
+                aiterator,
+                by=asyncify(lambda _: None),
+                up_to=up_to,
+                every=every,
+            ),
+            asyncify(itemgetter(1)),
+        )
+    return _aiterators.GroupByEveryAsyncIterator(
+        aiterator, by=asyncify(by), up_to=up_to, every=every
     )
 
 

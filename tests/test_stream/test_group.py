@@ -1,13 +1,17 @@
 import datetime
-from typing import Any, Callable, List, Optional
+from typing import Any, AsyncIterable, Callable, Iterable, List, Optional
 from datetime import timedelta
 import pytest
 
 from streamable import stream
 from streamable._tools._func import asyncify
-from tests.utils.func import SLOW_IDENTITY_DURATION, identity, slow_identity
+from tests.utils.func import (
+    SLOW_IDENTITY_DURATION,
+    identity,
+    async_slow_identity,
+    slow_identity,
+)
 from tests.utils.iter import (
-    ITERABLE_TYPES,
     IterableType,
     alist_or_list,
 )
@@ -90,46 +94,55 @@ def test_group_raises_on_non_positive_up_to(up_to: int) -> None:
         ),
         # every
         (
-            stream(range(10)).map(slow_identity),
+            stream(range(10)),
             None,
             None,
             timedelta(seconds=3.9 * SLOW_IDENTITY_DURATION),
             [[0, 1, 2, 3], [4, 5, 6, 7], [8, 9]],
         ),
-        # every + by + up_to
+        # every + by + up_to: every triggering before up_to triggers
         (
-            stream(range(10)).map(slow_identity),
+            stream(range(10)),
             3,
             lambda n: n % 2,
             timedelta(seconds=3.9 * SLOW_IDENTITY_DURATION),
             [
-                (0, [0, 2]),  # every triggers
-                (1, [1, 3, 5]),  # up_to triggers
-                (0, [4, 6, 8]),  # up_to triggers
-                (1, [7, 9]),  # exhausted
+                (0, [0, 2]),
+                (1, [1, 3]),
+                (0, [4, 6]),
+                (1, [5, 7]),
+                (0, [8]),
+                (1, [9]),
             ],
         ),
-        # every by: yield oldest pending group when every is elapsed
+        # every + by + up_to: up_to sometimes triggering before every
         (
-            stream(range(10)).map(slow_identity),
-            None,
-            lambda n: n % 2,
-            timedelta(seconds=3.9 * SLOW_IDENTITY_DURATION),
-            [(0, [0, 2]), (1, [1, 3, 5, 7]), (0, [4, 6, 8]), (1, [9])],
+            stream(range(10)),
+            2,
+            lambda n: n == 0,
+            timedelta(seconds=7.9 * SLOW_IDENTITY_DURATION),
+            [
+                (False, [1, 2]),  # up_to triggers
+                (False, [3, 4]),  # up_to triggers
+                (False, [5, 6]),  # up_to triggers
+                (True, [0]),  # every triggers
+                (False, [7, 8]),  # up_to triggers
+                (False, [9]),  # up_to triggers
+            ],
         ),
         # every by with upstream exception, yield all pending groups FIFO
         # when every triggers it only yields the oldest group
         (
-            stream("01-23456789").map(slow_identity).map(int),
+            stream("01-23456789").map(int),
             None,
             lambda n: n % 2,
             timedelta(seconds=3.9 * SLOW_IDENTITY_DURATION),
-            [(0, [0]), (1, [1]), (0, [2, 4]), (1, [3, 5, 7, 9]), (0, [6, 8])],
+            [(0, [0]), (1, [1]), (0, [2, 4]), (1, [3, 5]), (0, [6, 8]), (1, [7, 9])],
         ),
         # every by with by exception, yield all pending groups FIFO
         # when every triggers it only yields the oldest group
         (
-            stream("01-23456789").map(slow_identity),
+            stream("01-23456789"),
             None,
             lambda n: int(n) % 2,
             timedelta(seconds=3.9 * SLOW_IDENTITY_DURATION),
@@ -137,14 +150,21 @@ def test_group_raises_on_non_positive_up_to(up_to: int) -> None:
                 (0, ["0"]),
                 (1, ["1"]),
                 (0, ["2", "4"]),
-                (1, ["3", "5", "7", "9"]),
+                (1, ["3", "5"]),
                 (0, ["6", "8"]),
+                (1, ["7", "9"]),
             ],
         ),
     ],
 )
-@pytest.mark.parametrize("adapt", [identity, asyncify])
-@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+@pytest.mark.parametrize(
+    "itype, slow_identity, adapt",
+    [
+        (Iterable, slow_identity, identity),
+        (Iterable, async_slow_identity, asyncify),
+        (AsyncIterable, async_slow_identity, asyncify),
+    ],
+)
 def test_group_cases(
     itype: IterableType,
     upstream: stream[Any],
@@ -153,6 +173,11 @@ def test_group_cases(
     every: Optional[datetime.timedelta],
     expected: List[List[int]],
     adapt: Callable[[Any], Any],
+    slow_identity: Callable[[Any], Any],
 ) -> None:
-    s = upstream.group(up_to=up_to, by=adapt(by), every=every).catch(ValueError)
+    s = (
+        upstream.map(slow_identity)
+        .group(up_to=up_to, by=adapt(by), every=every)
+        .catch(ValueError)
+    )
     assert alist_or_list(s, itype) == expected
