@@ -1,5 +1,6 @@
 import asyncio
 from asyncio.futures import Future
+from contextlib import suppress
 import datetime
 import time
 from abc import ABC, abstractmethod
@@ -400,8 +401,6 @@ class _BaseObserveAsyncIterator(AsyncIterator[T]):
         "_elements_observed",
         "_errors_observed",
         "_active",
-        "_to_raise",
-        "_just_raised",
         "_start_point",
     )
 
@@ -420,8 +419,6 @@ class _BaseObserveAsyncIterator(AsyncIterator[T]):
         self._elements_observed = 0
         self._errors_observed = 0
         self._active = False
-        self._to_raise: Optional[Exception] = None
-        self._just_raised = False
         self._start_point: datetime.datetime
 
     @property
@@ -448,19 +445,8 @@ class _BaseObserveAsyncIterator(AsyncIterator[T]):
 
     async def _observe(self) -> None:
         self._emissions_observed = self._emissions
-        try:
+        with suppress(Exception):
             await self.do(self._observation())
-        except Exception as e:
-            self._to_raise = e
-
-    def _raise_next(self) -> None:
-        if self._to_raise and not self._just_raised:
-            self._just_raised = True
-            try:
-                raise self._to_raise
-            finally:
-                self._to_raise = None
-        self._just_raised = False
 
     @abstractmethod
     def _threshold(self, observed: int) -> int: ...
@@ -468,7 +454,6 @@ class _BaseObserveAsyncIterator(AsyncIterator[T]):
     async def __anext__(self) -> T:
         if not self._active:
             await self._activate()
-        self._raise_next()
         try:
             elem = await self.iterator.__anext__()
             self._elements += 1
