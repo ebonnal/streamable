@@ -16,7 +16,7 @@ import pytest
 from streamable import stream
 from streamable._tools._func import asyncify
 from tests.utils.error import TestError
-from tests.utils.func import identity, inverse, throw, throw_func
+from tests.utils.func import identity, inverse, throw_func
 from tests.utils.iter import (
     ITERABLE_TYPES,
     IterableType,
@@ -230,46 +230,17 @@ def test_observe_do(itype: IterableType, adapt: Callable[[Any], Any]) -> None:
 
 
 @pytest.mark.parametrize("adapt", [identity, asyncify])
+@pytest.mark.parametrize("every", [None, 2, datetime.timedelta(days=1)])
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_observe_do_raising_every_n(
-    itype: IterableType, adapt: Callable[[Any], Any]
+def test_observe_do_raise(
+    itype: IterableType,
+    adapt: Callable[[Any], Any],
+    every: Union[None, int, datetime.timedelta],
 ) -> None:
-    errors: List[Exception] = []
+    """`do` errors should be ignored"""
     elements = [1, 2, 3, 4, 5, 6, 7]
-    s = (
-        stream(elements)
-        .observe("ints", every=2, do=adapt(throw_func(TestError)))
-        .catch(TestError, do=errors.append)
-    )
+    s = stream(elements).observe("ints", every=every, do=adapt(throw_func(TestError)))
     assert alist_or_list(s, itype) == elements
-    assert len(errors) == 4
-
-
-@pytest.mark.parametrize("adapt", [identity, asyncify])
-@pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_observe_do_raising_with_every_timedelta(
-    itype: IterableType, adapt: Callable[[Any], Any]
-) -> None:
-    """
-    When every has a faster rate than upstream, the errors should not accumulate
-    and only the latest should be emitted on the next `__next__` call.
-    """
-    errors: List[Exception] = []
-    elements = [0, 1, 2, 3, 4, 5, 6]
-    s = (
-        stream(elements)
-        .observe(
-            "ints",
-            every=datetime.timedelta(milliseconds=10),
-            do=adapt(lambda obs: throw(TestError(obs.elements))),
-        )
-        .catch(TestError, do=errors.append)
-        .throttle(1, per=datetime.timedelta(milliseconds=200))
-    )
-    assert alist_or_list(s, itype) == elements
-    # close to one error raised per element
-    assert len(elements) - 1 <= len(errors) <= len(elements)
-    assert int(str(errors[-1])) == 7
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)

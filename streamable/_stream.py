@@ -862,6 +862,8 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         A ``stream.Observation`` is passed to the ``do`` callback (the default emits a log), at a frequency defined by ``every``.
 
+        The errors raised by `do` itself are ignored: they do not bubble up into the iterator and are not included in the errors count.
+
         Args:
             subject (``str``, optional): Description of elements being observed.
 

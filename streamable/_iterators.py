@@ -344,9 +344,7 @@ class _BaseObserveIterator(Iterator[T]):
         "_elements_observed",
         "_errors_observed",
         "_active",
-        "_to_raise",
         "_start_point",
-        "_just_raised",
     )
 
     def __init__(
@@ -364,8 +362,6 @@ class _BaseObserveIterator(Iterator[T]):
         self._elements_observed = 0
         self._errors_observed = 0
         self._active = False
-        self._to_raise: Optional[Exception] = None
-        self._just_raised = False
         self._start_point: datetime.datetime
 
     @property
@@ -392,19 +388,8 @@ class _BaseObserveIterator(Iterator[T]):
 
     def _observe(self) -> None:
         self._emissions_observed = self._emissions
-        try:
+        with suppress(Exception):
             self.do(self._observation())
-        except Exception as e:
-            self._to_raise = e
-
-    def _raise_next(self) -> None:
-        if self._to_raise and not self._just_raised:
-            self._just_raised = True
-            try:
-                raise self._to_raise
-            finally:
-                self._to_raise = None
-        self._just_raised = False
 
     @abstractmethod
     def _threshold(self, observed: int) -> int: ...
@@ -412,7 +397,6 @@ class _BaseObserveIterator(Iterator[T]):
     def __next__(self) -> T:
         if not self._active:
             self._activate()
-        self._raise_next()
         try:
             elem = self.iterator.__next__()
             self._elements += 1
