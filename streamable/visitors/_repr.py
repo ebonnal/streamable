@@ -60,7 +60,7 @@ class ReprVisitor(Visitor[str], ABC):
 
     def visit_group_stream(self, s: "GroupStream") -> str:
         self.operation_reprs.append(
-            f"group(up_to={self.to_string(s._up_to)}, every={self.to_string(s._every)}, by={self.to_string(s._by)})"
+            f"group(up_to={self.to_string(s._up_to)}, within={self.to_string(s._within)}, by={self.to_string(s._by)})"
         )
         return s.upstream.accept(self)
 

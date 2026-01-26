@@ -73,12 +73,12 @@ def test_group_eq() -> None:
     def by(_: int) -> int:
         return 1  # pragma: no cover
 
-    s = ints.group(up_to=5, every=datetime.timedelta(seconds=1), by=by)
-    assert s == ints.group(up_to=5, every=datetime.timedelta(seconds=1), by=by)
-    assert s != ints.group(up_to=10, every=datetime.timedelta(seconds=1), by=by)
-    assert s != ints.group(up_to=5, every=datetime.timedelta(seconds=2), by=by)
+    s = ints.group(up_to=5, within=datetime.timedelta(seconds=1), by=by)
+    assert s == ints.group(up_to=5, within=datetime.timedelta(seconds=1), by=by)
+    assert s != ints.group(up_to=10, within=datetime.timedelta(seconds=1), by=by)
+    assert s != ints.group(up_to=5, within=datetime.timedelta(seconds=2), by=by)
     assert s != ints.group(
-        up_to=5, every=datetime.timedelta(seconds=1), by=lambda x: x % 3
+        up_to=5, within=datetime.timedelta(seconds=1), by=lambda x: x % 3
     )
 
 

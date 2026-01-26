@@ -697,7 +697,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         self,
         up_to: Optional[int] = None,
         *,
-        every: Optional[datetime.timedelta] = None,
+        within: Optional[datetime.timedelta] = None,
         by: AsyncFunction[T, U],
     ) -> "stream[Tuple[U, List[T]]]": ...
 
@@ -706,7 +706,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         self,
         up_to: Optional[int] = None,
         *,
-        every: Optional[datetime.timedelta] = None,
+        within: Optional[datetime.timedelta] = None,
         by: Callable[[T], U],
     ) -> "stream[Tuple[U, List[T]]]": ...
 
@@ -715,30 +715,30 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         self,
         up_to: Optional[int] = None,
         *,
-        every: Optional[datetime.timedelta] = None,
+        within: Optional[datetime.timedelta] = None,
     ) -> "stream[List[T]]": ...
 
     def group(
         self,
         up_to: Optional[int] = None,
         *,
-        every: Optional[datetime.timedelta] = None,
+        within: Optional[datetime.timedelta] = None,
         by: Union[None, Callable[[T], U], AsyncFunction[T, U]] = None,
     ) -> "Union[stream[List[T]], stream[Tuple[U, List[T]]]]":
         """
         Group elements into batches:
         - ``up_to`` a given batch size
-        - ``every`` given time interval
+        - ``within`` a given time interval
         - ``by`` a given key, yielding ``(key, elements)`` pairs
 
         You can combine these parameters.
 
-        If an exception is encountered during grouping, the pending batch is yielded as is (all pending batches if ``by`` is set), then the exception is raised.
+        If an exception is encountered during grouping, the pending batch is yielded (all the pending batches if `by` is set), and the exception is then raised.
 
         Args:
             up_to (``int | None``, optional): If a batch reaches that number of elements, it is yielded.
 
-            every (``timedelta | None``, optional): If this duration is elapsed since the last batch has been yielded (for that particular key if ``by`` is provided), a new batch is yielded. Does not yield an empty batch.
+            within (``timedelta | None``, optional): A batch pending for more than ``within`` is yielded, even if under ``up_to`` elements.
 
             by (``Callable[[T], U] | AsyncCallable[T, U] | None``, optional): Co-group elements into ``(key, elements)`` tuples.
         Returns:
@@ -747,27 +747,32 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         Example::
 
             int_batches: stream[list[int]] = stream(range(10)).group(5)
+
             assert list(int_batches) == [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]]
 
+            # `within` a given time interval
             from datetime import timedelta
             int_1sec_batches: stream[list[int]] = (
                 stream(range(10))
                 .throttle(2, per=timedelta(seconds=1))
-                .group(every=timedelta(seconds=0.99))
+                .group(within=timedelta(seconds=0.99))
             )
-            assert list(int_1sec_batches) == [[0, 1, 2], [3, 4], [5, 6], [7, 8], [9]]
 
+            assert list(int_1sec_batches) == [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]]
+
+            # `by` a given key, yielding `(key, elements)` pairs
             ints_by_parity: stream[tuple[str, list[int]]] = (
                 stream(range(10))
                 .group(by=lambda n: "odd" if n % 2 else "even")
             )
+
             assert list(ints_by_parity) == [("even", [0, 2, 4, 6, 8]), ("odd", [1, 3, 5, 7, 9])]
         """
         if up_to is not None:
             validate_int(up_to, gte=1, name="up_to")
-        if every is not None:
-            validate_positive_timedelta(every, name="every")
-        return GroupStream(self, up_to, every, by)
+        if within is not None:
+            validate_positive_timedelta(within, name="within")
+        return GroupStream(self, up_to, within, by)
 
     @overload
     def map(
@@ -1140,13 +1145,13 @@ class DoStream(DownStream[T, T]):
 
 
 class GroupStream(DownStream[T, List[T]]):
-    __slots__ = ("_up_to", "_every", "_by")
+    __slots__ = ("_up_to", "_within", "_by")
 
     def __init__(
         self,
         upstream: stream[T],
         up_to: Optional[int],
-        every: Optional[datetime.timedelta],
+        within: Optional[datetime.timedelta],
         by: Union[
             None,
             Callable[[T], Any],
@@ -1155,7 +1160,7 @@ class GroupStream(DownStream[T, List[T]]):
     ) -> None:
         super().__init__(upstream)
         self._up_to = up_to
-        self._every = every
+        self._within = within
         self._by = by
 
     def accept(self, visitor: "Visitor[V]") -> V:

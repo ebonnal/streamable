@@ -31,7 +31,7 @@ def test_etl_example(tmp_path: Path) -> None:  # pragma: no cover
             # Keep only quadruped Pokemons
             .filter(lambda poke: poke["shape"]["name"] == "quadruped")
             # Write a batch of pokemons every 5 seconds to the CSV file
-            .group(every=timedelta(seconds=5))
+            .group(within=timedelta(seconds=5))
             .do(writer.writerows)
             .flatten()
             .observe("written pokemons")
@@ -69,7 +69,7 @@ async def test_async_etl_example(tmp_path: Path) -> None:  # pragma: no cover
             # Keep only quadruped Pokemons
             .filter(lambda poke: poke["shape"]["name"] == "quadruped")
             # Write a batch of pokemons every 5 seconds to the CSV file
-            .group(every=timedelta(seconds=5))
+            .group(within=timedelta(seconds=5))
             .do(writer.writerows)
             .flatten()
             .observe("written pokemons")

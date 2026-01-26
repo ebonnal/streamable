@@ -2,6 +2,7 @@ import builtins
 from concurrent.futures import Executor
 import datetime
 from contextlib import suppress
+from operator import itemgetter
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -79,17 +80,23 @@ def group(
     iterator: Iterator[T],
     up_to: Optional[int] = None,
     *,
-    every: Optional[datetime.timedelta] = None,
+    within: Optional[datetime.timedelta] = None,
     by: Union[None, Callable[[T], U]] = None,
 ) -> Union[Iterator[List[T]], Iterator[Tuple[U, List[T]]]]:
+    if within is None:
+        if by is None:
+            return _iterators.GroupIterator(iterator, up_to=up_to)
+        return _iterators.FlattenIterator(
+            _iterators.GroupByIterator(iterator, by=by, up_to=up_to)
+        )
     if by is None:
-        return _iterators.GroupIterator(iterator, up_to, every)
-    return _iterators.GroupbyIterator(
-        iterator,
-        by=by,
-        up_to=up_to,
-        every=every,
-    )
+        return builtins.map(
+            itemgetter(1),
+            _iterators.GroupByWithinIterator(
+                iterator, by=lambda _: None, up_to=up_to, within=within
+            ),
+        )
+    return _iterators.GroupByWithinIterator(iterator, by=by, up_to=up_to, within=within)
 
 
 def map(

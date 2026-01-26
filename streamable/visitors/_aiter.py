@@ -82,7 +82,7 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
             _afunctions.group(
                 s.upstream.accept(self),
                 s._up_to,
-                every=s._every,
+                within=s._within,
                 by=s._by,
             ),
         )

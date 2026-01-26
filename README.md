@@ -192,7 +192,7 @@ int_batches: stream[list[int]] = stream(range(10)).group(5)
 assert list(int_batches) == [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]]
 ```
 
-... `every` given time interval:
+... `within` a given time interval:
 
 
 ```python
@@ -201,10 +201,10 @@ from datetime import timedelta
 int_1sec_batches: stream[list[int]] = (
     stream(range(10))
     .throttle(2, per=timedelta(seconds=1))
-    .group(every=timedelta(seconds=0.99))
+    .group(within=timedelta(seconds=0.99))
 )
 
-assert list(int_1sec_batches) == [[0, 1, 2], [3, 4], [5, 6], [7, 8], [9]]
+assert list(int_1sec_batches) == [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]]
 ```
 
 ... `by` a given key, yielding `(key, elements)` pairs:

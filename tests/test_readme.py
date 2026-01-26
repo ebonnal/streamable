@@ -163,10 +163,10 @@ def test_group_example() -> None:
     int_1sec_batches: stream[List[int]] = (
         stream(range(10))
         .throttle(2, per=timedelta(seconds=1))
-        .group(every=timedelta(seconds=0.99))
+        .group(within=timedelta(seconds=0.99))
     )
 
-    assert list(int_1sec_batches) == [[0, 1, 2], [3, 4], [5, 6], [7, 8], [9]]
+    assert list(int_1sec_batches) == [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]]
 
     ints_by_parity: stream[Tuple[str, List[int]]] = stream(range(10)).group(
         by=lambda n: "odd" if n % 2 else "even"

@@ -68,7 +68,7 @@ class EqualityVisitor(Visitor[bool]):
             self.type_eq(s)
             and s.upstream.accept(EqualityVisitor(self.other.upstream))
             and s._up_to == self.other._up_to
-            and s._every == self.other._every
+            and s._within == self.other._within
             and s._by == self.other._by
         )
 

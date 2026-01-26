@@ -79,7 +79,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
             _functions.group(
                 s.upstream.accept(self),
                 s._up_to,
-                every=s._every,
+                within=s._within,
                 by=s._by,
             ),
         )

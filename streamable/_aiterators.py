@@ -14,8 +14,8 @@ from typing import (
     Awaitable,
     Callable,
     ContextManager,
-    DefaultDict,
     Deque,
+    Dict,
     Generic,
     Iterable,
     Iterator,
@@ -132,135 +132,197 @@ class FlattenAsyncIterator(AsyncIterator[T]):
 #########
 
 
-class _BaseGroupAsyncIterator(Generic[T]):
-    __slots__ = ("iterator", "up_to", "_every_seconds", "_to_raise", "_last_yield_at")
+class GroupAsyncIterator(AsyncIterator[List[T]]):
+    __slots__ = ("iterator", "up_to", "_group", "_to_raise")
 
     def __init__(
         self,
         iterator: AsyncIterator[T],
         up_to: Optional[int],
-        every: Optional[datetime.timedelta],
     ) -> None:
         self.iterator = iterator
         self.up_to = up_to or cast(int, float("inf"))
-        self._every_seconds = every.total_seconds() if every else None
+        self._group: List[T] = []
         self._to_raise: Optional[Exception] = None
-        self._last_yield_at: float = 0
-
-    def _every_seconds_elapsed(self) -> bool:
-        if self._every_seconds is None:
-            return False
-        elapsed = time.perf_counter() - self._last_yield_at
-        return elapsed >= self._every_seconds
-
-    def _remember_group_time(self) -> None:
-        if self._every_seconds is not None:
-            self._last_yield_at = time.perf_counter()
-
-    def _init_last_group_time(self) -> None:
-        if self._every_seconds is not None and not self._last_yield_at:
-            self._last_yield_at = time.perf_counter()
-
-
-class GroupAsyncIterator(_BaseGroupAsyncIterator[T], AsyncIterator[List[T]]):
-    __slots__ = ("_current_group",)
-
-    def __init__(
-        self,
-        iterator: AsyncIterator[T],
-        up_to: Optional[int],
-        every: Optional[datetime.timedelta],
-    ) -> None:
-        super().__init__(iterator, up_to, every)
-        self._current_group: List[T] = []
 
     async def __anext__(self) -> List[T]:
-        self._init_last_group_time()
         if self._to_raise:
             try:
                 raise self._to_raise
             finally:
                 self._to_raise = None
-        try:
-            while len(self._current_group) < self.up_to and (
-                not self._every_seconds_elapsed() or not self._current_group
-            ):
-                self._current_group.append(await self.iterator.__anext__())
-        except Exception as e:
-            if not self._current_group:
+        while len(self._group) < self.up_to:
+            try:
+                self._group.append(await self.iterator.__anext__())
+            except Exception as e:
+                if self._group:
+                    self._to_raise = e
+                    break
                 raise
-            self._to_raise = e
+        try:
+            return self._group
+        finally:
+            self._group = []
 
-        group, self._current_group = self._current_group, []
-        self._remember_group_time()
-        return group
 
-
-class GroupbyAsyncIterator(
-    _BaseGroupAsyncIterator[T], AsyncIterator[Tuple[U, List[T]]]
-):
-    __slots__ = ("by", "_is_exhausted", "_current_groups")
+class GroupByAsyncIterator(AsyncIterator[Iterable[Tuple[U, List[T]]]]):
+    __slots__ = ("iterator", "up_to", "by", "_groups", "_to_raise")
 
     def __init__(
         self,
         iterator: AsyncIterator[T],
-        by: AsyncFunction[T, U],
         up_to: Optional[int],
-        every: Optional[datetime.timedelta],
+        by: AsyncFunction[T, U],
     ) -> None:
-        super().__init__(iterator, up_to, every)
+        self.iterator = iterator
+        self.up_to = up_to or cast(int, float("inf"))
         self.by = by
-        self._is_exhausted = False
-        self._current_groups: DefaultDict[U, List[T]] = defaultdict(list)
+        self._groups: Dict[U, List[T]] = defaultdict(list)
+        self._to_raise: Optional[Exception] = None
 
-    async def _group_next_elem(self) -> None:
-        elem = await self.iterator.__anext__()
-        self._current_groups[await self.by(elem)].append(elem)
-
-    def _pop_full_group(self) -> Optional[Tuple[U, List[T]]]:
-        for key, group in self._current_groups.items():
-            if len(group) >= self.up_to:
-                return key, self._current_groups.pop(key)
-        return None
-
-    def _pop_oldest_group(self) -> Tuple[U, List[T]]:
-        first_key: U = self._current_groups.__iter__().__next__()
-        return first_key, self._current_groups.pop(first_key)
-
-    async def __anext__(self) -> Tuple[U, List[T]]:
-        self._init_last_group_time()
-        if self._is_exhausted:
-            if self._current_groups:
-                return self._pop_oldest_group()
-            raise StopAsyncIteration
-
+    async def __anext__(self) -> Iterable[Tuple[U, List[T]]]:
         if self._to_raise:
-            if self._current_groups:
-                self._remember_group_time()
-                return self._pop_oldest_group()
             try:
                 raise self._to_raise
             finally:
                 self._to_raise = None
+        while True:
+            try:
+                elem = await self.iterator.__anext__()
+                key = await self.by(elem)
+                group = self._groups[key]
+                group.append(elem)
+                if len(group) == self.up_to:
+                    del self._groups[key]
+                    return ((key, group),)
+            except Exception as e:
+                if self._groups:
+                    self._to_raise = e
+                    try:
+                        return self._groups.items()
+                    finally:
+                        self._groups = defaultdict(list)
+                raise
 
+
+class _GroupByWithinAsyncIterable(
+    AsyncIterable[Union[ExceptionContainer, Tuple[U, List[T]]]]
+):
+    __slots__ = (
+        "iterator",
+        "up_to",
+        "by",
+        "_within_seconds",
+        "_groups",
+        "_next_elem",
+        "_allow_to_get_next",
+        "_stopped",
+    )
+
+    def __init__(
+        self,
+        iterator: AsyncIterator[T],
+        up_to: Optional[int],
+        by: AsyncFunction[T, U],
+        within: datetime.timedelta,
+    ) -> None:
+        self.iterator = iterator
+        self.up_to = up_to or cast(int, float("inf"))
+        self.by = by
+        self._groups: Dict[U, Tuple[float, List[T]]] = self._default_groups()
+        self._within_seconds = within.total_seconds()
+        self._next_elem: Optional[asyncio.Queue[Union[T, ExceptionContainer]]] = None
+        self._allow_to_get_next: Optional[asyncio.Semaphore] = None
+        self._stopped = False
+
+    @staticmethod
+    def _default_groups() -> Dict[U, Tuple[float, List[T]]]:
+        return defaultdict(lambda: (time.perf_counter(), []))
+
+    def _timeout(self) -> Optional[float]:
+        if self._groups:
+            oldest_group_time = next(iter(self._groups.values()))[0]
+            return max(
+                0, oldest_group_time + self._within_seconds - time.perf_counter()
+            )
+        return None
+
+    @property
+    def _lazy_next_elem(self) -> "asyncio.Queue[Union[T, ExceptionContainer]]":
+        if not self._next_elem:
+            self._next_elem = asyncio.Queue()
+        return self._next_elem
+
+    @property
+    def _lazy_allow_to_get_next(self) -> asyncio.Semaphore:
+        if not self._allow_to_get_next:
+            self._allow_to_get_next = asyncio.Semaphore(0)
+        return self._allow_to_get_next
+
+    async def _pull_upstream(self) -> None:
+        elem: Union[T, ExceptionContainer]
+        await self._lazy_allow_to_get_next.acquire()
+        while not self._stopped:
+            try:
+                elem = await self.iterator.__anext__()
+            except StopAsyncIteration:
+                elem = STOP_ITERATION
+                self._stopped = True
+            except Exception as e:
+                elem = ExceptionContainer(e)
+            self._lazy_next_elem.put_nowait(elem)
+            await self._lazy_allow_to_get_next.acquire()
+
+    async def __aiter__(
+        self,
+    ) -> AsyncIterator[Union[ExceptionContainer, Tuple[U, List[T]]]]:
+        task = asyncio.create_task(self._pull_upstream())
         try:
-            await self._group_next_elem()
+            while True:
+                self._lazy_allow_to_get_next.release()
+                try:
+                    try:
+                        elem = await asyncio.wait_for(
+                            self._lazy_next_elem.get(), timeout=self._timeout()
+                        )
+                        if elem is STOP_ITERATION:
+                            raise StopAsyncIteration
+                        if isinstance(elem, ExceptionContainer):
+                            raise elem.exception
+                    except asyncio.TimeoutError:
+                        oldest_key = next(iter(self._groups.keys()))
+                        yield (oldest_key, self._groups.pop(oldest_key)[1])
+                        continue
+                    key = await self.by(elem)
+                    _, group = self._groups[key]
+                    group.append(elem)
+                    if len(group) == self.up_to:
+                        del self._groups[key]
+                        yield (key, group)
+                except Exception as e:
+                    while self._groups:
+                        oldest_key = next(iter(self._groups.keys()))
+                        yield (oldest_key, self._groups.pop(oldest_key)[1])
+                    if isinstance(e, StopAsyncIteration):
+                        return
+                    yield ExceptionContainer(e)
+        finally:
+            self._stopped = True
+            self._lazy_allow_to_get_next.release()
+            await task
 
-            full_group: Optional[Tuple[U, List[T]]] = self._pop_full_group()
-            while not full_group and not self._every_seconds_elapsed():
-                await self._group_next_elem()
-                full_group = self._pop_full_group()
 
-            self._remember_group_time()
-            return full_group or self._pop_oldest_group()
-
-        except StopAsyncIteration:
-            self._is_exhausted = True
-            return await self.__anext__()
-
-        except Exception as e:
-            self._to_raise = e
-            return await self.__anext__()
+class GroupByWithinAsyncIterator(RaisingAsyncIterator[Tuple[U, List[T]]]):
+    def __init__(
+        self,
+        iterator: AsyncIterator[T],
+        up_to: Optional[int],
+        by: AsyncFunction[T, U],
+        within: datetime.timedelta,
+    ) -> None:
+        super().__init__(
+            _GroupByWithinAsyncIterable(iterator, up_to, by, within).__aiter__()
+        )
 
 
 ########

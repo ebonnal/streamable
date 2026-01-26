@@ -43,7 +43,7 @@ T = TypeVar("T")
         lambda src: stream(cast(Iterator[int], src)).map(async_identity, concurrency=2),
         lambda src: stream(cast(Iterator[int], src)).map(async_identity),
         lambda src: stream(cast(Iterator[int], src))
-        .group(every=timedelta(seconds=1))
+        .group(within=timedelta(seconds=1))
         .flatten(concurrency=2),
     ],
 )

@@ -2,34 +2,16 @@
 
 import asyncio
 import time
-import timeit
 from typing import (
     Callable,
     Coroutine,
-    Iterable,
-    List,
     Tuple,
     TypeVar,
     Union,
 )
 
-from streamable._stream import stream
-from tests.utils.iter import IterableType, alist_or_list
 
 T = TypeVar("T")
-
-
-def time_stream(
-    stream: stream[T], times: int = 1, itype: IterableType = Iterable
-) -> Tuple[float, List[T]]:
-    """Time how long it takes to iterate a stream."""
-    res: List[T] = []
-
-    def iterate():
-        nonlocal res
-        res = alist_or_list(stream, itype=itype)
-
-    return timeit.timeit(iterate, number=times) / times, res
 
 
 async def time_coroutine(

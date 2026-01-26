@@ -74,7 +74,7 @@ def test_repr_flatten() -> None:
 
 def test_repr_group() -> None:
     s = stream([0]).group(100, by=async_identity)
-    assert repr(s) == "stream([0]).group(up_to=100, every=None, by=async_identity)"
+    assert repr(s) == "stream([0]).group(up_to=100, within=None, by=async_identity)"
 
 
 def test_repr_map() -> None:

@@ -32,7 +32,7 @@ Operations changes:
 - **[methods merged]** `.flatten`/`.aflatten` → `.flatten`
 - **[methods merged]** `.group`/`.agroup`/`.groupby`/`.agroupby` → `.group`
   - **[output change]** now `.group(by=...)` yields `(key, elements)` tuples.
-  - **[kwarg renamed]** `interval` → `every`
+  - **[kwarg renamed]** `interval` → `within`
   - **[kwarg renamed]** `size` → `up_to`
 - **[methods merged]** `.skip`/`.askip` → `.skip`
   - **[kwargs merged]** `count` and `until` params merged into one `until: int | Callable`
