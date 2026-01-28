@@ -412,7 +412,7 @@ observed_ints = stream(range(10)).observe("ints", every=1000)
 observed_ints = stream(range(10)).observe("ints", every=timedelta(seconds=5))
 ```
 
-Observations are logged via `logging.getLogger("streamable").info`. Set `do` to do something else instead:
+Observations are logged via `logging.getLogger("streamable").info`. Set `do` to do something else:
 
 ```python
 observed_ints = stream(range(10)).observe("ints", do=custom_logger.info)
@@ -432,7 +432,7 @@ assert list(concatenated_ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 
 
 ## ▼ `.cast`
 
-Cast elements:
+Provide a type hint for elements:
 
 ```python
 docs: stream[Any] = stream(['{"foo": "bar"}', '{"foo": "baz"}']).map(json.loads)
