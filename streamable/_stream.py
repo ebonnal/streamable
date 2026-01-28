@@ -295,11 +295,11 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         up_to: int,
     ) -> "stream[T]":
         """
-        Buffer upstream elements via background tasks ``up_to`` a given buffer size.
+        Buffer upstream elements via a background task ``up_to`` a given buffer size.
 
         It decouples upstream production rate from downstream consumption rate.
 
-        The background tasks run in a thread during sync iteration, and via the event loop during async iteration.
+        The background task is a thread during sync iteration, and an async task during async iteration.
 
         Args:
             up_to (``int``): The buffer size. Must be >= 0. When reached, upstream pulling pauses until an element is yielded out of the buffer.
