@@ -1,6 +1,6 @@
 # ༄ `streamable`
 
-> ***fluent concurrent sync/async streams***
+> ***fluent sync/async streams for Python***
 
 `stream[T]` wraps any `Iterable[T]` or `AsyncIterable[T]` with a lazy fluent interface covering concurrency, batching, buffering, rate limiting, progress logging, and error handling.
 
@@ -92,7 +92,7 @@ Both sync and async functions are accepted by operations, they can be mixed with
 
 Operations are implemented so that iteration can resume after caught exceptions.
 
-A `stream` exposes operations to manipulate its elements, but the I/O is not its responsibility. It's meant to be combined with dedicated libraries like `csv`, `json`, `pyarrow`, `psycopg2`, `boto3`, `aiohttp`, `httpx`, `polars`.
+A `stream` exposes operations to manipulate its elements, but the I/O is not its responsibility. It's meant to be combined with dedicated libraries like `csv`, `json`, `dlt`, `pyarrow`, `psycopg2`, `boto3`, `aiohttp`, `httpx`, `polars`.
 
 ## ▼ `.map`
 
