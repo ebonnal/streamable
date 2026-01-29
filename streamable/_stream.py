@@ -295,11 +295,11 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         up_to: int,
     ) -> "stream[T]":
         """
-        Buffer upstream elements via background tasks ``up_to`` a given buffer size.
+        Buffer upstream elements via a background task ``up_to`` a given buffer size.
 
         It decouples upstream production rate from downstream consumption rate.
 
-        The background tasks run in a thread during sync iteration, and via the event loop during async iteration.
+        The background task is a thread during a sync iteration, and an async task during an async iteration.
 
         Args:
             up_to (``int``): The buffer size. Must be >= 0. When reached, upstream pulling pauses until an element is yielded out of the buffer.
@@ -310,8 +310,13 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         Example::
 
             pulled: list[int] = []
-            buffered_ints = stream(range(10)).do(pulled.append).buffer(5)
-            assert next(iter(buffered_ints)) == 0
+            buffered_ints = iter(
+                stream(range(10))
+                .do(pulled.append)
+                .buffer(5)
+            )
+            assert next(buffered_ints) == 0
+            time.sleep(1e-3)
             assert pulled == [0, 1, 2, 3, 4, 5]
         """
         validate_int(up_to, gte=1, name="up_to")
