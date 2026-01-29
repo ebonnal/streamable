@@ -399,17 +399,26 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         Example::
 
-            inverses: stream[float] = stream(range(10)).map(lambda n: round(1 / n, 2)).catch(ZeroDivisionError)
+            inverses: stream[float] = (
+                stream(range(10))
+                .map(lambda n: round(1 / n, 2))
+                .catch(ZeroDivisionError)
+            )
+
             assert list(inverses) == [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
 
+            # `where` a predicate is satisfied
             domains = ["github.com", "foo.bar", "google.com"]
+
             resolvable_domains: stream[str] = (
                 stream(domains)
                 .do(lambda domain: httpx.get(f"https://{domain}"), concurrency=2)
                 .catch(httpx.HTTPError, where=lambda e: "not known" in str(e))
             )
+
             assert list(resolvable_domains) == ["github.com", "google.com"]
 
+            # `do` a side effect on catch
             errors: list[Exception] = []
             inverses: stream[float] = (
                 stream(range(10))
@@ -419,18 +428,22 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             assert list(inverses) == [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
             assert len(errors) == 1
 
+            # `replace` with a value
             inverses: stream[float] = (
                 stream(range(10))
                 .map(lambda n: round(1 / n, 2))
-                .catch(ZeroDivisionError, replace=lambda exc: float("inf"))
+                .catch(ZeroDivisionError, replace=lambda e: float("inf"))
             )
+
             assert list(inverses) == [float("inf"), 1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
 
+            # `stop=True` to stop the iteration if an exception is caught
             inverses: stream[float] = (
                 stream(range(10))
                 .map(lambda n: round(1 / n, 2))
                 .catch(ZeroDivisionError, stop=True)
             )
+
             assert list(inverses) == []
         """
         return CatchStream(
