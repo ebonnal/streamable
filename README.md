@@ -90,9 +90,9 @@ A `stream[T]` is `Iterable[T]`:
 
 Both sync and async functions are accepted by operations, they can be mixed within the same `stream`, that can then be consumed as an `Iterable` or `AsyncIterable`. When a stream involving async functions is consumed as an `Iterable`, the iteration happens within an event loop attached to it.
 
-Operations are implemented so that iteration can resume after caught exceptions.
+Operations are implemented so that the iteration can resume after an exception.
 
-A `stream` exposes operations to manipulate its elements, but the I/O is not its responsibility. It's meant to be combined with dedicated libraries like `csv`, `json`, `pyarrow`, `psycopg2`, `boto3`, `aiohttp`, `httpx`, `polars`.
+A `stream` exposes operations to manipulate its elements, but the I/O is not its responsibility. It's meant to be combined with dedicated libraries like `pyarrow`, `psycopg2`, `boto3`, `dlt`, ...
 
 ## ▼ `.map`
 
@@ -412,7 +412,7 @@ observed_ints = stream(range(10)).observe("ints", every=1000)
 observed_ints = stream(range(10)).observe("ints", every=timedelta(seconds=5))
 ```
 
-Observations are logged via `logging.getLogger("streamable").info`. Set `do` to do something else instead:
+Observations are logged via `logging.getLogger("streamable").info`. Set `do` to do something else:
 
 ```python
 observed_ints = stream(range(10)).observe("ints", do=custom_logger.info)
@@ -432,7 +432,7 @@ assert list(concatenated_ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 
 
 ## ▼ `.cast`
 
-Cast elements:
+Provide a type hint for elements:
 
 ```python
 docs: stream[Any] = stream(['{"foo": "bar"}', '{"foo": "baz"}']).map(json.loads)
