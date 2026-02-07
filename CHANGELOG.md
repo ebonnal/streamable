@@ -10,11 +10,11 @@ Multiple breaking changes in this new major version, let's do a tour of them:
 ```python
 # v1.6.6
 from streamable import Stream
-ints = Stream(range(10))
+ints: Stream[int] = Stream(range(10))
 
 # v2.0.0
 from streamable import stream
-ints = stream(range(10))
+ints: stream[int] = stream(range(10))
 ```
 All `a*` methods have been merged into their sync counterparts. All operations now accept both sync and async functions.
 
