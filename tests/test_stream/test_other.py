@@ -9,11 +9,13 @@ from typing import (
     List,
     Union,
 )
+from unittest.mock import patch
 
 import pytest
 
 from streamable import stream
 from tests.utils.func import (
+    async_identity,
     identity,
     noarg_asyncify,
     slow_identity,
@@ -247,3 +249,38 @@ def test_in() -> None:
     assert "0" in s
     # finds 1 on a fresh source
     assert "1" in s
+
+
+def test_loop_auto_closed() -> None:
+    """
+    The loop attached to the sync iterators involving async functions should be closed when the iteration stops or the iterator is garbage collected.
+    """
+
+    loops: List[asyncio.AbstractEventLoop] = []
+    new_event_loop = asyncio.new_event_loop
+
+    def spy_new_event_loop() -> asyncio.AbstractEventLoop:
+        loops.append(new_event_loop())
+        return loops[-1]
+
+    with patch(
+        "streamable._tools._iter.asyncio.new_event_loop", new=spy_new_event_loop
+    ):
+        # closed on finalisation
+        it = iter(ints.filter(async_identity).map(async_identity))
+        assert not loops
+        assert next(it) == 1
+        assert len(loops) == 1
+        assert not loops[-1].is_closed()
+        assert list(it) == list(INTEGERS)[2:]
+        assert loops[-1].is_closed()
+
+        # closed on garbage collection
+        it = iter(ints.filter(async_identity).map(async_identity))
+        assert len(loops) == 1
+        assert next(it) == 1
+        assert len(loops) == 2
+        assert not loops[-1].is_closed()
+        del it
+        # ref count drops to 0, generator gets finalised, should close the loop
+        assert loops[-1].is_closed()
