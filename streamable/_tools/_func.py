@@ -19,15 +19,9 @@ T = TypeVar("T")
 R = TypeVar("R")
 
 
-class _Sidified(Generic[T]):
-    __slots__ = ("func",)
-
-    def __init__(self, func: Callable[[T], Any]) -> None:
-        self.func = func
-
-    def __call__(self, arg: T) -> T:
-        self.func(arg)
-        return arg
+def _sidified(func: Callable[[T], Any], arg: T) -> T:
+    func(arg)
+    return arg
 
 
 @overload
@@ -48,7 +42,7 @@ def sidify(func: Callable[[T], Any]) -> Callable[[T], Union[T, Coroutine[Any, An
             return arg
 
         return wrap
-    return _Sidified(func)
+    return partial(_sidified, func)
 
 
 class _Star(Generic[R]):
