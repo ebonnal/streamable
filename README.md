@@ -39,6 +39,7 @@ Chain lazy operations, accepting both sync and async functions:
 import logging
 from datetime import timedelta
 from httpx import AsyncClient, Response, HTTPStatusError
+from streamable import stream
 
 pokemons: stream[str] = (
     stream(range(10))
