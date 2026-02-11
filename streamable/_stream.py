@@ -73,6 +73,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
     Args:
         source (``Iterable[T] | AsyncIterable[T] | Callable[[], T] | Callable[[], Coroutine[Any, Any, T]]``): Data source to wrap:
+
           ‣ ``Iterable[T] | AsyncIterable[T]``: any iterable (list, set, range, generator, etc...), or async iterable.
           ‣ ``Callable[[], T] | Callable[[], Coroutine[Any, Any, T]]``: sync or async function called sequentially to get the next element.
 
@@ -610,6 +611,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         Args:
             concurrency (``int``, optional): Concurrency control:
+
               ‣ ``1`` (default): Fully flatten each upstream iterable before moving on to the next one.
               ‣ ``int > 1``: Flattens ``concurrency`` upstream iterables concurrently, moving to the next one only when one of the current ones is exhausted. The concurrent flattening happens in a round-robin fashion: each of the ``concurrency`` iterables yields its next element downstream in turn. The concurrency happens via threads, or async tasks for async upstream iterables.
 
@@ -673,6 +675,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
               ‣ ``Executor``: Uses the provided executor (e.g., a ``ProcessPoolExecutor``), the concurrency is the number of workers.
 
             as_completed (``bool``, optional): Processing order:
+
               ‣ ``False`` (default): Preserves upstream order.
               ‣ ``True``: Processes side effects as they complete.
 
@@ -820,6 +823,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
               ‣ ``Executor``: Uses the provided executor (e.g., a ``ProcessPoolExecutor``), the concurrency is the number of workers.
 
             as_completed (``bool``, optional): Results order:
+
               ‣ ``False`` (default): Preserves upstream order.
               ‣ ``True``: Yields results as they become available.
 
@@ -891,6 +895,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             subject (``str``, optional): Description of elements being observed.
 
             every (``int | timedelta | None``, optional): When to emit observations:
+
               ‣ ``None`` (default): When the elements/errors counts reach powers of 2.
               ‣ ``int``: Periodically when ``every`` elements or errors have been emitted.
               ‣ ``timedelta``: Periodically ``every`` time interval.
@@ -937,6 +942,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         Args:
             until (``int | Callable[[T], Any] | AsyncCallable[T, Any]``): Skip control:
+
               ‣ ``int``: Skip first ``until`` elements. Must be >= 0.
               ‣ ``Callable[[T], Any] | AsyncCallable[T, Any]``: Skip until ``until(elem)`` is truthy, then yield that element and all subsequent.
 
@@ -972,6 +978,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         Args:
             until (``int | Callable[[T], Any] | AsyncCallable[T, Any]``): Stop control:
+
               ‣ ``int``: Take first ``until`` elements. Must be >= 0.
               ‣ ``Callable[[T], Any] | AsyncCallable[T, Any]``: Take until ``until(elem)`` is truthy, then stop. Matching element is not yielded.
 
