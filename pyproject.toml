@@ -45,7 +45,11 @@ docs = [
 version = { attr = "streamable.__version__" }
 
 [tool.setuptools]
-packages = ["streamable"]
+packages = [
+    "streamable",
+    "streamable._tools",
+    "streamable.visitors",
+]
 
 [tool.setuptools.package-data]
 streamable = ["py.typed"]
