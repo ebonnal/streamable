@@ -486,7 +486,7 @@ pokemons.pipe(pl.DataFrame, schema=["name"]).write_csv("pokemons.csv")
 
 A `stream` can also be instantiated from a (sync or async) function that will be called sequentially to get the next source element during iteration.
 
-Stream from a `Queue`:
+e.g. stream from a `Queue`:
 
 ```python
 queued_ints: queue.Queue[int] = ...
@@ -513,7 +513,7 @@ assert list(enumerated_pokes) == ['#1 bulbasaur', '#2 ivysaur', '#3 venusaur', '
 
 To collect distinct elements you can `set(a_stream)`.
 
-To deduplicates in the middle of the stream, `.filter` new values and `.do` add them into a `set` (or a fancier external cache):
+To deduplicates in the middle of the stream, `.filter` new values and `.do` add them into a `set` (or a fancier cache):
 
 ```python
 seen: set[str] = set()
