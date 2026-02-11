@@ -527,18 +527,18 @@ unique_ints: stream[int] = (
 assert list(unique_ints) == [0, 1]
 ```
 
-## overhead
+## vs `builtins.map/filter`
 
-There is zero overhead during iteration compared to builtins:
+There is zero overhead during iteration compared to `builtins.map` and `builtins.filter`:
 
 ```python
-odd_int_chars = stream(range(1_000_000)).filter(lambda n: n % 2).map(str)
+odd_int_chars = stream(range(N)).filter(lambda n: n % 2).map(str)
 ```
 
 `iter(odd_int_chars)` visits the operations lineage and returns exactly this iterator:
 
 ```python
-map(str, filter(lambda n: n % 2, range(1_000_000)))
+map(str, filter(lambda n: n % 2, range(N)))
 ```
 
 # links
