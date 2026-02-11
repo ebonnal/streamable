@@ -87,7 +87,7 @@ myst_heading_anchors = 3
 todo_include_todos = True
 
 intersphinx_mapping = {
-    "python": ("https://docs.python.org/3", {}),
+    "python": ("https://docs.python.org/3", None),
 }
 
 # Type hints in the signature and/or in the description:
