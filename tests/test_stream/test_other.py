@@ -1,6 +1,7 @@
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import copy
+from datetime import timedelta
 import queue
 from typing import (
     Any,
@@ -26,6 +27,7 @@ from tests.utils.iter import (
     acount,
     alist_or_list,
     aiter_or_iter,
+    anext_or_next,
 )
 from tests.utils.source import INTEGERS, N, ints
 from tests.utils.timing import time_coroutine
@@ -284,3 +286,38 @@ def test_loop_auto_closed() -> None:
         del it
         # ref count drops to 0, generator gets finalised, should close the loop
         assert loops[-1].is_closed()
+
+
+@pytest.mark.parametrize(
+    "s",
+    [
+        ints,
+        ints.catch(ValueError),
+        ints.buffer(10),
+        ints.do(str),
+        ints.filter(lambda x: x % 2 == 0),
+        ints.group(2).flatten(),
+        ints.group(2).flatten(concurrency=2),
+        ints.group(10),
+        ints.group(10, by=lambda x: x % 2),
+        ints.group(within=timedelta(seconds=1)),
+        ints.map(str),
+        ints.map(str, concurrency=2),
+        ints.observe("ints", do=identity),
+        ints.observe("ints", do=identity, every=N),
+        ints.observe("ints", do=identity, every=timedelta(seconds=1)),
+        ints.skip(10),
+        ints.take(10),
+        ints.throttle(N, per=timedelta(seconds=1)),
+    ],
+)
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_next_post_exhaustion(itype: IterableType, s: stream) -> None:
+    """
+    `__next__`/`__anext__` should raise `StopIteration`/`StopAsyncIteration`
+    when called on an already exhausted iterator.
+    """
+    it = aiter_or_iter(s, itype)
+    alist_or_list(it, itype)
+    with pytest.raises((StopIteration, StopAsyncIteration)):
+        anext_or_next(it, itype)
