@@ -107,18 +107,16 @@ assert list(int_chars) == ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
 ```
 
 
-### concurrency
+### `concurrency`
 
-Set the `concurrency` parameter to apply the transformation concurrently.
+Set the `concurrency` param to apply the transformation concurrently, only `concurrency` upstream elements are pulled for processing; the next upstream element is pulled only when a result is yielded downstream.
 
-Only `concurrency` upstream elements are pulled for processing; the next upstream element is pulled only when a result is yielded downstream.
+It preserves the upstream order by default, set `as_completed=True` to yield results as they become available.
 
-It preserves the upstream order by default, but you can set `as_completed=True` to yield results as they become available.
 
-#### Via threads
+#### via threads
 
-If `concurrency > 1`, the transformations will be applied via `concurrency` threads:
-
+If `concurrency > 1`, the transformation will be applied via `concurrency` threads:
 
 ```python
 pokemons: stream[str] = (
@@ -130,10 +128,9 @@ pokemons: stream[str] = (
 assert list(pokemons) == ['bulbasaur', 'ivysaur', 'venusaur']
 ```
 
-#### Via `async` coroutines
+#### via `async` coroutines
 
-If `concurrency > 1` and the function is async, the transformations will be applied via `concurrency` async tasks:
-
+If `concurrency > 1` and the transformation is async, it will be applied via `concurrency` async tasks:
 
 ```python
 pokemons: stream[str] = (
@@ -147,7 +144,7 @@ assert [name async for name in pokemons] == ['bulbasaur', 'ivysaur', 'venusaur']
 assert list(pokemons) == ['bulbasaur', 'ivysaur', 'venusaur']
 ```
 
-#### Via processes
+#### via processes
 
 `concurrency` can also be a `concurrent.futures.Executor`, pass a `ProcessPoolExecutor` to apply the transformations via processes:
 
@@ -161,7 +158,7 @@ if __name__ == "__main__":
             stream(range(10))
             .map(state.append, concurrency=processes)
         ) == [None] * 10
-        # but the `state` of the main process is not mutated
+        # the `state` of the main process is not mutated
         assert state == []
 ```
 
@@ -178,7 +175,7 @@ assert list(store_ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 
-### concurrency
+### `concurrency`
 
 Same as `.map`.
 
@@ -233,7 +230,7 @@ chars: stream[str] = stream(["hel", "lo!"]).flatten()
 assert list(chars) == ["h", "e", "l", "l", "o", "!"]
 ```
 
-### concurrency
+### `concurrency`
 
 Flattens `concurrency` iterables concurrently (via threads for `Iterable` elements and via coroutines for `AsyncIterable` elements):
 
