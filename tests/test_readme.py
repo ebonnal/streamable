@@ -299,8 +299,8 @@ def test_observe_example() -> None:
     assert list(observed_ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 
-def test_plus_example() -> None:
-    concatenated_ints = stream(range(10)) + stream(range(10))
+def test_add_example() -> None:
+    concatenated_ints = stream(range(10)) + range(10)
     assert list(concatenated_ints) == [
         0,
         1,

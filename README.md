@@ -421,10 +421,9 @@ observed_ints = stream(range(10)).observe("ints", do=print)
 
 ## ▼ `+`
 
-Concatenate streams:
-
+Concatenate a stream with an iterable:
 ```python
-concatenated_ints = stream(range(10)) + stream(range(10))
+concatenated_ints = stream(range(10)) + range(10)
 assert list(concatenated_ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 

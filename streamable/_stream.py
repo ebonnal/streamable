@@ -214,19 +214,21 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         yield from (consume().__await__())
         return self
 
-    def __add__(self, other: "stream[U]") -> "stream[Union[T, U]]":
+    def __add__(
+        self, other: "Union[Iterable[U], AsyncIterable[U]]"
+    ) -> "stream[Union[T, U]]":
         """
-        Concatenate two streams into a new stream that will yield all elements from this stream, then all elements from the other stream.
+        Concatenate a stream with an iterable.
 
         Args:
-            other (``stream[U]``): Stream to concatenate with this stream.
+            other (``Iterable[U] | AsyncIterable[U]``): iterable to concatenate with this stream.
 
         Returns:
-            ``stream[T | U]``: Stream of all elements from both streams.
+            ``stream[T | U]``: Stream of ``self``'s elements followed by ``other``'s.
 
         Example::
 
-            assert list(stream(range(10)) + stream(range(10))) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+            assert list(stream(range(10)) + range(10)) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
         """
         chain = cast("Iterable[stream[Union[T, U]]]", (self, other))
         return cast("stream[Union[T, U]]", stream(chain).flatten())
