@@ -3,8 +3,8 @@ from streamable._tools._func import star
 
 Stream = stream
 
-stream.__module__ = "streamable"
-star.__module__ = "streamable"
+stream.__module__ = __name__
+star.__module__ = __name__
 
 __all__ = ["stream", "star"]
 
