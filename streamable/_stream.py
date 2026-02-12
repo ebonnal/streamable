@@ -900,7 +900,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
               ‣ ``int``: Periodically when ``every`` elements or errors have been emitted.
               ‣ ``timedelta``: Periodically ``every`` time interval.
 
-            do (``Callable[[stream.Observation], Any] | AsyncCallable[stream.Observation, Any]``, optional): Callback receiving ``stream.Observation`` (subject, elapsed, errors, elements).
+            do (``Callable[[stream.Observation], Any] | AsyncCallable[stream.Observation, Any]``, optional): Callback receiving a ``stream.Observation`` (subject, elapsed, errors, elements).
 
         Returns:
             ``stream[T]``: Stream with progress observation enabled.
