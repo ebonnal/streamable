@@ -92,7 +92,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             .throttle(5, per=timedelta(seconds=1))
             .map(AsyncClient().get, concurrency=2)
             .do(Response.raise_for_status)
-            .catch(HTTPStatusError, do=logging.error)
+            .catch(HTTPStatusError, do=logging.warning)
             .map(lambda poke: poke.json()["name"])
         )
 
