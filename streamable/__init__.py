@@ -1,6 +1,8 @@
 from streamable._stream import stream
 from streamable._tools._func import star
 
+Stream = stream
+
 stream.__module__ = "streamable"
 star.__module__ = "streamable"
 

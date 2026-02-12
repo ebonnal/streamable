@@ -321,3 +321,9 @@ def test_next_post_exhaustion(itype: IterableType, s: stream) -> None:
     alist_or_list(it, itype)
     with pytest.raises((StopIteration, StopAsyncIteration)):
         anext_or_next(it, itype)
+
+
+def test_stream_alias() -> None:
+    from streamable import Stream
+
+    assert stream is Stream
