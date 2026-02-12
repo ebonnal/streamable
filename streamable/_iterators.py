@@ -205,7 +205,7 @@ class _GroupByWithinIterable(Iterable[Union[ExceptionContainer, Tuple[U, List[T]
         "_within_seconds",
         "_groups",
         "_next_elem",
-        "_allow_to_get_next",
+        "_let_pull_next",
         "_stopped",
     )
 
@@ -222,7 +222,7 @@ class _GroupByWithinIterable(Iterable[Union[ExceptionContainer, Tuple[U, List[T]
         self._groups: Dict[U, Tuple[float, List[T]]] = self._default_groups()
         self._within_seconds = within.total_seconds()
         self._next_elem: queue.Queue[Union[T, ExceptionContainer]] = queue.Queue()
-        self._allow_to_get_next: Semaphore = Semaphore(0)
+        self._let_pull_next: Semaphore = Semaphore(0)
         self._stopped = False
 
     @staticmethod
@@ -232,14 +232,13 @@ class _GroupByWithinIterable(Iterable[Union[ExceptionContainer, Tuple[U, List[T]
     def _timeout(self) -> Optional[float]:
         if self._groups:
             oldest_group_time = next(iter(self._groups.values()))[0]
-            return max(
-                0, oldest_group_time + self._within_seconds - time.perf_counter()
-            )
+            timeout = oldest_group_time + self._within_seconds - time.perf_counter()
+            return max(0, timeout)
         return None
 
     def _pull_upstream(self) -> None:
         elem: Union[T, ExceptionContainer]
-        self._allow_to_get_next.acquire()
+        self._let_pull_next.acquire()
         while not self._stopped:
             try:
                 elem = self.iterator.__next__()
@@ -249,14 +248,14 @@ class _GroupByWithinIterable(Iterable[Union[ExceptionContainer, Tuple[U, List[T]
             except Exception as e:
                 elem = ExceptionContainer(e)
             self._next_elem.put_nowait(elem)
-            self._allow_to_get_next.acquire()
+            self._let_pull_next.acquire()
 
     def __iter__(self) -> Iterator[Union[ExceptionContainer, Tuple[U, List[T]]]]:
         thread = Thread(target=self._pull_upstream, daemon=True)
         try:
             thread.start()
             while True:
-                self._allow_to_get_next.release()
+                self._let_pull_next.release()
                 try:
                     try:
                         elem = self._next_elem.get(timeout=self._timeout())
@@ -283,7 +282,7 @@ class _GroupByWithinIterable(Iterable[Union[ExceptionContainer, Tuple[U, List[T]
                     yield ExceptionContainer(e)
         finally:
             self._stopped = True
-            self._allow_to_get_next.release()
+            self._let_pull_next.release()
             thread.join()
 
 

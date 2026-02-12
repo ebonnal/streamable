@@ -215,7 +215,7 @@ class _GroupByWithinAsyncIterable(
         "_within_seconds",
         "_groups",
         "_next_elem",
-        "_allow_to_get_next",
+        "_let_pull_next",
         "_stopped",
     )
 
@@ -232,7 +232,7 @@ class _GroupByWithinAsyncIterable(
         self._groups: Dict[U, Tuple[float, List[T]]] = self._default_groups()
         self._within_seconds = within.total_seconds()
         self._next_elem: Optional[asyncio.Queue[Union[T, ExceptionContainer]]] = None
-        self._allow_to_get_next: Optional[asyncio.Semaphore] = None
+        self._let_pull_next: Optional[asyncio.Semaphore] = None
         self._stopped = False
 
     @staticmethod
@@ -242,9 +242,8 @@ class _GroupByWithinAsyncIterable(
     def _timeout(self) -> Optional[float]:
         if self._groups:
             oldest_group_time = next(iter(self._groups.values()))[0]
-            return max(
-                0, oldest_group_time + self._within_seconds - time.perf_counter()
-            )
+            timeout = oldest_group_time + self._within_seconds - time.perf_counter()
+            return max(0, timeout)
         return None
 
     @property
@@ -254,14 +253,14 @@ class _GroupByWithinAsyncIterable(
         return self._next_elem
 
     @property
-    def _lazy_allow_to_get_next(self) -> asyncio.Semaphore:
-        if not self._allow_to_get_next:
-            self._allow_to_get_next = asyncio.Semaphore(0)
-        return self._allow_to_get_next
+    def _lazy_let_pull_next(self) -> asyncio.Semaphore:
+        if not self._let_pull_next:
+            self._let_pull_next = asyncio.Semaphore(0)
+        return self._let_pull_next
 
     async def _pull_upstream(self) -> None:
         elem: Union[T, ExceptionContainer]
-        await self._lazy_allow_to_get_next.acquire()
+        await self._lazy_let_pull_next.acquire()
         while not self._stopped:
             try:
                 elem = await self.iterator.__anext__()
@@ -271,7 +270,7 @@ class _GroupByWithinAsyncIterable(
             except Exception as e:
                 elem = ExceptionContainer(e)
             self._lazy_next_elem.put_nowait(elem)
-            await self._lazy_allow_to_get_next.acquire()
+            await self._lazy_let_pull_next.acquire()
 
     async def __aiter__(
         self,
@@ -279,7 +278,7 @@ class _GroupByWithinAsyncIterable(
         task = asyncio.create_task(self._pull_upstream())
         try:
             while True:
-                self._lazy_allow_to_get_next.release()
+                self._lazy_let_pull_next.release()
                 try:
                     try:
                         elem = await asyncio.wait_for(
@@ -308,7 +307,7 @@ class _GroupByWithinAsyncIterable(
                     yield ExceptionContainer(e)
         finally:
             self._stopped = True
-            self._lazy_allow_to_get_next.release()
+            self._lazy_let_pull_next.release()
             await task
 
 
