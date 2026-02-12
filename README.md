@@ -16,7 +16,6 @@
 ```
 pip install streamable
 ```
-no dependencies
 
 # 2. import
 
@@ -506,7 +505,7 @@ enumerated_pokes: stream[str] = (
 assert list(enumerated_pokes) == ['#1 bulbasaur', '#2 ivysaur', '#3 venusaur', '#4 charmander', '#5 charmeleon', '#6 charizard', '#7 squirtle', '#8 wartortle', '#9 blastoise']
 ```
 
-##  distinct
+## distinct
 
 To collect distinct elements you can `set(a_stream)`.
 
