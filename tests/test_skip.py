@@ -5,9 +5,9 @@ import pytest
 
 from streamable import stream
 from streamable._tools._func import asyncify
-from tests.utils.func import identity
-from tests.utils.iter import ITERABLE_TYPES, IterableType, alist_or_list
-from tests.utils.source import INTEGERS, ints
+from tests.tools.func import identity
+from tests.tools.iter import ITERABLE_TYPES, IterableType, alist_or_list
+from tests.tools.source import INTEGERS, ints
 
 
 def test_skip_raises_on_negative_until() -> None:

@@ -12,10 +12,10 @@ import pytest
 
 from streamable import stream
 from streamable._tools._iter import async_iter
-from tests.utils.func import (
+from tests.tools.func import (
     identity,
 )
-from tests.utils.iter import (
+from tests.tools.iter import (
     ITERABLE_TYPES,
     IterableType,
     aiter_or_iter,

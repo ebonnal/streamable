@@ -7,19 +7,19 @@ import pytest
 
 from streamable import stream
 from streamable._tools._func import asyncify
-from tests.utils.func import (
+from tests.tools.func import (
     SLOW_IDENTITY_DURATION,
     identity,
     async_slow_identity,
     slow_identity,
 )
-from tests.utils.iter import (
+from tests.tools.iter import (
     ITERABLE_TYPES,
     IterableType,
     aiter_or_iter,
     alist_or_list,
 )
-from tests.utils.source import INTEGERS, ints
+from tests.tools.source import INTEGERS, ints
 
 
 @pytest.mark.parametrize(

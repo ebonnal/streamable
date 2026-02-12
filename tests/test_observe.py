@@ -15,16 +15,16 @@ import pytest
 
 from streamable import stream
 from streamable._tools._func import asyncify
-from tests.utils.error import TestError
-from tests.utils.func import identity, inverse, throw_func
-from tests.utils.iter import (
+from tests.tools.error import TestError
+from tests.tools.func import identity, inverse, throw_func
+from tests.tools.iter import (
     ITERABLE_TYPES,
     IterableType,
     aiter_or_iter,
     alist_or_list,
     anext_or_next,
 )
-from tests.utils.source import ints
+from tests.tools.source import ints
 
 
 class Counts(NamedTuple):

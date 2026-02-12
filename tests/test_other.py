@@ -15,13 +15,13 @@ from unittest.mock import patch
 import pytest
 
 from streamable import stream
-from tests.utils.func import (
+from tests.tools.func import (
     async_identity,
     identity,
     noarg_asyncify,
     slow_identity,
 )
-from tests.utils.iter import (
+from tests.tools.iter import (
     ITERABLE_TYPES,
     IterableType,
     acount,
@@ -29,8 +29,8 @@ from tests.utils.iter import (
     aiter_or_iter,
     anext_or_next,
 )
-from tests.utils.source import INTEGERS, N, ints
-from tests.utils.timing import time_coroutine
+from tests.tools.source import INTEGERS, N, ints
+from tests.tools.timing import time_coroutine
 
 
 def test_init() -> None:

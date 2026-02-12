@@ -7,7 +7,7 @@ from typing import Any, Callable, Iterable, List, Union
 import pytest
 
 from streamable import stream
-from tests.utils.func import (
+from tests.tools.func import (
     async_identity,
     async_identity_sleep,
     async_inverse_sleep,
@@ -20,14 +20,14 @@ from tests.utils.func import (
     randomly_slowed,
     square,
 )
-from tests.utils.iter import (
+from tests.tools.iter import (
     ITERABLE_TYPES,
     IterableType,
     alist_or_list,
     anext_or_next,
     aiter_or_iter,
 )
-from tests.utils.source import N, INTEGERS, ints
+from tests.tools.source import N, INTEGERS, ints
 
 
 def test_map_async_func_with_executor():

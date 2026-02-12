@@ -1,7 +1,7 @@
 import datetime
 
 from streamable import stream
-from tests.utils.source import ints
+from tests.tools.source import ints
 
 
 def test_buffer_eq() -> None:

@@ -4,7 +4,7 @@ from typing import Any
 
 from streamable._stream import stream
 from streamable._tools._func import star
-from tests.utils.func import async_identity
+from tests.tools.func import async_identity
 
 
 def test_repr_source_stream() -> None:

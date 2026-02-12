@@ -6,8 +6,8 @@ import time
 from typing import Any, Callable, Coroutine, Iterator, Type, TypeVar, Union
 
 from streamable._tools._async import AsyncFunction
-from tests.utils.error import TestError
-from tests.utils.source import N
+from tests.tools.error import TestError
+from tests.tools.source import N
 
 T = TypeVar("T")
 R = TypeVar("R")

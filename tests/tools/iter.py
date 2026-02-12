@@ -18,7 +18,7 @@ from streamable._tools._async import awaitable_to_coroutine
 from typing import Tuple
 
 from streamable._tools._iter import SyncAsyncIterable, SyncToAsyncIterator
-from tests.utils.loop import TEST_LOOP
+from tests.tools.loop import TEST_LOOP
 
 IterableType = Union[Type[Iterable], Type[AsyncIterable]]
 ITERABLE_TYPES: Tuple[IterableType, ...] = (Iterable, AsyncIterable)

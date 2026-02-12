@@ -5,9 +5,9 @@ from typing import Any, Callable
 import pytest
 
 from streamable import stream
-from tests.utils.error import TestError
-from tests.utils.func import throw_func
-from tests.utils.iter import (
+from tests.tools.error import TestError
+from tests.tools.func import throw_func
+from tests.tools.iter import (
     ITERABLE_TYPES,
     IterableType,
     anext_or_next,

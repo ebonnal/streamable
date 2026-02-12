@@ -7,8 +7,8 @@ from typing import Any, Callable, List
 
 
 from streamable import stream
-from tests.utils.func import async_identity, identity
-from tests.utils.source import INTEGERS
+from tests.tools.func import async_identity, identity
+from tests.tools.source import INTEGERS
 
 ##############
 # validation #

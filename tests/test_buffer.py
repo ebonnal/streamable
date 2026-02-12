@@ -3,8 +3,8 @@ from typing import Any, AsyncIterable, Callable, Iterable, List
 import pytest
 
 from streamable import stream
-from tests.utils.func import async_slow_identity, slow_identity
-from tests.utils.iter import (
+from tests.tools.func import async_slow_identity, slow_identity
+from tests.tools.iter import (
     ITERABLE_TYPES,
     IterableType,
     alist_or_list,
@@ -12,7 +12,7 @@ from tests.utils.iter import (
     aiter_or_iter,
     stopiteration_type,
 )
-from tests.utils.source import INTEGERS, ints
+from tests.tools.source import INTEGERS, ints
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)

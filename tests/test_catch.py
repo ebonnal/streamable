@@ -4,16 +4,16 @@ import pytest
 
 from streamable import stream
 from streamable._tools._func import asyncify
-from tests.utils.error import TestError
-from tests.utils.func import async_identity, identity, inverse, throw_func
-from tests.utils.iter import (
+from tests.tools.error import TestError
+from tests.tools.func import async_identity, identity, inverse, throw_func
+from tests.tools.iter import (
     ITERABLE_TYPES,
     IterableType,
     alist_or_list,
     anext_or_next,
     aiter_or_iter,
 )
-from tests.utils.source import INTEGERS, ints
+from tests.tools.source import INTEGERS, ints
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)

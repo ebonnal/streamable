@@ -5,8 +5,8 @@ import pytest
 
 from streamable import stream
 from streamable._tools._func import asyncify
-from tests.utils.func import identity
-from tests.utils.iter import (
+from tests.tools.func import identity
+from tests.tools.iter import (
     ITERABLE_TYPES,
     IterableType,
     aiter_or_iter,
@@ -14,7 +14,7 @@ from tests.utils.iter import (
     anext_or_next,
     stopiteration_type,
 )
-from tests.utils.source import INTEGERS, ints
+from tests.tools.source import INTEGERS, ints
 
 
 def test_take_raises_on_negative_limit() -> None:
