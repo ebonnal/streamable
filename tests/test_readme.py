@@ -280,7 +280,7 @@ def test_distinct_example() -> None:
     seen: set[str] = set()
 
     unique_ints: stream[int] = (
-        stream("001000111").filter(lambda char: char not in seen).do(seen.add).map(int)
+        stream("001000111").filter(lambda _: _ not in seen).do(seen.add).map(int)
     )
 
     assert list(unique_ints) == [0, 1]

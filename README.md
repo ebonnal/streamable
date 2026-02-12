@@ -517,7 +517,7 @@ seen: set[str] = set()
 
 unique_ints: stream[int] = (
     stream("001000111")
-    .filter(lambda char: char not in seen)
+    .filter(lambda _: _ not in seen)
     .do(seen.add)
     .map(int)
 )
