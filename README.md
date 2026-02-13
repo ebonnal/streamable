@@ -370,7 +370,7 @@ assert list(three_ints_per_second) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 ## ▼ `.buffer`
 
-Buffer upstream elements via a background task (decoupling upstream production rate from downstream consumption rate):
+Buffer upstream elements into a bounded queue via a background task (decoupling upstream production rate from downstream consumption rate):
 
 ```python
 pulled: list[int] = []

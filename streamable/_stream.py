@@ -299,9 +299,9 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         up_to: int,
     ) -> "stream[T]":
         """
-        Buffer upstream elements via a background task ``up_to`` a given buffer size.
+        Buffer upstream elements into a bounded queue (of size ``up_to``), via a background task.
 
-        It decouples upstream production rate from downstream consumption rate.
+        It allows to decouple the upstream production rate from the downstream consumption rate.
 
         The background task is a thread during a sync iteration, and an async task during an async iteration.
 
