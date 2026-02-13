@@ -7,19 +7,19 @@ import time
 from datetime import timedelta
 from typing import Any, Dict, List, Tuple
 import httpx
-from httpx import AsyncClient, Response, HTTPStatusError
+from httpx import Response, HTTPStatusError
 
 import pytest
 import respx
 
-from streamable._stream import stream
+from streamable import stream
 
 
 pokemons: stream[str] = (
     stream(range(10))
     .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
     .throttle(5, per=timedelta(seconds=1))
-    .map(AsyncClient().get, concurrency=2)
+    .map(httpx.get, concurrency=2)
     .do(Response.raise_for_status)
     .catch(HTTPStatusError, do=logging.warning)
     .map(lambda poke: poke.json()["name"])
@@ -57,7 +57,7 @@ def test_map_example_thread_concurrency() -> None:
     pokemons: stream[str] = (
         stream(range(1, 4))
         .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
-        .map(httpx.Client().get, concurrency=2)
+        .map(httpx.get, concurrency=2)
         .map(lambda poke: poke.json()["name"])
     )
     assert list(pokemons) == ["bulbasaur", "ivysaur", "venusaur"]
@@ -77,25 +77,15 @@ def test_map_example_process_concurrency() -> None:
 
 @pytest.mark.asyncio
 async def test_map_example_async_concurrency_aiter() -> None:
-    pokemons: stream[str] = (
-        stream(range(1, 4))
-        .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
-        .map(httpx.AsyncClient().get, concurrency=2)
-        .map(lambda poke: poke.json()["name"])
-    )
+    async with httpx.AsyncClient() as http_client:
+        pokemons: stream[str] = (
+            stream(range(1, 4))
+            .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
+            .map(http_client.get, concurrency=2)
+            .map(lambda poke: poke.json()["name"])
+        )
 
-    assert [name async for name in pokemons] == ["bulbasaur", "ivysaur", "venusaur"]
-
-
-def test_map_example_async_concurrency_iter() -> None:
-    pokemons: stream[str] = (
-        stream(range(1, 4))
-        .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
-        .map(httpx.AsyncClient().get, concurrency=2)
-        .map(lambda poke: poke.json()["name"])
-    )
-
-    assert list(pokemons) == ["bulbasaur", "ivysaur", "venusaur"]
+        assert [name async for name in pokemons] == ["bulbasaur", "ivysaur", "venusaur"]
 
 
 def test_starmap_example() -> None:

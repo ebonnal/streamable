@@ -38,14 +38,15 @@ Chain lazy operations, accepting both sync and async functions:
 ```python
 import logging
 from datetime import timedelta
-from httpx import AsyncClient, Response, HTTPStatusError
+import httpx
+from httpx import Response, HTTPStatusError
 from streamable import stream
 
 pokemons: stream[str] = (
     stream(range(10))
     .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
     .throttle(5, per=timedelta(seconds=1))
-    .map(AsyncClient().get, concurrency=2)
+    .map(httpx.get, concurrency=2)
     .do(Response.raise_for_status)
     .catch(HTTPStatusError, do=logging.warning)
     .map(lambda poke: poke.json()["name"])
@@ -121,7 +122,7 @@ If `concurrency > 1`, the transformation will be applied via `concurrency` threa
 pokemons: stream[str] = (
     stream(range(1, 4))
     .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
-    .map(httpx.Client().get, concurrency=2)
+    .map(httpx.get, concurrency=2)
     .map(lambda poke: poke.json()["name"])
 )
 assert list(pokemons) == ['bulbasaur', 'ivysaur', 'venusaur']
@@ -132,15 +133,15 @@ assert list(pokemons) == ['bulbasaur', 'ivysaur', 'venusaur']
 If `concurrency > 1` and the transformation is async, it will be applied via `concurrency` async tasks:
 
 ```python
-pokemons: stream[str] = (
-    stream(range(1, 4))
-    .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
-    .map(httpx.AsyncClient().get, concurrency=2)
-    .map(lambda poke: poke.json()["name"])
-)
+async with httpx.AsyncClient() as http_client:
+    pokemons: stream[str] = (
+        stream(range(1, 4))
+        .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
+        .map(http_client.get, concurrency=2)
+        .map(lambda poke: poke.json()["name"])
+    )
 
-assert [name async for name in pokemons] == ['bulbasaur', 'ivysaur', 'venusaur']
-assert list(pokemons) == ['bulbasaur', 'ivysaur', 'venusaur']
+    assert [name async for name in pokemons] == ['bulbasaur', 'ivysaur', 'venusaur']
 ```
 
 #### via processes
@@ -546,39 +547,39 @@ A `stream` is an expressive way to declare a `dlt.resource`:
 # from http import HTTPStatus
 # from itertools import count
 # import dlt
-# from httpx import AsyncClient, Response, HTTPStatusError
+# import httpx
+# from httpx import Response, HTTPStatusError
 # from dlt.destinations import filesystem
 # from streamable import stream
 
-def is_not_found(e: HTTPStatusError) -> bool:
+def not_found(e: HTTPStatusError) -> bool:
     return e.response.status_code == HTTPStatus.NOT_FOUND
 
 @dlt.resource
-def pokemons(concurrency: int, per_second: int) -> stream[dict]:
-    """
-    Ingest Pokémons from the PokéAPI, stops on first 404.
-    """
+def pokemons(http_client: httpx.Client, concurrency: int, per_second: int) -> stream[dict]:
+    """Ingest Pokémons from the PokéAPI, stop on first 404."""
     return (
         stream(count(1))
         .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
         .throttle(per_second, per=timedelta(seconds=1))
-        .map(AsyncClient().get, concurrency=concurrency, as_completed=True)
+        .map(http_client.get, concurrency=concurrency, as_completed=True)
         .do(Response.raise_for_status)
-        .catch(HTTPStatusError, where=is_not_found, stop=True)
+        .catch(HTTPStatusError, where=not_found, stop=True)
         .map(Response.json)
         .observe("pokemons")
     )
 
 # Write to a partitioned Delta Lake table, chunk by chunk on-the-fly.
-dlt.pipeline(
-    pipeline_name="ingest_pokeapi",
-    destination=filesystem("deltalake"),
-    dataset_name="pokeapi",
-).run(
-    pokemons(concurrency=8, per_second=32),
-    table_format="delta",
-    columns={"color__name": {"partition": True}},
-)
+with httpx.Client() as http_client:
+    dlt.pipeline(
+        pipeline_name="ingest_pokeapi",
+        destination=filesystem("deltalake"),
+        dataset_name="pokeapi",
+    ).run(
+        pokemons(http_client, concurrency=8, per_second=32),
+        table_format="delta",
+        columns={"color__name": {"partition": True}},
+    )
 ```
 
 # links

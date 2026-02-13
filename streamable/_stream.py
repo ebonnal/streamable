@@ -85,13 +85,14 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         import logging
         from datetime import timedelta
-        from httpx import AsyncClient, Response, HTTPStatusError
+        import httpx
+        from httpx import Response, HTTPStatusError
 
         pokemons: stream[str] = (
             stream(range(10))
             .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
             .throttle(5, per=timedelta(seconds=1))
-            .map(AsyncClient().get, concurrency=2)
+            .map(httpx.get, concurrency=2)
             .do(Response.raise_for_status)
             .catch(HTTPStatusError, do=logging.warning)
             .map(lambda poke: poke.json()["name"])

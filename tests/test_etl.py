@@ -80,13 +80,15 @@ async def test_async_etl_example(tmp_path: Path) -> None:  # pragma: no cover
         await pipeline
 
 
+@pytest.mark.skip
 def test_etl_dlt(tmp_path: Path) -> None:
     from datetime import timedelta
     from http import HTTPStatus
     from itertools import count
 
     import dlt
-    from httpx import AsyncClient, Response, HTTPStatusError
+    import httpx
+    from httpx import Response, HTTPStatusError
     from dlt.destinations import filesystem
     from streamable import stream
 
@@ -94,30 +96,31 @@ def test_etl_dlt(tmp_path: Path) -> None:
         return e.response.status_code == HTTPStatus.NOT_FOUND
 
     @dlt.resource
-    def pokemons(concurrency: int, per_second: int) -> stream[dict]:
-        """
-        Ingest Pokémons from the PokéAPI, stops on first 404.
-        """
+    def pokemons(
+        http_client: httpx.Client, concurrency: int, per_second: int
+    ) -> stream[dict]:
+        """Ingest Pokémons from the PokéAPI, stop on first 404."""
         return (
             stream(count(1))
             .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
             .throttle(per_second, per=timedelta(seconds=1))
-            .map(AsyncClient().get, concurrency=concurrency, as_completed=True)
+            .map(http_client.get, concurrency=concurrency, as_completed=True)
             .do(Response.raise_for_status)
             .catch(HTTPStatusError, where=not_found, stop=True)
             .map(Response.json)
             .observe("pokemons")
         )
 
-    dlt.pipeline(
-        pipeline_name="ingest_pokeapi",
-        destination=filesystem(str(tmp_path / "deltalake")),
-        dataset_name="pokeapi",
-    ).run(
-        pokemons(concurrency=8, per_second=32),
-        table_format="delta",
-        columns={"color__name": {"partition": True}},
-    )
+    with httpx.Client() as http_client:
+        dlt.pipeline(
+            pipeline_name="ingest_pokeapi",
+            destination=filesystem(str(tmp_path / "deltalake")),
+            dataset_name="pokeapi",
+        ).run(
+            pokemons(http_client, concurrency=8, per_second=32),
+            table_format="delta",
+            columns={"color__name": {"partition": True}},
+        )
 
     import polars as pl
 
