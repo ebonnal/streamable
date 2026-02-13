@@ -28,6 +28,7 @@ with suppress(ImportError):
 
 T = TypeVar("T")
 U = TypeVar("U")
+Exc = TypeVar("Exc", bound=Exception)
 
 
 def buffer(
@@ -39,11 +40,11 @@ def buffer(
 
 def catch(
     iterator: Iterator[T],
-    errors: Union[Type[Exception], Tuple[Type[Exception], ...]],
+    errors: Union[Type[Exc], Tuple[Type[Exc], ...]],
     *,
-    where: Optional[Union[Callable[[Exception], Any]]] = None,
-    replace: Optional[Union[Callable[[Exception], U]]] = None,
-    do: Optional[Union[Callable[[Exception], Any]]] = None,
+    where: Optional[Union[Callable[[Exc], Any]]] = None,
+    replace: Optional[Union[Callable[[Exc], U]]] = None,
+    do: Optional[Union[Callable[[Exc], Any]]] = None,
     stop: bool = False,
 ) -> Iterator[Union[T, U]]:
     return _iterators.CatchIterator(

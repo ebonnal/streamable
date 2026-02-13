@@ -47,7 +47,7 @@ with suppress(ImportError):
 
 T = TypeVar("T")
 U = TypeVar("U")
-
+Exc = TypeVar("Exc", bound=Exception)
 
 #########
 # catch #
@@ -60,10 +60,10 @@ class CatchIterator(Iterator[Union[T, U]]):
     def __init__(
         self,
         iterator: Iterator[T],
-        errors: Union[Type[Exception], Tuple[Type[Exception], ...]],
-        where: Optional[Callable[[Exception], Any]],
-        replace: Optional[Callable[[Exception], U]],
-        do: Optional[Callable[[Exception], Any]],
+        errors: Union[Type[Exc], Tuple[Type[Exc], ...]],
+        where: Optional[Callable[[Exc], Any]],
+        replace: Optional[Callable[[Exc], U]],
+        do: Optional[Callable[[Exc], Any]],
         stop: bool,
     ) -> None:
         self.iterator = iterator

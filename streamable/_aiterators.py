@@ -48,6 +48,7 @@ from streamable._tools._async import anext
 
 T = TypeVar("T")
 U = TypeVar("U")
+Exc = TypeVar("Exc", bound=Exception)
 
 
 #########
@@ -61,10 +62,10 @@ class CatchAsyncIterator(AsyncIterator[Union[T, U]]):
     def __init__(
         self,
         iterator: AsyncIterator[T],
-        errors: Union[Type[Exception], Tuple[Type[Exception], ...]],
-        where: Optional[AsyncFunction[Exception, Any]],
-        replace: Optional[AsyncFunction[Exception, U]],
-        do: Optional[AsyncFunction[Exception, Any]],
+        errors: Union[Type[Exc], Tuple[Type[Exc], ...]],
+        where: Optional[AsyncFunction[Exc, Any]],
+        replace: Optional[AsyncFunction[Exc, U]],
+        do: Optional[AsyncFunction[Exc, Any]],
         stop: bool,
     ) -> None:
         self.iterator = iterator

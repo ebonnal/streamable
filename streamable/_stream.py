@@ -59,6 +59,7 @@ if TYPE_CHECKING:  # pragma: no cover
 U = TypeVar("U")
 T = TypeVar("T")
 V = TypeVar("V")
+Exc = TypeVar("Exc", bound=Exception)
 
 
 class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
@@ -328,60 +329,42 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
     @overload
     def catch(
         self,
-        errors: Union[Type[Exception], Tuple[Type[Exception], ...]],
+        errors: Union[Type[Exc], Tuple[Type[Exc], ...]],
         *,
-        where: Union[
-            None, Callable[[Exception], Any], AsyncFunction[Exception, Any]
-        ] = None,
-        do: Union[
-            None, Callable[[Exception], Any], AsyncFunction[Exception, Any]
-        ] = None,
-        replace: AsyncFunction[Exception, U],
+        where: Union[None, Callable[[Exc], Any], AsyncFunction[Exc, Any]] = None,
+        do: Union[None, Callable[[Exc], Any], AsyncFunction[Exc, Any]] = None,
+        replace: AsyncFunction[Exc, U],
         stop: bool = False,
     ) -> "stream[Union[T, U]]": ...
 
     @overload
     def catch(
         self,
-        errors: Union[Type[Exception], Tuple[Type[Exception], ...]],
+        errors: Union[Type[Exc], Tuple[Type[Exc], ...]],
         *,
-        where: Union[
-            None, Callable[[Exception], Any], AsyncFunction[Exception, Any]
-        ] = None,
-        do: Union[
-            None, Callable[[Exception], Any], AsyncFunction[Exception, Any]
-        ] = None,
-        replace: Callable[[Exception], U],
+        where: Union[None, Callable[[Exc], Any], AsyncFunction[Exc, Any]] = None,
+        do: Union[None, Callable[[Exc], Any], AsyncFunction[Exc, Any]] = None,
+        replace: Callable[[Exc], U],
         stop: bool = False,
     ) -> "stream[Union[T, U]]": ...
 
     @overload
     def catch(
         self,
-        errors: Union[Type[Exception], Tuple[Type[Exception], ...]],
+        errors: Union[Type[Exc], Tuple[Type[Exc], ...]],
         *,
-        where: Union[
-            None, Callable[[Exception], Any], AsyncFunction[Exception, Any]
-        ] = None,
-        do: Union[
-            None, Callable[[Exception], Any], AsyncFunction[Exception, Any]
-        ] = None,
+        where: Union[None, Callable[[Exc], Any], AsyncFunction[Exc, Any]] = None,
+        do: Union[None, Callable[[Exc], Any], AsyncFunction[Exc, Any]] = None,
         stop: bool = False,
     ) -> "stream[T]": ...
 
     def catch(
         self,
-        errors: Union[Type[Exception], Tuple[Type[Exception], ...]],
+        errors: Union[Type[Exc], Tuple[Type[Exc], ...]],
         *,
-        where: Union[
-            None, Callable[[Exception], Any], AsyncFunction[Exception, Any]
-        ] = None,
-        do: Union[
-            None, Callable[[Exception], Any], AsyncFunction[Exception, Any]
-        ] = None,
-        replace: Union[
-            None, Callable[[Exception], U], AsyncFunction[Exception, U]
-        ] = None,
+        where: Union[None, Callable[[Exc], Any], AsyncFunction[Exc, Any]] = None,
+        do: Union[None, Callable[[Exc], Any], AsyncFunction[Exc, Any]] = None,
+        replace: Union[None, Callable[[Exc], U], AsyncFunction[Exc, U]] = None,
         stop: bool = False,
     ) -> "stream[Union[T, U]]":
         """
@@ -455,7 +438,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             assert list(inverses) == []
         """
         return CatchStream(
-            self,
+            cast("stream[Union[T, U]]", self),
             errors,
             where=where,
             replace=replace,
@@ -1076,21 +1059,21 @@ class CatchStream(DownStream[T, Union[T, U]]):
     def __init__(
         self,
         upstream: stream[T],
-        errors: Union[Type[Exception], Tuple[Type[Exception], ...]],
+        errors: Union[Type[Exc], Tuple[Type[Exc], ...]],
         where: Union[
             None,
-            Callable[[Exception], Any],
-            AsyncFunction[Exception, Any],
+            Callable[[Exc], Any],
+            AsyncFunction[Exc, Any],
         ],
         replace: Union[
             None,
-            Callable[[Exception], U],
-            AsyncFunction[Exception, U],
+            Callable[[Exc], U],
+            AsyncFunction[Exc, U],
         ],
         do: Union[
             None,
-            Callable[[Exception], Any],
-            AsyncFunction[Exception, Any],
+            Callable[[Exc], Any],
+            AsyncFunction[Exc, Any],
         ],
         stop: bool,
     ) -> None:
