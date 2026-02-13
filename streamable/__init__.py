@@ -1,5 +1,5 @@
 from streamable._stream import stream
-from streamable._tools._func import star
+from streamable._tools._star import star
 
 Stream = stream
 
