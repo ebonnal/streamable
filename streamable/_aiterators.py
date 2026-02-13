@@ -7,7 +7,6 @@ from abc import ABC, abstractmethod
 from collections import defaultdict, deque
 from concurrent.futures import Executor, ThreadPoolExecutor
 from typing import (
-    TYPE_CHECKING,
     Any,
     AsyncIterable,
     AsyncIterator,
@@ -29,11 +28,10 @@ from typing import (
 )
 import weakref
 
+from streamable._tools._observation import Observation
 from streamable._tools._sentinel import STOP_ITERATION
 from streamable._tools._validation import validate_async_flatten_iterable
 
-if TYPE_CHECKING:
-    from streamable._stream import stream
 from streamable._tools._afuture import (
     FutureResult,
     FDFOFutureResults,
@@ -470,7 +468,7 @@ class _BaseObserveAsyncIterator(AsyncIterator[T]):
         self,
         iterator: AsyncIterator[T],
         subject: str,
-        do: AsyncFunction["stream.Observation", Any],
+        do: AsyncFunction[Observation, Any],
     ) -> None:
         self.iterator = iterator
         self.subject = subject
@@ -487,10 +485,8 @@ class _BaseObserveAsyncIterator(AsyncIterator[T]):
     def _emissions(self) -> int:
         return self._elements + self._errors
 
-    def _observation(self) -> "stream.Observation":
-        from streamable._stream import stream
-
-        return stream.Observation(
+    def _observation(self) -> Observation:
+        return Observation(
             subject=self.subject,
             elapsed=self._time_point() - self._start_point,
             errors=self._errors,
@@ -543,7 +539,7 @@ class PowerObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
         self,
         iterator: AsyncIterator[T],
         subject: str,
-        do: AsyncFunction["stream.Observation", Any],
+        do: AsyncFunction[Observation, Any],
         base: int = 2,
     ) -> None:
         super().__init__(iterator, subject, do)
@@ -561,7 +557,7 @@ class EveryIntObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
         iterator: AsyncIterator[T],
         subject: str,
         every: int,
-        do: AsyncFunction["stream.Observation", Any],
+        do: AsyncFunction[Observation, Any],
     ) -> None:
         super().__init__(iterator, subject, do)
         self.every = every
@@ -582,7 +578,7 @@ class EveryIntervalObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
         iterator: AsyncIterator[T],
         subject: str,
         every: datetime.timedelta,
-        do: AsyncFunction["stream.Observation", Any],
+        do: AsyncFunction[Observation, Any],
     ) -> None:
         super().__init__(iterator, subject, do)
         self.every = every

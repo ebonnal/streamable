@@ -15,7 +15,6 @@ from typing import (
     Iterable,
     Iterator,
     List,
-    NamedTuple,
     Optional,
     Sequence,
     Set,
@@ -26,13 +25,13 @@ from typing import (
     cast,
     overload,
 )
-
 from streamable._tools._async import AsyncFunction
 from streamable._tools._iter import (
     AsyncToSyncIterator,
     SyncAsyncIterable,
 )
-from streamable._tools._logging import logfmt_str_escape, setup_logger
+from streamable._tools._logging import setup_logger
+from streamable._tools._observation import Observation
 from streamable._tools._validation import (
     validate_concurrency_executor,
     validate_positive_timedelta,
@@ -827,44 +826,14 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             validate_concurrency_executor(concurrency, into, fn_name="into")
         return MapStream(self, into, concurrency, as_completed)
 
-    class Observation(NamedTuple):
-        """
-        Representation of the progress of iteration over a stream.
-
-        Args:
-            subject (``str``): Human-readable description of stream elements (e.g., "cats", "dogs", "requests").
-
-            elapsed (``timedelta``): Time elapsed since iteration started.
-
-            errors (``int``): Number of errors encountered during iteration so far.
-
-            elements (``int``): Number of elements emitted so far.
-        """
-
-        subject: str
-        elapsed: datetime.timedelta
-        errors: int
-        elements: int
-
-        def __str__(self) -> str:
-            """
-            Return a logfmt-formatted string representation.
-
-            Returns:
-                ``str``: Logfmt string with subject, elapsed, errors, and elements.
-            """
-            subject = logfmt_str_escape(self.subject)
-            elapsed = logfmt_str_escape(str(self.elapsed))
-            return f"observed={subject} elapsed={elapsed} errors={self.errors} elements={self.elements}"
-
     def observe(
         self,
         subject: str = "elements",
         *,
         every: Union[None, int, datetime.timedelta] = None,
         do: Union[
-            Callable[["stream.Observation"], Any],
-            AsyncFunction["stream.Observation", Any],
+            Callable[[Observation], Any],
+            AsyncFunction[Observation, Any],
         ] = logging.getLogger("streamable").info,
     ) -> "stream[T]":
         """
@@ -873,7 +842,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         - number of elements yielded by upstream
         - number of errors raised by upstream
 
-        A ``stream.Observation`` is passed to the ``do`` callback (the default emits a log), at a frequency defined by ``every``.
+        A ``streamable.Observation`` is passed to the ``do`` callback (the default emits a log), at a frequency defined by ``every``.
 
         The errors raised by `do` itself are ignored: they do not bubble up into the iterator and are not included in the errors count.
 
@@ -886,7 +855,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
               ‣ ``int``: Periodically when ``every`` elements or errors have been emitted.
               ‣ ``timedelta``: Periodically ``every`` time interval.
 
-            do (``Callable[[stream.Observation], Any] | AsyncCallable[stream.Observation, Any]``, optional): Callback receiving a ``stream.Observation`` (subject, elapsed, errors, elements).
+            do (``Callable[[streamable.Observation], Any] | AsyncCallable[streamable.Observation, Any]``, optional): Callback receiving a ``streamable.Observation`` (subject, elapsed, errors, elements).
 
         Returns:
             ``stream[T]``: Stream with progress observation enabled.
@@ -1191,8 +1160,8 @@ class ObserveStream(DownStream[T, T]):
         subject: str,
         every: Union[None, int, datetime.timedelta],
         do: Union[
-            Callable[["stream.Observation"], Any],
-            AsyncFunction["stream.Observation", Any],
+            Callable[[Observation], Any],
+            AsyncFunction[Observation, Any],
         ],
     ) -> None:
         super().__init__(upstream)

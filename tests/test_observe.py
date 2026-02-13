@@ -15,6 +15,7 @@ import pytest
 
 from streamable import stream
 from streamable._tools._func import asyncify
+from streamable._tools._observation import Observation
 from tests.tools.error import TestError
 from tests.tools.func import identity, inverse, throw_func
 from tests.tools.iter import (
@@ -34,7 +35,7 @@ class Counts(NamedTuple):
     elements: int
 
     @staticmethod
-    def from_observation(observation: stream.Observation) -> "Counts":
+    def from_observation(observation: Observation) -> "Counts":
         return Counts(
             errors=observation.errors,
             elements=observation.elements,
@@ -55,7 +56,7 @@ def to_inverses(
     The potential `ZeroDivisionError`s (`inverse(0)`) are observed but not caught.
     """
 
-    def do(obs: stream.Observation) -> None:
+    def do(obs: Observation) -> None:
         logs.append(Counts.from_observation(obs))
 
     return (
@@ -223,7 +224,7 @@ def test_observe_every_timedelta_frequent(itype: IterableType) -> None:
 @pytest.mark.parametrize("adapt", [identity, asyncify])
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_observe_do(itype: IterableType, adapt: Callable[[Any], Any]) -> None:
-    observations: List[stream.Observation] = []
+    observations: List[Observation] = []
     s = stream(range(8)).observe("ints", every=2, do=adapt(observations.append))
     alist_or_list(s, itype)
     assert [observation.elements for observation in observations] == [1, 2, 4, 6, 8]
@@ -248,7 +249,7 @@ def test_observe_do_raise(
 async def test_observe_every_timedelta_observation_stops_on_gc(
     itype: IterableType,
 ) -> None:
-    observations: List[stream.Observation] = []
+    observations: List[Observation] = []
     sleep_time = 1
     every_seconds = 0.1
     s = ints.observe(

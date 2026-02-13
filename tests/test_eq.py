@@ -1,6 +1,7 @@
 import datetime
 
 from streamable import stream
+from streamable._tools._observation import Observation
 from tests.tools.source import ints
 
 
@@ -94,7 +95,7 @@ def test_map_eq() -> None:
 
 
 def test_observe_eq() -> None:
-    def do(obs: stream.Observation) -> None:
+    def do(obs: Observation) -> None:
         pass  # pragma: no cover
 
     s = ints.observe(subject="test", every=10, do=do)

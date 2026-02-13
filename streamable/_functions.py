@@ -4,7 +4,6 @@ import datetime
 from contextlib import suppress
 from operator import itemgetter
 from typing import (
-    TYPE_CHECKING,
     Any,
     Callable,
     Iterable,
@@ -18,8 +17,7 @@ from typing import (
     cast,
 )
 
-if TYPE_CHECKING:
-    from streamable._stream import stream
+from streamable._tools._observation import Observation
 
 from streamable import _iterators
 
@@ -122,7 +120,7 @@ def observe(
     iterator: Iterator[T],
     subject: str,
     every: Union[None, int, datetime.timedelta],
-    do: Union[Callable[["stream.Observation"], Any],],
+    do: Union[Callable[[Observation], Any],],
 ) -> Iterator[T]:
     if every is None:
         return _iterators.PowerObserveIterator(iterator, subject, do)

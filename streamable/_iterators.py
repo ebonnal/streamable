@@ -8,7 +8,6 @@ from collections import defaultdict, deque
 from concurrent.futures import Executor, Future, ThreadPoolExecutor
 from contextlib import suppress
 from typing import (
-    TYPE_CHECKING,
     Any,
     Callable,
     ContextManager,
@@ -28,11 +27,10 @@ from typing import (
 import weakref
 
 from streamable._tools._contextmanager import noop_context_manager
+from streamable._tools._observation import Observation
 from streamable._tools._sentinel import STOP_ITERATION
 from streamable._tools._validation import validate_sync_flatten_iterable
 
-if TYPE_CHECKING:
-    from streamable._stream import stream
 from streamable._tools._error import ExceptionContainer, RaisingIterator
 
 from streamable._tools._future import (
@@ -395,7 +393,7 @@ class _BaseObserveIterator(Iterator[T]):
         self,
         iterator: Iterator[T],
         subject: str,
-        do: Callable[["stream.Observation"], Any],
+        do: Callable[[Observation], Any],
     ) -> None:
         self.iterator = iterator
         self.subject = subject
@@ -412,10 +410,8 @@ class _BaseObserveIterator(Iterator[T]):
     def _emissions(self) -> int:
         return self._elements + self._errors
 
-    def _observation(self) -> "stream.Observation":
-        from streamable._stream import stream
-
-        return stream.Observation(
+    def _observation(self) -> Observation:
+        return Observation(
             subject=self.subject,
             elapsed=self._time_point() - self._start_point,
             errors=self._errors,
@@ -468,7 +464,7 @@ class PowerObserveIterator(_BaseObserveIterator[T]):
         self,
         iterator: Iterator[T],
         subject: str,
-        do: Callable[["stream.Observation"], Any],
+        do: Callable[[Observation], Any],
         base: int = 2,
     ) -> None:
         super().__init__(iterator, subject, do)
@@ -486,7 +482,7 @@ class EveryIntObserveIterator(_BaseObserveIterator[T]):
         iterator: Iterator[T],
         subject: str,
         every: int,
-        do: Callable[["stream.Observation"], Any],
+        do: Callable[[Observation], Any],
     ) -> None:
         super().__init__(iterator, subject, do)
         self.every = every
@@ -507,7 +503,7 @@ class EveryIntervalObserveIterator(_BaseObserveIterator[T]):
         iterator: Iterator[T],
         subject: str,
         every: datetime.timedelta,
-        do: Callable[["stream.Observation"], Any],
+        do: Callable[[Observation], Any],
     ) -> None:
         super().__init__(iterator, subject, do)
         self.every = every

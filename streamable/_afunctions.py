@@ -4,7 +4,6 @@ from contextlib import suppress
 from inspect import iscoroutinefunction
 from operator import itemgetter
 from typing import (
-    TYPE_CHECKING,
     Any,
     AsyncIterable,
     AsyncIterator,
@@ -19,8 +18,7 @@ from typing import (
     cast,
 )
 
-if TYPE_CHECKING:
-    from streamable._stream import stream
+from streamable._tools._observation import Observation
 
 from streamable import _aiterators
 from streamable._tools._async import AsyncFunction
@@ -140,8 +138,8 @@ def observe(
     subject: str,
     every: Union[None, int, datetime.timedelta],
     do: Union[
-        Callable[["stream.Observation"], Any],
-        AsyncFunction["stream.Observation", Any],
+        Callable[[Observation], Any],
+        AsyncFunction[Observation, Any],
     ],
 ) -> AsyncIterator[T]:
     if every is None:

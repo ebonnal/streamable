@@ -411,7 +411,7 @@ observed_ints = stream(range(10)).observe("ints", every=1000)
 observed_ints = stream(range(10)).observe("ints", every=timedelta(seconds=5))
 ```
 
-Observations are logged via `logging.getLogger("streamable").info`. Set `do` to do something else:
+Observations are logged via `logging.getLogger("streamable").info`. Set `do` to do something else with the `streamable.Observation`:
 
 ```python
 observed_ints = stream(range(10)).observe("ints", do=custom_logger.info)
