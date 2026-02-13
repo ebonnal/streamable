@@ -537,6 +537,50 @@ odd_int_chars = stream(range(N)).filter(lambda n: n % 2).map(str)
 map(str, filter(lambda n: n % 2, range(N)))
 ```
 
+## e.g. ETL via [`dlt`](https://github.com/dlt-hub/dlt)
+
+A `stream` is an expressive way to declare a `dlt.resource`:
+
+```python
+# from datetime import timedelta
+# from http import HTTPStatus
+# from itertools import count
+# import dlt
+# from httpx import AsyncClient, Response, HTTPStatusError
+# from dlt.destinations import filesystem
+# from streamable import stream
+
+def is_not_found(e: HTTPStatusError) -> bool:
+    return e.response.status_code == HTTPStatus.NOT_FOUND
+
+@dlt.resource
+def pokemons(concurrency: int, per_second: int) -> stream[dict]:
+    """
+    Ingest Pokémons from the PokéAPI, stops on first 404.
+    """
+    return (
+        stream(count(1))
+        .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
+        .throttle(per_second, per=timedelta(seconds=1))
+        .map(AsyncClient().get, concurrency=concurrency, as_completed=True)
+        .do(Response.raise_for_status)
+        .catch(HTTPStatusError, where=is_not_found, stop=True)
+        .map(Response.json)
+        .observe("pokemons")
+    )
+
+# Write to a partitioned Delta Lake table, chunk by chunk on-the-fly.
+dlt.pipeline(
+    pipeline_name="ingest_pokeapi",
+    destination=filesystem("deltalake"),
+    dataset_name="pokeapi",
+).run(
+    pokemons(concurrency=8, per_second=32),
+    table_format="delta",
+    columns={"color__name": {"partition": True}},
+)
+```
+
 # links
 
 - [Tryolabs' Top 10 Python libraries of 2024](https://tryolabs.com/blog/top-python-libraries-2024#top-10---general-use) ([LinkedIn](https://www.linkedin.com/posts/tryolabs_top-python-libraries-2024-activity-7273052840984539137-bcGs?utm_source=share&utm_medium=member_desktop), [Reddit](https://www.reddit.com/r/Python/comments/1hbs4t8/the_handpicked_selection_of_the_best_python/))

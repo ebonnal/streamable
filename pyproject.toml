@@ -19,6 +19,7 @@ dev = [
     "mypy==1.18.2; python_version >= '3.9'",
     "mypy-extensions==1.0.0; python_version >= '3.9'",
     "polars==1.36.1; python_version >= '3.9'",
+    "dlt[deltalake]==1.21.0; python_version >= '3.9'",
     "pytest==7.4.4; python_version >= '3.9'",
     "pytest-asyncio==0.21.2; python_version >= '3.9'",
     "pytest-cov==7.0.0; python_version >= '3.9'",
