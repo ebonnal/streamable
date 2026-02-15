@@ -96,13 +96,14 @@ class _BufferAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]]):
 
     async def __aiter__(self) -> AsyncIterator[Union[T, ExceptionContainer]]:
         task = asyncio.create_task(self._buffer_upstream())
+        to_yield: Deque[Union[T, ExceptionContainer]] = deque(maxlen=1)
         try:
             while True:
-                elem = await self._lazy_buffer.get()
-                if elem is STOP_ITERATION:
+                to_yield.append(await self._lazy_buffer.get())
+                if to_yield[-1] is STOP_ITERATION:
                     break
                 self._lazy_slots.release()
-                yield elem
+                yield to_yield.pop()
         finally:
             self._stopped = True
             self._lazy_slots.release()

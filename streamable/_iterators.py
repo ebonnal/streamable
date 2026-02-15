@@ -82,14 +82,15 @@ class _BufferIterable(Iterable[Union[T, ExceptionContainer]]):
 
     def __iter__(self) -> Iterator[Union[T, ExceptionContainer]]:
         thread = Thread(target=self._buffer_upstream, daemon=True)
+        to_yield: Deque[Union[T, ExceptionContainer]] = deque(maxlen=1)
         try:
             thread.start()
             while True:
-                elem = self._buffer.get()
-                if elem is STOP_ITERATION:
+                to_yield.append(self._buffer.get())
+                if to_yield[-1] is STOP_ITERATION:
                     break
                 self._slots.release()
-                yield elem
+                yield to_yield.pop()
         finally:
             self._stopped = True
             self._slots.release()
