@@ -929,6 +929,8 @@ class _ConcurrentFlattenAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]
                         elem.exception, (StopIteration, StopAsyncIteration)
                     ):
                         to_yield.append(elem)
+                        del elem
+                        del future
                         iterator_to_queue = iterator
 
                 # queue tasks up to buffersize
