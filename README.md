@@ -25,7 +25,7 @@ from streamable import stream
 
 # 3. init
 
-Create a `stream[T]` from an `Iterable[T]` or `AsyncIterable[T]`:
+Create a `stream[T]` from an `Iterable[T]` (or `AsyncIterable[T]`):
 
 ```python
 ints: stream[int] = stream(range(10))
@@ -33,7 +33,7 @@ ints: stream[int] = stream(range(10))
 
 # 4. operate
 
-Chain lazy operations, accepting both sync and async functions:
+Chain lazy operations:
 
 ```python
 import logging
@@ -55,28 +55,18 @@ pokemons: stream[str] = (
 
 Source elements will be processed on-the-fly during iteration.
 
+Operations accept both sync and async functions.
+
 # 5. iterate
 
-A `stream[T]` is `Iterable[T]`:
+A `stream[T]` is `Iterable[T]` (and `AsyncIterable[T]`):
 
 ```python
 >>> list(pokemons)
 ['bulbasaur', 'ivysaur', 'venusaur', 'charmander', 'charmeleon', 'charizard', 'squirtle', 'wartortle', 'blastoise']
-
->>> [poke for poke in pokemons]
-['bulbasaur', 'ivysaur', 'venusaur', 'charmander', 'charmeleon', 'charizard', 'squirtle', 'wartortle', 'blastoise']
 ```
 
-... and `AsyncIterable[T]`:
-```python
->>> [poke async for poke in pokemons]
-['bulbasaur', 'ivysaur', 'venusaur', 'charmander', 'charmeleon', 'charizard', 'squirtle', 'wartortle', 'blastoise']
-```
-
-
-# 📒 Operations
-
-> visit the [docs](https://streamable.readthedocs.io/en/latest/api.html) for more details
+# 📒 Operations ([docs](https://streamable.readthedocs.io/en/latest/api.html))
 
   - [`.map`](#-map) elements
   - [`.do`](#-do) side effects on elements
@@ -90,7 +80,7 @@ A `stream[T]` is `Iterable[T]`:
   - [`.buffer`](#-buffer) elements
   - [`.observe`](#-observe) the iteration progress
 
-Both sync and async functions are accepted by operations, they can be mixed within the same `stream`, that can then be consumed as an `Iterable` or `AsyncIterable`. When a stream involving async functions is consumed as an `Iterable`, the iteration happens within an event loop attached to it.
+Operations accept both sync and async functions, they can be mixed within the same `stream`, that can then be consumed as an `Iterable` or `AsyncIterable`.
 
 Operations are implemented so that the iteration can resume after an exception.
 
