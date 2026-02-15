@@ -778,12 +778,14 @@ class _BaseConcurrentMapAsyncIterable(
                     # no more tasks to queue
                     break
                 self._future_results.add(future)
+                del future
 
             # queue, wait, yield
             while self._future_results:
                 future = await self._next_future()
                 if future:
                     self._future_results.add(future)
+                    del future
                 yield await self._future_results.__anext__()
 
 
