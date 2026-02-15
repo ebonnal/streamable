@@ -47,6 +47,66 @@ T = TypeVar("T")
 U = TypeVar("U")
 Exc = TypeVar("Exc", bound=Exception)
 
+
+##########
+# buffer #
+##########
+
+
+class _BufferIterable(Iterable[Union[T, ExceptionContainer]]):
+    __slots__ = ("iterator", "_buffer", "_slots", "_stopped")
+
+    def __init__(
+        self,
+        iterator: Iterator[T],
+        up_to: int,
+    ) -> None:
+        self.iterator = iterator
+        self._buffer: "queue.Queue[Union[T, ExceptionContainer]]" = queue.Queue()
+        self._slots = Semaphore(up_to)
+        self._stopped = False
+
+    def _buffer_upstream(self) -> None:
+        elem: Union[T, ExceptionContainer]
+        self._slots.acquire()
+        while not self._stopped:
+            try:
+                elem = self.iterator.__next__()
+            except StopIteration:
+                elem = STOP_ITERATION
+                self._stopped = True
+            except Exception as e:
+                elem = ExceptionContainer(e)
+            self._buffer.put_nowait(elem)
+            self._slots.acquire()
+
+    def __iter__(self) -> Iterator[Union[T, ExceptionContainer]]:
+        thread = Thread(target=self._buffer_upstream, daemon=True)
+        try:
+            thread.start()
+            while True:
+                elem = self._buffer.get()
+                if elem is STOP_ITERATION:
+                    break
+                self._slots.release()
+                yield elem
+        finally:
+            self._stopped = True
+            self._slots.release()
+            thread.join()
+
+
+class BufferIterator(RaisingIterator[T]):
+    __slots__ = ()
+
+    def __init__(
+        self,
+        iterator: Iterator[T],
+        up_to: int,
+    ) -> None:
+        super().__init__(_BufferIterable(iterator, up_to).__iter__())
+
+
 #########
 # catch #
 #########
@@ -579,65 +639,6 @@ class ThrottleIterator(Iterator[T]):
             finally:
                 error = None
         return cast(T, elem)
-
-
-##########
-# buffer #
-##########
-
-
-class _BufferIterable(Iterable[Union[T, ExceptionContainer]]):
-    __slots__ = ("iterator", "_buffer", "_slots", "_stopped")
-
-    def __init__(
-        self,
-        iterator: Iterator[T],
-        up_to: int,
-    ) -> None:
-        self.iterator = iterator
-        self._buffer: "queue.Queue[Union[T, ExceptionContainer]]" = queue.Queue()
-        self._slots = Semaphore(up_to)
-        self._stopped = False
-
-    def _buffer_upstream(self) -> None:
-        elem: Union[T, ExceptionContainer]
-        self._slots.acquire()
-        while not self._stopped:
-            try:
-                elem = self.iterator.__next__()
-            except StopIteration:
-                elem = STOP_ITERATION
-                self._stopped = True
-            except Exception as e:
-                elem = ExceptionContainer(e)
-            self._buffer.put_nowait(elem)
-            self._slots.acquire()
-
-    def __iter__(self) -> Iterator[Union[T, ExceptionContainer]]:
-        thread = Thread(target=self._buffer_upstream, daemon=True)
-        try:
-            thread.start()
-            while True:
-                elem = self._buffer.get()
-                if elem is STOP_ITERATION:
-                    break
-                self._slots.release()
-                yield elem
-        finally:
-            self._stopped = True
-            self._slots.release()
-            thread.join()
-
-
-class BufferIterator(RaisingIterator[T]):
-    __slots__ = ()
-
-    def __init__(
-        self,
-        iterator: Iterator[T],
-        up_to: int,
-    ) -> None:
-        super().__init__(_BufferIterable(iterator, up_to).__iter__())
 
 
 ##################
