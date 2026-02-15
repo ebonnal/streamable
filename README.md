@@ -1,6 +1,6 @@
 # ༄ `streamable`
 
-> fluent sync/async streams for Python
+> (sync/async) iterable streams for Python
 
 `stream[T]` wraps any `Iterable[T]` or `AsyncIterable[T]` with a lazy fluent interface covering concurrency, batching, buffering, rate limiting, progress logging, and error handling.
 
