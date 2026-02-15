@@ -26,7 +26,7 @@ from typing import (
 )
 import weakref
 
-from streamable._tools._contextmanager import noop_context_manager
+from streamable._tools._context import noop_context_manager
 from streamable._tools._observation import Observation
 from streamable._tools._sentinel import STOP_ITERATION
 from streamable._tools._validation import validate_sync_flatten_iterable

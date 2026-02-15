@@ -39,7 +39,7 @@ from streamable._tools._afuture import (
     FutureResults,
 )
 from streamable._tools._async import AsyncFunction, empty_aiter
-from streamable._tools._contextmanager import noop_context_manager
+from streamable._tools._context import noop_context_manager
 from streamable._tools._error import ExceptionContainer, RaisingAsyncIterator
 
 from streamable._tools._async import anext
