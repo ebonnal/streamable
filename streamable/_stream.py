@@ -42,7 +42,7 @@ from streamable.visitors._iter import IteratorVisitor
 from streamable.visitors._aiter import AsyncIteratorVisitor
 from streamable.visitors._eq import EqualityVisitor
 from streamable.visitors._repr import ReprVisitor
-from streamable.visitors._check import InvolvesAsyncVisitor
+from streamable.visitors._involves_async import InvolvesAsyncVisitor
 
 # Initialize "streamable" logger
 setup_logger()
