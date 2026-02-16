@@ -309,6 +309,18 @@ class _GroupByWithinIterable(Iterable[Union[ExceptionContainer, Tuple[U, List[T]
             self._next_elem.put_nowait(elem)
             self._let_pull_next.acquire()
 
+    def _get_next_elem(self) -> T:
+        elem = self._next_elem.get(timeout=self._timeout())
+        if elem is STOP_ITERATION:
+            raise StopIteration
+        if isinstance(elem, ExceptionContainer):
+            raise elem.exception
+        return elem
+
+    def _oldest_group(self) -> Tuple[U, List[T]]:
+        oldest_key = next(iter(self._groups.keys()))
+        return (oldest_key, self._groups.pop(oldest_key)[1])
+
     def __iter__(self) -> Iterator[Union[ExceptionContainer, Tuple[U, List[T]]]]:
         thread = Thread(target=self._pull_upstream, daemon=True)
         try:
@@ -316,16 +328,12 @@ class _GroupByWithinIterable(Iterable[Union[ExceptionContainer, Tuple[U, List[T]
             while True:
                 self._let_pull_next.release()
                 try:
-                    try:
-                        elem = self._next_elem.get(timeout=self._timeout())
-                        if elem is STOP_ITERATION:
-                            raise StopIteration
-                        if isinstance(elem, ExceptionContainer):
-                            raise elem.exception
-                    except queue.Empty:
-                        oldest_key = next(iter(self._groups.keys()))
-                        yield (oldest_key, self._groups.pop(oldest_key)[1])
-                        continue
+                    while True:
+                        try:
+                            elem = self._get_next_elem()
+                            break
+                        except queue.Empty:
+                            yield self._oldest_group()
                     key = self.by(elem)
                     _, group = self._groups[key]
                     group.append(elem)
@@ -334,8 +342,7 @@ class _GroupByWithinIterable(Iterable[Union[ExceptionContainer, Tuple[U, List[T]
                         yield (key, group)
                 except Exception as e:
                     while self._groups:
-                        oldest_key = next(iter(self._groups.keys()))
-                        yield (oldest_key, self._groups.pop(oldest_key)[1])
+                        yield self._oldest_group()
                     if isinstance(e, StopIteration):
                         return
                     yield ExceptionContainer(e)

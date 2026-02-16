@@ -343,6 +343,20 @@ class _GroupByWithinAsyncIterable(
             self._lazy_next_elem.put_nowait(elem)
             await self._lazy_let_pull_next.acquire()
 
+    async def _get_next_elem(self) -> T:
+        elem = await asyncio.wait_for(
+            self._lazy_next_elem.get(), timeout=self._timeout()
+        )
+        if elem is STOP_ITERATION:
+            raise StopAsyncIteration
+        if isinstance(elem, ExceptionContainer):
+            raise elem.exception
+        return elem
+
+    def _oldest_group(self) -> Tuple[U, List[T]]:
+        oldest_key = next(iter(self._groups.keys()))
+        return (oldest_key, self._groups.pop(oldest_key)[1])
+
     async def __aiter__(
         self,
     ) -> AsyncIterator[Union[ExceptionContainer, Tuple[U, List[T]]]]:
@@ -350,19 +364,15 @@ class _GroupByWithinAsyncIterable(
         try:
             while True:
                 self._lazy_let_pull_next.release()
+
                 try:
-                    try:
-                        elem = await asyncio.wait_for(
-                            self._lazy_next_elem.get(), timeout=self._timeout()
-                        )
-                        if elem is STOP_ITERATION:
-                            raise StopAsyncIteration
-                        if isinstance(elem, ExceptionContainer):
-                            raise elem.exception
-                    except asyncio.TimeoutError:
-                        oldest_key = next(iter(self._groups.keys()))
-                        yield (oldest_key, self._groups.pop(oldest_key)[1])
-                        continue
+                    while True:
+                        try:
+                            elem = await self._get_next_elem()
+                            break
+                        except asyncio.TimeoutError:
+                            yield self._oldest_group()
+                            continue
                     key = await self.by(elem)
                     _, group = self._groups[key]
                     group.append(elem)
@@ -371,8 +381,7 @@ class _GroupByWithinAsyncIterable(
                         yield (key, group)
                 except Exception as e:
                     while self._groups:
-                        oldest_key = next(iter(self._groups.keys()))
-                        yield (oldest_key, self._groups.pop(oldest_key)[1])
+                        yield self._oldest_group()
                     if isinstance(e, StopAsyncIteration):
                         return
                     yield ExceptionContainer(e)

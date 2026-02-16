@@ -220,3 +220,29 @@ async def test_group_within_does_not_pull_ahead_of_consumption(
         assert await it.__anext__() == list(INTEGERS)[:5]
         await asyncio.sleep(2 * per)
     assert pulled == list(INTEGERS)[:6]
+
+
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+@pytest.mark.asyncio
+async def test_group_within_does_not_pull_ahead_of_consumption_on_timeout(
+    itype: IterableType,
+) -> None:
+    pulled: List[int] = []
+    per = 0.1
+    s = (
+        ints.throttle(1, per=timedelta(seconds=per))
+        .do(pulled.append)
+        .group(within=timedelta(seconds=0.9 * per))
+    )
+    it = aiter_or_iter(s, itype)
+    if isinstance(it, Iterable):
+        assert it.__next__() == [0]
+        assert it.__next__() == [1]
+        assert it.__next__() == [2]
+        time.sleep(2 * per)
+    else:
+        assert await it.__anext__() == [0]
+        assert await it.__anext__() == [1]
+        assert await it.__anext__() == [2]
+        await asyncio.sleep(2 * per)
+    assert pulled == [0, 1, 2, 3]
