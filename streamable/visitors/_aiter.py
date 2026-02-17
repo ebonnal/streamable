@@ -57,6 +57,14 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
             stop=s._stop,
         )
 
+    def visit_do_stream(self, s: "DoStream[T]") -> AsyncIterator[T]:
+        return _afunctions.map(
+            sidify(s._effect),
+            s.upstream.accept(self),
+            concurrency=s._concurrency,
+            as_completed=s._as_completed,
+        )
+
     def visit_filter_stream(self, s: "FilterStream[T]") -> AsyncIterator[T]:
         return _afunctions.filter(s._where, s.upstream.accept(self))
 
@@ -66,14 +74,6 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
                 cast(AsyncIteratorVisitor[Union[Iterable[T], AsyncIterable[T]]], self)
             ),
             concurrency=s._concurrency,
-        )
-
-    def visit_do_stream(self, s: "DoStream[T]") -> AsyncIterator[T]:
-        return _afunctions.map(
-            sidify(s._effect),
-            s.upstream.accept(self),
-            concurrency=s._concurrency,
-            as_completed=s._as_completed,
         )
 
     def visit_group_stream(self, s: "GroupStream[T]") -> AsyncIterator[T]:

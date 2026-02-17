@@ -35,13 +35,13 @@ class Visitor(ABC, Generic[V]):
     def visit_catch_stream(self, s: "CatchStream") -> V:
         return self.visit_stream(s)
 
+    def visit_do_stream(self, s: "DoStream") -> V:
+        return self.visit_stream(s)
+
     def visit_filter_stream(self, s: "FilterStream") -> V:
         return self.visit_stream(s)
 
     def visit_flatten_stream(self, s: "FlattenStream") -> V:
-        return self.visit_stream(s)
-
-    def visit_do_stream(self, s: "DoStream") -> V:
         return self.visit_stream(s)
 
     def visit_group_stream(self, s: "GroupStream") -> V:

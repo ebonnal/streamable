@@ -446,6 +446,72 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             stop=stop,
         )
 
+    @overload
+    def do(
+        self,
+        effect: AsyncFunction[T, Any],
+        *,
+        concurrency: int = 1,
+        as_completed: bool = False,
+    ) -> "stream[T]": ...
+
+    @overload
+    def do(
+        self,
+        effect: Callable[[T], Any],
+        *,
+        concurrency: Union[int, Executor] = 1,
+        as_completed: bool = False,
+    ) -> "stream[T]": ...
+
+    def do(
+        self,
+        effect: Union[Callable[[T], Any], AsyncFunction[T, Any]],
+        *,
+        concurrency: Union[int, Executor] = 1,
+        as_completed: bool = False,
+    ) -> "stream[T]":
+        """
+        Perform a side ``effect`` on each upstream element, yielding them unchanged.
+
+        Concurrency:
+
+          - Set the `concurrency` param to apply the transformation concurrently.
+
+          - `concurrency` upstream elements are processed in-flight.
+
+          - Preserve upstream order unless you set `as_completed=True`.
+
+        Args:
+            effect (``Callable[[T], Any] | AsyncCallable[T, Any]``): The side effect function.
+
+            concurrency (``int | Executor``, optional): Concurrency control:
+
+              ‣ ``1`` (default): Sequential processing.
+              ‣ ``int > 1``: Concurrent via ``concurrency`` threads or async tasks if ``effect`` is async.
+              ‣ ``Executor``: Uses the provided executor (e.g., a ``ProcessPoolExecutor``), the concurrency is the number of workers.
+
+            as_completed (``bool``, optional): Processing order:
+
+              ‣ ``False`` (default): Preserves upstream order.
+              ‣ ``True``: Processes side effects as they complete.
+
+        Returns:
+            ``stream[T]``: A stream of upstream elements.
+
+        Example::
+
+            state: list[int] = []
+            store_ints: stream[int] = stream(range(10)).do(state.append)
+            assert list(store_ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+            assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        """
+        if isinstance(concurrency, int):
+            validate_int(concurrency, gte=1, name="concurrency")
+        else:
+            validate_concurrency_executor(concurrency, effect, fn_name="effect")
+        return DoStream(self, effect, concurrency, as_completed)
+
     def filter(
         self,
         where: Union[Callable[[T], Any], AsyncFunction[T, Any]] = bool,
@@ -613,72 +679,6 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         """
         validate_int(concurrency, gte=1, name="concurrency")
         return FlattenStream(self, concurrency)
-
-    @overload
-    def do(
-        self,
-        effect: AsyncFunction[T, Any],
-        *,
-        concurrency: int = 1,
-        as_completed: bool = False,
-    ) -> "stream[T]": ...
-
-    @overload
-    def do(
-        self,
-        effect: Callable[[T], Any],
-        *,
-        concurrency: Union[int, Executor] = 1,
-        as_completed: bool = False,
-    ) -> "stream[T]": ...
-
-    def do(
-        self,
-        effect: Union[Callable[[T], Any], AsyncFunction[T, Any]],
-        *,
-        concurrency: Union[int, Executor] = 1,
-        as_completed: bool = False,
-    ) -> "stream[T]":
-        """
-        Perform a side ``effect`` on each upstream element, yielding them unchanged.
-
-        Concurrency:
-
-          - Set the `concurrency` param to apply the transformation concurrently.
-
-          - `concurrency` upstream elements are processed in-flight.
-
-          - Preserve upstream order unless you set `as_completed=True`.
-
-        Args:
-            effect (``Callable[[T], Any] | AsyncCallable[T, Any]``): The side effect function.
-
-            concurrency (``int | Executor``, optional): Concurrency control:
-
-              ‣ ``1`` (default): Sequential processing.
-              ‣ ``int > 1``: Concurrent via ``concurrency`` threads or async tasks if ``effect`` is async.
-              ‣ ``Executor``: Uses the provided executor (e.g., a ``ProcessPoolExecutor``), the concurrency is the number of workers.
-
-            as_completed (``bool``, optional): Processing order:
-
-              ‣ ``False`` (default): Preserves upstream order.
-              ‣ ``True``: Processes side effects as they complete.
-
-        Returns:
-            ``stream[T]``: A stream of upstream elements.
-
-        Example::
-
-            state: list[int] = []
-            store_ints: stream[int] = stream(range(10)).do(state.append)
-            assert list(store_ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-            assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-        """
-        if isinstance(concurrency, int):
-            validate_int(concurrency, gte=1, name="concurrency")
-        else:
-            validate_concurrency_executor(concurrency, effect, fn_name="effect")
-        return DoStream(self, effect, concurrency, as_completed)
 
     @overload
     def group(
@@ -1058,6 +1058,28 @@ class CatchStream(DownStream[T, Union[T, U]]):
         return visitor.visit_catch_stream(self)
 
 
+class DoStream(DownStream[T, T]):
+    __slots__ = ("_effect", "_concurrency", "_as_completed")
+
+    def __init__(
+        self,
+        upstream: stream[T],
+        effect: Union[
+            Callable[[T], Any],
+            AsyncFunction[T, Any],
+        ],
+        concurrency: Union[int, Executor],
+        as_completed: bool,
+    ) -> None:
+        super().__init__(upstream)
+        self._effect = effect
+        self._concurrency = concurrency
+        self._as_completed = as_completed
+
+    def accept(self, visitor: "Visitor[V]") -> V:
+        return visitor.visit_do_stream(self)
+
+
 class FilterStream(DownStream[T, T]):
     __slots__ = ("_where",)
 
@@ -1082,28 +1104,6 @@ class FlattenStream(DownStream[Union[Iterable[T], AsyncIterable[T]], T]):
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_flatten_stream(self)
-
-
-class DoStream(DownStream[T, T]):
-    __slots__ = ("_effect", "_concurrency", "_as_completed")
-
-    def __init__(
-        self,
-        upstream: stream[T],
-        effect: Union[
-            Callable[[T], Any],
-            AsyncFunction[T, Any],
-        ],
-        concurrency: Union[int, Executor],
-        as_completed: bool,
-    ) -> None:
-        super().__init__(upstream)
-        self._effect = effect
-        self._concurrency = concurrency
-        self._as_completed = as_completed
-
-    def accept(self, visitor: "Visitor[V]") -> V:
-        return visitor.visit_do_stream(self)
 
 
 class GroupStream(DownStream[T, List[T]]):

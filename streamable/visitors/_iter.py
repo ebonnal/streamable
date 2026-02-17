@@ -53,6 +53,14 @@ class IteratorVisitor(Visitor[Iterator[T]]):
             stop=s._stop,
         )
 
+    def visit_do_stream(self, s: "DoStream[T]") -> Iterator[T]:
+        return _functions.map(
+            sidify(s._effect),
+            s.upstream.accept(self),
+            concurrency=s._concurrency,
+            as_completed=s._as_completed,
+        )
+
     def visit_filter_stream(self, s: "FilterStream[T]") -> Iterator[T]:
         return _functions.filter(
             s._where,
@@ -63,14 +71,6 @@ class IteratorVisitor(Visitor[Iterator[T]]):
         return _functions.flatten(
             s.upstream.accept(cast(IteratorVisitor[Iterable[T]], self)),
             concurrency=s._concurrency,
-        )
-
-    def visit_do_stream(self, s: "DoStream[T]") -> Iterator[T]:
-        return _functions.map(
-            sidify(s._effect),
-            s.upstream.accept(self),
-            concurrency=s._concurrency,
-            as_completed=s._as_completed,
         )
 
     def visit_group_stream(self, s: "GroupStream[T]") -> Iterator[T]:

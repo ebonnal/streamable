@@ -42,6 +42,12 @@ class ReprVisitor(Visitor[str], ABC):
         )
         return s.upstream.accept(self)
 
+    def visit_do_stream(self, s: "DoStream") -> str:
+        self.operation_reprs.append(
+            f"do({self.to_string(s._effect)}, concurrency={self.to_string(s._concurrency)}, as_completed={self.to_string(s._as_completed)})"
+        )
+        return s.upstream.accept(self)
+
     def visit_filter_stream(self, s: "FilterStream") -> str:
         self.operation_reprs.append(f"filter({self.to_string(s._where)})")
         return s.upstream.accept(self)
@@ -49,12 +55,6 @@ class ReprVisitor(Visitor[str], ABC):
     def visit_flatten_stream(self, s: "FlattenStream") -> str:
         self.operation_reprs.append(
             f"flatten(concurrency={self.to_string(s._concurrency)})"
-        )
-        return s.upstream.accept(self)
-
-    def visit_do_stream(self, s: "DoStream") -> str:
-        self.operation_reprs.append(
-            f"do({self.to_string(s._effect)}, concurrency={self.to_string(s._concurrency)}, as_completed={self.to_string(s._as_completed)})"
         )
         return s.upstream.accept(self)
 

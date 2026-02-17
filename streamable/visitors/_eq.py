@@ -40,6 +40,15 @@ class EqualityVisitor(Visitor[bool]):
             and s._stop == self.other._stop
         )
 
+    def visit_do_stream(self, s: "DoStream") -> bool:
+        return (
+            self.type_eq(s)
+            and s.upstream.accept(EqualityVisitor(self.other.upstream))
+            and s._effect == self.other._effect
+            and s._concurrency == self.other._concurrency
+            and s._as_completed == self.other._as_completed
+        )
+
     def visit_filter_stream(self, s: "FilterStream") -> bool:
         return (
             self.type_eq(s)
@@ -52,15 +61,6 @@ class EqualityVisitor(Visitor[bool]):
             self.type_eq(s)
             and s.upstream.accept(EqualityVisitor(self.other.upstream))
             and s._concurrency == self.other._concurrency
-        )
-
-    def visit_do_stream(self, s: "DoStream") -> bool:
-        return (
-            self.type_eq(s)
-            and s.upstream.accept(EqualityVisitor(self.other.upstream))
-            and s._effect == self.other._effect
-            and s._concurrency == self.other._concurrency
-            and s._as_completed == self.other._as_completed
         )
 
     def visit_group_stream(self, s: "GroupStream") -> bool:
