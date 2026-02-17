@@ -1,21 +1,11 @@
 # Changelog
 
-Note: This library follows *MAJOR.MINOR.PATCH* semantic versioning, breaking changes require a *MAJOR* version bump.
+`streamable` follows *MAJOR.MINOR.PATCH* semantic versioning, expect breaking changes only in *MAJOR* version bumps.
 
 ## [2.0.0]
 
-Multiple breaking changes in this new major version, let's do a tour of them:
+Prefer the use of `stream` lowercase instead of `Stream`.
 
-`Stream` renamed lowercase `stream`
-```python
-# v1.6.6
-from streamable import Stream
-ints: Stream[int] = Stream(range(10))
-
-# v2.0.0
-from streamable import stream
-ints: stream[int] = stream(range(10))
-```
 All `a*` methods have been merged into their sync counterparts. All operations now accept both sync and async functions.
 
 Operations changes:
