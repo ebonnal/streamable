@@ -99,9 +99,11 @@ assert list(int_chars) == ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
 
 ### `concurrency`
 
-Set the `concurrency` param to apply the transformation concurrently, only `concurrency` upstream elements are pulled for processing; the next upstream element is pulled only when a result is yielded downstream.
+Set the `concurrency` param to apply the transformation concurrently.
 
-It preserves the upstream order by default, set `as_completed=True` to yield results as they become available.
+`concurrency` upstream elements are processed in-flight.
+
+Preserve upstream order unless you set `as_completed=True`.
 
 
 #### via threads

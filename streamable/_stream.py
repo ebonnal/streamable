@@ -644,11 +644,11 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         Concurrency:
 
-          - Set the ``concurrency`` to apply the side effect concurrently.
+          - Set the `concurrency` param to apply the transformation concurrently.
 
-          - Only ``concurrency`` upstream elements are pulled for processing; the next upstream element is pulled only when the side effect completes.
+          - `concurrency` upstream elements are processed in-flight.
 
-          - It preserves the upstream order by default, but you can set ``as_completed=True`` to yield elements as their side effects complete.
+          - Preserve upstream order unless you set `as_completed=True`.
 
         Args:
             effect (``Callable[[T], Any] | AsyncCallable[T, Any]``): The side effect function.
@@ -792,11 +792,11 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         Concurrency:
 
-          - Set the ``concurrency`` to apply the transformation concurrently.
+          - Set the `concurrency` param to apply the transformation concurrently.
 
-          - Only ``concurrency`` upstream elements are pulled for processing; the next upstream element is pulled only when a result is yielded downstream.
+          - `concurrency` upstream elements are processed in-flight.
 
-          - It preserves the upstream order by default, but you can set ``as_completed=True`` to yield results as they become available.
+          - Preserve upstream order unless you set `as_completed=True`.
 
         Args:
             into (``Callable[[T], U] | AsyncCallable[T, U]``): The transformation function.
