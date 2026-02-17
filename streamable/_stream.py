@@ -63,13 +63,13 @@ Exc = TypeVar("Exc", bound=Exception)
 
 class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
     """
-    `stream[T]` wraps any `Iterable[T]` or `AsyncIterable[T]` with a lazy fluent interface covering concurrency, batching, buffering, rate limiting, progress logging, and error handling.
+    ``stream[T]`` wraps any ``Iterable[T]`` or ``AsyncIterable[T]`` with a lazy fluent interface covering concurrency, batching, buffering, rate limiting, progress logging, and error handling.
 
     Chain lazy operations, source elements are processed on-the-fly during iteration.
 
-    Both sync and async functions are accepted by operations, you can freely mix them within the same `stream` and it can then be consumed as an `Iterable` or `AsyncIterable`. When a stream involving async functions is consumed as an `Iterable`, a temporary `asyncio` event loop is attached to it.
+    Operations accept both sync and async functions, they can be mixed within the same ``stream``, that can then be consumed as an ``Iterable`` or ``AsyncIterable``.
 
-    Operations are implemented so that iteration can resume after caught exceptions.
+    Operations are implemented so that the iteration can resume after an exception.
 
     Args:
         source (``Iterable[T] | AsyncIterable[T] | Callable[[], T] | Callable[[], Coroutine[Any, Any, T]]``): Data source to wrap:

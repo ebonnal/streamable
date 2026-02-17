@@ -10,17 +10,11 @@ from typing import (
     List,
     Union,
 )
-from unittest.mock import patch
 
 import pytest
 
 from streamable import stream
-from tests.tools.func import (
-    async_identity,
-    identity,
-    noarg_asyncify,
-    slow_identity,
-)
+from tests.tools.func import identity, noarg_asyncify, slow_identity
 from tests.tools.iter import (
     ITERABLE_TYPES,
     IterableType,
@@ -253,41 +247,6 @@ def test_in() -> None:
     assert "1" in s
 
 
-def test_loop_auto_closed() -> None:
-    """
-    The loop attached to the sync iterators involving async functions should be closed when the iteration stops or the iterator is garbage collected.
-    """
-
-    loops: List[asyncio.AbstractEventLoop] = []
-    new_event_loop = asyncio.new_event_loop
-
-    def spy_new_event_loop() -> asyncio.AbstractEventLoop:
-        loops.append(new_event_loop())
-        return loops[-1]
-
-    with patch(
-        "streamable._tools._iter.asyncio.new_event_loop", new=spy_new_event_loop
-    ):
-        # closed on finalisation
-        it = iter(ints.filter(async_identity).map(async_identity))
-        assert not loops
-        assert next(it) == 1
-        assert len(loops) == 1
-        assert not loops[-1].is_closed()
-        assert list(it) == list(INTEGERS)[2:]
-        assert loops[-1].is_closed()
-
-        # closed on garbage collection
-        it = iter(ints.filter(async_identity).map(async_identity))
-        assert len(loops) == 1
-        assert next(it) == 1
-        assert len(loops) == 2
-        assert not loops[-1].is_closed()
-        del it
-        # ref count drops to 0, generator gets finalised, should close the loop
-        assert loops[-1].is_closed()
-
-
 @pytest.mark.parametrize(
     "s",
     [
@@ -327,3 +286,34 @@ def test_stream_alias() -> None:
     from streamable import Stream
 
     assert stream is Stream
+
+
+def test_loop_lifecycle() -> None:
+    asyncio.get_event_loop_policy()._local._loop = None  # type: ignore
+
+    def get_current_loop() -> asyncio.AbstractEventLoop:
+        # return the loop set via set_event_loop
+        return asyncio.get_event_loop_policy()._local._loop  # type: ignore
+
+    # no loop set yet
+    assert get_current_loop() is None
+    s = stream([0, 0]).do(asyncio.sleep)
+    # creating the stream does not set the loop
+    assert get_current_loop() is None
+    it = iter(s)
+    # getting the iterator does not set the loop
+    assert get_current_loop() is None
+    assert next(it) == 0
+    # the loop is set by the first next
+    assert get_current_loop() is not None
+    get_current_loop().close()
+    with pytest.raises(RuntimeError, match="loop is closed"):
+        next(it)
+    it = iter(s)
+    assert get_current_loop().is_closed()
+    assert next(it) == 0
+    # next on new iterator sets a new non-closed loop
+    assert not get_current_loop().is_closed()
+    assert list(it) == [0]
+    # stopiteration does not close/unset the loop
+    assert not get_current_loop().is_closed()

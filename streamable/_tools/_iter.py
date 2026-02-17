@@ -1,4 +1,5 @@
 import asyncio
+from contextlib import suppress
 from typing import (
     Any,
     AsyncIterable,
@@ -7,11 +8,11 @@ from typing import (
     Coroutine,
     Iterable,
     Iterator,
+    Optional,
     TypeVar,
     Union,
 )
 
-from streamable._tools._error import ExceptionContainer, RaisingIterator
 
 T = TypeVar("T")
 
@@ -39,34 +40,27 @@ def async_iter(iterator: Union[Iterable[T], AsyncIterable[T]]) -> AsyncIterator[
     return SyncToAsyncIterator(iterator.__iter__())
 
 
-class AsyncToSyncIterable(Iterable[Union[T, ExceptionContainer]]):
-    __slots__ = "iterator"
+class AsyncToSyncIterator(Iterator[T]):
+    __slots__ = ("iterator", "_loop")
 
     def __init__(self, iterator: AsyncIterator[T]):
         self.iterator = iterator
+        self._loop: Optional[asyncio.AbstractEventLoop] = None
 
-    def __iter__(self) -> Iterator[Union[T, ExceptionContainer]]:
-        loop = asyncio.new_event_loop()
+    def _lazy_loop(self) -> asyncio.AbstractEventLoop:
+        if self._loop is None:
+            with suppress(RuntimeError):
+                self._loop = asyncio.get_event_loop()
+            if not self._loop or self._loop.is_closed():
+                self._loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(self._loop)
+        return self._loop
+
+    def __next__(self) -> T:
         try:
-            while True:
-                try:
-                    elem = loop.run_until_complete(self.iterator.__anext__())
-                except StopAsyncIteration:
-                    break
-                except Exception as e:
-                    yield ExceptionContainer(e)
-                else:
-                    yield elem
-        finally:
-            loop.stop()
-            loop.close()
-
-
-class AsyncToSyncIterator(RaisingIterator[T]):
-    __slots__ = "iterator"
-
-    def __init__(self, iterator: AsyncIterator[T]):
-        super().__init__(AsyncToSyncIterable(iterator).__iter__())
+            return self._lazy_loop().run_until_complete(self.iterator.__anext__())
+        except StopAsyncIteration:
+            raise StopIteration
 
 
 class _FnIterator(Iterator[T]):

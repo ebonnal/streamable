@@ -3,6 +3,7 @@ from concurrent.futures import ProcessPoolExecutor
 import json
 import logging
 from pathlib import Path
+import sys
 import time
 from datetime import timedelta
 from typing import Any, Dict, List, Tuple
@@ -75,8 +76,27 @@ def test_map_example_process_concurrency() -> None:
         assert state == []
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 11), reason="asyncio.Runner added in version 3.11."
+)
+def test_map_example_async_concurrency_aiter_sync() -> None:
+    # sync context
+    with asyncio.Runner() as runner:
+        http_client = httpx.AsyncClient()
+        pokemons: stream[str] = (
+            stream(range(1, 4))
+            .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
+            .map(http_client.get, concurrency=2)
+            .map(lambda poke: poke.json()["name"])
+        )
+        # uses runner's loop
+        assert list(pokemons) == ["bulbasaur", "ivysaur", "venusaur"]
+        runner.run(http_client.aclose())
+
+
 @pytest.mark.asyncio
-async def test_map_example_async_concurrency_aiter() -> None:
+async def test_map_example_async_concurrency_aiter_async() -> None:
+    # async context
     async with httpx.AsyncClient() as http_client:
         pokemons: stream[str] = (
             stream(range(1, 4))
@@ -84,7 +104,6 @@ async def test_map_example_async_concurrency_aiter() -> None:
             .map(http_client.get, concurrency=2)
             .map(lambda poke: poke.json()["name"])
         )
-
         assert [name async for name in pokemons] == ["bulbasaur", "ivysaur", "venusaur"]
 
 
