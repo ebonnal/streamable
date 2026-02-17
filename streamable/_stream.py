@@ -820,6 +820,50 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
             int_chars: stream[str] = stream(range(10)).map(str)
             assert list(int_chars) == ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+
+            # concurrency via threads
+            pokemons: stream[str] = (
+                stream(range(1, 4))
+                .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
+                .map(httpx.get, concurrency=2)
+                .map(lambda poke: poke.json()["name"])
+            )
+            assert list(pokemons) == ['bulbasaur', 'ivysaur', 'venusaur']
+
+            # concurrency via `async` coroutines within async context
+            async with httpx.AsyncClient() as http_client:
+                pokemons: stream[str] = (
+                    stream(range(1, 4))
+                    .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
+                    .map(http_client.get, concurrency=2)
+                    .map(lambda poke: poke.json()["name"])
+                )
+                assert [name async for name in pokemons] == ['bulbasaur', 'ivysaur', 'venusaur']
+
+            # concurrency via `async` coroutines within sync context
+            with asyncio.Runner() as runner:
+                http_client = httpx.AsyncClient()
+                pokemons: stream[str] = (
+                    stream(range(1, 4))
+                    .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
+                    .map(http_client.get, concurrency=2)
+                    .map(lambda poke: poke.json()["name"])
+                )
+                # uses runner's loop
+                assert list(pokemons) == ['bulbasaur', 'ivysaur', 'venusaur']
+                runner.run(http_client.aclose())
+
+            # concurrency via processes
+            with ProcessPoolExecutor(max_workers=10) as processes:
+                state: list[int] = []
+                # ints are mapped
+                assert list(
+                    stream(range(10))
+                    .map(state.append, concurrency=processes)
+                ) == [None] * 10
+                # the `state` of the main process is not mutated
+                assert state == []
+
         """
         if isinstance(concurrency, int):
             validate_int(concurrency, gte=1, name="concurrency")
