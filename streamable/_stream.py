@@ -306,7 +306,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         The background task is a thread during a sync iteration, and an async task during an async iteration.
 
         Args:
-            up_to (``int``): The buffer size. Must be >= 0. When reached, upstream pulling pauses until an element is yielded out of the buffer.
+            up_to (``int``): The buffer size. Must be >= 1. When reached, upstream pulling pauses until an element is yielded out of the buffer.
 
         Returns:
             ``stream[T]``: Stream with buffering.
@@ -476,7 +476,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         Concurrency:
 
-          - Set the `concurrency` param to apply the transformation concurrently.
+          - Set the `concurrency` param to apply the effect concurrently.
 
           - Only `concurrency` upstream elements are in-flight for processing.
 
@@ -494,7 +494,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             as_completed (``bool``, optional): Processing order:
 
               ‣ ``False`` (default): Preserves upstream order.
-              ‣ ``True``: Processes side effects as they complete.
+              ‣ ``True``: Yields elements in the order their side effects complete.
 
         Returns:
             ``stream[T]``: A stream of upstream elements.
@@ -729,6 +729,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             within (``timedelta | None``, optional): A batch pending for more than ``within`` is yielded, even if under ``up_to`` elements.
 
             by (``Callable[[T], U] | AsyncCallable[T, U] | None``, optional): Co-group elements into ``(key, elements)`` tuples.
+
         Returns:
             ``stream[list[T]]`` if ``by is None``, else ``stream[tuple[U, list[T]]]``.
 
