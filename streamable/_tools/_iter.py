@@ -53,7 +53,7 @@ class AsyncToSyncIterator(Iterator[T]):
                 with warnings.catch_warnings():
                     warnings.filterwarnings(
                         "ignore",
-                        message="There is no current event loop",
+                        message="get_event_loop",
                         category=DeprecationWarning,
                     )
                     self._loop = asyncio.get_event_loop()
