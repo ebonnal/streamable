@@ -10,17 +10,11 @@ from typing import (
     List,
     Union,
 )
-from unittest.mock import patch
 
 import pytest
 
 from streamable import stream
-from tests.tools.func import (
-    async_identity,
-    identity,
-    noarg_asyncify,
-    slow_identity,
-)
+from tests.tools.func import identity, noarg_asyncify, slow_identity
 from tests.tools.iter import (
     ITERABLE_TYPES,
     IterableType,
