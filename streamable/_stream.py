@@ -478,7 +478,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
           - Set the `concurrency` param to apply the transformation concurrently.
 
-          - `concurrency` upstream elements are processed in-flight.
+          - Only `concurrency` upstream elements are in-flight for processing.
 
           - Preserve upstream order unless you set `as_completed=True`.
 
@@ -794,7 +794,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
           - Set the `concurrency` param to apply the transformation concurrently.
 
-          - `concurrency` upstream elements are processed in-flight.
+          - Only `concurrency` upstream elements are in-flight for processing.
 
           - Preserve upstream order unless you set `as_completed=True`.
 

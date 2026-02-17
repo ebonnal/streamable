@@ -101,7 +101,7 @@ assert list(int_chars) == ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
 
 Set the `concurrency` param to apply the transformation concurrently.
 
-`concurrency` upstream elements are processed in-flight.
+Only `concurrency` upstream elements are in-flight for processing.
 
 Preserve upstream order unless you set `as_completed=True`.
 
