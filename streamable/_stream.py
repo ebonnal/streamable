@@ -370,7 +370,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         """
         Catch and handle exceptions raised upstream.
 
-        An exception is caught if it is of the ``errors`` type(s) provided in and if it satisfies the ``where`` predicate.
+        An exception is caught if it is an instance of given ``errors`` and it satisfies the ``where`` predicate.
 
         When an exception is caught: the ``do`` callback is called, followed by ``replace``, if provided.
 
