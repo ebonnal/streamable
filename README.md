@@ -487,7 +487,7 @@ pokemons.pipe(pl.DataFrame, schema=["name"]).write_csv("pokemons.csv")
 
 ## function as source
 
-A `stream` can also be instantiated from a (sync or async) function that will be called sequentially to get the next source element during iteration.
+A `stream` can also be instantiated from a function (sync or async) that will be called sequentially to get the next source element during iteration.
 
 e.g. stream from a `Queue`:
 
