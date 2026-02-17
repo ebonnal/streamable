@@ -193,7 +193,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             pass
         return self
 
-    def __await__(self) -> Generator[int, None, "stream[T]"]:
+    def __await__(self) -> Generator[None, None, "stream[T]"]:
         """
         Iterate as ``AsyncIterable`` until exhaustion without collecting elements.
 
