@@ -40,9 +40,6 @@ from streamable._tools._future import (
     FutureResults,
 )
 
-with suppress(ImportError):
-    pass
-
 T = TypeVar("T")
 U = TypeVar("U")
 Exc = TypeVar("Exc", bound=Exception)
@@ -711,12 +708,14 @@ class _ConcurrentMapIterable(
                     # no more tasks to queue
                     break
                 self._future_results.add(future)
+                del future
 
             # queue, wait, yield
             while self._future_results:
                 future = self._next_future()
                 if future:
                     self._future_results.add(future)
+                    del future
                 yield self._future_results.__next__()
 
 

@@ -364,7 +364,6 @@ class _GroupByWithinAsyncIterable(
         try:
             while True:
                 self._lazy_let_pull_next.release()
-
                 try:
                     while True:
                         try:
@@ -372,7 +371,6 @@ class _GroupByWithinAsyncIterable(
                             break
                         except asyncio.TimeoutError:
                             yield self._oldest_group()
-                            continue
                     key = await self.by(elem)
                     _, group = self._groups[key]
                     group.append(elem)
@@ -443,9 +441,9 @@ class PredicateSkipAsyncIterator(AsyncIterator[T]):
         return elem
 
 
-############
+########
 # take #
-############
+########
 
 
 class CountTakeAsyncIterator(AsyncIterator[T]):
