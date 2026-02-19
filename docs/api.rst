@@ -1,5 +1,9 @@
-༄ ``streamable`` API Reference
+API Reference
 ===============================
+
+༄ ``streamable``
+^^^^^^^^^^^^^^^^^^^
+
 
 .. autoclass:: streamable.stream
 
