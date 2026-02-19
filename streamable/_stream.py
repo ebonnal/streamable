@@ -69,6 +69,8 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
     Operations accept both sync and async functions, they can be mixed within the same ``stream``, that can then be consumed as an ``Iterable`` or ``AsyncIterable``.
 
+    Async functions run in the current loop, creating one if needed.
+
     Operations are implemented so that the iteration can resume after an exception.
 
     Args:
