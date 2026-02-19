@@ -377,11 +377,11 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         Args:
             errors (``type[Exception] | tuple[type[Exception], ...]``): Exception type(s) to catch.
 
-            where (``Callable[[Exception], Any] | AsyncCallable[Exception, Any] | None``, optional): Only exceptions for which ``where(exc)`` is truthy are caught.
+            where (``Callable[[Exception], Any] | AsyncFunction[Exception, Any] | None``, optional): Only exceptions for which ``where(exc)`` is truthy are caught.
 
-            do (``Callable[[Exception], Any] | AsyncCallable[Exception, Any] | None``, optional): ``do(exception)`` is called when an exception is caught.
+            do (``Callable[[Exception], Any] | AsyncFunction[Exception, Any] | None``, optional): ``do(exception)`` is called when an exception is caught.
 
-            replace (``Callable[[Exception], U] | AsyncCallable[Exception, U] | None``, optional): ``replace(exception)`` is yielded when an exception is caught.
+            replace (``Callable[[Exception], U] | AsyncFunction[Exception, U] | None``, optional): ``replace(exception)`` is yielded when an exception is caught.
 
             stop (``bool``, optional): If ``True``, iteration stops when an exception is caught.
 
@@ -483,7 +483,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
           - Preserve upstream order unless you set `as_completed=True`.
 
         Args:
-            effect (``Callable[[T], Any] | AsyncCallable[T, Any]``): The side effect function.
+            effect (``Callable[[T], Any] | AsyncFunction[T, Any]``): The side effect function.
 
             concurrency (``int | Executor``, optional): Concurrency control:
 
@@ -522,7 +522,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         Filter out falsy elements if no predicate provided.
 
         Args:
-            where (``Callable[[T], Any] | AsyncCallable[T, Any]``, optional): Predicate function. An element is kept if ``where(elem)`` is truthy.
+            where (``Callable[[T], Any] | AsyncFunction[T, Any]``, optional): Predicate function. An element is kept if ``where(elem)`` is truthy.
 
         Returns:
             ``stream[T]``: Stream of elements passing the predicate.
@@ -728,7 +728,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
             within (``timedelta | None``, optional): A batch pending for more than ``within`` is yielded, even if under ``up_to`` elements.
 
-            by (``Callable[[T], U] | AsyncCallable[T, U] | None``, optional): Co-group elements into ``(key, elements)`` tuples.
+            by (``Callable[[T], U] | AsyncFunction[T, U] | None``, optional): Co-group elements into ``(key, elements)`` tuples.
 
         Returns:
             ``stream[list[T]]`` if ``by is None``, else ``stream[tuple[U, list[T]]]``.
@@ -800,7 +800,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
           - Preserve upstream order unless you set `as_completed=True`.
 
         Args:
-            into (``Callable[[T], U] | AsyncCallable[T, U]``): The transformation function.
+            into (``Callable[[T], U] | AsyncFunction[T, U]``): The transformation function.
 
             concurrency (``int | Executor``, optional): Concurrency control:
 
@@ -900,7 +900,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
               ‣ ``int``: Periodically when ``every`` elements or errors have been emitted.
               ‣ ``timedelta``: Periodically ``every`` time interval.
 
-            do (``Callable[[streamable.Observation], Any] | AsyncCallable[streamable.Observation, Any]``, optional): Callback receiving a ``streamable.Observation`` (subject, elapsed, errors, elements).
+            do (``Callable[[streamable.Observation], Any] | AsyncFunction[streamable.Observation, Any]``, optional): Callback receiving a ``streamable.Observation`` (subject, elapsed, errors, elements).
 
         Returns:
             ``stream[T]``: Stream with progress observation enabled.
@@ -941,10 +941,10 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         Skip a given number of elements, or skip ``until`` a predicate is satisfied.
 
         Args:
-            until (``int | Callable[[T], Any] | AsyncCallable[T, Any]``): Skip control:
+            until (``int | Callable[[T], Any] | AsyncFunction[T, Any]``): Skip control:
 
               ‣ ``int``: Skip first ``until`` elements. Must be >= 0.
-              ‣ ``Callable[[T], Any] | AsyncCallable[T, Any]``: Skip until ``until(elem)`` is truthy, then yield that element and all subsequent.
+              ‣ ``Callable[[T], Any] | AsyncFunction[T, Any]``: Skip until ``until(elem)`` is truthy, then yield that element and all subsequent.
 
         Returns:
             ``stream[T]``: Stream of remaining elements after skipping.
@@ -977,10 +977,10 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         Take a given number of elements, or take ``until`` a predicate is satisfied, remaining upstream elements are not consumed.
 
         Args:
-            until (``int | Callable[[T], Any] | AsyncCallable[T, Any]``): Stop control:
+            until (``int | Callable[[T], Any] | AsyncFunction[T, Any]``): Stop control:
 
               ‣ ``int``: Take first ``until`` elements. Must be >= 0.
-              ‣ ``Callable[[T], Any] | AsyncCallable[T, Any]``: Take until ``until(elem)`` is truthy, then stop. Matching element is not yielded.
+              ‣ ``Callable[[T], Any] | AsyncFunction[T, Any]``: Take until ``until(elem)`` is truthy, then stop. Matching element is not yielded.
 
         Returns:
             ``stream[T]``: Stream of taken elements only.
