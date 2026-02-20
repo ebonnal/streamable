@@ -76,7 +76,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
     Args:
         source (``Iterable[T] | AsyncIterable[T] | Callable[[], T] | Callable[[], Coroutine[Any, Any, T]]``): Data source to wrap:
 
-          ‣ ``Iterable[T] | AsyncIterable[T]``: any iterable (list, set, range, generator, etc...), or async iterable.
+          ‣ ``Iterable[T] | AsyncIterable[T]``: a new iterator is created from this iterable for each stream iteration.
           ‣ ``Callable[[], T] | Callable[[], Coroutine[Any, Any, T]]``: sync or async function called sequentially to get the next element.
 
     Returns:
