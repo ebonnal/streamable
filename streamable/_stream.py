@@ -865,6 +865,13 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
                 # the `state` of the main process is not mutated
                 assert state == []
 
+            # starmap
+            from streamable import star
+            enumerated_pokes: stream[str] = (
+                stream(enumerate(pokemons))
+                .map(star(lambda index, poke: f"#{index + 1} {poke}"))
+            )
+            assert list(enumerated_pokes) == ['#1 bulbasaur', '#2 ivysaur', '#3 venusaur', '#4 charmander', '#5 charmeleon', '#6 charizard', '#7 squirtle', '#8 wartortle', '#9 blastoise']
         """
         if isinstance(concurrency, int):
             validate_int(concurrency, gte=1, name="concurrency")
