@@ -399,15 +399,23 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             assert list(inverses) == [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
 
             # `where` a predicate is satisfied
-            domains = ["github.com", "foo.bar", "google.com"]
+            from http import HTTPStatus
 
-            resolvable_domains: stream[str] = (
-                stream(domains)
-                .do(lambda domain: httpx.get(f"https://{domain}"), concurrency=2)
-                .catch(httpx.HTTPError, where=lambda e: "not known" in str(e))
+            urls = [
+                "https://github.com/ebonnal",
+                "https://github.com/ebonnal/streamable",
+                "https://github.com/ebonnal/foo",
+            ]
+            responses: stream[httpx.Response] = (
+                stream(urls)
+                .map(httpx.get)
+                .do(httpx.Response.raise_for_status)
+                .catch(
+                    httpx.HTTPStatusError,
+                    where=lambda e: e.response.status_code == HTTPStatus.NOT_FOUND,
+                )
             )
-
-            assert list(resolvable_domains) == ["github.com", "google.com"]
+            assert len(list(responses)) == 2
 
             # `do` a side effect on catch
             errors: list[Exception] = []

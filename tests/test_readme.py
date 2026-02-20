@@ -1,5 +1,6 @@
 import asyncio
 from concurrent.futures import ProcessPoolExecutor
+from http import HTTPStatus
 import json
 import logging
 from pathlib import Path
@@ -210,23 +211,29 @@ def test_catch_example() -> None:
     assert list(inverses) == [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
 
     with respx.mock:
-        respx.get("https://github.com").mock(return_value=httpx.Response(200))
-        respx.get("https://foo.bar").mock(
-            side_effect=httpx.ConnectError(
-                "[Errno 8] nodename nor servname provided, or not known"
+        respx.get("https://github.com/ebonnal").mock(return_value=httpx.Response(200))
+        respx.get("https://github.com/ebonnal/streamable").mock(
+            return_value=httpx.Response(200)
+        )
+        respx.get("https://github.com/ebonnal/foo").mock(
+            return_value=httpx.Response(404)
+        )
+
+        urls = [
+            "https://github.com/ebonnal",
+            "https://github.com/ebonnal/streamable",
+            "https://github.com/ebonnal/foo",
+        ]
+        responses: stream[httpx.Response] = (
+            stream(urls)
+            .map(httpx.get)
+            .do(httpx.Response.raise_for_status)
+            .catch(
+                httpx.HTTPStatusError,
+                where=lambda e: e.response.status_code == HTTPStatus.NOT_FOUND,
             )
         )
-        respx.get("https://google.com").mock(return_value=httpx.Response(200))
-
-        domains = ["github.com", "foo.bar", "google.com"]
-
-        resolvable_domains: stream[str] = (
-            stream(domains)
-            .do(lambda domain: httpx.get(f"https://{domain}"), concurrency=2)
-            .catch(httpx.HTTPError, where=lambda e: "not known" in str(e))
-        )
-
-        assert list(resolvable_domains) == ["github.com", "google.com"]
+        assert len(list(responses)) == 2
 
     errors: List[Exception] = []
     inverses = (
