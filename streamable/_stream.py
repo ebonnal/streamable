@@ -248,7 +248,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
     def pipe(
         self,
-        fn: "Callable[Concatenate[stream[T], P], U]",
+        into: "Callable[Concatenate[stream[T], P], U]",
         *args: "P.args",
         **kwargs: "P.kwargs",
     ) -> U:
@@ -256,14 +256,14 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         Apply a callable on the stream.
 
         Args:
-            fn (``Callable[Concatenate[stream[T], P], U]``): Function to call with the stream as first argument, followed by ``*args`` and ``**kwargs``.
+            into (``Callable[Concatenate[stream[T], P], U]``): Function to call with the stream as first argument, followed by ``*args`` and ``**kwargs``.
 
-            *args: Positional arguments passed to ``fn``.
+            *args: Positional arguments passed to ``into``.
 
-            **kwargs: Keyword arguments passed to ``fn``.
+            **kwargs: Keyword arguments passed to ``into``.
 
         Returns:
-            ``U``: Result of ``fn(self, *args, **kwargs)``.
+            ``U``: Result of ``into(self, *args, **kwargs)``.
 
         Example::
 
@@ -271,7 +271,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             pokemons: stream[str] = ...
             pokemons.pipe(pl.DataFrame, schema=["name"]).write_csv("pokemons.csv")
         """
-        return fn(self, *args, **kwargs)
+        return into(self, *args, **kwargs)
 
     def cast(self, into: Type[U]) -> "stream[U]":
         """
