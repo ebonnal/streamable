@@ -72,10 +72,10 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
     Operations are implemented so that the iteration can resume after an exception.
 
     Args:
-        source (``Iterable[T] | AsyncIterable[T] | Callable[[], T] | Callable[[], Coroutine[Any, Any, T]]``): Data source to wrap:
+        source (``Iterable[T] | AsyncIterable[T] | Callable[[], T] | Callable[[], Coroutine[Any, Any, T]]``):
 
-          ‣ ``Iterable[T] | AsyncIterable[T]``: any iterable (list, set, range, generator, etc...), or async iterable.
-          ‣ ``Callable[[], T] | Callable[[], Coroutine[Any, Any, T]]``: sync or async function called sequentially to get the next element.
+          ‣ ``Iterable[T] | AsyncIterable[T]``: a new iterator is created from this iterable for each stream iteration.
+          ‣ ``Callable[[], T] | Callable[[], Coroutine[Any, Any, T]]``: function called sequentially to get the next element.
 
     Returns:
         ``stream[T]``: Stream instance wrapping the source.
