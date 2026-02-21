@@ -285,6 +285,10 @@ class _GroupByWithinIterable(Iterable[Union[ExceptionContainer, Tuple[U, List[T]
     def _default_groups() -> Dict[U, Tuple[float, List[T]]]:
         return defaultdict(lambda: (time.perf_counter(), []))
 
+    def _oldest_group(self) -> Tuple[U, List[T]]:
+        oldest_key = next(iter(self._groups.keys()))
+        return (oldest_key, self._groups.pop(oldest_key)[1])
+
     def _timeout(self) -> Optional[float]:
         if self._groups:
             oldest_group_time = next(iter(self._groups.values()))[0]
@@ -303,7 +307,10 @@ class _GroupByWithinIterable(Iterable[Union[ExceptionContainer, Tuple[U, List[T]
                 self._stopped = True
             except Exception as e:
                 elem = ExceptionContainer(e)
-            self._next_elem.put_nowait(elem)
+            try:
+                self._next_elem.put_nowait(elem)
+            finally:
+                del elem
             self._let_pull_next.acquire()
 
     def _get_next_elem(self) -> T:
@@ -311,12 +318,11 @@ class _GroupByWithinIterable(Iterable[Union[ExceptionContainer, Tuple[U, List[T]
         if elem is STOP_ITERATION:
             raise StopIteration
         if isinstance(elem, ExceptionContainer):
-            raise elem.exception
+            try:
+                raise elem.exception
+            finally:
+                del elem
         return elem
-
-    def _oldest_group(self) -> Tuple[U, List[T]]:
-        oldest_key = next(iter(self._groups.keys()))
-        return (oldest_key, self._groups.pop(oldest_key)[1])
 
     def __iter__(self) -> Iterator[Union[ExceptionContainer, Tuple[U, List[T]]]]:
         thread = Thread(target=self._pull_upstream, daemon=True)
@@ -337,12 +343,16 @@ class _GroupByWithinIterable(Iterable[Union[ExceptionContainer, Tuple[U, List[T]
                     if len(group) == self.up_to:
                         del self._groups[key]
                         yield (key, group)
+                    continue
                 except Exception as e:
+                    # upstream stopped iteration, or raised an error, or `by` did
                     while self._groups:
                         yield self._oldest_group()
                     if isinstance(e, StopIteration):
                         return
-                    yield ExceptionContainer(e)
+                    error = [ExceptionContainer(e)]
+                # yield outside the except block so the frame's exception state is cleared
+                yield error.pop()
         finally:
             self._stopped = True
             self._let_pull_next.release()

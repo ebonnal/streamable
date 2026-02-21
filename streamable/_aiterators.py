@@ -310,6 +310,10 @@ class _GroupByWithinAsyncIterable(
     def _default_groups() -> Dict[U, Tuple[float, List[T]]]:
         return defaultdict(lambda: (time.perf_counter(), []))
 
+    def _oldest_group(self) -> Tuple[U, List[T]]:
+        oldest_key = next(iter(self._groups.keys()))
+        return (oldest_key, self._groups.pop(oldest_key)[1])
+
     def _timeout(self) -> Optional[float]:
         if self._groups:
             oldest_group_time = next(iter(self._groups.values()))[0]
@@ -340,7 +344,10 @@ class _GroupByWithinAsyncIterable(
                 self._stopped = True
             except Exception as e:
                 elem = ExceptionContainer(e)
-            self._lazy_next_elem.put_nowait(elem)
+            try:
+                self._lazy_next_elem.put_nowait(elem)
+            finally:
+                del elem
             await self._lazy_let_pull_next.acquire()
 
     async def _get_next_elem(self) -> T:
@@ -350,12 +357,11 @@ class _GroupByWithinAsyncIterable(
         if elem is STOP_ITERATION:
             raise StopAsyncIteration
         if isinstance(elem, ExceptionContainer):
-            raise elem.exception
+            try:
+                raise elem.exception
+            finally:
+                del elem
         return elem
-
-    def _oldest_group(self) -> Tuple[U, List[T]]:
-        oldest_key = next(iter(self._groups.keys()))
-        return (oldest_key, self._groups.pop(oldest_key)[1])
 
     async def __aiter__(
         self,
@@ -377,12 +383,16 @@ class _GroupByWithinAsyncIterable(
                     if len(group) == self.up_to:
                         del self._groups[key]
                         yield (key, group)
+                    continue
                 except Exception as e:
+                    # upstream stopped iteration, or raised an error, or `by` did
                     while self._groups:
                         yield self._oldest_group()
                     if isinstance(e, StopAsyncIteration):
                         return
-                    yield ExceptionContainer(e)
+                    error = [ExceptionContainer(e)]
+                # yield outside the except block so the frame's exception state is cleared
+                yield error.pop()
         finally:
             self._stopped = True
             self._lazy_let_pull_next.release()

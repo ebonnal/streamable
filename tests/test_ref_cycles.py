@@ -33,7 +33,9 @@ T = TypeVar("T")
         lambda src: stream(cast(Iterator[int], src)).group(2).flatten(concurrency=2),
         lambda src: stream(cast(Iterator[int], src)).group(2).flatten(concurrency=10),
         lambda src: stream(cast(Iterator[int], src)).group(1, by=identity).flatten(),
-        # lambda src: stream(cast(Iterator[int], src)).group(1, by=identity, within=timedelta(seconds=1)),
+        lambda src: stream(cast(Iterator[int], src)).group(
+            1, by=identity, within=timedelta(seconds=1)
+        ),
         lambda src: stream(cast(Iterator[int], src)).map(identity),
         lambda src: stream(cast(Iterator[int], src)).map(identity, concurrency=2),
         lambda src: stream(cast(Iterator[int], src)).map(identity, concurrency=10),
@@ -77,5 +79,7 @@ async def test_ref_cycles(
 
         # Get the object if it still exists
         error = find_object(error_id, ValueError)
+
+        # objgraph.show_backrefs([error], filename="cycles.png", max_depth=10)
 
         assert error is None
