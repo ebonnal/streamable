@@ -10,4 +10,4 @@ Observation.__module__ = __name__
 
 __all__ = ["stream", "star", "Observation"]
 
-__version__ = "2.0.0rc11"
+__version__ = "2.0.0rc12"
