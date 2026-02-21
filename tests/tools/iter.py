@@ -1,5 +1,3 @@
-"""Helpers for converting between sync and async iterables."""
-
 from typing import (
     AsyncIterable,
     AsyncIterator,
@@ -35,14 +33,12 @@ def aiterable_to_list(aiterable: AsyncIterable[T]) -> List[T]:
 
 
 def stopiteration_type(itype: IterableType) -> Type[Exception]:
-    """Return the appropriate StopIteration type for the iterable type."""
     if issubclass(itype, AsyncIterable):
         return StopAsyncIteration
     return StopIteration
 
 
 async def alist(iterable: AsyncIterable[T]) -> List[T]:
-    """Convert an async iterable to a list."""
     return [_ async for _ in iterable]
 
 
@@ -56,14 +52,12 @@ async def acount(iterator: AsyncIterable) -> int:
 def aiter_or_iter(
     iterable: Union[Iterable[T], AsyncIterable[T]], itype: IterableType
 ) -> Union[Iterator[T], AsyncIterator[T]]:
-    """Get an iterator from an iterable, sync or async according to `itype`."""
     if itype is AsyncIterable:
         return cast(AsyncIterator[T], iterable).__aiter__()
     return cast(Iterator[T], iterable).__iter__()
 
 
 def anext_or_next(it: Union[Iterator[T], AsyncIterator[T]], itype: IterableType) -> T:
-    """Get next item from either a sync or async iterator."""
     if itype is AsyncIterable:
         return TEST_LOOP.run_until_complete(
             awaitable_to_coroutine(cast(AsyncIterator[T], it).__anext__())
@@ -74,22 +68,18 @@ def anext_or_next(it: Union[Iterator[T], AsyncIterator[T]], itype: IterableType)
 def alist_or_list(
     iterable: Union[Iterable[T], AsyncIterable[T]], itype: IterableType
 ) -> List[T]:
-    """Convert an iterable (sync or async) to a list."""
     if itype is AsyncIterable:
         return aiterable_to_list(cast(AsyncIterable[T], iterable))
     return list(cast(Iterable[T], iterable))
 
 
 def aiterate_or_iterate(s: stream, itype: IterableType) -> None:
-    """Convert an iterable (sync or async) to a list."""
     if itype is AsyncIterable:
         TEST_LOOP.run_until_complete(awaitable_to_coroutine(s))
     s()
 
 
 class SyncToBiIterable(SyncAsyncIterable[T]):
-    """Wrapper to make a sync iterable also async-iterable."""
-
     def __init__(self, iterable: Iterable[T]):
         self.iterable = iterable
 
