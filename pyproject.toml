@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "streamable"
 dynamic = ["version"]
-description = "(sync/async) iterable streams for Python"
+description = "sync/async iterable streams for Python"
 readme = { file = "README.md", content-type = "text/markdown" }
 license = { text = "Apache 2." }
 authors = [{ name = "ebonnal", email = "bonnal.enzo.dev@gmail.com" }]
