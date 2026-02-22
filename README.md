@@ -84,6 +84,8 @@ Operations accept both sync and async functions, they can be mixed within the sa
 
 Operations are implemented so that the iteration can resume after an exception.
 
+A `stream` can be iterated several times if its source allows it.
+
 A `stream` exposes operations to manipulate its elements, but the I/O is not its responsibility. It's meant to be combined with dedicated libraries like `pyarrow`, `psycopg2`, `boto3`, `dlt` ([ETL example](#eg-etl-via-dlt))
 
 ## ▼ `.map`
@@ -120,7 +122,7 @@ pokemons: stream[str] = (
 assert list(pokemons) == ['bulbasaur', 'ivysaur', 'venusaur']
 ```
 
-#### via `async` coroutines
+#### via `async`
 
 If `concurrency > 1` and the transformation is async, it will be applied via `concurrency` async tasks:
 
