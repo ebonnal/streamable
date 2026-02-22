@@ -510,8 +510,8 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         Example::
 
             state: list[int] = []
-            store_ints: stream[int] = stream(range(10)).do(state.append)
-            assert list(store_ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+            storing_ints: stream[int] = stream(range(10)).do(state.append)
+            assert list(storing_ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
             assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
         """
         if isinstance(concurrency, int):
@@ -750,13 +750,13 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
             # `within` a given time interval
             from datetime import timedelta
-            int_1sec_batches: stream[list[int]] = (
+            int_1s_batches: stream[list[int]] = (
                 stream(range(10))
                 .throttle(2, per=timedelta(seconds=1))
                 .group(within=timedelta(seconds=0.99))
             )
 
-            assert list(int_1sec_batches) == [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]]
+            assert list(int_1s_batches) == [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]]
 
             # `by` a given key, yielding `(key, elements)` pairs
             ints_by_parity: stream[tuple[str, list[int]]] = (
@@ -1038,9 +1038,9 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         Example::
 
             from datetime import timedelta
-            three_ints_per_second: stream[int] = stream(range(10)).throttle(3, per=timedelta(seconds=1))
-            # collects 10 ints in 3 seconds
-            assert list(three_ints_per_second) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+            throttled_ints: stream[int] = stream(range(10)).throttle(3, per=timedelta(seconds=1))
+            # takes 3 seconds
+            assert list(throttled_ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
         """
         validate_int(up_to, gte=1, name="up_to")
         validate_positive_timedelta(per, name="per")

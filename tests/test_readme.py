@@ -129,9 +129,9 @@ def test_starmap_example() -> None:
 
 def test_do_example() -> None:
     state: List[int] = []
-    store_ints: stream[int] = stream(range(10)).do(state.append)
+    storing_ints: stream[int] = stream(range(10)).do(state.append)
 
-    assert list(store_ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    assert list(storing_ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 
@@ -144,13 +144,13 @@ def test_filter_example() -> None:
 def test_throttle_example() -> None:
     from datetime import timedelta
 
-    three_ints_per_second: stream[int] = stream(range(10)).throttle(
+    throttled_ints: stream[int] = stream(range(10)).throttle(
         3, per=timedelta(seconds=1)
     )
 
     start = time.perf_counter()
     # takes 3s: ceil(10 ints / 3 per_second) - 1
-    assert list(three_ints_per_second) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    assert list(throttled_ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     assert 2.99 < time.perf_counter() - start < 3.25
 
     ints_every_100_millis = stream(range(10)).throttle(
@@ -170,13 +170,13 @@ def test_group_example() -> None:
 
     from datetime import timedelta
 
-    int_1sec_batches: stream[List[int]] = (
+    int_1s_batches: stream[List[int]] = (
         stream(range(10))
         .throttle(2, per=timedelta(seconds=1))
         .group(within=timedelta(seconds=0.99))
     )
 
-    assert list(int_1sec_batches) == [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]]
+    assert list(int_1s_batches) == [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]]
 
     ints_by_parity: stream[Tuple[str, List[int]]] = stream(range(10)).group(
         by=lambda n: "odd" if n % 2 else "even"

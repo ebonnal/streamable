@@ -176,9 +176,9 @@ Perform side effects:
 
 ```python
 state: list[int] = []
-store_ints: stream[int] = stream(range(10)).do(state.append)
+storing_ints: stream[int] = stream(range(10)).do(state.append)
 
-assert list(store_ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+assert list(storing_ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 
@@ -204,13 +204,13 @@ assert list(int_batches) == [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]]
 ```python
 from datetime import timedelta
 
-int_1sec_batches: stream[list[int]] = (
+int_1s_batches: stream[list[int]] = (
     stream(range(10))
     .throttle(2, per=timedelta(seconds=1))
     .group(within=timedelta(seconds=0.99))
 )
 
-assert list(int_1sec_batches) == [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]]
+assert list(int_1s_batches) == [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]]
 ```
 
 ... `by` a given key, yielding `(key, elements)` pairs:
@@ -372,15 +372,15 @@ You can combine these parameters.
 
 ## ▼ `.throttle`
 
-Limit the number of emissions `per` time interval:
+Limit the number of emissions `per` time interval (sliding window):
 
 ```python
 from datetime import timedelta
 
-three_ints_per_second: stream[int] = stream(range(10)).throttle(3, per=timedelta(seconds=1))
+throttled_ints: stream[int] = stream(range(10)).throttle(3, per=timedelta(seconds=1))
 
-# collects 10 ints in 3 seconds
-assert list(three_ints_per_second) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+# takes 3 seconds
+assert list(throttled_ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 
 ## ▼ `.buffer`
