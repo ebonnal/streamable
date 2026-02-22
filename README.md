@@ -68,17 +68,21 @@ A `stream[T]` is `Iterable[T]` (and `AsyncIterable[T]`):
 
 # 📒 Operations ([docs](https://streamable.readthedocs.io/en/latest/api.html))
 
-  - [`.map`](#-map) elements
-  - [`.do`](#-do) side effects on elements
-  - [`.group`](#-group) elements into batches
-  - [`.flatten`](#-flatten) iterable elements
-  - [`.filter`](#-filter) elements
-  - [`.take`](#-take) elements until ...
-  - [`.skip`](#-skip) elements until ...
-  - [`.catch`](#-catch) exceptions
-  - [`.throttle`](#-throttle) the rate of iteration
-  - [`.buffer`](#-buffer) elements
-  - [`.observe`](#-observe) the iteration progress
+- function application
+    - [`.map`](#-map)
+    - [`.do`](#-do)
+- (un)grouping
+    - [`.group`](#-group)
+    - [`.flatten`](#-flatten)
+- filtering
+    - [`.filter`](#-filter)
+    - [`.take`](#-take)
+    - [`.skip`](#-skip)
+- control
+    - [`.catch`](#-catch)
+    - [`.throttle`](#-throttle)
+    - [`.buffer`](#-buffer)
+    - [`.observe`](#-observe)
 
 Operations accept both sync and async functions, they can be mixed within the same `stream`, that can then be consumed as an `Iterable` or `AsyncIterable`. Async functions run in the current loop, one is created if needed.
 
@@ -86,7 +90,7 @@ Operations are implemented so that the iteration can resume after an exception.
 
 A `stream` can be iterated several times if its source allows it.
 
-A `stream` exposes operations to manipulate its elements, but the I/O is not its responsibility. It's meant to be combined with dedicated libraries like `pyarrow`, `psycopg2`, `boto3`, `dlt` ([ETL example](#eg-etl-via-dlt))
+A `stream` exposes operations to manipulate its elements, but the I/O is not its responsibility. It's meant to be combined with dedicated libraries like `pyarrow`, `psycopg2`, `boto3`, `dlt` ([ETL example](#eg-etl-via-dlt)) ...
 
 ## ▼ `.map`
 
