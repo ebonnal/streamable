@@ -598,7 +598,11 @@ with httpx.Client() as http_client:
     ).run(
         pokemons(http_client, concurrency=8, per_second=32),
         table_format="delta",
-        columns={"color__name": {"partition": True}},
+        write_disposition='merge',
+        columns={
+            "id": {"primary_key": True},
+            "color__name": {"partition": True},
+        },
     )
 ```
 
