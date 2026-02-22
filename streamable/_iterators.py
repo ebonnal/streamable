@@ -275,15 +275,13 @@ class _GroupByWithinIterable(Iterable[Union[ExceptionContainer, Tuple[U, List[T]
         self.iterator = iterator
         self.up_to = up_to or cast(int, float("inf"))
         self.by = by
-        self._groups: Dict[U, Tuple[float, List[T]]] = self._default_groups()
+        self._groups: Dict[U, Tuple[float, List[T]]] = defaultdict(
+            lambda: (time.perf_counter(), [])
+        )
         self._within_seconds = within.total_seconds()
         self._next_elem: queue.Queue[Union[T, ExceptionContainer]] = queue.Queue()
         self._let_pull_next: Semaphore = Semaphore(0)
         self._stopped = False
-
-    @staticmethod
-    def _default_groups() -> Dict[U, Tuple[float, List[T]]]:
-        return defaultdict(lambda: (time.perf_counter(), []))
 
     def _oldest_group(self) -> Tuple[U, List[T]]:
         oldest_key = next(iter(self._groups.keys()))
@@ -296,7 +294,7 @@ class _GroupByWithinIterable(Iterable[Union[ExceptionContainer, Tuple[U, List[T]
             return max(0, timeout)
         return None
 
-    def _pull_upstream(self) -> None:
+    def _puller(self) -> None:
         elem: Union[T, ExceptionContainer]
         self._let_pull_next.acquire()
         while not self._stopped:
@@ -325,7 +323,7 @@ class _GroupByWithinIterable(Iterable[Union[ExceptionContainer, Tuple[U, List[T]
         return elem
 
     def __iter__(self) -> Iterator[Union[ExceptionContainer, Tuple[U, List[T]]]]:
-        thread = Thread(target=self._pull_upstream, daemon=True)
+        thread = Thread(target=self._puller, daemon=True)
         try:
             thread.start()
             while True:

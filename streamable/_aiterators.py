@@ -300,15 +300,13 @@ class _GroupByWithinAsyncIterable(
         self.iterator = iterator
         self.up_to = up_to or cast(int, float("inf"))
         self.by = by
-        self._groups: Dict[U, Tuple[float, List[T]]] = self._default_groups()
+        self._groups: Dict[U, Tuple[float, List[T]]] = defaultdict(
+            lambda: (time.perf_counter(), [])
+        )
         self._within_seconds = within.total_seconds()
         self._next_elem: Optional[asyncio.Queue[Union[T, ExceptionContainer]]] = None
         self._let_pull_next: Optional[asyncio.Semaphore] = None
         self._stopped = False
-
-    @staticmethod
-    def _default_groups() -> Dict[U, Tuple[float, List[T]]]:
-        return defaultdict(lambda: (time.perf_counter(), []))
 
     def _oldest_group(self) -> Tuple[U, List[T]]:
         oldest_key = next(iter(self._groups.keys()))
@@ -333,7 +331,7 @@ class _GroupByWithinAsyncIterable(
             self._let_pull_next = asyncio.Semaphore(0)
         return self._let_pull_next
 
-    async def _pull_upstream(self) -> None:
+    async def _puller(self) -> None:
         elem: Union[T, ExceptionContainer]
         await self._lazy_let_pull_next.acquire()
         while not self._stopped:
@@ -366,7 +364,7 @@ class _GroupByWithinAsyncIterable(
     async def __aiter__(
         self,
     ) -> AsyncIterator[Union[ExceptionContainer, Tuple[U, List[T]]]]:
-        task = asyncio.create_task(self._pull_upstream())
+        task = asyncio.create_task(self._puller())
         try:
             while True:
                 self._lazy_let_pull_next.release()
