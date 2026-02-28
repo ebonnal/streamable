@@ -6,7 +6,7 @@
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/release/python-3820/)
 [![PyPI version](https://img.shields.io/pypi/v/streamable.svg)](https://pypi.org/project/streamable/)
-[![Anaconda-Server Badge](https://anaconda.org/conda-forge/streamable/badges/version.svg?)](https://anaconda.org/conda-forge/streamable)
+[![Anaconda-Server Badge](https://anaconda.org/conda-forge/streamable/badges/version.svg)](https://anaconda.org/conda-forge/streamable)
 [![coverage](https://codecov.io/gh/ebonnal/streamable/graph/badge.svg?token=S62T0JQK9N)](https://codecov.io/gh/ebonnal/streamable)
 [![readthedocs](https://app.readthedocs.org/projects/streamable/badge/?version=latest&style=social)](https://streamable.readthedocs.io/en/latest/api.html)
 
@@ -68,7 +68,7 @@ A `stream[T]` is `Iterable[T]` (and `AsyncIterable[T]`):
 
 # 📒 Operations ([docs](https://streamable.readthedocs.io/en/latest/api.html))
 
-- function application
+- mapping
     - [`.map`](#-map)
     - [`.do`](#-do)
 - (un)grouping
@@ -90,7 +90,7 @@ Operations are implemented so that the iteration can resume after an exception.
 
 A `stream` can be iterated several times if its source allows it.
 
-A `stream` exposes operations to manipulate its elements, but the I/O is not its responsibility. It's meant to be combined with dedicated libraries like `pyarrow`, `psycopg2`, `boto3`, `dlt` ([ETL example](#eg-etl-via-dlt)) ...
+A `stream` exposes operations to manipulate its elements, but its consumption and the I/O are not its responsibility. It's meant to be combined with dedicated libraries like `pyarrow`, `psycopg2`, `dlt` ([ETL example](#eg-etl-via-dlt)) ...
 
 ## ▼ `.map`
 
