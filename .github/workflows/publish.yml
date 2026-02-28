@@ -4,9 +4,6 @@ on:
   push:
     branches:
       - main
-      - alpha
-      - beta
-      - rc
     paths:
       - 'streamable/__init__.py'
 
