@@ -84,7 +84,7 @@ A `stream[T]` is `Iterable[T]` (and `AsyncIterable[T]`):
     - [`.buffer`](#-buffer)
     - [`.observe`](#-observe)
 
-Operations accept both sync and async functions, they can be mixed within the same `stream`, that can then be consumed as an `Iterable` or `AsyncIterable`. Async functions run in the current loop, one is created if needed.
+Operations accept both sync and async functions, they can be mixed within the same `stream`, that can then be consumed as an `Iterable` or `AsyncIterable`.
 
 Operations are implemented so that the iteration can resume after an exception.
 
