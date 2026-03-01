@@ -16,6 +16,7 @@
 ```
 pip install streamable
 ```
+(no dependencies)
 
 # 2. import
 
@@ -25,7 +26,7 @@ from streamable import stream
 
 # 3. init
 
-Create a `stream[T]` from an `Iterable[T]` (or `AsyncIterable[T]`):
+Create a `stream[T]` from an `Iterable[T]` or `AsyncIterable[T]`:
 
 ```python
 ints: stream[int] = stream(range(10))
@@ -55,18 +56,22 @@ pokemons: stream[str] = (
 
 Source elements will be processed on-the-fly during iteration.
 
-Operations accept both sync and async functions.
-
 # 5. iterate
 
-A `stream[T]` is `Iterable[T]` (and `AsyncIterable[T]`):
+A `stream[T]` is `Iterable[T]` and `AsyncIterable[T]`:
 
 ```python
 >>> list(pokemons)
 ['bulbasaur', 'ivysaur', 'venusaur', 'charmander', 'charmeleon', 'charizard', 'squirtle', 'wartortle', 'blastoise']
+>>> [pokemon async for pokemon in pokemons]
+['bulbasaur', 'ivysaur', 'venusaur', 'charmander', 'charmeleon', 'charizard', 'squirtle', 'wartortle', 'blastoise']
 ```
 
-# 📒 Operations ([docs](https://streamable.readthedocs.io/en/latest/api.html))
+---
+
+
+
+# 📖 operations ([docs](https://streamable.readthedocs.io/en/latest/api.html))
 
 - mapping
     - [`.map`](#-map)
@@ -84,11 +89,28 @@ A `stream[T]` is `Iterable[T]` (and `AsyncIterable[T]`):
     - [`.buffer`](#-buffer)
     - [`.observe`](#-observe)
 
-Operations accept both sync and async functions, they can be mixed within the same `stream`, that can then be consumed as an `Iterable` or `AsyncIterable`.
-
-Operations are implemented so that the iteration can resume after an exception.
 
 A `stream` can be iterated several times if its source allows it.
+
+Operations allow iteration to resume after an exception.
+
+Operations accept both sync and async functions.
+
+A sync iteration over a stream involving async functions runs an async iteration under the hood, using the current event loop (or setting a new one if needed).
+
+Operations adapt their behavior to the type of iteration.
+
+<details><summary>see examples</summary>
+
+- `.throttle` sleeps via `time.sleep` during sync iteration and via `asyncio.sleep` during async iteration.
+
+- `.buffer`'s background task is a `threading.Thread` during sync iteration and an `asyncio.Task` during async iteration.
+
+- concurrent `.map` of a sync function uses `loop.run_in_executor` during async iteration to not block the event loop.
+
+- ...
+
+</details>
 
 A `stream` exposes operations to manipulate its elements, but its consumption and the I/O are not its responsibility. It's meant to be combined with dedicated libraries like `pyarrow`, `psycopg2`, `dlt` ([ETL example](#eg-etl-via-dlt)) ...
 
@@ -529,7 +551,7 @@ assert list(enumerated_pokes) == ['#1 bulbasaur', '#2 ivysaur', '#3 venusaur', '
 
 To collect distinct elements you can `set(a_stream)`.
 
-To deduplicates in the middle of the stream, `.filter` new values and `.do` add them into a `set` (or a fancier cache):
+To deduplicate in the middle of the stream, `.filter` new values and `.do` add them into a `set` (or a fancier cache):
 
 ```python
 seen: set[str] = set()
