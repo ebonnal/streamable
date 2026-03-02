@@ -43,7 +43,6 @@ from streamable.visitors._eq import EqualityVisitor
 from streamable.visitors._repr import ReprVisitor
 from streamable.visitors._involves_async import InvolvesAsyncVisitor
 
-# Initialize "streamable" logger
 setup_logger()
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -66,9 +65,15 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
     Chain lazy operations, source elements are processed on-the-fly during iteration.
 
-    Operations accept both sync and async functions, they can be mixed within the same ``stream``, that can then be consumed as an ``Iterable`` or ``AsyncIterable``. Async functions run in the current loop, one is created if needed.
+    A `stream` can be iterated several times if its source allows it.
 
-    Operations are implemented so that the iteration can resume after an exception.
+    Operations return a new `stream`.
+
+    Operations allow iteration to resume after an exception.
+
+    Operations accept both sync and async functions.
+
+    A sync iteration over a stream involving async functions runs an async iteration under the hood, using the current event loop (or setting a new one if needed).
 
     Args:
         source (``Iterable[T] | AsyncIterable[T] | Callable[[], T] | Callable[[], Coroutine[object, object, T]]``):
