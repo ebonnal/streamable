@@ -8,7 +8,6 @@ from collections import defaultdict, deque
 from concurrent.futures import Executor, Future, ThreadPoolExecutor
 from contextlib import suppress
 from typing import (
-    Any,
     Callable,
     ContextManager,
     Deque,
@@ -117,9 +116,9 @@ class CatchIterator(Iterator[Union[T, U]]):
         self,
         iterator: Iterator[T],
         errors: Union[Type[Exc], Tuple[Type[Exc], ...]],
-        where: Optional[Callable[[Exc], Any]],
+        where: Optional[Callable[[Exc], object]],
         replace: Optional[Callable[[Exc], U]],
-        do: Optional[Callable[[Exc], Any]],
+        do: Optional[Callable[[Exc], object]],
         stop: bool,
     ) -> None:
         self.iterator = iterator
@@ -391,7 +390,7 @@ class CountSkipIterator(Iterator[T]):
 class PredicateSkipIterator(Iterator[T]):
     __slots__ = ("iterator", "until", "_satisfied")
 
-    def __init__(self, iterator: Iterator[T], until: Callable[[T], Any]) -> None:
+    def __init__(self, iterator: Iterator[T], until: Callable[[T], object]) -> None:
         self.iterator = iterator
         self.until = until
         self._satisfied = False
@@ -428,7 +427,7 @@ class CountTakeIterator(Iterator[T]):
 class PredicateTakeIterator(Iterator[T]):
     __slots__ = ("iterator", "until", "_satisfied")
 
-    def __init__(self, iterator: Iterator[T], until: Callable[[T], Any]) -> None:
+    def __init__(self, iterator: Iterator[T], until: Callable[[T], object]) -> None:
         self.iterator = iterator
         self.until = until
         self._satisfied = False
@@ -466,7 +465,7 @@ class _BaseObserveIterator(Iterator[T]):
         self,
         iterator: Iterator[T],
         subject: str,
-        do: Callable[[Observation], Any],
+        do: Callable[[Observation], object],
     ) -> None:
         self.iterator = iterator
         self.subject = subject
@@ -537,7 +536,7 @@ class PowerObserveIterator(_BaseObserveIterator[T]):
         self,
         iterator: Iterator[T],
         subject: str,
-        do: Callable[[Observation], Any],
+        do: Callable[[Observation], object],
         base: int = 2,
     ) -> None:
         super().__init__(iterator, subject, do)
@@ -555,7 +554,7 @@ class EveryIntObserveIterator(_BaseObserveIterator[T]):
         iterator: Iterator[T],
         subject: str,
         every: int,
-        do: Callable[[Observation], Any],
+        do: Callable[[Observation], object],
     ) -> None:
         super().__init__(iterator, subject, do)
         self.every = every
@@ -576,7 +575,7 @@ class EveryIntervalObserveIterator(_BaseObserveIterator[T]):
         iterator: Iterator[T],
         subject: str,
         every: datetime.timedelta,
-        do: Callable[[Observation], Any],
+        do: Callable[[Observation], object],
     ) -> None:
         super().__init__(iterator, subject, do)
         self.every = every

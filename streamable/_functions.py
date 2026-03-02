@@ -4,7 +4,6 @@ import datetime
 from contextlib import suppress
 from operator import itemgetter
 from typing import (
-    Any,
     Callable,
     Iterable,
     Iterator,
@@ -40,9 +39,9 @@ def catch(
     iterator: Iterator[T],
     errors: Union[Type[Exc], Tuple[Type[Exc], ...]],
     *,
-    where: Optional[Union[Callable[[Exc], Any]]] = None,
+    where: Optional[Union[Callable[[Exc], object]]] = None,
     replace: Optional[Union[Callable[[Exc], U]]] = None,
-    do: Optional[Union[Callable[[Exc], Any]]] = None,
+    do: Optional[Union[Callable[[Exc], object]]] = None,
     stop: bool = False,
 ) -> Iterator[Union[T, U]]:
     return _iterators.CatchIterator(
@@ -56,7 +55,7 @@ def catch(
 
 
 def filter(
-    where: Union[Callable[[T], Any]],
+    where: Union[Callable[[T], object]],
     iterator: Iterator[T],
 ) -> Iterator[T]:
     return builtins.filter(where, iterator)
@@ -120,7 +119,7 @@ def observe(
     iterator: Iterator[T],
     subject: str,
     every: Union[None, int, datetime.timedelta],
-    do: Union[Callable[[Observation], Any],],
+    do: Union[Callable[[Observation], object],],
 ) -> Iterator[T]:
     if every is None:
         return _iterators.PowerObserveIterator(iterator, subject, do)
@@ -131,7 +130,7 @@ def observe(
 
 def skip(
     iterator: Iterator[T],
-    until: Union[int, Callable[[T], Any]],
+    until: Union[int, Callable[[T], object]],
 ) -> Iterator[T]:
     if isinstance(until, int):
         return _iterators.CountSkipIterator(iterator, until)
@@ -140,7 +139,7 @@ def skip(
 
 def take(
     iterator: Iterator[T],
-    until: Union[int, Callable[[T], Any]],
+    until: Union[int, Callable[[T], object]],
 ) -> Iterator[T]:
     if isinstance(until, int):
         return _iterators.CountTakeIterator(iterator, until)

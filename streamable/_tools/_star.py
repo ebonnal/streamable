@@ -1,6 +1,5 @@
 from inspect import iscoroutinefunction
 from typing import (
-    Any,
     Callable,
     Generic,
     Tuple,
@@ -55,11 +54,11 @@ def star(func: Callable[[T1, T2, T3, T4, T5, T6, T7, T8], R]) -> Callable[[Tuple
 @overload
 def star(func: Callable[[T1, T2, T3, T4, T5, T6, T7, T8, T9], R]) -> Callable[[Tuple[T1, T2, T3, T4, T5, T6, T7, T8, T9]], R]: ...
 @overload
-def star(func: Callable[..., R]) -> Callable[[Tuple[Any, ...]], R]: ...
+def star(func: Callable[..., R]) -> Callable[[Tuple[object, ...]], R]: ...
 # fmt: on
 
 
-def star(func: Callable[..., R]) -> Callable[[Tuple[Any, ...]], R]:
+def star(func: Callable[..., R]) -> Callable[[Tuple[object, ...]], R]:
     """
     Transform a function (sync or async) that takes several positional arguments into a function that takes a tuple.
 
@@ -75,9 +74,9 @@ def star(func: Callable[..., R]) -> Callable[[Tuple[Any, ...]], R]:
     """
     if iscoroutinefunction(func):
 
-        async def astared(args: Tuple[Any, ...]) -> R:
+        async def astared(args: Tuple[object, ...]) -> R:
             return await func(*args)
 
         astared.__name__ = f"star({func.__name__})"
-        return cast(Callable[[Tuple[Any, ...]], R], astared)
+        return cast(Callable[[Tuple[object, ...]], R], astared)
     return _Star(func)

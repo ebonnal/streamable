@@ -1,7 +1,6 @@
 from functools import partial
 from inspect import iscoroutinefunction
 from typing import (
-    Any,
     Callable,
     Coroutine,
     Optional,
@@ -17,22 +16,24 @@ T = TypeVar("T")
 R = TypeVar("R")
 
 
-def _sidified(func: Callable[[T], Any], arg: T) -> T:
+def _sidified(func: Callable[[T], object], arg: T) -> T:
     func(arg)
     return arg
 
 
 @overload
 def sidify(
-    func: AsyncFunction[T, Any],
+    func: AsyncFunction[T, object],
 ) -> AsyncFunction[T, T]: ...
 
 
 @overload
-def sidify(func: Callable[[T], Any]) -> Callable[[T], T]: ...
+def sidify(func: Callable[[T], object]) -> Callable[[T], T]: ...
 
 
-def sidify(func: Callable[[T], Any]) -> Callable[[T], Union[T, Coroutine[Any, Any, T]]]:
+def sidify(
+    func: Callable[[T], object],
+) -> Callable[[T], Union[T, Coroutine[object, object, T]]]:
     if iscoroutinefunction(func):
 
         async def wrap(arg: T) -> T:

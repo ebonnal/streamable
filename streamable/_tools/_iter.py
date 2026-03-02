@@ -1,7 +1,6 @@
 import asyncio
 from contextlib import suppress
 from typing import (
-    Any,
     AsyncIterable,
     AsyncIterator,
     Callable,
@@ -80,14 +79,14 @@ def fn_to_iter(fn: Callable[[], T]) -> Iterator[T]:
 class _AsyncFnAsyncIterator(AsyncIterator[T]):
     __slots__ = ("fn",)
 
-    def __init__(self, fn: Callable[[], Coroutine[Any, Any, T]]) -> None:
+    def __init__(self, fn: Callable[[], Coroutine[object, object, T]]) -> None:
         self.fn = fn
 
     async def __anext__(self) -> T:
         return await self.fn()
 
 
-def afn_to_aiter(fn: Callable[[], Coroutine[Any, Any, T]]) -> AsyncIterator[T]:
+def afn_to_aiter(fn: Callable[[], Coroutine[object, object, T]]) -> AsyncIterator[T]:
     return _AsyncFnAsyncIterator(fn)
 
 

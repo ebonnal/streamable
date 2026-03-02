@@ -1,7 +1,6 @@
 from inspect import iscoroutinefunction
 from typing import (
     TYPE_CHECKING,
-    Any,
     AsyncIterable,
     AsyncIterator,
     Callable,
@@ -128,7 +127,7 @@ class AsyncIteratorVisitor(Visitor[AsyncIterator[T]]):
         if callable(s.source):
             if iscoroutinefunction(s.source):
                 return afn_to_aiter(
-                    cast(Callable[[], Coroutine[Any, Any, T]], s.source)
+                    cast(Callable[[], Coroutine[object, object, T]], s.source)
                 )
             else:
                 return fn_to_aiter(s.source)
