@@ -2,7 +2,6 @@ from concurrent.futures import Executor
 import datetime
 from inspect import iscoroutinefunction
 from typing import (
-    Any,
     AsyncIterable,
     Callable,
     Iterable,
@@ -10,7 +9,7 @@ from typing import (
 
 
 def validate_concurrency_executor(
-    concurrency: Executor, fn: Callable[[Any], Any], fn_name: str
+    concurrency: Executor, fn: Callable[..., object], fn_name: str
 ) -> None:
     if iscoroutinefunction(fn):
         raise TypeError(
@@ -30,7 +29,7 @@ def validate_int(integer: int, *, gte: int, name: str) -> None:
         raise ValueError(f"`{name}` must be >= {gte} but got: {integer}")
 
 
-def validate_sync_flatten_iterable(iterable: Any) -> None:
+def validate_sync_flatten_iterable(iterable: object) -> None:
     if isinstance(iterable, Iterable):
         return
     if isinstance(iterable, AsyncIterable):
@@ -40,7 +39,7 @@ def validate_sync_flatten_iterable(iterable: Any) -> None:
     raise TypeError(f"flatten expects iterables but got: {repr(iterable)}")
 
 
-def validate_async_flatten_iterable(iterable: Any) -> None:
+def validate_async_flatten_iterable(iterable: object) -> None:
     if isinstance(iterable, (AsyncIterable, Iterable)):
         return
     raise TypeError(f"flatten expects iterables but got: {repr(iterable)}")

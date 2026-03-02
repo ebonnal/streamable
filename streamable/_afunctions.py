@@ -4,7 +4,6 @@ from contextlib import suppress
 from inspect import iscoroutinefunction
 from operator import itemgetter
 from typing import (
-    Any,
     AsyncIterable,
     AsyncIterator,
     Callable,
@@ -43,9 +42,9 @@ def catch(
     aiterator: AsyncIterator[T],
     errors: Union[Type[Exc], Tuple[Type[Exc], ...]],
     *,
-    where: Optional[Union[Callable[[Exc], Any], AsyncFunction[Exc, Any]]] = None,
+    where: Optional[Union[Callable[[Exc], object], AsyncFunction[Exc, object]]] = None,
     replace: Optional[Union[Callable[[Exc], U], AsyncFunction[Exc, U]]] = None,
-    do: Optional[Union[Callable[[Exc], Any], AsyncFunction[Exc, Any]]] = None,
+    do: Optional[Union[Callable[[Exc], object], AsyncFunction[Exc, object]]] = None,
     stop: bool = False,
 ) -> AsyncIterator[Union[T, U]]:
     return _aiterators.CatchAsyncIterator(
@@ -59,7 +58,7 @@ def catch(
 
 
 def filter(
-    where: Union[Callable[[T], Any], AsyncFunction[T, Any]],
+    where: Union[Callable[[T], object], AsyncFunction[T, object]],
     aiterator: AsyncIterator[T],
 ) -> AsyncIterator[T]:
     return _aiterators.FilterAsyncIterator(aiterator, asyncify(where))
@@ -138,8 +137,8 @@ def observe(
     subject: str,
     every: Union[None, int, datetime.timedelta],
     do: Union[
-        Callable[[Observation], Any],
-        AsyncFunction[Observation, Any],
+        Callable[[Observation], object],
+        AsyncFunction[Observation, object],
     ],
 ) -> AsyncIterator[T]:
     if every is None:
@@ -155,7 +154,7 @@ def observe(
 
 def skip(
     aiterator: AsyncIterator[T],
-    until: Union[int, Callable[[T], Any], AsyncFunction[T, Any]],
+    until: Union[int, Callable[[T], object], AsyncFunction[T, object]],
 ) -> AsyncIterator[T]:
     if isinstance(until, int):
         return _aiterators.CountSkipAsyncIterator(aiterator, until)
@@ -164,7 +163,7 @@ def skip(
 
 def take(
     aiterator: AsyncIterator[T],
-    until: Union[int, Callable[[T], Any], AsyncFunction[T, Any]],
+    until: Union[int, Callable[[T], object], AsyncFunction[T, object]],
 ) -> AsyncIterator[T]:
     if isinstance(until, int):
         return _aiterators.CountTakeAsyncIterator(aiterator, until)

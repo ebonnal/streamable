@@ -7,7 +7,6 @@ from abc import ABC, abstractmethod
 from collections import defaultdict, deque
 from concurrent.futures import Executor, ThreadPoolExecutor
 from typing import (
-    Any,
     AsyncIterable,
     AsyncIterator,
     Awaitable,
@@ -133,9 +132,9 @@ class CatchAsyncIterator(AsyncIterator[Union[T, U]]):
         self,
         iterator: AsyncIterator[T],
         errors: Union[Type[Exc], Tuple[Type[Exc], ...]],
-        where: Optional[AsyncFunction[Exc, Any]],
+        where: Optional[AsyncFunction[Exc, object]],
         replace: Optional[AsyncFunction[Exc, U]],
-        do: Optional[AsyncFunction[Exc, Any]],
+        do: Optional[AsyncFunction[Exc, object]],
         stop: bool,
     ) -> None:
         self.iterator = iterator
@@ -434,7 +433,7 @@ class PredicateSkipAsyncIterator(AsyncIterator[T]):
     __slots__ = ("iterator", "until", "_satisfied")
 
     def __init__(
-        self, iterator: AsyncIterator[T], until: AsyncFunction[T, Any]
+        self, iterator: AsyncIterator[T], until: AsyncFunction[T, object]
     ) -> None:
         self.iterator = iterator
         self.until = until
@@ -473,7 +472,7 @@ class PredicateTakeAsyncIterator(AsyncIterator[T]):
     __slots__ = ("iterator", "until", "_satisfied")
 
     def __init__(
-        self, iterator: AsyncIterator[T], until: AsyncFunction[T, Any]
+        self, iterator: AsyncIterator[T], until: AsyncFunction[T, object]
     ) -> None:
         self.iterator = iterator
         self.until = until
@@ -520,7 +519,7 @@ class FilterAsyncIterator(AsyncIterator[T]):
     def __init__(
         self,
         iterator: AsyncIterator[T],
-        where: AsyncFunction[T, Any],
+        where: AsyncFunction[T, object],
     ) -> None:
         self.iterator = iterator
         self.where = where
@@ -555,7 +554,7 @@ class _BaseObserveAsyncIterator(AsyncIterator[T]):
         self,
         iterator: AsyncIterator[T],
         subject: str,
-        do: AsyncFunction[Observation, Any],
+        do: AsyncFunction[Observation, object],
     ) -> None:
         self.iterator = iterator
         self.subject = subject
@@ -626,7 +625,7 @@ class PowerObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
         self,
         iterator: AsyncIterator[T],
         subject: str,
-        do: AsyncFunction[Observation, Any],
+        do: AsyncFunction[Observation, object],
         base: int = 2,
     ) -> None:
         super().__init__(iterator, subject, do)
@@ -644,7 +643,7 @@ class EveryIntObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
         iterator: AsyncIterator[T],
         subject: str,
         every: int,
-        do: AsyncFunction[Observation, Any],
+        do: AsyncFunction[Observation, object],
     ) -> None:
         super().__init__(iterator, subject, do)
         self.every = every
@@ -665,7 +664,7 @@ class EveryIntervalObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
         iterator: AsyncIterator[T],
         subject: str,
         every: datetime.timedelta,
-        do: AsyncFunction[Observation, Any],
+        do: AsyncFunction[Observation, object],
     ) -> None:
         super().__init__(iterator, subject, do)
         self.every = every

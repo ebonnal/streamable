@@ -10,7 +10,7 @@ from typing import (
 T = TypeVar("T")
 R = TypeVar("R")
 
-AsyncFunction = Callable[[T], Coroutine[Any, Any, R]]
+AsyncFunction = Callable[[T], Coroutine[object, object, R]]
 
 
 # `builtins.anext` for pre 3.10
