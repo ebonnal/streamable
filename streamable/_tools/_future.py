@@ -4,6 +4,7 @@ from concurrent.futures import Future
 from queue import Queue
 from typing import (
     Deque,
+    Generic,
     Iterator,
     Sized,
     TypeVar,
@@ -40,16 +41,16 @@ class FIFOFutureResults(FutureResults[T]):
     __slots__ = ("_futures",)
 
     def __init__(self) -> None:
-        self._futures: Deque["Future[T]"] = deque()
+        self._futures: "Queue[Future[T]]" = Queue()
 
     def __len__(self) -> int:
-        return len(self._futures)
+        return self._futures.qsize()
 
     def add(self, future: "Future[T]") -> None:
-        return self._futures.append(future)
+        return self._futures.put_nowait(future)
 
     def __next__(self) -> T:
-        return self._futures.popleft().result()
+        return self._futures.get().result()
 
 
 class FDFOFutureResults(FutureResults[T]):

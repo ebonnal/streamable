@@ -2,6 +2,7 @@ from functools import partial
 from typing import AsyncIterator, Callable, Iterator, NamedTuple, TypeVar, Union
 
 from streamable._tools._async import AsyncFunction
+from streamable._tools._sentinel import IGNORE
 
 T = TypeVar("T")
 U = TypeVar("U")
@@ -48,6 +49,8 @@ class RaisingIterator(Iterator[T]):
 
     def __next__(self) -> T:
         elem = self.iterator.__next__()
+        if elem is IGNORE:
+            return self.__next__()
         if isinstance(elem, ExceptionContainer):
             try:
                 raise elem.exception
@@ -67,6 +70,8 @@ class RaisingAsyncIterator(AsyncIterator[T]):
 
     async def __anext__(self) -> T:
         elem = await self.iterator.__anext__()
+        if elem is IGNORE:
+            return await self.__anext__()
         if isinstance(elem, ExceptionContainer):
             try:
                 raise elem.exception

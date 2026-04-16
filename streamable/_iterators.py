@@ -1,5 +1,4 @@
 import datetime
-import multiprocessing
 import queue
 from threading import Semaphore, Thread
 import time
@@ -28,7 +27,7 @@ import weakref
 
 from streamable._tools._context import noop_context_manager
 from streamable._tools._observation import Observation
-from streamable._tools._sentinel import STOP_ITERATION
+from streamable._tools._sentinel import IGNORE, STOP_ITERATION
 from streamable._tools._validation import validate_sync_flatten_iterable
 
 from streamable._tools._error import ExceptionContainer, RaisingIterator
@@ -669,7 +668,8 @@ class _ConcurrentMapIterable(
         "_executor",
         "_context_manager",
         "_future_results",
-        "_upstream_receivers",
+        "_semaphore",
+        "_stopped",
     )
 
     def __init__(
@@ -685,9 +685,7 @@ class _ConcurrentMapIterable(
             FDFOFutureResults() if as_completed else FIFOFutureResults()
         )
         self._context_manager: ContextManager
-        self._upstream_receivers: queue.Queue[
-            Optional[multiprocessing.Queue[Union[T, ExceptionContainer]]]
-        ] = queue.Queue()
+        self._stopped = False
         if isinstance(concurrency, int):
             self._executor: Executor = ThreadPoolExecutor(max_workers=concurrency)
             self.concurrency = concurrency
@@ -696,60 +694,47 @@ class _ConcurrentMapIterable(
             self._executor = concurrency
             self.concurrency = getattr(self._executor, "_max_workers")
             self._context_manager = noop_context_manager()
+        self._semaphore: Semaphore = Semaphore(self.concurrency)
 
-    def _puller(self) -> None:
-        while True:
-            receiver = self._upstream_receivers.get()
-            if not receiver:
-                break
+    def _futures_producer(self) -> None:
+        self._semaphore.acquire()
+        while not self._stopped:
             try:
-                receiver.put_nowait(self.iterator.__next__())
+                self._future_results.add(
+                    self._executor.submit(self.into, self.iterator.__next__())
+                )
             except StopIteration:
-                receiver.put_nowait(STOP_ITERATION)
+                self._stopped = True
+                self._future_results.add(FutureResult(IGNORE))
+                self._future_results.add(FutureResult(IGNORE))
+                self._future_results.add(FutureResult(IGNORE))
+                self._future_results.add(FutureResult(IGNORE))
+                self._future_results.add(FutureResult(IGNORE))
+                self._future_results.add(FutureResult(IGNORE))
+                self._future_results.add(FutureResult(IGNORE))
+                self._future_results.add(FutureResult(IGNORE))
+                self._future_results.add(FutureResult(IGNORE))
+                continue
             except Exception as e:
-                receiver.put_nowait(ExceptionContainer(e))
-
-    @staticmethod
-    def _task(
-        into, elem_getter: multiprocessing.Queue[Union[T, ExceptionContainer]]
-    ) -> Union[U, ExceptionContainer]:
-        elem = elem_getter.get()
-        if elem == STOP_ITERATION or isinstance(elem, ExceptionContainer):
-            # upstream exhausted or exception to propagate
-            return cast(ExceptionContainer, elem)
-        return into(elem)
-
-    def _next_future(
-        self,
-    ) -> Future[Union[U, ExceptionContainer]]:
-        receiver: multiprocessing.Queue[Union[T, ExceptionContainer]] = (
-            multiprocessing.Queue()
-        )
-        self._upstream_receivers.put_nowait(receiver)
-        return self._executor.submit(self._task, self.into, receiver)
+                self._future_results.add(FutureResult(ExceptionContainer(e)))
+            self._semaphore.acquire()
 
     def __iter__(self) -> Iterator[Union[U, ExceptionContainer]]:
-        puller = Thread(target=self._puller, daemon=True)
+        futures_producer = Thread(target=self._futures_producer, daemon=True)
         try:
-            puller.start()
-            upstream_stopped = False
+            futures_producer.start()
             with self._context_manager:
-                # queue tasks up to buffersize
-                while len(self._future_results) < self.concurrency:
-                    self._future_results.add(self._next_future())
+                # queue, yield
+                while not self._stopped:
+                    self._semaphore.release()
+                    yield self._future_results.__next__()
+                for _ in range(self.concurrency):
+                    yield self._future_results.__next__()
 
-                # queue, wait, yield
-                while self._future_results:
-                    if not upstream_stopped:
-                        self._future_results.add(self._next_future())
-                    result = self._future_results.__next__()
-                    if result == STOP_ITERATION:
-                        upstream_stopped = True
-                        continue
-                    yield result
         finally:
-            self._upstream_receivers.put_nowait(None)
-            puller.join()
+            self._stopped = True
+            self._semaphore.release()
+            futures_producer.join()
 
 
 class ConcurrentMapIterator(RaisingIterator[U]):
