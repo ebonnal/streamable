@@ -1,23 +1,38 @@
+import asyncio
 from concurrent.futures import Executor, ProcessPoolExecutor, ThreadPoolExecutor
+from inspect import iscoroutinefunction
+import math
 import sys
 from pickle import PickleError
 import time
-from typing import Any, Callable, Iterable, List, Union
+from typing import (
+    Any,
+    AsyncIterable,
+    AsyncIterator,
+    Callable,
+    Iterable,
+    Iterator,
+    List,
+    Union,
+)
 
 import pytest
 
 from streamable import stream
 from tests.tools.func import (
+    SLOW_IDENTITY_DURATION,
     async_identity,
     async_identity_sleep,
     async_inverse_sleep,
     async_randomly_slowed,
+    async_slow_identity,
     async_square,
     identity,
     identity_sleep,
     inverse,
     inverse_sleep,
     randomly_slowed,
+    slow_identity,
     square,
 )
 from tests.tools.iter import (
@@ -26,6 +41,7 @@ from tests.tools.iter import (
     alist_or_list,
     anext_or_next,
     aiter_or_iter,
+    stopiteration_type,
 )
 from tests.tools.source import N, INTEGERS, ints
 
@@ -177,3 +193,49 @@ def test_map_concurrent_buffersize(
     it = aiter_or_iter(s, itype)
     assert anext_or_next(it, itype) == 0
     assert next(src) == pulled_elements
+
+
+@pytest.mark.parametrize(
+    "concurrency, ints_before_block",
+    [
+        (2, 3),
+        (3, 5),
+        # blocks during initial tasks buffering
+        (4, 3),
+        # blocks during first non-initial queueing
+        (3, 3),
+        # blocks before buffer full
+        (8, 3),
+    ],
+)
+@pytest.mark.parametrize("slow_identity", [slow_identity])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES[:1])
+def test_map_concurrent_when_upstream_blocks(
+    itype: IterableType,
+    slow_identity: Callable[..., Any],
+    concurrency: int,
+    ints_before_block: int,
+) -> None:
+    upstream: Callable[[], Union[AsyncIterator[int], Iterator[int]]]
+    if iscoroutinefunction(slow_identity) or itype == AsyncIterable:
+
+        async def upstream() -> AsyncIterator[int]:
+            for i in range(ints_before_block):
+                yield i
+            await asyncio.sleep(10 * SLOW_IDENTITY_DURATION)
+    else:
+
+        def upstream() -> Iterator[int]:
+            yield from range(ints_before_block)
+            time.sleep(10 * SLOW_IDENTITY_DURATION)
+
+    s = stream(upstream()).map(slow_identity, concurrency=concurrency)
+    it = aiter_or_iter(s, itype)
+    start = time.perf_counter()
+    for i in range(ints_before_block):
+        assert anext_or_next(it, itype) == i
+    assert time.perf_counter() - start == pytest.approx(
+        math.ceil(ints_before_block / concurrency) * SLOW_IDENTITY_DURATION, rel=0.15
+    )
+    with pytest.raises(stopiteration_type(itype)):
+        anext_or_next(it, itype)
