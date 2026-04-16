@@ -1,4 +1,5 @@
 import datetime
+import multiprocessing
 import queue
 from threading import Semaphore, Thread
 import time
@@ -668,6 +669,7 @@ class _ConcurrentMapIterable(
         "_executor",
         "_context_manager",
         "_future_results",
+        "_upstream_receivers",
     )
 
     def __init__(
@@ -683,6 +685,9 @@ class _ConcurrentMapIterable(
             FDFOFutureResults() if as_completed else FIFOFutureResults()
         )
         self._context_manager: ContextManager
+        self._upstream_receivers: queue.Queue[
+            Optional[multiprocessing.Queue[Union[T, ExceptionContainer]]]
+        ] = queue.Queue()
         if isinstance(concurrency, int):
             self._executor: Executor = ThreadPoolExecutor(max_workers=concurrency)
             self.concurrency = concurrency
@@ -692,38 +697,59 @@ class _ConcurrentMapIterable(
             self.concurrency = getattr(self._executor, "_max_workers")
             self._context_manager = noop_context_manager()
 
-    def _launch_task(self, elem: T) -> "Future[Union[U, ExceptionContainer]]":
-        return self._executor.submit(self.into, elem)
+    def _puller(self) -> None:
+        while True:
+            receiver = self._upstream_receivers.get()
+            if not receiver:
+                break
+            try:
+                receiver.put_nowait(self.iterator.__next__())
+            except StopIteration:
+                receiver.put_nowait(STOP_ITERATION)
+            except Exception as e:
+                receiver.put_nowait(ExceptionContainer(e))
+
+    @staticmethod
+    def _task(
+        into, elem_getter: multiprocessing.Queue[Union[T, ExceptionContainer]]
+    ) -> Union[U, ExceptionContainer]:
+        elem = elem_getter.get()
+        if elem == STOP_ITERATION or isinstance(elem, ExceptionContainer):
+            # upstream exhausted or exception to propagate
+            return cast(ExceptionContainer, elem)
+        return into(elem)
 
     def _next_future(
         self,
-    ) -> Optional["Future[Union[U, ExceptionContainer]]"]:
-        try:
-            elem = self.iterator.__next__()
-        except StopIteration:
-            return None
-        except Exception as e:
-            return FutureResult(ExceptionContainer(e))
-        return self._launch_task(elem)
+    ) -> Future[Union[U, ExceptionContainer]]:
+        receiver: multiprocessing.Queue[Union[T, ExceptionContainer]] = (
+            multiprocessing.Queue()
+        )
+        self._upstream_receivers.put_nowait(receiver)
+        return self._executor.submit(self._task, self.into, receiver)
 
     def __iter__(self) -> Iterator[Union[U, ExceptionContainer]]:
-        with self._context_manager:
-            # queue tasks up to buffersize
-            while len(self._future_results) < self.concurrency:
-                future = self._next_future()
-                if not future:
-                    # no more tasks to queue
-                    break
-                self._future_results.add(future)
-                del future
+        puller = Thread(target=self._puller, daemon=True)
+        try:
+            puller.start()
+            upstream_stopped = False
+            with self._context_manager:
+                # queue tasks up to buffersize
+                while len(self._future_results) < self.concurrency:
+                    self._future_results.add(self._next_future())
 
-            # queue, wait, yield
-            while self._future_results:
-                future = self._next_future()
-                if future:
-                    self._future_results.add(future)
-                    del future
-                yield self._future_results.__next__()
+                # queue, wait, yield
+                while self._future_results:
+                    if not upstream_stopped:
+                        self._future_results.add(self._next_future())
+                    result = self._future_results.__next__()
+                    if result == STOP_ITERATION:
+                        upstream_stopped = True
+                        continue
+                    yield result
+        finally:
+            self._upstream_receivers.put_nowait(None)
+            puller.join()
 
 
 class ConcurrentMapIterator(RaisingIterator[U]):
