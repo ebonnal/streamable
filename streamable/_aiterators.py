@@ -2,6 +2,7 @@ import asyncio
 from asyncio.futures import Future
 from contextlib import suppress
 import datetime
+import sys
 import time
 from abc import ABC, abstractmethod
 from collections import defaultdict, deque
@@ -37,11 +38,10 @@ from streamable._tools._afuture import (
     FIFOFutureResults,
     FutureResults,
 )
-from streamable._tools._async import AsyncFunction, empty_aiter
+from streamable._tools._async import AsyncFunction, anext, empty_aiter
 from streamable._tools._context import noop_context_manager
 from streamable._tools._error import ExceptionContainer, RaisingAsyncIterator
 
-from streamable._tools._async import anext
 
 T = TypeVar("T")
 U = TypeVar("U")
@@ -59,10 +59,10 @@ class _BufferAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]]):
     def __init__(
         self,
         iterator: AsyncIterator[T],
-        up_to: int,
+        up_to: Optional[int],
     ) -> None:
         self.iterator = iterator
-        self.up_to = up_to
+        self.up_to = up_to or sys.maxsize
         self._buffer: "Optional[asyncio.Queue[Union[T, ExceptionContainer]]]" = None
         self._slots: Optional[asyncio.Semaphore] = None
         self._stopped = False
@@ -115,7 +115,7 @@ class BufferAsyncIterator(RaisingAsyncIterator[T]):
     def __init__(
         self,
         iterator: AsyncIterator[T],
-        up_to: int,
+        up_to: Optional[int],
     ) -> None:
         super().__init__(_BufferAsyncIterable(iterator, up_to).__aiter__())
 

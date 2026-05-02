@@ -1,11 +1,4 @@
-from typing import (
-    Any,
-    AsyncIterator,
-    Awaitable,
-    Callable,
-    Coroutine,
-    TypeVar,
-)
+from typing import Any, AsyncIterator, Awaitable, Callable, Coroutine, TypeVar
 
 T = TypeVar("T")
 R = TypeVar("R")
