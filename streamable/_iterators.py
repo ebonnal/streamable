@@ -1,5 +1,6 @@
 import datetime
 import queue
+import sys
 from threading import Semaphore, Thread
 import time
 from abc import ABC, abstractmethod
@@ -55,9 +56,10 @@ class _BufferIterable(Iterable[Union[T, ExceptionContainer]]):
     def __init__(
         self,
         iterator: Iterator[T],
-        up_to: int,
+        up_to: Optional[int],
     ) -> None:
         self.iterator = iterator
+        up_to = up_to or sys.maxsize
         self._buffer: "queue.Queue[Union[T, ExceptionContainer]]" = queue.Queue()
         self._slots = Semaphore(up_to)
         self._stopped = False
@@ -99,7 +101,7 @@ class BufferIterator(RaisingIterator[T]):
     def __init__(
         self,
         iterator: Iterator[T],
-        up_to: int,
+        up_to: Optional[int],
     ) -> None:
         super().__init__(_BufferIterable(iterator, up_to).__iter__())
 

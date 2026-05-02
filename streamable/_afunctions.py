@@ -33,7 +33,7 @@ Exc = TypeVar("Exc", bound=Exception)
 
 def buffer(
     aiterator: AsyncIterator[T],
-    up_to: int,
+    up_to: Optional[int] = None,
 ) -> AsyncIterator[T]:
     return _aiterators.BufferAsyncIterator(aiterator, up_to)
 
