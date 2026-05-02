@@ -1,13 +1,4 @@
-from asyncio import Semaphore
-from typing import (
-    Any,
-    AsyncIterator,
-    Awaitable,
-    Callable,
-    Coroutine,
-    Literal,
-    TypeVar,
-)
+from typing import Any, AsyncIterator, Awaitable, Callable, Coroutine, TypeVar
 
 T = TypeVar("T")
 R = TypeVar("R")
@@ -27,19 +18,3 @@ async def awaitable_to_coroutine(aw: Awaitable[T]) -> T:
 async def empty_aiter() -> AsyncIterator[Any]:
     return
     yield  # pragma: no cover
-
-
-class NoopSemaphore(Semaphore):
-    __slots__ = ()
-
-    def __init__(self) -> None:
-        pass
-
-    async def acquire(self) -> Literal[True]:
-        return True
-
-    def release(self) -> None:
-        return
-
-    def locked(self) -> bool:
-        return False

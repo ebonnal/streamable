@@ -308,7 +308,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         The background task is a thread during a sync iteration, and an async task during an async iteration.
 
         Args:
-            up_to (``int | None``): The buffer size, must be >= 1 when set. When reached, upstream pulling pauses until an element is yielded out of the buffer.
+            up_to (``int | None``): The buffer size. Must be >= 1. When reached, upstream pulling pauses until an element is yielded out of the buffer.
 
         Returns:
             ``stream[T]``: Upstream with buffering.

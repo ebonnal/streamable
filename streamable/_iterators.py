@@ -1,5 +1,6 @@
 import datetime
 import queue
+import sys
 from threading import Semaphore, Thread
 import time
 from abc import ABC, abstractmethod
@@ -27,7 +28,6 @@ import weakref
 
 from streamable._tools._context import noop_context_manager
 from streamable._tools._observation import Observation
-from streamable._tools._threading import NoopSemaphore
 from streamable._tools._sentinel import STOP_ITERATION
 from streamable._tools._validation import validate_sync_flatten_iterable
 
@@ -59,8 +59,9 @@ class _BufferIterable(Iterable[Union[T, ExceptionContainer]]):
         up_to: Optional[int],
     ) -> None:
         self.iterator = iterator
+        up_to = up_to or sys.maxsize
         self._buffer: "queue.Queue[Union[T, ExceptionContainer]]" = queue.Queue()
-        self._slots = Semaphore(up_to) if up_to else NoopSemaphore()
+        self._slots = Semaphore(up_to)
         self._stopped = False
 
     def _buffer_upstream(self) -> None:
