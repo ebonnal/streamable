@@ -27,6 +27,7 @@ import weakref
 
 from streamable._tools._context import noop_context_manager
 from streamable._tools._observation import Observation
+from streamable._tools._threading import NoopSemaphore
 from streamable._tools._sentinel import STOP_ITERATION
 from streamable._tools._validation import validate_sync_flatten_iterable
 
@@ -55,11 +56,11 @@ class _BufferIterable(Iterable[Union[T, ExceptionContainer]]):
     def __init__(
         self,
         iterator: Iterator[T],
-        up_to: int,
+        up_to: Optional[int],
     ) -> None:
         self.iterator = iterator
         self._buffer: "queue.Queue[Union[T, ExceptionContainer]]" = queue.Queue()
-        self._slots = Semaphore(up_to)
+        self._slots = Semaphore(up_to) if up_to else NoopSemaphore()
         self._stopped = False
 
     def _buffer_upstream(self) -> None:
@@ -99,7 +100,7 @@ class BufferIterator(RaisingIterator[T]):
     def __init__(
         self,
         iterator: Iterator[T],
-        up_to: int,
+        up_to: Optional[int],
     ) -> None:
         super().__init__(_BufferIterable(iterator, up_to).__iter__())
 

@@ -2,6 +2,7 @@ import asyncio
 import pytest
 from streamable._tools._func import sidify
 from streamable._tools._logging import logfmt_str_escape
+from streamable._tools import _async, _threading
 
 from typing import Any, Callable, List
 
@@ -88,3 +89,18 @@ def test_logfmt_str_escape():
     assert logfmt_str_escape("in ts") == '"in ts"'
     assert logfmt_str_escape("in\\ts") == r'"in\\ts"'
     assert logfmt_str_escape('"ints"') == r'"\"ints\""'
+
+
+def test_noop_semaphore() -> None:
+    semaphore = _threading.NoopSemaphore()
+    assert semaphore.acquire()
+    semaphore.release()
+    assert not semaphore.locked()
+
+
+@pytest.mark.asyncio
+async def test_noop_semaphore_async() -> None:
+    semaphore = _async.NoopSemaphore()
+    assert await semaphore.acquire()
+    semaphore.release()
+    assert not semaphore.locked()
