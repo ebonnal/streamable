@@ -1,6 +1,5 @@
 from concurrent.futures import Executor
 import datetime
-from contextlib import suppress
 from inspect import iscoroutinefunction
 from operator import itemgetter
 from typing import (
@@ -22,9 +21,6 @@ from streamable._tools._observation import Observation
 from streamable import _aiterators
 from streamable._tools._async import AsyncFunction
 from streamable._tools._func import asyncify
-
-with suppress(ImportError):
-    pass
 
 T = TypeVar("T")
 U = TypeVar("U")
