@@ -1,7 +1,6 @@
 import builtins
 from concurrent.futures import Executor
 import datetime
-from contextlib import suppress
 from operator import itemgetter
 from typing import (
     Callable,
@@ -19,9 +18,6 @@ from typing import (
 from streamable._tools._observation import Observation
 
 from streamable import _iterators
-
-with suppress(ImportError):
-    pass
 
 T = TypeVar("T")
 U = TypeVar("U")
