@@ -32,6 +32,11 @@ class SyncToAsyncIterator(AsyncIterator[T]):
         except StopIteration as e:
             raise StopAsyncIteration from e
 
+    async def aclose(self) -> None:
+        close = getattr(self.iterator, "close", None)
+        if close is not None:
+            close()
+
 
 def async_iter(iterator: Union[Iterable[T], AsyncIterable[T]]) -> AsyncIterator[T]:
     if isinstance(iterator, AsyncIterable):

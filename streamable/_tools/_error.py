@@ -1,7 +1,7 @@
 from functools import partial
 from typing import AsyncIterator, Callable, Iterator, NamedTuple, TypeVar, Union
 
-from streamable._tools._async import AsyncFunction
+from streamable._tools._async import AsyncFunction, aclose
 
 T = TypeVar("T")
 U = TypeVar("U")
@@ -73,3 +73,6 @@ class RaisingAsyncIterator(AsyncIterator[T]):
             finally:
                 del elem
         return elem
+
+    async def aclose(self) -> None:
+        await aclose(self.iterator)
