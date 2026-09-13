@@ -800,7 +800,16 @@ class _BaseConcurrentMapAsyncIterable(
                 if future:
                     self._future_results.add(future)
                     del future
-                yield await self._future_results.__anext__()
+                try:
+                    yield await self._future_results.__anext__()
+                except GeneratorExit:
+                    for future in self._future_results.futures:
+                        future.cancel()
+                    await asyncio.gather(
+                        *self._future_results.futures, return_exceptions=True
+                    )
+                    self._future_results.futures.clear()
+                    break
 
 
 class _AsyncConcurrentMapAsyncIterable(_BaseConcurrentMapAsyncIterable[T, U]):
