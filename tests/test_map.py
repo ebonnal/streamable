@@ -1,3 +1,4 @@
+import asyncio
 from concurrent.futures import Executor, ProcessPoolExecutor, ThreadPoolExecutor
 import sys
 from pickle import PickleError
@@ -27,6 +28,7 @@ from tests.tools.iter import (
     anext_or_next,
     aiter_or_iter,
 )
+from tests.tools.loop import TEST_LOOP
 from tests.tools.source import N, INTEGERS, ints
 
 
@@ -177,3 +179,73 @@ def test_map_concurrent_buffersize(
     it = aiter_or_iter(s, itype)
     assert anext_or_next(it, itype) == 0
     assert next(src) == pulled_elements
+
+
+def test_concurrent_map_early_exit_cancels_async_tasks_not_executor_work() -> None:
+    """
+    Destroying the iterator after the first yield:
+    - cancels in-flight ``asyncio.Task``s (async ``into``)
+    - does not interrupt started executor work (sync ``into``), sync or async iteration
+    """
+    concurrency = 2
+
+    async def async_scenario() -> None:
+        cancelled: List[int] = []
+        finished: List[int] = []
+
+        async def work(n: int) -> int:
+            try:
+                await asyncio.sleep(0 if n == 0 else 10)
+                finished.append(n)
+                return n
+            except asyncio.CancelledError:
+                cancelled.append(n)
+                raise
+
+        aiterator = stream(range(10)).map(work, concurrency=concurrency).__aiter__()
+        assert await aiterator.__anext__() == 0
+        assert finished == [0]
+        del aiterator
+        # __del__ schedules aclose; cancel + gather take a few loop turns
+        for _ in range(10):
+            if cancelled:
+                break
+            await asyncio.sleep(0)
+        assert cancelled
+        assert finished == [0]
+
+    TEST_LOOP.run_until_complete(async_scenario())
+
+    def executor_work(finished: List[int], n: int) -> int:
+        time.sleep(0 if n == 0 else 0.1)
+        finished.append(n)
+        return n
+
+    finished_sync: List[int] = []
+    iterator = iter(
+        stream(range(10)).map(
+            lambda n: executor_work(finished_sync, n), concurrency=concurrency
+        )
+    )
+    assert next(iterator) == 0
+    del iterator
+    assert 0 in finished_sync
+    assert len(finished_sync) > 1
+
+    async def executor_async_scenario() -> None:
+        finished: List[int] = []
+        aiterator = (
+            stream(range(10))
+            .map(lambda n: executor_work(finished, n), concurrency=concurrency)
+            .__aiter__()
+        )
+        assert await aiterator.__anext__() == 0
+        del aiterator
+        for _ in range(10):
+            if len(finished) > 1:
+                break
+            await asyncio.sleep(0)
+        assert 0 in finished
+        assert len(finished) > 1
+
+    TEST_LOOP.run_until_complete(executor_async_scenario())
