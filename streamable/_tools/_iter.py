@@ -3,17 +3,22 @@ from contextlib import suppress
 from typing import (
     AsyncIterable,
     AsyncIterator,
+    Awaitable,
     Callable,
     Coroutine,
+    Generic,
     Iterable,
     Iterator,
     Optional,
+    Protocol,
     TypeVar,
     Union,
+    runtime_checkable,
 )
 
 
 T = TypeVar("T")
+U = TypeVar("U")
 
 
 class SyncAsyncIterable(Iterable[T], AsyncIterable[T]):
@@ -102,3 +107,64 @@ class _FnAsyncIterator(AsyncIterator[T]):
 
 def fn_to_aiter(fn: Callable[[], T]) -> AsyncIterator[T]:
     return _FnAsyncIterator(fn)
+
+
+C = TypeVar("C", covariant=True)
+
+
+@runtime_checkable
+class AsyncCloseable(Protocol):
+    """
+    Object that can be closed asynchronously.
+    Any task created within the scope of this object should be cancelled when it is closed.
+    """
+
+    def aclose(self) -> Awaitable[None]: ...
+
+
+@runtime_checkable
+class CloseableAsyncIterator(AsyncCloseable, Protocol[C]):
+    """
+    An ``AsyncIterator`` that can be ``.aclose``d.
+    """
+
+    def __aiter__(self) -> AsyncIterator[C]:
+        return self
+
+    def __anext__(self) -> Awaitable[C]: ...
+
+
+@runtime_checkable
+class CloseableAsyncIterable(AsyncCloseable, Protocol[C]):
+    def __aiter__(self) -> AsyncIterator[C]: ...
+
+
+class CloseableWithUpstream(AsyncCloseable, Generic[T]):
+    """
+    Closeable object that propagates the closing to the upstream.
+    """
+
+    __slots__ = ("upstream",)
+
+    def __init__(self, upstream: CloseableAsyncIterator[T]) -> None:
+        self.upstream = upstream
+
+    async def aclose(self) -> None:
+        await self.upstream.aclose()
+
+
+class NoopCloseableAsyncIterator(CloseableAsyncIterator[T]):
+    """
+    Closeable async iterator that does nothing when closed.
+    """
+
+    __slots__ = ("iterator",)
+
+    def __init__(self, iterator: AsyncIterator[T]) -> None:
+        self.iterator = iterator
+
+    def __anext__(self) -> Awaitable[T]:
+        return self.iterator.__anext__()
+
+    async def aclose(self) -> None:
+        pass

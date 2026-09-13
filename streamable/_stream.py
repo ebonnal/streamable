@@ -27,6 +27,7 @@ from typing import (
 from streamable._tools._async import AsyncFunction
 from streamable._tools._iter import (
     AsyncToSyncIterator,
+    CloseableAsyncIterator,
     SyncAsyncIterable,
 )
 from streamable._tools._logging import setup_logger
@@ -158,7 +159,45 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             return AsyncToSyncIterator(self.__aiter__())
         return self.accept(IteratorVisitor[T]())
 
-    def __aiter__(self) -> AsyncIterator[T]:
+    def __aiter__(self) -> CloseableAsyncIterator[T]:
+        """
+        Return an ``AsyncIterator`` over the stream, with an ``.aclose`` method to eagerly cancel any pending child tasks.
+
+        The operations that spawn child tasks are:
+
+        - ``.map``/``.do``/``.flatten`` with `concurrency > 1`
+        - ``.buffer``
+        - ``.group(..., within=timedelta(...))``
+        - ``.observe(..., every=timedelta(...))``
+
+        The destruction of the iterator will trigger the cancellation of any pending child tasks in a subsequent event loop iteration (``.observe`` will still finish its current ``every`` cycle).
+
+        Do ``await iterator.aclose()`` (or delegate that to ``contextlib.aclosing``) if you need a guaranteed eager cleanup.
+
+        Returns:
+            ``streamable.CloseableAsyncIterator[T]``: Closeable async iterator over this stream's elements.
+
+        Example::
+
+            s = stream(range(10)).do(asyncio.sleep, concurrency=4)
+            it = aiter(s)
+            assert await anext(it) == 0
+            assert await anext(it) == 1
+            # at that point there are 4 pending child tasks spawned by `.do`
+            # (processing elements 2, 3, 4, 5)
+            await it.aclose()
+            # at that point all the child tasks have been cancelled and are done.
+
+            # or delgate the closing to `contextlib.aclosing`
+            from contextlib import aclosing
+            s = stream(range(10)).do(asyncio.sleep, concurrency=4)
+            async with aclosing(aiter(s)) as iterator:
+                assert await anext(iterator) == 0
+                assert await anext(iterator) == 1
+                # at that point there are 4 pending child tasks spawned by `.do`
+                # (processing elements 2, 3, 4, 5)
+            # at that point all the child tasks have been cancelled and are done.
+        """
         return self.accept(AsyncIteratorVisitor[T]())
 
     def __eq__(self, other: object) -> bool:

@@ -4,7 +4,6 @@ from inspect import iscoroutinefunction
 from operator import itemgetter
 from typing import (
     AsyncIterable,
-    AsyncIterator,
     Callable,
     Iterable,
     List,
@@ -16,6 +15,7 @@ from typing import (
     cast,
 )
 
+from streamable._tools._iter import CloseableAsyncIterator
 from streamable._tools._observation import Observation
 
 from streamable import _aiterators
@@ -28,23 +28,23 @@ Exc = TypeVar("Exc", bound=Exception)
 
 
 def buffer(
-    aiterator: AsyncIterator[T],
+    upstream: CloseableAsyncIterator[T],
     up_to: Optional[int] = None,
-) -> AsyncIterator[T]:
-    return _aiterators.BufferAsyncIterator(aiterator, up_to)
+) -> CloseableAsyncIterator[T]:
+    return _aiterators.BufferAsyncIterator(upstream, up_to)
 
 
 def catch(
-    aiterator: AsyncIterator[T],
+    upstream: CloseableAsyncIterator[T],
     errors: Union[Type[Exc], Tuple[Type[Exc], ...]],
     *,
     where: Optional[Union[Callable[[Exc], object], AsyncFunction[Exc, object]]] = None,
     replace: Optional[Union[Callable[[Exc], U], AsyncFunction[Exc, U]]] = None,
     do: Optional[Union[Callable[[Exc], object], AsyncFunction[Exc, object]]] = None,
     stop: bool = False,
-) -> AsyncIterator[Union[T, U]]:
+) -> CloseableAsyncIterator[Union[T, U]]:
     return _aiterators.CatchAsyncIterator(
-        aiterator,
+        upstream,
         errors,
         where=asyncify(where),
         replace=asyncify(replace),
@@ -55,43 +55,43 @@ def catch(
 
 def filter(
     where: Union[Callable[[T], object], AsyncFunction[T, object]],
-    aiterator: AsyncIterator[T],
-) -> AsyncIterator[T]:
-    return _aiterators.FilterAsyncIterator(aiterator, asyncify(where))
+    upstream: CloseableAsyncIterator[T],
+) -> CloseableAsyncIterator[T]:
+    return _aiterators.FilterAsyncIterator(upstream, asyncify(where))
 
 
 def flatten(
-    aiterator: AsyncIterator[Union[Iterable[T], AsyncIterable[T]]],
+    upstream: CloseableAsyncIterator[Union[Iterable[T], AsyncIterable[T]]],
     *,
     concurrency: int = 1,
-) -> AsyncIterator[T]:
+) -> CloseableAsyncIterator[T]:
     if concurrency == 1:
-        return _aiterators.FlattenAsyncIterator(aiterator)
+        return _aiterators.FlattenAsyncIterator(upstream)
     return _aiterators.ConcurrentFlattenAsyncIterator(
-        aiterator,
+        upstream,
         concurrency=concurrency,
     )
 
 
 def group(
-    aiterator: AsyncIterator[T],
+    upstream: CloseableAsyncIterator[T],
     up_to: Optional[int] = None,
     *,
     within: Optional[datetime.timedelta] = None,
     by: Union[None, Callable[[T], U], AsyncFunction[T, U]] = None,
-) -> Union[AsyncIterator[List[T]], AsyncIterator[Tuple[U, List[T]]]]:
+) -> Union[CloseableAsyncIterator[List[T]], CloseableAsyncIterator[Tuple[U, List[T]]]]:
     if within is None:
         if by is None:
-            return _aiterators.GroupAsyncIterator(aiterator, up_to=up_to)
+            return _aiterators.GroupAsyncIterator(upstream, up_to=up_to)
         return _aiterators.FlattenAsyncIterator(
             _aiterators.GroupByAsyncIterator(
-                aiterator, by=cast(AsyncFunction[T, U], asyncify(by)), up_to=up_to
+                upstream, by=cast(AsyncFunction[T, U], asyncify(by)), up_to=up_to
             )
         )
     if by is None:
         return _aiterators.MapAsyncIterator(
             _aiterators.GroupByWithinAsyncIterator(
-                aiterator,
+                upstream,
                 by=asyncify(lambda _: None),
                 up_to=up_to,
                 within=within,
@@ -99,29 +99,29 @@ def group(
             asyncify(itemgetter(1)),
         )
     return _aiterators.GroupByWithinAsyncIterator(
-        aiterator, by=asyncify(by), up_to=up_to, within=within
+        upstream, by=asyncify(by), up_to=up_to, within=within
     )
 
 
 def map(
     into: Union[Callable[[T], U], AsyncFunction[T, U]],
-    aiterator: AsyncIterator[T],
+    upstream: CloseableAsyncIterator[T],
     *,
     concurrency: Union[int, Executor] = 1,
     as_completed: bool = False,
-) -> AsyncIterator[U]:
+) -> CloseableAsyncIterator[U]:
     if concurrency == 1:
-        return _aiterators.MapAsyncIterator(aiterator, asyncify(into))
+        return _aiterators.MapAsyncIterator(upstream, asyncify(into))
     if iscoroutinefunction(into):
         return _aiterators.AsyncConcurrentMapAsyncIterator(
-            aiterator,
+            upstream,
             cast(AsyncFunction[T, U], into),
             concurrency=cast(int, concurrency),
             as_completed=as_completed,
         )
     else:
         return _aiterators.ExecutorConcurrentMapAsyncIterator(
-            aiterator,
+            upstream,
             cast(Callable[[T], U], into),
             concurrency=concurrency,
             as_completed=as_completed,
@@ -129,47 +129,47 @@ def map(
 
 
 def observe(
-    aiterator: AsyncIterator[T],
+    upstream: CloseableAsyncIterator[T],
     subject: str,
     every: Union[None, int, datetime.timedelta],
     do: Union[
         Callable[[Observation], object],
         AsyncFunction[Observation, object],
     ],
-) -> AsyncIterator[T]:
+) -> CloseableAsyncIterator[T]:
     if every is None:
-        return _aiterators.PowerObserveAsyncIterator(aiterator, subject, asyncify(do))
+        return _aiterators.PowerObserveAsyncIterator(upstream, subject, asyncify(do))
     elif isinstance(every, int):
         return _aiterators.EveryIntObserveAsyncIterator(
-            aiterator, subject, every, asyncify(do)
+            upstream, subject, every, asyncify(do)
         )
     return _aiterators.EveryIntervalObserveAsyncIterator(
-        aiterator, subject, every, asyncify(do)
+        upstream, subject, every, asyncify(do)
     )
 
 
 def skip(
-    aiterator: AsyncIterator[T],
+    upstream: CloseableAsyncIterator[T],
     until: Union[int, Callable[[T], object], AsyncFunction[T, object]],
-) -> AsyncIterator[T]:
+) -> CloseableAsyncIterator[T]:
     if isinstance(until, int):
-        return _aiterators.CountSkipAsyncIterator(aiterator, until)
-    return _aiterators.PredicateSkipAsyncIterator(aiterator, asyncify(until))
+        return _aiterators.CountSkipAsyncIterator(upstream, until)
+    return _aiterators.PredicateSkipAsyncIterator(upstream, asyncify(until))
 
 
 def take(
-    aiterator: AsyncIterator[T],
+    upstream: CloseableAsyncIterator[T],
     until: Union[int, Callable[[T], object], AsyncFunction[T, object]],
-) -> AsyncIterator[T]:
+) -> CloseableAsyncIterator[T]:
     if isinstance(until, int):
-        return _aiterators.CountTakeAsyncIterator(aiterator, until)
-    return _aiterators.PredicateTakeAsyncIterator(aiterator, asyncify(until))
+        return _aiterators.CountTakeAsyncIterator(upstream, until)
+    return _aiterators.PredicateTakeAsyncIterator(upstream, asyncify(until))
 
 
 def throttle(
-    aiterator: AsyncIterator[T],
+    upstream: CloseableAsyncIterator[T],
     count: int,
     *,
     per: datetime.timedelta,
-) -> AsyncIterator[T]:
-    return _aiterators.ThrottleAsyncIterator(aiterator, count, per)
+) -> CloseableAsyncIterator[T]:
+    return _aiterators.ThrottleAsyncIterator(upstream, count, per)
