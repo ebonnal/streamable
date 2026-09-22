@@ -11,6 +11,10 @@ T = TypeVar("T")
 R = TypeVar("R")
 
 
+def nothing(_: T) -> None:
+    pass
+
+
 def identity(x: T) -> T:
     return x
 
