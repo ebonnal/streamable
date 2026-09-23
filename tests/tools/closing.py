@@ -4,9 +4,8 @@ if sys.version_info >= (3, 10):
     from contextlib import aclosing
 else:
     from streamable._tools._iter import AsyncCloseable
-    from contextlib import AbstractAsyncContextManager
 
-    class aclosing(AbstractAsyncContextManager):
+    class aclosing:
         def __init__(self, thing: AsyncCloseable):
             self.thing = thing
 
