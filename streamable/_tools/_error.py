@@ -46,16 +46,16 @@ class ExceptionContainer(NamedTuple):
 
 
 class RaisingIterator(Iterator[T]):
-    __slots__ = ("iterator",)
+    __slots__ = ("upstream",)
 
     def __init__(
         self,
         upstream: Iterator[Union[T, ExceptionContainer]],
     ) -> None:
-        self.iterator = upstream
+        self.upstream = upstream
 
     def __next__(self) -> T:
-        elem = self.iterator.__next__()
+        elem = self.upstream.__next__()
         if isinstance(elem, ExceptionContainer):
             try:
                 raise elem.exception

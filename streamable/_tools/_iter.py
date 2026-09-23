@@ -18,7 +18,6 @@ from typing import (
 
 
 T = TypeVar("T")
-U = TypeVar("U")
 
 
 class SyncAsyncIterable(Iterable[T], AsyncIterable[T]):
@@ -26,14 +25,14 @@ class SyncAsyncIterable(Iterable[T], AsyncIterable[T]):
 
 
 class SyncToAsyncIterator(AsyncIterator[T]):
-    __slots__ = ("iterator",)
+    __slots__ = ("upstream",)
 
-    def __init__(self, iterator: Iterator[T]):
-        self.iterator = iterator
+    def __init__(self, upstream: Iterator[T]):
+        self.upstream = upstream
 
     async def __anext__(self) -> T:
         try:
-            return self.iterator.__next__()
+            return self.upstream.__next__()
         except StopIteration as e:
             raise StopAsyncIteration from e
 
@@ -45,10 +44,10 @@ def async_iter(iterator: Union[Iterable[T], AsyncIterable[T]]) -> AsyncIterator[
 
 
 class AsyncToSyncIterator(Iterator[T]):
-    __slots__ = ("iterator", "_loop")
+    __slots__ = ("upstream", "_loop")
 
-    def __init__(self, iterator: AsyncIterator[T]):
-        self.iterator = iterator
+    def __init__(self, upstream: AsyncIterator[T]):
+        self.upstream = upstream
         self._loop: Optional[asyncio.AbstractEventLoop] = None
 
     def _lazy_loop(self) -> asyncio.AbstractEventLoop:
@@ -62,7 +61,7 @@ class AsyncToSyncIterator(Iterator[T]):
 
     def __next__(self) -> T:
         try:
-            return self._lazy_loop().run_until_complete(self.iterator.__anext__())
+            return self._lazy_loop().run_until_complete(self.upstream.__anext__())
         except StopAsyncIteration:
             raise StopIteration
 
@@ -114,12 +113,12 @@ C = TypeVar("C", covariant=True)
 
 @runtime_checkable
 class AsyncCloseable(Protocol):
-    """
-    Object that can be closed asynchronously.
-    Any task created within the scope of this object should be cancelled when it is closed.
-    """
-
     def aclose(self) -> Awaitable[None]: ...
+
+
+@runtime_checkable
+class CloseableAsyncIterable(AsyncCloseable, Protocol[C]):
+    def __aiter__(self) -> AsyncIterator[C]: ...
 
 
 @runtime_checkable
@@ -134,16 +133,20 @@ class CloseableAsyncIterator(AsyncCloseable, Protocol[C]):
     def __anext__(self) -> Awaitable[C]: ...
 
 
-@runtime_checkable
-class CloseableAsyncIterable(AsyncCloseable, Protocol[C]):
-    def __aiter__(self) -> AsyncIterator[C]: ...
+class NoopCloseableAsyncIterator(CloseableAsyncIterator[T]):
+    __slots__ = ("upstream",)
+
+    def __init__(self, upstream: AsyncIterator[T]) -> None:
+        self.upstream = upstream
+
+    def __anext__(self) -> Awaitable[T]:
+        return self.upstream.__anext__()
+
+    async def aclose(self) -> None:
+        pass
 
 
 class CloseableWithUpstream(AsyncCloseable, Generic[T]):
-    """
-    Closeable object that propagates the closing to the upstream.
-    """
-
     __slots__ = ("upstream",)
 
     def __init__(self, upstream: CloseableAsyncIterator[T]) -> None:
@@ -151,20 +154,3 @@ class CloseableWithUpstream(AsyncCloseable, Generic[T]):
 
     async def aclose(self) -> None:
         await self.upstream.aclose()
-
-
-class NoopCloseableAsyncIterator(CloseableAsyncIterator[T]):
-    """
-    Closeable async iterator that does nothing when closed.
-    """
-
-    __slots__ = ("iterator",)
-
-    def __init__(self, iterator: AsyncIterator[T]) -> None:
-        self.iterator = iterator
-
-    def __anext__(self) -> Awaitable[T]:
-        return self.iterator.__anext__()
-
-    async def aclose(self) -> None:
-        pass
