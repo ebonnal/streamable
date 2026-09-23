@@ -24,7 +24,7 @@ from tests.tools.iter import (
     anext_or_next,
 )
 from tests.tools.source import INTEGERS, N, ints
-from tests.tools.timing import time_coroutine
+from tests.tools.func import audit_async_func
 
 
 def test_init() -> None:
@@ -201,24 +201,24 @@ async def test_aiter_of_concurrent_sync_operations(
     tasks (running in executors), among multiple stream iterations.
     """
     s1 = stream_factory()
-    single_stream_duration, single_stream_res = await time_coroutine(
-        lambda: acount(s1), times=3
-    )
+    single_stream_audit = await audit_async_func(lambda: acount(s1), times=3)
 
     async def parrallel_counts(*streams: stream) -> List[int]:
         return list(await asyncio.gather(*(acount(s) for s in streams)))
 
     s2 = stream_factory()
     s3 = stream_factory()
-    multiple_streams_duration, multiple_streams_res = await time_coroutine(
+    multi_stream_audit = await audit_async_func(
         lambda: parrallel_counts(s1, s2, s3), times=3
     )
-    assert multiple_streams_res == [
-        single_stream_res,
-        single_stream_res,
-        single_stream_res,
+    assert multi_stream_audit.result == [
+        single_stream_audit.result,
+        single_stream_audit.result,
+        single_stream_audit.result,
     ]
-    assert multiple_streams_duration == pytest.approx(single_stream_duration, rel=0.2)
+    assert multi_stream_audit.avg_duration == pytest.approx(
+        single_stream_audit.avg_duration, rel=0.2
+    )
 
 
 def test_in() -> None:
