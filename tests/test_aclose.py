@@ -22,7 +22,7 @@ async def logged_sleep(
     completed.append(n)
 
 
-@pytest.mark.parametrize("n_yields, concurrency", [(0, 2), (1, 2), (2, 2)])
+@pytest.mark.parametrize("n_yields, concurrency", [(0, 2), (1, 2), (2, 2), (3, 2)])
 @pytest.mark.parametrize(
     "get_stream",
     [
@@ -55,7 +55,7 @@ async def logged_sleep(
     ],
 )
 @pytest.mark.asyncio
-async def test_aclose_map_and_flatten(
+async def test_aclose_with_concurrent_operations(
     n_yields: int,
     concurrency: int,
     get_stream: Callable[[int, List[int], List[int], List[int]], stream[int]],
