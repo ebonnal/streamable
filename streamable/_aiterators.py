@@ -30,7 +30,7 @@ import weakref
 
 from streamable._tools._iter import (
     CloseableAsyncIterator,
-    CloseableWithUpstream,
+    AsyncCloseableWithUpstream,
 )
 from streamable._tools._observation import Observation
 from streamable._tools._sentinel import STOP_ITERATION
@@ -58,7 +58,7 @@ Exc = TypeVar("Exc", bound=Exception)
 
 
 class _BufferAsyncIterable(
-    CloseableWithUpstream[T], AsyncIterable[Union[T, ExceptionContainer]]
+    AsyncCloseableWithUpstream[T], AsyncIterable[Union[T, ExceptionContainer]]
 ):
     __slots__ = ("up_to", "_buffer", "_slots", "_stopped")
 
@@ -132,7 +132,7 @@ class BufferAsyncIterator(RaisingAsyncIterator[T]):
 #########
 
 
-class CatchAsyncIterator(CloseableWithUpstream[T], AsyncIterator[Union[T, U]]):
+class CatchAsyncIterator(AsyncCloseableWithUpstream[T], AsyncIterator[Union[T, U]]):
     __slots__ = ("errors", "where", "replace", "do", "stop", "_stopped")
 
     def __init__(
@@ -178,7 +178,7 @@ class CatchAsyncIterator(CloseableWithUpstream[T], AsyncIterator[Union[T, U]]):
 
 
 class FlattenAsyncIterator(
-    CloseableWithUpstream[Union[Iterable[T], AsyncIterable[T]]], AsyncIterator[T]
+    AsyncCloseableWithUpstream[Union[Iterable[T], AsyncIterable[T]]], AsyncIterator[T]
 ):
     __slots__ = "_current_iterator_elem"
 
@@ -211,7 +211,7 @@ class FlattenAsyncIterator(
 #########
 
 
-class GroupAsyncIterator(CloseableWithUpstream[T], AsyncIterator[List[T]]):
+class GroupAsyncIterator(AsyncCloseableWithUpstream[T], AsyncIterator[List[T]]):
     __slots__ = ("up_to", "_group", "_to_raise")
 
     def __init__(
@@ -245,7 +245,7 @@ class GroupAsyncIterator(CloseableWithUpstream[T], AsyncIterator[List[T]]):
 
 
 class GroupByAsyncIterator(
-    CloseableWithUpstream[T], AsyncIterator[Iterable[Tuple[U, List[T]]]]
+    AsyncCloseableWithUpstream[T], AsyncIterator[Iterable[Tuple[U, List[T]]]]
 ):
     __slots__ = ("up_to", "by", "_groups", "_to_raise")
 
@@ -287,7 +287,7 @@ class GroupByAsyncIterator(
 
 
 class _GroupByWithinAsyncIterable(
-    CloseableWithUpstream[T],
+    AsyncCloseableWithUpstream[T],
     AsyncIterable[Union[ExceptionContainer, Tuple[U, List[T]]]],
 ):
     __slots__ = (
@@ -426,7 +426,7 @@ class GroupByWithinAsyncIterator(RaisingAsyncIterator[Tuple[U, List[T]]]):
 ########
 
 
-class CountSkipAsyncIterator(CloseableWithUpstream[T], AsyncIterator[T]):
+class CountSkipAsyncIterator(AsyncCloseableWithUpstream[T], AsyncIterator[T]):
     __slots__ = "_remaining_to_skip"
 
     def __init__(self, upstream: CloseableAsyncIterator[T], count: int) -> None:
@@ -441,7 +441,7 @@ class CountSkipAsyncIterator(CloseableWithUpstream[T], AsyncIterator[T]):
         return await self.upstream.__anext__()
 
 
-class PredicateSkipAsyncIterator(CloseableWithUpstream[T], AsyncIterator[T]):
+class PredicateSkipAsyncIterator(AsyncCloseableWithUpstream[T], AsyncIterator[T]):
     __slots__ = ("until", "_satisfied")
 
     def __init__(
@@ -465,7 +465,7 @@ class PredicateSkipAsyncIterator(CloseableWithUpstream[T], AsyncIterator[T]):
 ########
 
 
-class CountTakeAsyncIterator(CloseableWithUpstream[T], AsyncIterator[T]):
+class CountTakeAsyncIterator(AsyncCloseableWithUpstream[T], AsyncIterator[T]):
     __slots__ = "_remaining_to_take"
 
     def __init__(self, upstream: CloseableAsyncIterator[T], count: int) -> None:
@@ -480,7 +480,7 @@ class CountTakeAsyncIterator(CloseableWithUpstream[T], AsyncIterator[T]):
         return elem
 
 
-class PredicateTakeAsyncIterator(CloseableWithUpstream[T], AsyncIterator[T]):
+class PredicateTakeAsyncIterator(AsyncCloseableWithUpstream[T], AsyncIterator[T]):
     __slots__ = ("until", "_satisfied")
 
     def __init__(
@@ -505,7 +505,7 @@ class PredicateTakeAsyncIterator(CloseableWithUpstream[T], AsyncIterator[T]):
 #######
 
 
-class MapAsyncIterator(CloseableWithUpstream[T], AsyncIterator[U]):
+class MapAsyncIterator(AsyncCloseableWithUpstream[T], AsyncIterator[U]):
     __slots__ = "to"
 
     def __init__(
@@ -525,7 +525,7 @@ class MapAsyncIterator(CloseableWithUpstream[T], AsyncIterator[U]):
 ##########
 
 
-class FilterAsyncIterator(CloseableWithUpstream[T], AsyncIterator[T]):
+class FilterAsyncIterator(AsyncCloseableWithUpstream[T], AsyncIterator[T]):
     __slots__ = "where"
 
     def __init__(
@@ -548,7 +548,7 @@ class FilterAsyncIterator(CloseableWithUpstream[T], AsyncIterator[T]):
 ###########
 
 
-class _BaseObserveAsyncIterator(CloseableWithUpstream[T], AsyncIterator[T]):
+class _BaseObserveAsyncIterator(AsyncCloseableWithUpstream[T], AsyncIterator[T]):
     __slots__ = (
         "subject",
         "do",
@@ -716,7 +716,7 @@ class EveryIntervalObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
 ############
 
 
-class ThrottleAsyncIterator(CloseableWithUpstream[T], AsyncIterator[T]):
+class ThrottleAsyncIterator(AsyncCloseableWithUpstream[T], AsyncIterator[T]):
     __slots__ = ("up_to", "_window_seconds", "_emission_timestamps")
 
     def __init__(
@@ -768,7 +768,7 @@ class ThrottleAsyncIterator(CloseableWithUpstream[T], AsyncIterator[T]):
 class _BaseConcurrentMapAsyncIterable(
     Generic[T, U],
     ABC,
-    CloseableWithUpstream[T],
+    AsyncCloseableWithUpstream[T],
     AsyncIterable[Union[U, ExceptionContainer]],
 ):
     __slots__ = ("concurrency", "_context_manager", "_future_results")
@@ -929,7 +929,7 @@ class ExecutorConcurrentMapAsyncIterator(RaisingAsyncIterator[U]):
 
 
 class _ConcurrentFlattenAsyncIterable(
-    CloseableWithUpstream[Union[Iterable[T], AsyncIterable[T]]],
+    AsyncCloseableWithUpstream[Union[Iterable[T], AsyncIterable[T]]],
     AsyncIterable[Union[T, ExceptionContainer]],
 ):
     __slots__ = (

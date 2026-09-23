@@ -146,7 +146,7 @@ class NoopCloseableAsyncIterator(CloseableAsyncIterator[T]):
         pass
 
 
-class CloseableWithUpstream(AsyncCloseable, Generic[T]):
+class AsyncCloseableWithUpstream(AsyncCloseable, Generic[T]):
     __slots__ = ("upstream",)
 
     def __init__(self, upstream: CloseableAsyncIterator[T]) -> None:
