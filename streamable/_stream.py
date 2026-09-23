@@ -188,7 +188,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             await it.aclose()
             # at that point all the child tasks have been cancelled and are done.
 
-            # or delgate the closing to `contextlib.aclosing`
+            # or delegate the closing to `contextlib.aclosing`
             from contextlib import aclosing
             s = stream(range(10)).do(asyncio.sleep, concurrency=4)
             async with aclosing(aiter(s)) as it:
