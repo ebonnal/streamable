@@ -117,11 +117,6 @@ class AsyncCloseable(Protocol):
 
 
 @runtime_checkable
-class CloseableAsyncIterable(AsyncCloseable, Protocol[C]):
-    def __aiter__(self) -> AsyncIterator[C]: ...
-
-
-@runtime_checkable
 class CloseableAsyncIterator(AsyncCloseable, Protocol[C]):
     """
     An ``AsyncIterator`` that can be ``.aclose``d.
