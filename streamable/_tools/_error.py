@@ -1,6 +1,5 @@
 from functools import partial
 from typing import (
-    AsyncIterator,
     Callable,
     Iterator,
     NamedTuple,
@@ -9,7 +8,7 @@ from typing import (
 )
 
 from streamable._tools._async import AsyncFunction
-from streamable._tools._iter import AsyncCloseableWithUpstream
+from streamable._tools._iter import CloseableAsyncIteratorWithUpstream
 
 T = TypeVar("T")
 U = TypeVar("U")
@@ -65,12 +64,11 @@ class RaisingIterator(Iterator[T]):
 
 
 class RaisingAsyncIterator(
-    AsyncCloseableWithUpstream[Union[T, ExceptionContainer]],
-    AsyncIterator[T],
+    CloseableAsyncIteratorWithUpstream[Union[T, ExceptionContainer], T]
 ):
     __slots__ = ()
 
-    async def __anext__(self) -> T:
+    async def _anext(self) -> T:
         elem = await self.upstream.__anext__()
         if isinstance(elem, ExceptionContainer):
             try:

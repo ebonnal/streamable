@@ -1,3 +1,4 @@
+from abc import abstractmethod
 import asyncio
 from contextlib import suppress
 from typing import (
@@ -18,6 +19,7 @@ from typing import (
 
 
 T = TypeVar("T")
+U = TypeVar("U")
 
 
 class SyncAsyncIterable(Iterable[T], AsyncIterable[T]):
@@ -141,11 +143,27 @@ class NoopCloseableAsyncIterator(CloseableAsyncIterator[T]):
         pass
 
 
-class AsyncCloseableWithUpstream(AsyncCloseable, Generic[T]):
-    __slots__ = ("upstream",)
+class CloseableAsyncIteratorWithUpstream(CloseableAsyncIterator[U], Generic[T, U]):
+    __slots__ = ("upstream", "_closed")
 
     def __init__(self, upstream: CloseableAsyncIterator[T]) -> None:
         self.upstream = upstream
+        self._closed = False
+
+    @abstractmethod
+    def _anext(self) -> Awaitable[U]: ...
+
+    async def __anext__(self) -> U:
+        if self._closed:
+            raise StopAsyncIteration
+        try:
+            return await self._anext()
+        except StopAsyncIteration:
+            self._closed = True
+            await self.upstream.aclose()
+            raise
 
     async def aclose(self) -> None:
-        await self.upstream.aclose()
+        if not self._closed:
+            self._closed = True
+            await self.upstream.aclose()
