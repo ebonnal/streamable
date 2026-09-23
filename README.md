@@ -178,6 +178,8 @@ with asyncio.Runner() as runner:
     runner.run(http_client.aclose())
 ```
 
+Check [`.aclose`](#aclose-structured-concurrency) for *structured concurrency*.
+
 #### via processes
 
 `concurrency` can also be a `concurrent.futures.Executor`, pass a `ProcessPoolExecutor` to apply the transformations via processes:
@@ -544,6 +546,42 @@ enumerated_pokes: stream[str] = (
     .map(star(lambda index, poke: f"#{index + 1} {poke}"))
 )
 assert list(enumerated_pokes) == ['#1 bulbasaur', '#2 ivysaur', '#3 venusaur', '#4 charmander', '#5 charmeleon', '#6 charizard', '#7 squirtle', '#8 wartortle', '#9 blastoise']
+```
+
+## `.aclose` (structured concurrency)
+
+`stream.__aiter__` returns an `AsyncIterator` with an `.aclose` method to eagerly cancel any pending child tasks spawned by these operations:
+
+- `.map`/`.do`/`.flatten` with `concurrency > 1`
+- `.buffer`
+- `.group(..., within=timedelta(...))`
+- `.observe(..., every=timedelta(...))`
+
+Without closing explicitly, the pending tasks will eventually be cancelled after the iterator's destruction, at a subsequent iteration of the event loop.
+
+```python
+from contextlib import aclosing
+
+s = stream(range(10)).do(asyncio.sleep, concurrency=4)
+async with aclosing(aiter(s)) as it:
+    assert await anext(it) == 0
+    assert await anext(it) == 1
+    # 4 pending tasks, for elements 2, 3, 4, 5
+# these 4 tasks are cancelled
+```
+
+`aclosing` appears in Python 3.10. For prior versions, use `.aclose` in a `finally` block:
+
+```python
+s = stream(range(10)).do(asyncio.sleep, concurrency=4)
+it = aiter(s)
+try:
+    assert await anext(it) == 0
+    assert await anext(it) == 1
+    # 4 pending tasks, for elements 2, 3, 4, 5
+finally:
+    await it.aclose()
+    # these 4 tasks are cancelled
 ```
 
 ## distinct

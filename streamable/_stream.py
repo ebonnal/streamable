@@ -161,42 +161,39 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
     def __aiter__(self) -> CloseableAsyncIterator[T]:
         """
-        Return an ``AsyncIterator`` over the stream, with an ``.aclose`` method to eagerly cancel any pending child tasks.
+        Returns an ``AsyncIterator`` with an ``.aclose`` method to eagerly cancel any pending child tasks spawned by these operations:
 
-        The operations that spawn child tasks are:
-
-        - ``.map``/``.do``/``.flatten`` with `concurrency > 1`
+        - ``.map``/``.do``/``.flatten`` with ``concurrency > 1``
         - ``.buffer``
         - ``.group(..., within=timedelta(...))``
         - ``.observe(..., every=timedelta(...))``
 
-        The destruction of the iterator will trigger the cancellation of any pending child tasks in a subsequent event loop iteration (``.observe`` will still finish its current ``every`` cycle).
-
-        Do ``await iterator.aclose()`` (or delegate that to ``contextlib.aclosing``) if you need a guaranteed eager cleanup.
+        Without closing explicitly, the pending tasks will eventually be cancelled after the iterator's destruction, at a subsequent iteration of the event loop (``.observe`` will still finish its current ``every`` cycle).
 
         Returns:
             ``streamable.CloseableAsyncIterator[T]``: Closeable async iterator over this stream's elements.
 
         Example::
 
-            s = stream(range(10)).do(asyncio.sleep, concurrency=4)
-            it = aiter(s)
-            assert await anext(it) == 0
-            assert await anext(it) == 1
-            # at that point there are 4 pending child tasks spawned by `.do`
-            # (processing elements 2, 3, 4, 5)
-            await it.aclose()
-            # at that point all the child tasks have been cancelled and are done.
-
-            # or delegate the closing to `contextlib.aclosing`
             from contextlib import aclosing
+
             s = stream(range(10)).do(asyncio.sleep, concurrency=4)
             async with aclosing(aiter(s)) as it:
                 assert await anext(it) == 0
                 assert await anext(it) == 1
-                # at that point there are 4 pending child tasks spawned by `.do`
-                # (processing elements 2, 3, 4, 5)
-            # at that point all the child tasks have been cancelled and are done.
+                # 4 pending tasks, for elements 2, 3, 4, 5
+            # these 4 tasks are cancelled
+
+            # `aclosing` appears in Python 3.10. For prior versions, use `.aclose` in a `finally` block:
+            s = stream(range(10)).do(asyncio.sleep, concurrency=4)
+            it = aiter(s)
+            try:
+                assert await anext(it) == 0
+                assert await anext(it) == 1
+                # 4 pending tasks, for elements 2, 3, 4, 5
+            finally:
+                await it.aclose()
+                # these 4 tasks are cancelled
         """
         return self.accept(AsyncIteratorVisitor[T]())
 
