@@ -440,7 +440,7 @@ class PredicateTakeIterator(Iterator[T]):
         elem = self.upstream.__next__()
         if self.until(elem):
             self._satisfied = True
-            raise StopIteration
+            return self.__next__()
         return elem
 
 

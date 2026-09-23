@@ -494,7 +494,7 @@ class PredicateTakeAsyncIterator(CloseableAsyncIteratorWithUpstream[T, T]):
         elem = await self.upstream.__anext__()
         if await self.until(elem):
             self._satisfied = True
-            raise StopAsyncIteration
+            return await self._anext()
         return elem
 
 
