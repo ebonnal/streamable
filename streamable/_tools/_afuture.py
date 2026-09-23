@@ -69,9 +69,9 @@ class FDFOFutureResults(FutureResults[T]):
         return self._lazy_results.qsize() + len(self.futures)
 
     def _done_callback(self, future: "Future[T]") -> None:
-        del self.futures[future]
         if not future.cancelled():
             self._lazy_results.put_nowait(future.result())
+        del self.futures[future]
 
     def add(self, future: "Future[T]") -> None:
         super().add(future)
