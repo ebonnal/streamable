@@ -20,6 +20,7 @@ from typing import (
 
 T = TypeVar("T")
 U = TypeVar("U")
+C = TypeVar("C", covariant=True)
 
 
 class SyncAsyncIterable(Iterable[T], AsyncIterable[T]):
@@ -108,9 +109,6 @@ class _FnAsyncIterator(AsyncIterator[T]):
 
 def fn_to_aiter(fn: Callable[[], T]) -> AsyncIterator[T]:
     return _FnAsyncIterator(fn)
-
-
-C = TypeVar("C", covariant=True)
 
 
 @runtime_checkable
