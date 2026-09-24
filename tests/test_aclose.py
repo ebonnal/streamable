@@ -131,6 +131,16 @@ async def test_aclose_observe_every() -> None:
     assert audit.avg_leftover_tasks == 0
 
 
+@pytest.mark.asyncio
+async def test_aclose_observe_on_stop() -> None:
+    async def exhaust() -> None:
+        await stream(range(3)).do(asyncio.sleep).observe(every=timedelta(seconds=2.5))
+
+    audit = await audit_async_func(exhaust)
+    assert audit.avg_duration == pytest.approx(3, rel=0.01)
+    assert audit.avg_leftover_tasks == 0
+
+
 @pytest.mark.parametrize(
     "s",
     [

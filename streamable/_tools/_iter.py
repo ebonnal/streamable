@@ -159,8 +159,8 @@ class CloseableAsyncIteratorWithUpstream(CloseableAsyncIterator[U], Generic[T, U
         try:
             return await self._anext()
         except StopAsyncIteration:
+            await self.aclose()
             self._closed = True
-            await self.upstream.aclose()
             raise
 
     async def aclose(self) -> None:
