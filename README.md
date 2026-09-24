@@ -550,14 +550,18 @@ assert list(enumerated_pokes) == ['#1 bulbasaur', '#2 ivysaur', '#3 venusaur', '
 
 ## `.aclose` (structured concurrency)
 
-`stream.__aiter__` returns an `AsyncIterator` with an `.aclose` method to eagerly cancel any pending child tasks spawned by these operations:
+During an async iteration, these operations spawn child tasks:
 
 - `.map`/`.do`/`.flatten` with `concurrency > 1`
 - `.buffer`
 - `.group(..., within=timedelta(...))`
 - `.observe(..., every=timedelta(...))`
 
-Without closing explicitly, the pending tasks will eventually be cancelled after the iterator's destruction, at a subsequent cycle of the event loop.
+When the iteration is complete, all the child tasks are done.
+
+When the iterator is destroyed before it is exhausted, the pending child tasks are cancelled at a subsequent cycle of the event loop.
+
+`stream.__aiter__` returns an async iterator with an `.aclose` method to eagerly cancel any pending child tasks:
 
 ```python
 from contextlib import aclosing
