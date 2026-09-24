@@ -557,7 +557,7 @@ assert list(enumerated_pokes) == ['#1 bulbasaur', '#2 ivysaur', '#3 venusaur', '
 - `.group(..., within=timedelta(...))`
 - `.observe(..., every=timedelta(...))`
 
-Without closing explicitly, the pending tasks will eventually be cancelled after the iterator's destruction, at a subsequent iteration of the event loop.
+Without closing explicitly, the pending tasks will eventually be cancelled after the iterator's destruction, at a subsequent cycle of the event loop.
 
 ```python
 from contextlib import aclosing
