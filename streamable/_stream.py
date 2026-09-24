@@ -27,7 +27,7 @@ from typing import (
 from streamable._tools._async import AsyncFunction
 from streamable._tools._iter import (
     AsyncToSyncIterator,
-    CloseableAsyncIterator,
+    ClosableAsyncIterator,
     SyncAsyncIterable,
 )
 from streamable._tools._logging import setup_logger
@@ -159,7 +159,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             return AsyncToSyncIterator(self.__aiter__())
         return self.accept(IteratorVisitor[T]())
 
-    def __aiter__(self) -> CloseableAsyncIterator[T]:
+    def __aiter__(self) -> ClosableAsyncIterator[T]:
         """
         Returns an ``AsyncIterator`` with an ``.aclose`` method to eagerly cancel any pending child tasks spawned by these operations:
 
@@ -171,7 +171,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         Without closing explicitly, the pending tasks will eventually be cancelled after the iterator's destruction, at a subsequent iteration of the event loop (if iteration is not finished, ``.observe`` will still finish its current ``every`` cycle).
 
         Returns:
-            ``streamable.CloseableAsyncIterator[T]``: Closeable async iterator over this stream's elements.
+            ``streamable.ClosableAsyncIterator[T]``: Closable async iterator over this stream's elements.
 
         Example::
 

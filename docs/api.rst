@@ -11,4 +11,4 @@ API Reference
 
 .. autoclass:: streamable.Observation
 
-.. autoclass:: streamable.CloseableAsyncIterator
+.. autoclass:: streamable.ClosableAsyncIterator

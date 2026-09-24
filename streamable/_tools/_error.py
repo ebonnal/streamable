@@ -8,7 +8,7 @@ from typing import (
 )
 
 from streamable._tools._async import AsyncFunction
-from streamable._tools._iter import CloseableAsyncIteratorWithUpstream
+from streamable._tools._iter import ClosableAsyncIteratorWithUpstream
 
 T = TypeVar("T")
 U = TypeVar("U")
@@ -64,7 +64,7 @@ class RaisingIterator(Iterator[T]):
 
 
 class RaisingAsyncIterator(
-    CloseableAsyncIteratorWithUpstream[Union[T, ExceptionContainer], T]
+    ClosableAsyncIteratorWithUpstream[Union[T, ExceptionContainer], T]
 ):
     __slots__ = ()
 
