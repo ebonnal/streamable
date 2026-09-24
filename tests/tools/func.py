@@ -4,7 +4,6 @@ import time
 from typing import Any, Callable, Coroutine, Iterator, Type, TypeVar, Union
 from dataclasses import dataclass
 from typing import (
-    Awaitable,
     Generic,
 )
 
@@ -153,7 +152,7 @@ class AsyncFuncAudit(Generic[T]):
 
 
 async def audit_async_func(
-    async_func: Callable[[], Awaitable[T]],
+    async_func: Callable[[], Coroutine[object, object, T]],
     times: int = 1,
 ) -> "AsyncFuncAudit[T]":
     start = time.perf_counter()
