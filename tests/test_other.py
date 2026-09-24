@@ -201,23 +201,23 @@ async def test_aiter_of_concurrent_sync_operations(
     tasks (running in executors), among multiple stream iterations.
     """
     s1 = stream_factory()
-    single_stream_audit = await audit_async_func(lambda: acount(s1), times=3)
+    count_audit = await audit_async_func(lambda: acount(s1), times=3)
 
-    async def parrallel_counts(*streams: stream) -> List[int]:
+    async def parallel_counts(*streams: stream) -> List[int]:
         return list(await asyncio.gather(*(acount(s) for s in streams)))
 
     s2 = stream_factory()
     s3 = stream_factory()
-    multi_stream_audit = await audit_async_func(
-        lambda: parrallel_counts(s1, s2, s3), times=3
+    parallel_counts_audit = await audit_async_func(
+        lambda: parallel_counts(s1, s2, s3), times=3
     )
-    assert multi_stream_audit.result == [
-        single_stream_audit.result,
-        single_stream_audit.result,
-        single_stream_audit.result,
+    assert parallel_counts_audit.result == [
+        count_audit.result,
+        count_audit.result,
+        count_audit.result,
     ]
-    assert multi_stream_audit.avg_duration == pytest.approx(
-        single_stream_audit.avg_duration, rel=0.2
+    assert parallel_counts_audit.avg_duration == pytest.approx(
+        count_audit.avg_duration, rel=0.2
     )
 
 
