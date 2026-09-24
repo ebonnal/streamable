@@ -2,9 +2,6 @@ from inspect import iscoroutinefunction
 from typing import (
     TYPE_CHECKING,
     AsyncIterable,
-    AsyncIterator,
-    Callable,
-    Coroutine,
     Iterable,
     TypeVar,
     Union,
@@ -130,18 +127,12 @@ class AsyncIteratorVisitor(Visitor[ClosableAsyncIterator[T]]):
         )
 
     def visit_stream(self, s: "stream[T]") -> ClosableAsyncIterator[T]:
-        upstream: AsyncIterator[T]
         if isinstance(s.source, (Iterable, AsyncIterable)):
-            upstream = async_iter(s.source)
-        elif callable(s.source):
+            return NoopClosableAsyncIterator(async_iter(s.source))
+        if callable(s.source):
             if iscoroutinefunction(s.source):
-                upstream = afn_to_aiter(
-                    cast(Callable[[], Coroutine[object, object, T]], s.source)
-                )
-            else:
-                upstream = fn_to_aiter(s.source)
-        else:
-            raise TypeError(
-                f"`source` must be Iterable or AsyncIterable or Callable but got: {s.source}"
-            )
-        return NoopClosableAsyncIterator(upstream)
+                return NoopClosableAsyncIterator(afn_to_aiter(s.source))
+            return NoopClosableAsyncIterator(fn_to_aiter(s.source))
+        raise TypeError(
+            f"`source` must be Iterable or AsyncIterable or Callable but got: {s.source}"
+        )
