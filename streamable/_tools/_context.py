@@ -1,10 +1,7 @@
 import sys
-from contextlib import contextmanager
+from typing import ContextManager, TypeVar
 
-
-@contextmanager
-def noop_context_manager():
-    yield
+T = TypeVar("T")
 
 
 if sys.version_info >= (3, 10):
@@ -22,3 +19,14 @@ else:  # pragma: no cover
 
         async def __aexit__(self, *exc_info):
             await self.thing.aclose()
+
+
+class NoopContextManager(ContextManager[T]):
+    def __init__(self, thing: T):
+        self.thing = thing
+
+    def __enter__(self) -> T:
+        return self.thing
+
+    def __exit__(self, *exc_info) -> None:
+        pass
