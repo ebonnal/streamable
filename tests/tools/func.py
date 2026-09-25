@@ -2,6 +2,11 @@ import asyncio
 import random
 import time
 from typing import Any, Callable, Coroutine, Iterator, Type, TypeVar, Union
+from dataclasses import dataclass
+from typing import (
+    Generic,
+)
+
 
 from streamable._tools._async import AsyncFunction
 from tests.tools.error import TestError
@@ -9,6 +14,10 @@ from tests.tools.source import N
 
 T = TypeVar("T")
 R = TypeVar("R")
+
+
+def nothing(_: T) -> None:
+    pass
 
 
 def identity(x: T) -> T:
@@ -133,3 +142,31 @@ def noarg_asyncify(fn: Callable[[], T]) -> Callable[[], Coroutine[Any, Any, T]]:
         return fn()
 
     return wrap
+
+
+@dataclass
+class AsyncFuncAudit(Generic[T]):
+    result: T
+    avg_duration: float
+    avg_leftover_tasks: float
+
+
+async def audit_async_func(
+    async_func: Callable[[], Coroutine[object, object, T]],
+    times: int = 1,
+) -> "AsyncFuncAudit[T]":
+    duration = 0.0
+    leftover_tasks = 0
+    for _ in range(times):
+        baseline = set(asyncio.all_tasks())
+        start = time.perf_counter()
+        res = await async_func()
+        duration += time.perf_counter() - start
+        for task in asyncio.all_tasks():
+            if task not in baseline and not task.done():
+                leftover_tasks += 1
+    return AsyncFuncAudit(
+        result=res,
+        avg_duration=duration / times,
+        avg_leftover_tasks=leftover_tasks / times,
+    )

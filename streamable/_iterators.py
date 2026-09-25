@@ -51,14 +51,14 @@ Exc = TypeVar("Exc", bound=Exception)
 
 
 class _BufferIterable(Iterable[Union[T, ExceptionContainer]]):
-    __slots__ = ("iterator", "_buffer", "_slots", "_stopped")
+    __slots__ = ("upstream", "_buffer", "_slots", "_stopped")
 
     def __init__(
         self,
-        iterator: Iterator[T],
+        upstream: Iterator[T],
         up_to: Optional[int],
     ) -> None:
-        self.iterator = iterator
+        self.upstream = upstream
         up_to = up_to or sys.maxsize
         self._buffer: "queue.Queue[Union[T, ExceptionContainer]]" = queue.Queue()
         self._slots = Semaphore(up_to)
@@ -69,7 +69,7 @@ class _BufferIterable(Iterable[Union[T, ExceptionContainer]]):
         self._slots.acquire()
         while not self._stopped:
             try:
-                elem = self.iterator.__next__()
+                elem = self.upstream.__next__()
             except StopIteration:
                 elem = STOP_ITERATION
                 self._stopped = True
@@ -100,10 +100,10 @@ class BufferIterator(RaisingIterator[T]):
 
     def __init__(
         self,
-        iterator: Iterator[T],
+        upstream: Iterator[T],
         up_to: Optional[int],
     ) -> None:
-        super().__init__(_BufferIterable(iterator, up_to).__iter__())
+        super().__init__(_BufferIterable(upstream, up_to).__iter__())
 
 
 #########
@@ -112,18 +112,18 @@ class BufferIterator(RaisingIterator[T]):
 
 
 class CatchIterator(Iterator[Union[T, U]]):
-    __slots__ = ("iterator", "errors", "where", "replace", "do", "stop", "_stopped")
+    __slots__ = ("upstream", "errors", "where", "replace", "do", "stop", "_stopped")
 
     def __init__(
         self,
-        iterator: Iterator[T],
+        upstream: Iterator[T],
         errors: Union[Type[Exc], Tuple[Type[Exc], ...]],
         where: Optional[Callable[[Exc], object]],
         replace: Optional[Callable[[Exc], U]],
         do: Optional[Callable[[Exc], object]],
         stop: bool,
     ) -> None:
-        self.iterator = iterator
+        self.upstream = upstream
         self.errors = errors
         self.where = where
         self.replace = replace
@@ -136,7 +136,7 @@ class CatchIterator(Iterator[Union[T, U]]):
             if self._stopped:
                 raise StopIteration
             try:
-                return self.iterator.__next__()
+                return self.upstream.__next__()
             except StopIteration:
                 raise
             except self.errors as e:
@@ -157,13 +157,13 @@ class CatchIterator(Iterator[Union[T, U]]):
 
 
 class FlattenIterator(Iterator[T]):
-    __slots__ = ("iterator", "_current_iterator_elem")
+    __slots__ = ("upstream", "_current_iterator_elem")
 
     def __init__(
         self,
-        iterator: Iterator[Iterable[T]],
+        upstream: Iterator[Iterable[T]],
     ) -> None:
-        self.iterator = iterator
+        self.upstream = upstream
         self._current_iterator_elem: Iterator[T] = ().__iter__()
 
     def __next__(self) -> T:
@@ -171,7 +171,7 @@ class FlattenIterator(Iterator[T]):
             try:
                 return self._current_iterator_elem.__next__()
             except StopIteration:
-                iterable = self.iterator.__next__()
+                iterable = self.upstream.__next__()
                 validate_sync_flatten_iterable(iterable)
                 self._current_iterator_elem = iterable.__iter__()
 
@@ -182,14 +182,14 @@ class FlattenIterator(Iterator[T]):
 
 
 class GroupIterator(Iterator[List[T]]):
-    __slots__ = ("iterator", "up_to", "_group", "_to_raise")
+    __slots__ = ("upstream", "up_to", "_group", "_to_raise")
 
     def __init__(
         self,
-        iterator: Iterator[T],
+        upstream: Iterator[T],
         up_to: Optional[int],
     ) -> None:
-        self.iterator = iterator
+        self.upstream = upstream
         self.up_to = up_to or cast(int, float("inf"))
         self._group: List[T] = []
         self._to_raise: Optional[Exception] = None
@@ -202,7 +202,7 @@ class GroupIterator(Iterator[List[T]]):
                 self._to_raise = None
         while len(self._group) < self.up_to:
             try:
-                self._group.append(self.iterator.__next__())
+                self._group.append(self.upstream.__next__())
             except Exception as e:
                 if self._group:
                     self._to_raise = e
@@ -215,15 +215,15 @@ class GroupIterator(Iterator[List[T]]):
 
 
 class GroupByIterator(Iterator[Iterable[Tuple[U, List[T]]]]):
-    __slots__ = ("iterator", "up_to", "by", "_groups", "_to_raise")
+    __slots__ = ("upstream", "up_to", "by", "_groups", "_to_raise")
 
     def __init__(
         self,
-        iterator: Iterator[T],
+        upstream: Iterator[T],
         up_to: Optional[int],
         by: Callable[[T], U],
     ) -> None:
-        self.iterator = iterator
+        self.upstream = upstream
         self.up_to = up_to or cast(int, float("inf"))
         self.by = by
         self._groups: Dict[U, List[T]] = defaultdict(list)
@@ -237,7 +237,7 @@ class GroupByIterator(Iterator[Iterable[Tuple[U, List[T]]]]):
                 self._to_raise = None
         while True:
             try:
-                elem = self.iterator.__next__()
+                elem = self.upstream.__next__()
                 key = self.by(elem)
                 group = self._groups[key]
                 group.append(elem)
@@ -256,7 +256,7 @@ class GroupByIterator(Iterator[Iterable[Tuple[U, List[T]]]]):
 
 class _GroupByWithinIterable(Iterable[Union[ExceptionContainer, Tuple[U, List[T]]]]):
     __slots__ = (
-        "iterator",
+        "upstream",
         "up_to",
         "by",
         "_within_seconds",
@@ -268,12 +268,12 @@ class _GroupByWithinIterable(Iterable[Union[ExceptionContainer, Tuple[U, List[T]
 
     def __init__(
         self,
-        iterator: Iterator[T],
+        upstream: Iterator[T],
         up_to: Optional[int],
         by: Callable[[T], U],
         within: datetime.timedelta,
     ) -> None:
-        self.iterator = iterator
+        self.upstream = upstream
         self.up_to = up_to or cast(int, float("inf"))
         self.by = by
         self._groups: Dict[U, Tuple[float, List[T]]] = defaultdict(
@@ -300,7 +300,7 @@ class _GroupByWithinIterable(Iterable[Union[ExceptionContainer, Tuple[U, List[T]
         self._let_pull_next.acquire()
         while not self._stopped:
             try:
-                elem = self.iterator.__next__()
+                elem = self.upstream.__next__()
             except StopIteration:
                 elem = STOP_ITERATION
                 self._stopped = True
@@ -361,12 +361,12 @@ class _GroupByWithinIterable(Iterable[Union[ExceptionContainer, Tuple[U, List[T]
 class GroupByWithinIterator(RaisingIterator[Tuple[U, List[T]]]):
     def __init__(
         self,
-        iterator: Iterator[T],
+        upstream: Iterator[T],
         up_to: Optional[int],
         by: Callable[[T], U],
         within: datetime.timedelta,
     ) -> None:
-        super().__init__(iter(_GroupByWithinIterable(iterator, up_to, by, within)))
+        super().__init__(iter(_GroupByWithinIterable(upstream, up_to, by, within)))
 
 
 ########
@@ -375,33 +375,33 @@ class GroupByWithinIterator(RaisingIterator[Tuple[U, List[T]]]):
 
 
 class CountSkipIterator(Iterator[T]):
-    __slots__ = ("iterator", "_remaining_to_skip")
+    __slots__ = ("upstream", "_remaining_to_skip")
 
-    def __init__(self, iterator: Iterator[T], count: int) -> None:
-        self.iterator = iterator
+    def __init__(self, upstream: Iterator[T], count: int) -> None:
+        self.upstream = upstream
         self._remaining_to_skip = count
 
     def __next__(self) -> T:
         while self._remaining_to_skip > 0:
-            self.iterator.__next__()
+            self.upstream.__next__()
             # do not count exceptions as skipped elements
             self._remaining_to_skip -= 1
-        return self.iterator.__next__()
+        return self.upstream.__next__()
 
 
 class PredicateSkipIterator(Iterator[T]):
-    __slots__ = ("iterator", "until", "_satisfied")
+    __slots__ = ("upstream", "until", "_satisfied")
 
-    def __init__(self, iterator: Iterator[T], until: Callable[[T], object]) -> None:
-        self.iterator = iterator
+    def __init__(self, upstream: Iterator[T], until: Callable[[T], object]) -> None:
+        self.upstream = upstream
         self.until = until
         self._satisfied = False
 
     def __next__(self) -> T:
-        elem = self.iterator.__next__()
+        elem = self.upstream.__next__()
         if not self._satisfied:
             while not self.until(elem):
-                elem = self.iterator.__next__()
+                elem = self.upstream.__next__()
             self._satisfied = True
         return elem
 
@@ -412,35 +412,35 @@ class PredicateSkipIterator(Iterator[T]):
 
 
 class CountTakeIterator(Iterator[T]):
-    __slots__ = ("iterator", "_remaining_to_take")
+    __slots__ = ("upstream", "_remaining_to_take")
 
-    def __init__(self, iterator: Iterator[T], count: int) -> None:
-        self.iterator = iterator
+    def __init__(self, upstream: Iterator[T], count: int) -> None:
+        self.upstream = upstream
         self._remaining_to_take = count
 
     def __next__(self) -> T:
         if self._remaining_to_take <= 0:
             raise StopIteration
-        elem = self.iterator.__next__()
+        elem = self.upstream.__next__()
         self._remaining_to_take -= 1
         return elem
 
 
 class PredicateTakeIterator(Iterator[T]):
-    __slots__ = ("iterator", "until", "_satisfied")
+    __slots__ = ("upstream", "until", "_satisfied")
 
-    def __init__(self, iterator: Iterator[T], until: Callable[[T], object]) -> None:
-        self.iterator = iterator
+    def __init__(self, upstream: Iterator[T], until: Callable[[T], object]) -> None:
+        self.upstream = upstream
         self.until = until
         self._satisfied = False
 
     def __next__(self) -> T:
         if self._satisfied:
             raise StopIteration
-        elem = self.iterator.__next__()
+        elem = self.upstream.__next__()
         if self.until(elem):
             self._satisfied = True
-            raise StopIteration
+            return self.__next__()
         return elem
 
 
@@ -451,7 +451,7 @@ class PredicateTakeIterator(Iterator[T]):
 
 class _BaseObserveIterator(Iterator[T]):
     __slots__ = (
-        "iterator",
+        "upstream",
         "subject",
         "do",
         "_elements",
@@ -465,11 +465,11 @@ class _BaseObserveIterator(Iterator[T]):
 
     def __init__(
         self,
-        iterator: Iterator[T],
+        upstream: Iterator[T],
         subject: str,
         do: Callable[[Observation], object],
     ) -> None:
-        self.iterator = iterator
+        self.upstream = upstream
         self.subject = subject
         self.do = do
         self._elements = 0
@@ -512,7 +512,7 @@ class _BaseObserveIterator(Iterator[T]):
         if not self._active:
             self._activate()
         try:
-            elem = self.iterator.__next__()
+            elem = self.upstream.__next__()
             self._elements += 1
             if self._elements >= self._threshold(self._elements_observed):
                 self._observe()
@@ -536,12 +536,12 @@ class PowerObserveIterator(_BaseObserveIterator[T]):
 
     def __init__(
         self,
-        iterator: Iterator[T],
+        upstream: Iterator[T],
         subject: str,
         do: Callable[[Observation], object],
         base: int = 2,
     ) -> None:
-        super().__init__(iterator, subject, do)
+        super().__init__(upstream, subject, do)
         self.base = base
 
     def _threshold(self, observed: int) -> int:
@@ -553,12 +553,12 @@ class EveryIntObserveIterator(_BaseObserveIterator[T]):
 
     def __init__(
         self,
-        iterator: Iterator[T],
+        upstream: Iterator[T],
         subject: str,
         every: int,
         do: Callable[[Observation], object],
     ) -> None:
-        super().__init__(iterator, subject, do)
+        super().__init__(upstream, subject, do)
         self.every = every
 
     def _threshold(self, observed: int) -> int:
@@ -574,12 +574,12 @@ class EveryIntervalObserveIterator(_BaseObserveIterator[T]):
 
     def __init__(
         self,
-        iterator: Iterator[T],
+        upstream: Iterator[T],
         subject: str,
         every: datetime.timedelta,
         do: Callable[[Observation], object],
     ) -> None:
-        super().__init__(iterator, subject, do)
+        super().__init__(upstream, subject, do)
         self.every = every
 
     @staticmethod
@@ -612,15 +612,15 @@ class EveryIntervalObserveIterator(_BaseObserveIterator[T]):
 
 
 class ThrottleIterator(Iterator[T]):
-    __slots__ = ("iterator", "up_to", "_window_seconds", "_emission_timestamps")
+    __slots__ = ("upstream", "up_to", "_window_seconds", "_emission_timestamps")
 
     def __init__(
         self,
-        iterator: Iterator[T],
+        upstream: Iterator[T],
         up_to: int,
         per: datetime.timedelta,
     ) -> None:
-        self.iterator = iterator
+        self.upstream = upstream
         self.up_to = up_to
         self._window_seconds = per.total_seconds()
         self._emission_timestamps: Deque[float] = deque()
@@ -629,7 +629,7 @@ class ThrottleIterator(Iterator[T]):
         elem: Optional[T] = None
         error: Optional[Exception] = None
         try:
-            elem = self.iterator.__next__()
+            elem = self.upstream.__next__()
         except StopIteration:
             raise
         except Exception as e:
@@ -664,7 +664,7 @@ class _ConcurrentMapIterable(
     Generic[T, U], ABC, Iterable[Union[U, ExceptionContainer]]
 ):
     __slots__ = (
-        "iterator",
+        "upstream",
         "into",
         "concurrency",
         "_executor",
@@ -674,12 +674,12 @@ class _ConcurrentMapIterable(
 
     def __init__(
         self,
-        iterator: Iterator[T],
+        upstream: Iterator[T],
         into: Callable[[T], U],
         concurrency: Union[int, Executor],
         as_completed: bool,
     ) -> None:
-        self.iterator = iterator
+        self.upstream = upstream
         self.into = ExceptionContainer.wrap(into)
         self._future_results: FutureResults[Union[U, ExceptionContainer]] = (
             FDFOFutureResults() if as_completed else FIFOFutureResults()
@@ -701,7 +701,7 @@ class _ConcurrentMapIterable(
         self,
     ) -> Optional["Future[Union[U, ExceptionContainer]]"]:
         try:
-            elem = self.iterator.__next__()
+            elem = self.upstream.__next__()
         except StopIteration:
             return None
         except Exception as e:
@@ -733,14 +733,14 @@ class ConcurrentMapIterator(RaisingIterator[U]):
 
     def __init__(
         self,
-        iterator: Iterator[T],
+        upstream: Iterator[T],
         into: Callable[[T], U],
         concurrency: Union[int, Executor],
         as_completed: bool,
     ) -> None:
         super().__init__(
             _ConcurrentMapIterable(
-                iterator,
+                upstream,
                 into,
                 concurrency,
                 as_completed,
@@ -755,17 +755,17 @@ class ConcurrentMapIterator(RaisingIterator[U]):
 
 class _ConcurrentFlattenIterable(Iterable[Union[T, ExceptionContainer]]):
     __slots__ = (
-        "iterables_iterator",
+        "upstream",
         "concurrency",
         "_next",
     )
 
     def __init__(
         self,
-        iterables_iterator: Iterator[Iterable[T]],
+        upstream: Iterator[Iterable[T]],
         concurrency: int,
     ) -> None:
-        self.iterables_iterator = iterables_iterator
+        self.upstream = upstream
         self.concurrency = concurrency
         self._next = ExceptionContainer.wrap(next)
 
@@ -797,7 +797,7 @@ class _ConcurrentFlattenIterable(Iterable[Union[T, ExceptionContainer]]):
                     if not iterator_to_queue:
                         try:
                             try:
-                                iterable = self.iterables_iterator.__next__()
+                                iterable = self.upstream.__next__()
                             except StopIteration:
                                 break
                             validate_sync_flatten_iterable(iterable)
@@ -823,12 +823,12 @@ class ConcurrentFlattenIterator(RaisingIterator[T]):
 
     def __init__(
         self,
-        iterables_iterator: Iterator[Iterable[T]],
+        upstream: Iterator[Iterable[T]],
         concurrency: int,
     ) -> None:
         super().__init__(
             _ConcurrentFlattenIterable(
-                iterables_iterator,
+                upstream,
                 concurrency,
             ).__iter__()
         )
