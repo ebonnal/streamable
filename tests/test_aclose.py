@@ -5,7 +5,7 @@ from typing import Any, Callable, List
 import pytest
 from streamable import stream
 from streamable._tools._async import anext
-from tests.tools.closing import aclosing
+from streamable._tools._context import aclosing
 from tests.tools.error import TestError
 from tests.tools.func import nothing, throw_func
 from tests.tools.func import audit_async_func
