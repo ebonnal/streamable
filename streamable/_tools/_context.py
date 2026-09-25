@@ -1,13 +1,7 @@
 import sys
-from contextlib import contextmanager
 from typing import ContextManager, TypeVar
 
 T = TypeVar("T")
-
-
-@contextmanager
-def noop_context_manager():
-    yield
 
 
 if sys.version_info >= (3, 10):
