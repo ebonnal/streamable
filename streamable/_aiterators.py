@@ -303,7 +303,8 @@ class _GroupByWithinAsyncIterable(
 
     @staticmethod
     async def _get_next_elem(
-        next_elem: asyncio.Queue[Union[T, ExceptionContainer]], timeout: Optional[float]
+        next_elem: "asyncio.Queue[Union[T, ExceptionContainer]]",
+        timeout: Optional[float],
     ) -> T:
         elem = await asyncio.wait_for(next_elem.get(), timeout=timeout)
         if elem is STOP_ITERATION:
@@ -324,7 +325,7 @@ class _GroupByWithinAsyncIterable(
 
     async def _puller(
         self,
-        next_elem: asyncio.Queue[Union[T, ExceptionContainer]],
+        next_elem: "asyncio.Queue[Union[T, ExceptionContainer]]",
         let_pull_next: asyncio.Semaphore,
     ) -> None:
         elem: Union[T, ExceptionContainer]
@@ -351,7 +352,7 @@ class _GroupByWithinAsyncIterable(
             groups: Dict[U, Tuple[float, List[T]]] = defaultdict(
                 lambda: (time.perf_counter(), [])
             )
-            next_elem: asyncio.Queue[Union[T, ExceptionContainer]] = asyncio.Queue()
+            next_elem: "asyncio.Queue[Union[T, ExceptionContainer]]" = asyncio.Queue()
             let_pull_next: asyncio.Semaphore = asyncio.Semaphore(0)
             task = asyncio.create_task(self._puller(next_elem, let_pull_next))
             try:
