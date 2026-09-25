@@ -31,7 +31,7 @@ from streamable._tools._observation import Observation
 from streamable._tools._sentinel import STOP_ITERATION
 from streamable._tools._validation import validate_sync_flatten_iterable
 
-from streamable._tools._error import ExceptionContainer, RaisingIterator
+from streamable._tools._error import ExceptionContainer
 
 from streamable._tools._future import (
     FDFOFutureResults,
@@ -43,6 +43,25 @@ from streamable._tools._future import (
 T = TypeVar("T")
 U = TypeVar("U")
 Exc = TypeVar("Exc", bound=Exception)
+
+
+class _RaisingIterator(Iterator[T]):
+    __slots__ = ("upstream",)
+
+    def __init__(
+        self,
+        upstream: Iterator[Union[T, ExceptionContainer]],
+    ) -> None:
+        self.upstream = upstream
+
+    def __next__(self) -> T:
+        elem = self.upstream.__next__()
+        if isinstance(elem, ExceptionContainer):
+            try:
+                raise elem.exception
+            finally:
+                del elem
+        return elem
 
 
 ##########
@@ -104,7 +123,7 @@ class _BufferIterable(Iterable[Union[T, ExceptionContainer]]):
             thread.join()
 
 
-class BufferIterator(RaisingIterator[T]):
+class BufferIterator(_RaisingIterator[T]):
     __slots__ = ()
 
     def __init__(
@@ -374,7 +393,7 @@ class _GroupByWithinIterable(Iterable[Union[ExceptionContainer, Tuple[U, List[T]
             thread.join()
 
 
-class GroupByWithinIterator(RaisingIterator[Tuple[U, List[T]]]):
+class GroupByWithinIterator(_RaisingIterator[Tuple[U, List[T]]]):
     def __init__(
         self,
         upstream: Iterator[T],
@@ -743,7 +762,7 @@ class _ConcurrentMapIterable(
                 yield future_results.__next__()
 
 
-class ConcurrentMapIterator(RaisingIterator[U]):
+class ConcurrentMapIterator(_RaisingIterator[U]):
     __slots__ = ()
 
     def __init__(
@@ -829,7 +848,7 @@ class _ConcurrentFlattenIterable(Iterable[Union[T, ExceptionContainer]]):
                     break
 
 
-class ConcurrentFlattenIterator(RaisingIterator[T]):
+class ConcurrentFlattenIterator(_RaisingIterator[T]):
     __slots__ = ()
 
     def __init__(
