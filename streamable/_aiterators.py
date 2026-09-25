@@ -177,7 +177,7 @@ class CatchAsyncIterator(ClosableAsyncIteratorWithUpstream[T, Union[T, U]]):
 class FlattenAsyncIterator(
     ClosableAsyncIteratorWithUpstream[Union[Iterable[T], AsyncIterable[T]], T]
 ):
-    __slots__ = "_current_iterator_elem"
+    __slots__ = ("_current_iterator_elem",)
 
     def __init__(
         self, upstream: ClosableAsyncIterator[Union[Iterable[T], AsyncIterable[T]]]
@@ -423,7 +423,7 @@ class GroupByWithinAsyncIterator(RaisingAsyncIterator[Tuple[U, List[T]]]):
 
 
 class CountSkipAsyncIterator(ClosableAsyncIteratorWithUpstream[T, T]):
-    __slots__ = "_remaining_to_skip"
+    __slots__ = ("_remaining_to_skip",)
 
     def __init__(self, upstream: ClosableAsyncIterator[T], count: int) -> None:
         super().__init__(upstream)
@@ -462,7 +462,7 @@ class PredicateSkipAsyncIterator(ClosableAsyncIteratorWithUpstream[T, T]):
 
 
 class CountTakeAsyncIterator(ClosableAsyncIteratorWithUpstream[T, T]):
-    __slots__ = "_remaining_to_take"
+    __slots__ = ("_remaining_to_take",)
 
     def __init__(self, upstream: ClosableAsyncIterator[T], count: int) -> None:
         super().__init__(upstream)
@@ -502,7 +502,7 @@ class PredicateTakeAsyncIterator(ClosableAsyncIteratorWithUpstream[T, T]):
 
 
 class MapAsyncIterator(ClosableAsyncIteratorWithUpstream[T, U]):
-    __slots__ = "to"
+    __slots__ = ("into",)
 
     def __init__(
         self,
@@ -510,10 +510,10 @@ class MapAsyncIterator(ClosableAsyncIteratorWithUpstream[T, U]):
         into: AsyncFunction[T, U],
     ) -> None:
         super().__init__(upstream)
-        self.to = into
+        self.into = into
 
     async def _anext(self) -> U:
-        return await self.to(await self.upstream.__anext__())
+        return await self.into(await self.upstream.__anext__())
 
 
 ##########
@@ -522,7 +522,7 @@ class MapAsyncIterator(ClosableAsyncIteratorWithUpstream[T, U]):
 
 
 class FilterAsyncIterator(ClosableAsyncIteratorWithUpstream[T, T]):
-    __slots__ = "where"
+    __slots__ = ("where",)
 
     def __init__(
         self,

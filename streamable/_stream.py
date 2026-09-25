@@ -1283,7 +1283,7 @@ class ObserveStream(DownStream[T, T]):
 
 
 class SkipStream(DownStream[T, T]):
-    __slots__ = "_until"
+    __slots__ = ("_until",)
 
     def __init__(
         self,
@@ -1302,7 +1302,7 @@ class SkipStream(DownStream[T, T]):
 
 
 class TakeStream(DownStream[T, T]):
-    __slots__ = "_until"
+    __slots__ = ("_until",)
 
     def __init__(
         self,
