@@ -308,7 +308,10 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         The background task is a thread during a sync iteration, and an async task during an async iteration.
 
         Args:
-            up_to (``int | None``): The buffer size. Must be >= 1. When reached, upstream pulling pauses until an element is yielded out of the buffer.
+            up_to (``int | None``, optional): Buffer size:
+
+              ‣ ``None`` (default): Unbounded buffer size.
+              ‣ ``int >= 1``: When reached, upstream pulling pauses until an element is yielded out of the buffer.
 
         Returns:
             ``stream[T]``: Upstream with buffering.
@@ -736,7 +739,10 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         If an exception is encountered during grouping, the pending batch is yielded (all the pending batches if `by` is set), and then the exception is raised.
 
         Args:
-            up_to (``int | None``, optional): If a batch reaches that size, it is yielded.
+            up_to (``int | None``, optional): Batch size:
+
+              ‣ ``None`` (default): Unbounded batch size.
+              ‣ ``int >= 1``: If a batch reaches that size, it is yielded.
 
             within (``timedelta | None``, optional): A batch pending for more than ``within`` is yielded, even if under ``up_to`` elements.
 
