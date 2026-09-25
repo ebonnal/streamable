@@ -1,10 +1,8 @@
 import asyncio
 from asyncio import Future
-from abc import abstractmethod
-from collections import deque
 from typing import (
     AsyncIterator,
-    Deque,
+    Dict,
     Optional,
     Sized,
     TypeVar,
@@ -26,10 +24,13 @@ class FutureResults(AsyncIterator[T], Sized):
     Iterator over added futures' results. Supports adding new futures after iteration started.
     """
 
-    __slots__ = ()
+    __slots__ = ("futures",)
 
-    @abstractmethod
-    def add(self, future: "Future[T]") -> None: ...
+    def __init__(self) -> None:
+        self.futures: Dict["Future[T]", object] = {}
+
+    def add(self, future: "Future[T]") -> None:
+        self.futures[future] = None
 
 
 class FIFOFutureResults(FutureResults[T]):
@@ -37,19 +38,14 @@ class FIFOFutureResults(FutureResults[T]):
     First In First Out
     """
 
-    __slots__ = ("_futures",)
-
-    def __init__(self) -> None:
-        self._futures: Deque["Future[T]"] = deque()
-
     def __len__(self) -> int:
-        return len(self._futures)
-
-    def add(self, future: "Future[T]") -> None:
-        return self._futures.append(future)
+        return len(self.futures)
 
     async def __anext__(self) -> T:
-        return await self._futures.popleft()
+        future = next(iter(self.futures))
+        result = await future
+        del self.futures[future]
+        return result
 
 
 class FDFOFutureResults(FutureResults[T]):
@@ -57,11 +53,11 @@ class FDFOFutureResults(FutureResults[T]):
     First Done First Out
     """
 
-    __slots__ = ("_results", "_n_futures")
+    __slots__ = ("_results",)
 
     def __init__(self) -> None:
+        super().__init__()
         self._results: "Optional[asyncio.Queue[T]]" = None
-        self._n_futures = 0
 
     @property
     def _lazy_results(self) -> "asyncio.Queue[T]":
@@ -70,16 +66,16 @@ class FDFOFutureResults(FutureResults[T]):
         return self._results
 
     def __len__(self) -> int:
-        return self._n_futures
+        return self._lazy_results.qsize() + len(self.futures)
 
     def _done_callback(self, future: "Future[T]") -> None:
-        self._lazy_results.put_nowait(future.result())
+        if not future.cancelled():
+            self._lazy_results.put_nowait(future.result())
+        del self.futures[future]
 
     def add(self, future: "Future[T]") -> None:
+        super().add(future)
         future.add_done_callback(self._done_callback)
-        self._n_futures += 1
 
     async def __anext__(self) -> T:
-        result = await self._lazy_results.get()
-        self._n_futures -= 1
-        return result
+        return await self._lazy_results.get()
