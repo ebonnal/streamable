@@ -9,7 +9,7 @@ def noop_context_manager():
 
 if sys.version_info >= (3, 10):
     from contextlib import aclosing
-else:
+else:  # pragma: no cover
     from streamable._tools._iter import AsyncClosable
     from contextlib import AbstractAsyncContextManager
 
