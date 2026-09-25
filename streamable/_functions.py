@@ -25,14 +25,14 @@ Exc = TypeVar("Exc", bound=Exception)
 
 
 def buffer(
-    iterator: Iterator[T],
+    upstream: Iterator[T],
     up_to: Optional[int] = None,
 ) -> Iterator[T]:
-    return _iterators.BufferIterator(iterator, up_to)
+    return _iterators.BufferIterator(upstream, up_to)
 
 
 def catch(
-    iterator: Iterator[T],
+    upstream: Iterator[T],
     errors: Union[Type[Exc], Tuple[Type[Exc], ...]],
     *,
     where: Optional[Union[Callable[[Exc], object]]] = None,
@@ -41,7 +41,7 @@ def catch(
     stop: bool = False,
 ) -> Iterator[Union[T, U]]:
     return _iterators.CatchIterator(
-        iterator,
+        upstream,
         errors,
         where=where,
         replace=replace,
@@ -52,26 +52,26 @@ def catch(
 
 def filter(
     where: Union[Callable[[T], object]],
-    iterator: Iterator[T],
+    upstream: Iterator[T],
 ) -> Iterator[T]:
-    return builtins.filter(where, iterator)
+    return builtins.filter(where, upstream)
 
 
 def flatten(
-    iterator: Iterator[Iterable[T]],
+    upstream: Iterator[Iterable[T]],
     *,
     concurrency: int = 1,
 ) -> Iterator[T]:
     if concurrency == 1:
-        return _iterators.FlattenIterator(iterator)
+        return _iterators.FlattenIterator(upstream)
     return _iterators.ConcurrentFlattenIterator(
-        iterator,
+        upstream,
         concurrency=concurrency,
     )
 
 
 def group(
-    iterator: Iterator[T],
+    upstream: Iterator[T],
     up_to: Optional[int] = None,
     *,
     within: Optional[datetime.timedelta] = None,
@@ -79,32 +79,32 @@ def group(
 ) -> Union[Iterator[List[T]], Iterator[Tuple[U, List[T]]]]:
     if within is None:
         if by is None:
-            return _iterators.GroupIterator(iterator, up_to=up_to)
+            return _iterators.GroupIterator(upstream, up_to=up_to)
         return _iterators.FlattenIterator(
-            _iterators.GroupByIterator(iterator, by=by, up_to=up_to)
+            _iterators.GroupByIterator(upstream, by=by, up_to=up_to)
         )
     if by is None:
         return builtins.map(
             itemgetter(1),
             _iterators.GroupByWithinIterator(
-                iterator, by=lambda _: None, up_to=up_to, within=within
+                upstream, by=lambda _: None, up_to=up_to, within=within
             ),
         )
-    return _iterators.GroupByWithinIterator(iterator, by=by, up_to=up_to, within=within)
+    return _iterators.GroupByWithinIterator(upstream, by=by, up_to=up_to, within=within)
 
 
 def map(
     into: Union[Callable[[T], U]],
-    iterator: Iterator[T],
+    upstream: Iterator[T],
     *,
     concurrency: Union[int, Executor] = 1,
     as_completed: bool = False,
 ) -> Iterator[U]:
     if concurrency == 1:
-        return builtins.map(into, iterator)
+        return builtins.map(into, upstream)
     else:
         return _iterators.ConcurrentMapIterator(
-            iterator,
+            upstream,
             cast(Callable[[T], U], into),
             concurrency=concurrency,
             as_completed=as_completed,
@@ -112,40 +112,40 @@ def map(
 
 
 def observe(
-    iterator: Iterator[T],
+    upstream: Iterator[T],
     subject: str,
     every: Union[None, int, datetime.timedelta],
     do: Union[Callable[[Observation], object],],
 ) -> Iterator[T]:
     if every is None:
-        return _iterators.PowerObserveIterator(iterator, subject, do)
+        return _iterators.PowerObserveIterator(upstream, subject, do)
     elif isinstance(every, int):
-        return _iterators.EveryIntObserveIterator(iterator, subject, every, do)
-    return _iterators.EveryIntervalObserveIterator(iterator, subject, every, do)
+        return _iterators.EveryIntObserveIterator(upstream, subject, every, do)
+    return _iterators.EveryIntervalObserveIterator(upstream, subject, every, do)
 
 
 def skip(
-    iterator: Iterator[T],
+    upstream: Iterator[T],
     until: Union[int, Callable[[T], object]],
 ) -> Iterator[T]:
     if isinstance(until, int):
-        return _iterators.CountSkipIterator(iterator, until)
-    return _iterators.PredicateSkipIterator(iterator, until)
+        return _iterators.CountSkipIterator(upstream, until)
+    return _iterators.PredicateSkipIterator(upstream, until)
 
 
 def take(
-    iterator: Iterator[T],
+    upstream: Iterator[T],
     until: Union[int, Callable[[T], object]],
 ) -> Iterator[T]:
     if isinstance(until, int):
-        return _iterators.CountTakeIterator(iterator, until)
-    return _iterators.PredicateTakeIterator(iterator, until)
+        return _iterators.CountTakeIterator(upstream, until)
+    return _iterators.PredicateTakeIterator(upstream, until)
 
 
 def throttle(
-    iterator: Iterator[T],
+    upstream: Iterator[T],
     count: int,
     *,
     per: datetime.timedelta,
 ) -> Iterator[T]:
-    return _iterators.ThrottleIterator(iterator, count, per)
+    return _iterators.ThrottleIterator(upstream, count, per)

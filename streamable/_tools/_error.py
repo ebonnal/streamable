@@ -1,7 +1,14 @@
 from functools import partial
-from typing import AsyncIterator, Callable, Iterator, NamedTuple, TypeVar, Union
+from typing import (
+    Callable,
+    Iterator,
+    NamedTuple,
+    TypeVar,
+    Union,
+)
 
 from streamable._tools._async import AsyncFunction
+from streamable._tools._iter import ClosableAsyncIteratorWithUpstream
 
 T = TypeVar("T")
 U = TypeVar("U")
@@ -38,16 +45,16 @@ class ExceptionContainer(NamedTuple):
 
 
 class RaisingIterator(Iterator[T]):
-    __slots__ = ("iterator",)
+    __slots__ = ("upstream",)
 
     def __init__(
         self,
-        iterator: Iterator[Union[T, ExceptionContainer]],
+        upstream: Iterator[Union[T, ExceptionContainer]],
     ) -> None:
-        self.iterator = iterator
+        self.upstream = upstream
 
     def __next__(self) -> T:
-        elem = self.iterator.__next__()
+        elem = self.upstream.__next__()
         if isinstance(elem, ExceptionContainer):
             try:
                 raise elem.exception
@@ -56,17 +63,13 @@ class RaisingIterator(Iterator[T]):
         return elem
 
 
-class RaisingAsyncIterator(AsyncIterator[T]):
-    __slots__ = ("iterator",)
+class RaisingAsyncIterator(
+    ClosableAsyncIteratorWithUpstream[Union[T, ExceptionContainer], T]
+):
+    __slots__ = ()
 
-    def __init__(
-        self,
-        iterator: AsyncIterator[Union[T, ExceptionContainer]],
-    ) -> None:
-        self.iterator = iterator
-
-    async def __anext__(self) -> T:
-        elem = await self.iterator.__anext__()
+    async def _anext(self) -> T:
+        elem = await self.upstream.__anext__()
         if isinstance(elem, ExceptionContainer):
             try:
                 raise elem.exception

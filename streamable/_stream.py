@@ -27,6 +27,7 @@ from typing import (
 from streamable._tools._async import AsyncFunction
 from streamable._tools._iter import (
     AsyncToSyncIterator,
+    ClosableAsyncIterator,
     SyncAsyncIterable,
 )
 from streamable._tools._logging import setup_logger
@@ -158,7 +159,48 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             return AsyncToSyncIterator(self.__aiter__())
         return self.accept(IteratorVisitor[T]())
 
-    def __aiter__(self) -> AsyncIterator[T]:
+    def __aiter__(self) -> ClosableAsyncIterator[T]:
+        """
+        Return an ``AsyncIterator`` with an ``.aclose`` method.
+
+        During an async iteration, these operations spawn child tasks:
+
+        - ``.map``/``.do``/``.flatten`` with ``concurrency > 1``
+        - ``.buffer``
+        - ``.group(..., within=timedelta(...))``
+        - ``.observe(..., every=timedelta(...))``
+
+        When the iteration is complete, all the child tasks are done.
+
+        When the iterator is destroyed before it is exhausted, the pending child tasks are cancelled at a subsequent cycle of the event loop.
+
+        Use the ``.aclose`` method to eagerly cancel any pending child tasks (see examples below).
+
+        Returns:
+            ``streamable.ClosableAsyncIterator[T]``: Closable async iterator over this stream's elements.
+
+        Example::
+
+            from contextlib import aclosing
+
+            s = stream(range(10)).do(asyncio.sleep, concurrency=4)
+            async with aclosing(aiter(s)) as it:
+                assert await anext(it) == 0
+                assert await anext(it) == 1
+                # 4 pending tasks, for elements 2, 3, 4, 5
+            # these 4 tasks are cancelled
+
+            # `aclosing` appears in Python 3.10. For prior versions, use `.aclose` in a `finally` block:
+            s = stream(range(10)).do(asyncio.sleep, concurrency=4)
+            it = aiter(s)
+            try:
+                assert await anext(it) == 0
+                assert await anext(it) == 1
+                # 4 pending tasks, for elements 2, 3, 4, 5
+            finally:
+                await it.aclose()
+                # these 4 tasks are cancelled
+        """
         return self.accept(AsyncIteratorVisitor[T]())
 
     def __eq__(self, other: object) -> bool:
@@ -1241,7 +1283,7 @@ class ObserveStream(DownStream[T, T]):
 
 
 class SkipStream(DownStream[T, T]):
-    __slots__ = "_until"
+    __slots__ = ("_until",)
 
     def __init__(
         self,
@@ -1260,7 +1302,7 @@ class SkipStream(DownStream[T, T]):
 
 
 class TakeStream(DownStream[T, T]):
-    __slots__ = "_until"
+    __slots__ = ("_until",)
 
     def __init__(
         self,
