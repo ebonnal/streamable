@@ -1,5 +1,8 @@
 import sys
 from contextlib import contextmanager
+from typing import ContextManager, TypeVar
+
+T = TypeVar("T")
 
 
 @contextmanager
@@ -22,3 +25,14 @@ else:  # pragma: no cover
 
         async def __aexit__(self, *exc_info):
             await self.thing.aclose()
+
+
+class NoopContextManager(ContextManager[T]):
+    def __init__(self, thing: T):
+        self.thing = thing
+
+    def __enter__(self) -> T:
+        return self.thing
+
+    def __exit__(self, *exc_info) -> None:
+        pass
