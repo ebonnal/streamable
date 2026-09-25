@@ -58,7 +58,7 @@ Exc = TypeVar("Exc", bound=Exception)
 
 
 class _BufferAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]]):
-    __slots__ = ("upstream", "up_to", "_buffer", "_slots", "_stopped")
+    __slots__ = ("upstream", "up_to")
 
     def __init__(
         self,
@@ -67,46 +67,38 @@ class _BufferAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]]):
     ) -> None:
         self.upstream = upstream
         self.up_to = up_to or sys.maxsize
-        self._buffer: "Optional[asyncio.Queue[Union[T, ExceptionContainer]]]" = None
-        self._slots: Optional[asyncio.Semaphore] = None
-        self._stopped = False
 
-    @property
-    def _lazy_buffer(self) -> "asyncio.Queue[Union[T, ExceptionContainer]]":
-        if not self._buffer:
-            self._buffer = asyncio.Queue()
-        return self._buffer
-
-    @property
-    def _lazy_slots(self) -> asyncio.Semaphore:
-        if not self._slots:
-            self._slots = asyncio.Semaphore(self.up_to)
-        return self._slots
-
-    async def _buffer_upstream(self) -> None:
+    async def _buffer_upstream(
+        self,
+        buffer: "asyncio.Queue[Union[T, ExceptionContainer]]",
+        slots: asyncio.Semaphore,
+    ) -> None:
         elem: Union[T, ExceptionContainer]
-        await self._lazy_slots.acquire()
-        while not self._stopped:
+        await slots.acquire()
+        stopped = False
+        while not stopped:
             try:
                 elem = await self.upstream.__anext__()
             except StopAsyncIteration:
                 elem = STOP_ITERATION
-                self._stopped = True
+                stopped = True
             except Exception as e:
                 elem = ExceptionContainer(e)
-            self._lazy_buffer.put_nowait(elem)
-            await self._lazy_slots.acquire()
+            buffer.put_nowait(elem)
+            await slots.acquire()
 
     async def __aiter__(self) -> AsyncGenerator[Union[T, ExceptionContainer], None]:
         async with aclosing(self.upstream):
-            task = asyncio.create_task(self._buffer_upstream())
+            buffer: "asyncio.Queue[Union[T, ExceptionContainer]]" = asyncio.Queue()
+            slots: asyncio.Semaphore = asyncio.Semaphore(self.up_to)
+            to_yield: Deque[Union[T, ExceptionContainer]] = deque(maxlen=1)
+            task = asyncio.create_task(self._buffer_upstream(buffer, slots))
             try:
-                to_yield: Deque[Union[T, ExceptionContainer]] = deque(maxlen=1)
                 while True:
-                    to_yield.append(await self._lazy_buffer.get())
+                    to_yield.append(await buffer.get())
                     if to_yield[-1] is STOP_ITERATION:
                         break
-                    self._lazy_slots.release()
+                    slots.release()
                     yield to_yield.pop()
             finally:
                 task.cancel()
