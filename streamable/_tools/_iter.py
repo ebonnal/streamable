@@ -1,4 +1,3 @@
-from abc import abstractmethod
 import asyncio
 from contextlib import suppress
 from typing import (
@@ -7,7 +6,6 @@ from typing import (
     Awaitable,
     Callable,
     Coroutine,
-    Generic,
     Iterable,
     Iterator,
     Optional,
@@ -118,10 +116,6 @@ class AsyncClosable(Protocol):
 
 @runtime_checkable
 class ClosableAsyncIterator(AsyncClosable, Protocol[C]):
-    """
-    An `AsyncIterator` with an `.aclose` method to eagerly cancel any pending child tasks spawned during its iteration.
-    """
-
     def __aiter__(self) -> AsyncIterator[C]:
         return self
 
@@ -130,7 +124,7 @@ class ClosableAsyncIterator(AsyncClosable, Protocol[C]):
 
 class NoopClosableAsyncIterator(ClosableAsyncIterator[T]):
     """
-    `AsyncIterator` wrapper to make it closable, with an `.aclose` that does nothing.
+    Wraps an `AsyncIterator` with an `.aclose` that does nothing.
     """
 
     __slots__ = ("upstream",)
@@ -143,34 +137,3 @@ class NoopClosableAsyncIterator(ClosableAsyncIterator[T]):
 
     async def aclose(self) -> None:
         pass
-
-
-class ClosableAsyncIteratorWithUpstream(ClosableAsyncIterator[U], Generic[T, U]):
-    """
-    `AsyncIterator` wrapper to make it closable, with an `.aclose` that closes the upstream.
-    Closes when iterator is exhausted.
-    Ensures `.__anext__` raises StopAsyncIteration if closed.
-    """
-
-    __slots__ = ("upstream", "_closed")
-
-    def __init__(self, upstream: ClosableAsyncIterator[T]) -> None:
-        self.upstream = upstream
-        self._closed = False
-
-    @abstractmethod
-    def _anext(self) -> Awaitable[U]: ...
-
-    async def __anext__(self) -> U:
-        if self._closed:
-            raise StopAsyncIteration
-        try:
-            return await self._anext()
-        except StopAsyncIteration:
-            await self.aclose()
-            raise
-
-    async def aclose(self) -> None:
-        if not self._closed:
-            self._closed = True
-            await self.upstream.aclose()

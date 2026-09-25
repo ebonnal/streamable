@@ -1,14 +1,12 @@
 from functools import partial
 from typing import (
     Callable,
-    Iterator,
     NamedTuple,
     TypeVar,
     Union,
 )
 
 from streamable._tools._async import AsyncFunction
-from streamable._tools._iter import ClosableAsyncIteratorWithUpstream
 
 T = TypeVar("T")
 U = TypeVar("U")
@@ -42,37 +40,3 @@ class ExceptionContainer(NamedTuple):
         afunc: AsyncFunction[T, U],
     ) -> AsyncFunction[T, Union[U, "ExceptionContainer"]]:
         return partial(acontained, afunc)
-
-
-class RaisingIterator(Iterator[T]):
-    __slots__ = ("upstream",)
-
-    def __init__(
-        self,
-        upstream: Iterator[Union[T, ExceptionContainer]],
-    ) -> None:
-        self.upstream = upstream
-
-    def __next__(self) -> T:
-        elem = self.upstream.__next__()
-        if isinstance(elem, ExceptionContainer):
-            try:
-                raise elem.exception
-            finally:
-                del elem
-        return elem
-
-
-class RaisingAsyncIterator(
-    ClosableAsyncIteratorWithUpstream[Union[T, ExceptionContainer], T]
-):
-    __slots__ = ()
-
-    async def _anext(self) -> T:
-        elem = await self.upstream.__anext__()
-        if isinstance(elem, ExceptionContainer):
-            try:
-                raise elem.exception
-            finally:
-                del elem
-        return elem
