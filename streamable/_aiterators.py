@@ -278,16 +278,7 @@ class GroupByAsyncIterator(
 class _GroupByWithinAsyncIterable(
     AsyncIterable[Union[ExceptionContainer, Tuple[U, List[T]]]]
 ):
-    __slots__ = (
-        "upstream",
-        "up_to",
-        "by",
-        "_within_seconds",
-        "_groups",
-        "_next_elem",
-        "_let_pull_next",
-        "_stopped",
-    )
+    __slots__ = ("upstream", "up_to", "by", "within_seconds")
 
     def __init__(
         self,
@@ -299,58 +290,18 @@ class _GroupByWithinAsyncIterable(
         self.upstream = upstream
         self.up_to = up_to or cast(int, float("inf"))
         self.by = by
-        self._groups: Dict[U, Tuple[float, List[T]]] = defaultdict(
-            lambda: (time.perf_counter(), [])
-        )
-        self._within_seconds = within.total_seconds()
-        self._next_elem: Optional[asyncio.Queue[Union[T, ExceptionContainer]]] = None
-        self._let_pull_next: Optional[asyncio.Semaphore] = None
-        self._stopped = False
+        self.within_seconds = within.total_seconds()
 
-    def _oldest_group(self) -> Tuple[U, List[T]]:
-        oldest_key = next(iter(self._groups.keys()))
-        return (oldest_key, self._groups.pop(oldest_key)[1])
+    @staticmethod
+    def _oldest_group(groups: Dict[U, Tuple[float, List[T]]]) -> Tuple[U, List[T]]:
+        oldest_key = next(iter(groups.keys()))
+        return (oldest_key, groups.pop(oldest_key)[1])
 
-    def _timeout(self) -> Optional[float]:
-        if self._groups:
-            oldest_group_time = next(iter(self._groups.values()))[0]
-            timeout = oldest_group_time + self._within_seconds - time.perf_counter()
-            return max(0, timeout)
-        return None
-
-    @property
-    def _lazy_next_elem(self) -> "asyncio.Queue[Union[T, ExceptionContainer]]":
-        if not self._next_elem:
-            self._next_elem = asyncio.Queue()
-        return self._next_elem
-
-    @property
-    def _lazy_let_pull_next(self) -> asyncio.Semaphore:
-        if not self._let_pull_next:
-            self._let_pull_next = asyncio.Semaphore(0)
-        return self._let_pull_next
-
-    async def _puller(self) -> None:
-        elem: Union[T, ExceptionContainer]
-        await self._lazy_let_pull_next.acquire()
-        while not self._stopped:
-            try:
-                elem = await self.upstream.__anext__()
-            except StopAsyncIteration:
-                elem = STOP_ITERATION
-                self._stopped = True
-            except Exception as e:
-                elem = ExceptionContainer(e)
-            try:
-                self._lazy_next_elem.put_nowait(elem)
-            finally:
-                del elem
-            await self._lazy_let_pull_next.acquire()
-
-    async def _get_next_elem(self) -> T:
-        elem = await asyncio.wait_for(
-            self._lazy_next_elem.get(), timeout=self._timeout()
-        )
+    @staticmethod
+    async def _get_next_elem(
+        next_elem: asyncio.Queue[Union[T, ExceptionContainer]], timeout: Optional[float]
+    ) -> T:
+        elem = await asyncio.wait_for(next_elem.get(), timeout=timeout)
         if elem is STOP_ITERATION:
             raise StopAsyncIteration
         if isinstance(elem, ExceptionContainer):
@@ -360,32 +311,68 @@ class _GroupByWithinAsyncIterable(
                 del elem
         return elem
 
+    def _timeout(self, groups: Dict[U, Tuple[float, List[T]]]) -> Optional[float]:
+        if groups:
+            oldest_group_time = next(iter(groups.values()))[0]
+            timeout = oldest_group_time + self.within_seconds - time.perf_counter()
+            return max(0, timeout)
+        return None
+
+    async def _puller(
+        self,
+        next_elem: asyncio.Queue[Union[T, ExceptionContainer]],
+        let_pull_next: asyncio.Semaphore,
+    ) -> None:
+        elem: Union[T, ExceptionContainer]
+        await let_pull_next.acquire()
+        stopped = False
+        while not stopped:
+            try:
+                elem = await self.upstream.__anext__()
+            except StopAsyncIteration:
+                elem = STOP_ITERATION
+                stopped = True
+            except Exception as e:
+                elem = ExceptionContainer(e)
+            try:
+                next_elem.put_nowait(elem)
+            finally:
+                del elem
+            await let_pull_next.acquire()
+
     async def __aiter__(
         self,
     ) -> AsyncGenerator[Union[ExceptionContainer, Tuple[U, List[T]]], None]:
         async with aclosing(self.upstream):
-            task = asyncio.create_task(self._puller())
+            groups: Dict[U, Tuple[float, List[T]]] = defaultdict(
+                lambda: (time.perf_counter(), [])
+            )
+            next_elem: asyncio.Queue[Union[T, ExceptionContainer]] = asyncio.Queue()
+            let_pull_next: asyncio.Semaphore = asyncio.Semaphore(0)
+            task = asyncio.create_task(self._puller(next_elem, let_pull_next))
             try:
                 while True:
-                    self._lazy_let_pull_next.release()
+                    let_pull_next.release()
                     try:
                         while True:
                             try:
-                                elem = await self._get_next_elem()
+                                elem = await self._get_next_elem(
+                                    next_elem, timeout=self._timeout(groups)
+                                )
                                 break
                             except asyncio.TimeoutError:
-                                yield self._oldest_group()
+                                yield self._oldest_group(groups)
                         key = await self.by(elem)
-                        _, group = self._groups[key]
+                        _, group = groups[key]
                         group.append(elem)
                         if len(group) == self.up_to:
-                            del self._groups[key]
+                            del groups[key]
                             yield (key, group)
                         continue
                     except Exception as e:
                         # upstream stopped iteration, or raised an error, or `by` did
-                        while self._groups:
-                            yield self._oldest_group()
+                        while groups:
+                            yield self._oldest_group(groups)
                         if isinstance(e, StopAsyncIteration):
                             return
                         error = [ExceptionContainer(e)]
