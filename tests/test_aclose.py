@@ -71,6 +71,7 @@ async def test_aclose_concurrent_operations(
         for _ in range(n_yields):
             yielded.append(await anext(it))
         await asyncio.sleep(0)
+        await asyncio.sleep(0)
 
     assert yielded == list(range(n_yields))
 

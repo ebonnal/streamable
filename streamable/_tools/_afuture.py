@@ -2,11 +2,13 @@ import asyncio
 from asyncio import Future
 from typing import (
     AsyncIterator,
-    Dict,
-    Optional,
-    Sized,
     TypeVar,
+    Union,
+    cast,
 )
+
+from streamable._tools._sentinel import Sentinel
+
 
 T = TypeVar("T")
 
@@ -19,18 +21,12 @@ class FutureResult(Future):
         self.set_result(result)
 
 
-class FutureResults(AsyncIterator[T], Sized):
+class FutureResults(AsyncIterator[T]):
     """
-    Iterator over added futures' results. Supports adding new futures after iteration started.
+    Async iterator over added futures' results. Supports adding new futures after iteration started.
     """
 
-    __slots__ = ("futures",)
-
-    def __init__(self) -> None:
-        self.futures: Dict["Future[T]", object] = {}
-
-    def add(self, future: "Future[T]") -> None:
-        self.futures[future] = None
+    def add(self, future: "Future[Union[T, Sentinel]]") -> None: ...
 
 
 class FIFOFutureResults(FutureResults[T]):
@@ -38,14 +34,23 @@ class FIFOFutureResults(FutureResults[T]):
     First In First Out
     """
 
-    def __len__(self) -> int:
-        return len(self.futures)
+    __slots__ = ("_futures", "_stopped")
+
+    def __init__(self) -> None:
+        self._futures: "asyncio.Queue[Future[Union[T, Sentinel]]]" = asyncio.Queue()
+        self._stopped = False
+
+    def add(self, future: "Future[Union[T, Sentinel]]") -> None:
+        self._futures.put_nowait(future)
 
     async def __anext__(self) -> T:
-        future = next(iter(self.futures))
-        result = await future
-        del self.futures[future]
-        return result
+        if self._stopped:
+            raise StopAsyncIteration
+        result = await (await self._futures.get())
+        if isinstance(result, Sentinel):
+            self._stopped = True
+            return await self.__anext__()
+        return cast(T, result)
 
 
 class FDFOFutureResults(FutureResults[T]):
@@ -53,29 +58,27 @@ class FDFOFutureResults(FutureResults[T]):
     First Done First Out
     """
 
-    __slots__ = ("_results",)
+    __slots__ = ("_results", "_n_future_results", "_stopped")
 
     def __init__(self) -> None:
-        super().__init__()
-        self._results: "Optional[asyncio.Queue[T]]" = None
+        self._results: "asyncio.Queue[Union[T, Sentinel]]" = asyncio.Queue()
+        self._n_future_results = 0
+        self._stopped = False
 
-    @property
-    def _lazy_results(self) -> "asyncio.Queue[T]":
-        if self._results is None:
-            self._results = asyncio.Queue()
-        return self._results
-
-    def __len__(self) -> int:
-        return self._lazy_results.qsize() + len(self.futures)
-
-    def _done_callback(self, future: "Future[T]") -> None:
+    def _done_callback(self, future: "Future[Union[T, Sentinel]]") -> None:
         if not future.cancelled():
-            self._lazy_results.put_nowait(future.result())
-        del self.futures[future]
+            self._results.put_nowait(future.result())
 
-    def add(self, future: "Future[T]") -> None:
-        super().add(future)
+    def add(self, future: "Future[Union[T, Sentinel]]") -> None:
+        self._n_future_results += 1
         future.add_done_callback(self._done_callback)
 
     async def __anext__(self) -> T:
-        return await self._lazy_results.get()
+        if self._stopped and self._n_future_results == 0:
+            raise StopAsyncIteration
+        result = await self._results.get()
+        self._n_future_results -= 1
+        if isinstance(result, Sentinel):
+            self._stopped = True
+            return await self.__anext__()
+        return cast(T, result)

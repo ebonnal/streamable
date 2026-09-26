@@ -1,8 +1,9 @@
+import asyncio
 from concurrent.futures import Executor, ProcessPoolExecutor, ThreadPoolExecutor
 import sys
 from pickle import PickleError
 import time
-from typing import Any, Callable, Iterable, List, Union
+from typing import Any, AsyncIterable, Callable, Iterable, List, Union
 
 import pytest
 
@@ -94,11 +95,10 @@ def test_map_process_concurrency_partial_iteration(
         it = aiter_or_iter(s, itype)
         # this will start the execution of `concurrency` sleeps (`sleeps[:concurrency]``)
         assert anext_or_next(it, itype) == sleeps[0]
-        assert time.perf_counter() - start == pytest.approx(1, rel=0.15)
-        # now that the first sleep is done, the last one can start (`sleeps[concurrency]`)
+        assert time.perf_counter() - start == pytest.approx(1, abs=0.2)
         # we exit the context manager only when all pending tasks are completed.
     assert time.perf_counter() - start == pytest.approx(
-        sleeps[0] + sleeps[concurrency], rel=0.2
+        sleeps[concurrency - 1], abs=0.35
     )
 
 
@@ -121,7 +121,7 @@ def test_process_concurrency_raises_on_unserializable_functions(
     (
         (False, False, [float("inf"), 1.0, float("inf"), 0.5, float("inf")]),
         (True, False, [float("inf"), 1.0, float("inf"), 0.5, float("inf")]),
-        (True, True, [float("inf"), float("inf"), float("inf"), 0.5, 1.0]),
+        (True, True, [float("inf"), float("inf"), 0.5, float("inf"), 1.0]),
     ),
 )
 @pytest.mark.parametrize("identity_sleep", [identity_sleep, async_identity_sleep])
@@ -147,10 +147,6 @@ def test_map_with_errors(
     assert alist_or_list(s, itype) == expected_results
 
     # map errors
-    if concurrent:
-        # when the error is upstream, it virtually increases the concurrency by 1
-        # adds 1 to the concurrency to get the same behavior as when the error is in the transform function
-        concurrency += 1
     s = (
         stream([0, 1, 0, 2, 0])
         .map(inverse_sleep, concurrency=concurrency, as_completed=as_completed)
@@ -159,21 +155,39 @@ def test_map_with_errors(
     assert alist_or_list(s, itype) == expected_results
 
 
-@pytest.mark.parametrize("concurrency, pulled_elements", [(1, 1), (2, 3)])
+@pytest.mark.parametrize("concurrency", [1, 2, 3])
 @pytest.mark.parametrize("identity", [identity, async_identity])
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_map_concurrent_buffersize(
     itype: IterableType,
     concurrency: int,
-    pulled_elements: int,
     identity: Callable[..., Any],
 ) -> None:
-    """
-    Non concurrent map only pulls 1 element at a time,
-    Concurrent map pulls `concurrency + 1` elements.
-    """
     src = iter(range(10))
     s = stream(src).map(identity, concurrency=concurrency)
     it = aiter_or_iter(s, itype)
     assert anext_or_next(it, itype) == 0
-    assert next(src) == pulled_elements
+    assert next(src) == concurrency
+
+
+@pytest.mark.parametrize(
+    "identity, sleep, itype",
+    [(identity, time.sleep, Iterable), (async_identity, asyncio.sleep, AsyncIterable)],
+)
+@pytest.mark.parametrize("as_completed", [False, True])
+def test_map_not_blocked_by_upstream(
+    itype: IterableType,
+    identity: Callable[..., Any],
+    sleep: Callable[..., Any],
+    as_completed: bool,
+) -> None:
+    s = (
+        stream(range(10))
+        .do(sleep)
+        .map(identity, concurrency=2, as_completed=as_completed)
+    )
+    start = time.perf_counter()
+    it = aiter_or_iter(s, itype)
+    assert anext_or_next(it, itype) == 0
+    assert anext_or_next(it, itype) == 1
+    assert time.perf_counter() - start == pytest.approx(1, rel=0.15)
