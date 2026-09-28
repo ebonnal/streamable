@@ -111,11 +111,15 @@ def fn_to_aiter(fn: Callable[[], T]) -> AsyncIterator[T]:
 
 @runtime_checkable
 class AsyncClosable(Protocol):
+    __slots__ = ()
+
     def aclose(self) -> Awaitable[None]: ...
 
 
 @runtime_checkable
 class ClosableAsyncIterator(AsyncClosable, Protocol[C]):
+    __slots__ = ()
+
     def __aiter__(self) -> AsyncIterator[C]:
         return self
 

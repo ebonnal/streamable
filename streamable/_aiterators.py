@@ -688,7 +688,7 @@ class EveryIntObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
 
 
 class EveryIntervalObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
-    __slots__ = ("every", "_task")
+    __slots__ = ("__weakref__", "every", "_task")
 
     def __init__(
         self,
