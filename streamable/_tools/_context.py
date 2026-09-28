@@ -22,6 +22,8 @@ else:  # pragma: no cover
 
 
 class NoopContextManager(ContextManager[T]):
+    __slots__ = ("thing",)
+
     def __init__(self, thing: T):
         self.thing = thing
 

@@ -394,6 +394,8 @@ class _GroupByWithinIterable(Iterable[Union[ExceptionContainer, Tuple[U, List[T]
 
 
 class GroupByWithinIterator(_RaisingIterator[Tuple[U, List[T]]]):
+    __slots__ = ()
+
     def __init__(
         self,
         upstream: Iterator[T],
