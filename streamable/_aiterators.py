@@ -429,6 +429,8 @@ class _GroupByWithinAsyncIterable(
 
 
 class GroupByWithinAsyncIterator(_RaisingAsyncIterator[Tuple[U, List[T]]]):
+    __slots__ = ()
+
     def __init__(
         self,
         upstream: ClosableAsyncIterator[T],
@@ -688,7 +690,7 @@ class EveryIntObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
 
 
 class EveryIntervalObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
-    __slots__ = ("every", "_task")
+    __slots__ = ("__weakref__", "every", "_task")
 
     def __init__(
         self,
