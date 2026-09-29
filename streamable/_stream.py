@@ -172,9 +172,11 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         When the iteration is complete, all the child tasks are done.
 
-        When the iterator is destroyed before it is exhausted, the pending child tasks are cancelled at a subsequent cycle of the event loop.
+        When the iterator is destroyed before it is exhausted, the pending child tasks terminate at a subsequent cycle of the event loop.
 
-        Use the ``.aclose`` method to eagerly cancel any pending child tasks (see examples below).
+        Use the ``.aclose`` method to eagerly terminate any pending child tasks (see examples below).
+
+        Errors raised by child tasks during termination are not propagated.
 
         Returns:
             ``streamable.ClosableAsyncIterator[T]``: Closable async iterator over this stream's elements.
