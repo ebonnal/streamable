@@ -1,12 +1,22 @@
 import asyncio
 import random
 import time
-from typing import Any, Callable, Coroutine, Iterator, Type, TypeVar, Union
 from dataclasses import dataclass
 from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    Coroutine,
     Generic,
+    Iterator,
+    Optional,
+    Type,
+    TypeVar,
+    Union,
+    cast,
 )
 
+import pytest
 
 from streamable._tools._async import AsyncFunction
 from tests.tools.error import TestError
@@ -149,28 +159,41 @@ def noarg_asyncify(fn: Callable[[], T]) -> Callable[[], Coroutine[Any, Any, T]]:
 
 
 @dataclass
-class AsyncFuncAudit(Generic[T]):
-    result: T
-    avg_duration: float
-    avg_leftover_tasks: float
+class AwaitableAudit(Generic[T]):
+    duration: float
+    leftover_tasks: int
+    _result: Union[T, BaseException]
+
+    @property
+    def result(self) -> T:
+        if isinstance(self._result, BaseException):
+            raise self._result
+        return cast(T, self._result)
 
 
-async def audit_async_func(
-    async_func: Callable[[], Coroutine[object, object, T]],
-    times: int = 1,
-) -> "AsyncFuncAudit[T]":
-    duration = 0.0
+async def audit_awaitable(
+    awaitable: Awaitable[T],
+    assert_raises: Optional[Type[BaseException]] = None,
+) -> "AwaitableAudit[T]":
+    result: Union[T, BaseException]
     leftover_tasks = 0
-    for _ in range(times):
-        baseline = set(asyncio.all_tasks())
-        start = time.perf_counter()
-        res = await async_func()
-        duration += time.perf_counter() - start
-        for task in asyncio.all_tasks():
-            if task not in baseline and not task.done():
-                leftover_tasks += 1
-    return AsyncFuncAudit(
-        result=res,
-        avg_duration=duration / times,
-        avg_leftover_tasks=leftover_tasks / times,
+    baseline = set(asyncio.all_tasks())
+    start = time.perf_counter()
+    if assert_raises is not None:
+        with pytest.raises(assert_raises):
+            try:
+                result = await awaitable
+            except BaseException as e:
+                result = e
+                raise
+    else:
+        result = await awaitable
+    duration = time.perf_counter() - start
+    leftover_tasks = sum(
+        [1 for task in asyncio.all_tasks() if task not in baseline and not task.done()]
+    )
+    return AwaitableAudit(
+        _result=result,
+        duration=duration,
+        leftover_tasks=leftover_tasks,
     )
