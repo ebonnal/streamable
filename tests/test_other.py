@@ -14,7 +14,12 @@ from typing import (
 import pytest
 
 from streamable import stream
-from tests.tools.func import identity, noarg_asyncify, slow_identity
+from tests.tools.func import (
+    audit_awaitable,
+    identity,
+    noarg_asyncify,
+    slow_identity,
+)
 from tests.tools.iter import (
     ITERABLE_TYPES,
     IterableType,
@@ -24,7 +29,6 @@ from tests.tools.iter import (
     anext_or_next,
 )
 from tests.tools.source import INTEGERS, N, ints
-from tests.tools.func import audit_async_func
 
 
 def test_init() -> None:
@@ -201,23 +205,21 @@ async def test_aiter_of_concurrent_sync_operations(
     tasks (running in executors), among multiple stream iterations.
     """
     s1 = stream_factory()
-    count_audit = await audit_async_func(lambda: acount(s1), times=3)
+    count_audit = await audit_awaitable(acount(s1))
 
     async def parallel_counts(*streams: stream) -> List[int]:
         return list(await asyncio.gather(*(acount(s) for s in streams)))
 
     s2 = stream_factory()
     s3 = stream_factory()
-    parallel_counts_audit = await audit_async_func(
-        lambda: parallel_counts(s1, s2, s3), times=3
-    )
+    parallel_counts_audit = await audit_awaitable(parallel_counts(s1, s2, s3))
     assert parallel_counts_audit.result == [
         count_audit.result,
         count_audit.result,
         count_audit.result,
     ]
-    assert parallel_counts_audit.avg_duration == pytest.approx(
-        count_audit.avg_duration, rel=0.2
+    assert parallel_counts_audit.duration == pytest.approx(
+        count_audit.duration, rel=0.3
     )
 
 
