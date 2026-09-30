@@ -246,3 +246,15 @@ async def test_group_within_does_not_pull_ahead_of_consumption_on_timeout(
         assert await it.__anext__() == [2]
         await asyncio.sleep(2 * per)
     assert pulled == [0, 1, 2, 3]
+
+
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_group_within_chain_of_background_task(itype: IterableType) -> None:
+    s = (
+        stream(INTEGERS)
+        .group(1, within=timedelta(seconds=1))
+        .flatten()
+        .group(1, within=timedelta(seconds=1))
+        .flatten()
+    )
+    assert alist_or_list(s, itype) == list(INTEGERS)
