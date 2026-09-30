@@ -83,3 +83,9 @@ def test_buffer_with_exceptions(
     assert buffered == [0, 2, 3, 6]
     with pytest.raises(stopiteration_type(itype)):
         anext_or_next(buffering_ints_iter, itype)
+
+
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_buffer_chain_of_background_task(itype: IterableType) -> None:
+    s = stream(INTEGERS).buffer(2).buffer(2)
+    assert alist_or_list(s, itype) == list(INTEGERS)
