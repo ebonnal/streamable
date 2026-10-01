@@ -17,13 +17,22 @@ from streamable import stream
 from streamable._tools._func import asyncify
 from streamable._tools._observation import Observation
 from tests.tools.error import TestError
-from tests.tools.func import identity, inverse, throw_func
+from tests.tools.func import (
+    SLOW_IDENTITY_DURATION,
+    async_inverse,
+    async_slow_identity,
+    identity,
+    inverse,
+    slow_identity,
+    throw_func,
+)
 from tests.tools.iter import (
     ITERABLE_TYPES,
     IterableType,
     aiter_or_iter,
     alist_or_list,
     anext_or_next,
+    stopiteration_type,
 )
 from tests.tools.source import ints
 
@@ -271,3 +280,44 @@ async def test_observe_every_timedelta_observation_stops_on_gc(
         await asyncio.sleep(sleep_time)
     # no more observations after `del`
     assert n_observations == len(observations)
+
+
+@pytest.mark.parametrize(
+    "every", (1, datetime.timedelta(seconds=SLOW_IDENTITY_DURATION / 10))
+)
+@pytest.mark.parametrize("slow_identity", (slow_identity, async_slow_identity))
+@pytest.mark.parametrize("inverse", (inverse, async_inverse))
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_observe_iterate_after_stop_does_not_retrigger_an_observation(
+    itype: IterableType,
+    slow_identity: Callable[..., Any],
+    inverse: Callable[..., Any],
+    every: Union[int, datetime.timedelta],
+):
+    observations: List[Observation] = []
+
+    def observe(observation: Observation):
+        nonlocal observations
+        observations.append(observation)
+
+    s = (
+        stream([1, 1, 0, 1, 1])
+        .map(slow_identity)
+        .map(inverse)
+        .observe(every=every, do=observe)
+    )
+    it = aiter_or_iter(s, itype)
+
+    assert anext_or_next(it, itype) == 1
+    assert anext_or_next(it, itype) == 1
+    with pytest.raises(ZeroDivisionError):
+        anext_or_next(it, itype)
+    assert anext_or_next(it, itype) == 1
+    assert anext_or_next(it, itype) == 1
+    with pytest.raises(stopiteration_type(itype)):
+        anext_or_next(it, itype)
+    assert observations
+    post_stop_observations = list(observations)
+    with pytest.raises(stopiteration_type(itype)):
+        anext_or_next(it, itype)
+    assert post_stop_observations == observations

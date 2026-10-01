@@ -494,6 +494,7 @@ class _BaseObserveIterator(Iterator[T]):
         "_emissions_observed",
         "_elements_observed",
         "_errors_observed",
+        "_activated",
         "_active",
         "_start_point",
     )
@@ -512,6 +513,7 @@ class _BaseObserveIterator(Iterator[T]):
         self._emissions_observed = 0
         self._elements_observed = 0
         self._errors_observed = 0
+        self._activated = False
         self._active = False
         self._start_point: datetime.datetime
 
@@ -534,6 +536,7 @@ class _BaseObserveIterator(Iterator[T]):
     def _activate(self) -> None:
         self._start_point = self._time_point()
         self._active = True
+        self._activated = True
 
     def _observe(self) -> None:
         self._emissions_observed = self._emissions
@@ -544,7 +547,7 @@ class _BaseObserveIterator(Iterator[T]):
     def _threshold(self, observed: int) -> int: ...
 
     def __next__(self) -> T:
-        if not self._active:
+        if not self._activated:
             self._activate()
         try:
             elem = self.upstream.__next__()

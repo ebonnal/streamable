@@ -577,6 +577,7 @@ class _BaseObserveAsyncIterator(_BaseOperationAsyncIterator[T, T]):
         "_emissions_observed",
         "_elements_observed",
         "_errors_observed",
+        "_activated",
         "_active",
         "_start_point",
     )
@@ -595,6 +596,7 @@ class _BaseObserveAsyncIterator(_BaseOperationAsyncIterator[T, T]):
         self._emissions_observed = 0
         self._elements_observed = 0
         self._errors_observed = 0
+        self._activated = False
         self._active = False
         self._start_point: datetime.datetime
 
@@ -617,6 +619,7 @@ class _BaseObserveAsyncIterator(_BaseOperationAsyncIterator[T, T]):
     async def _activate(self) -> None:
         self._start_point = self._time_point()
         self._active = True
+        self._activated = True
 
     async def _observe(self) -> None:
         self._emissions_observed = self._emissions
@@ -627,7 +630,7 @@ class _BaseObserveAsyncIterator(_BaseOperationAsyncIterator[T, T]):
     def _threshold(self, observed: int) -> int: ...
 
     async def _anext(self) -> T:
-        if not self._active:
+        if not self._activated:
             await self._activate()
         try:
             elem = await self.upstream.__anext__()

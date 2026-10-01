@@ -36,6 +36,10 @@ def inverse(n: Union[int, float]) -> float:
     return 1 / n
 
 
+async def async_inverse(n: Union[int, float]) -> float:
+    return 1 / n
+
+
 async def async_square(x):
     return x**2
 
