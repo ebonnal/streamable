@@ -28,8 +28,12 @@ async def acontained(
         return ExceptionContainer(e)
 
 
-class ExceptionContainer(NamedTuple):
-    exception: Exception
+class BaseExceptionContainer(NamedTuple):
+    exception: BaseException
+
+
+class ExceptionContainer(BaseExceptionContainer):
+    __slots__ = ()
 
     @staticmethod
     def wrap(func: Callable[[T], U]) -> Callable[[T], Union[U, "ExceptionContainer"]]:
