@@ -2,9 +2,10 @@ from typing import (
     AsyncIterable,
     AsyncIterator,
     Callable,
-    Iterator,
     Iterable,
+    Iterator,
     List,
+    Tuple,
     Type,
     TypeVar,
     Union,
@@ -13,8 +14,6 @@ from typing import (
 
 from streamable import stream
 from streamable._tools._async import awaitable_to_coroutine
-from typing import Tuple
-
 from streamable._tools._iter import SyncAsyncIterable, SyncToAsyncIterator
 from tests.tools.loop import TEST_LOOP
 

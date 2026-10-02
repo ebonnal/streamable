@@ -1,21 +1,20 @@
 import asyncio
-from concurrent.futures import ProcessPoolExecutor
-from http import HTTPStatus
 import json
 import logging
-from pathlib import Path
 import sys
 import time
+from concurrent.futures import ProcessPoolExecutor
 from datetime import timedelta
+from http import HTTPStatus
+from pathlib import Path
 from typing import Any, Dict, List, Tuple
-import httpx
-from httpx import Response, HTTPStatusError
 
+import httpx
 import pytest
 import respx
+from httpx import HTTPStatusError, Response
 
 from streamable import stream
-
 
 pokemons: stream[str] = (
     stream(range(10))
@@ -327,7 +326,7 @@ def test_cast_example() -> None:
 
 
 def test_func_source() -> None:
-    from queue import Queue, Empty
+    from queue import Empty, Queue
 
     ints_queue: Queue[int] = Queue()
     for i in range(10):

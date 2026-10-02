@@ -9,9 +9,9 @@ from tests.tools.func import async_identity, identity, inverse, throw_func
 from tests.tools.iter import (
     ITERABLE_TYPES,
     IterableType,
+    aiter_or_iter,
     alist_or_list,
     anext_or_next,
-    aiter_or_iter,
 )
 from tests.tools.source import INTEGERS, ints
 

@@ -1,9 +1,9 @@
 import asyncio
-from concurrent.futures import ThreadPoolExecutor
 import copy
-from datetime import timedelta
 import queue
 import time
+from concurrent.futures import ThreadPoolExecutor
+from datetime import timedelta
 from typing import (
     Any,
     AsyncIterator,
@@ -32,8 +32,8 @@ from tests.tools.iter import (
     ITERABLE_TYPES,
     IterableType,
     acount,
-    alist_or_list,
     aiter_or_iter,
+    alist_or_list,
     anext_or_next,
     stopiteration_type,
 )

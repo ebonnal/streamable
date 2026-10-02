@@ -1,6 +1,6 @@
-from concurrent.futures import Executor
 import datetime
 import logging
+from concurrent.futures import Executor
 from typing import (
     TYPE_CHECKING,
     AsyncIterable,
@@ -24,6 +24,7 @@ from typing import (
     cast,
     overload,
 )
+
 from streamable._tools._async import AsyncFunction
 from streamable._tools._iter import (
     AsyncToSyncIterator,
@@ -34,15 +35,15 @@ from streamable._tools._logging import setup_logger
 from streamable._tools._observation import Observation
 from streamable._tools._validation import (
     validate_concurrency_executor,
-    validate_positive_timedelta,
     validate_int,
+    validate_positive_timedelta,
 )
 from streamable.visitors import Visitor
-from streamable.visitors._iter import IteratorVisitor
 from streamable.visitors._aiter import AsyncIteratorVisitor
 from streamable.visitors._eq import EqualityVisitor
-from streamable.visitors._repr import ReprVisitor
 from streamable.visitors._involves_async import InvolvesAsyncVisitor
+from streamable.visitors._iter import IteratorVisitor
+from streamable.visitors._repr import ReprVisitor
 
 setup_logger()
 

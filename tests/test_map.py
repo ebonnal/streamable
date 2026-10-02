@@ -1,7 +1,7 @@
-from concurrent.futures import Executor, ProcessPoolExecutor, ThreadPoolExecutor
 import sys
-from pickle import PickleError
 import time
+from concurrent.futures import Executor, ProcessPoolExecutor, ThreadPoolExecutor
+from pickle import PickleError
 from typing import Any, Callable, Iterable, List, Union
 
 import pytest
@@ -23,11 +23,11 @@ from tests.tools.func import (
 from tests.tools.iter import (
     ITERABLE_TYPES,
     IterableType,
+    aiter_or_iter,
     alist_or_list,
     anext_or_next,
-    aiter_or_iter,
 )
-from tests.tools.source import N, INTEGERS, ints
+from tests.tools.source import INTEGERS, N, ints
 
 
 def test_map_async_func_with_executor():

@@ -1,12 +1,12 @@
 import datetime
 import queue
 import sys
-from threading import Event, Semaphore, Thread
 import time
+import weakref
 from abc import ABC, abstractmethod
 from collections import defaultdict, deque
-
 from concurrent.futures import Executor, Future, ThreadPoolExecutor
+from threading import Event, Semaphore, Thread
 from typing import (
     Callable,
     ContextManager,
@@ -23,21 +23,18 @@ from typing import (
     Union,
     cast,
 )
-import weakref
 
 from streamable._tools._context import NoopContextManager
-from streamable._tools._observation import Observation
-from streamable._tools._sentinel import STOP_ITERATION
-from streamable._tools._validation import validate_sync_flatten_iterable
-
 from streamable._tools._error import BaseExceptionContainer, ExceptionContainer
-
 from streamable._tools._future import (
     FDFOFutureResults,
     FIFOFutureResults,
     FutureResult,
     FutureResults,
 )
+from streamable._tools._observation import Observation
+from streamable._tools._sentinel import STOP_ITERATION
+from streamable._tools._validation import validate_sync_flatten_iterable
 
 T = TypeVar("T")
 U = TypeVar("U")
