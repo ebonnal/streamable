@@ -3,18 +3,30 @@ from concurrent.futures import ThreadPoolExecutor
 import copy
 from datetime import timedelta
 import queue
+import time
 from typing import (
     Any,
     AsyncIterator,
     Callable,
     List,
+    Type,
     Union,
 )
 
 import pytest
 
 from streamable import stream
-from tests.tools.func import identity, noarg_asyncify, slow_identity
+from tests.tools.error import TestBaseError
+from tests.tools.func import (
+    SLOW_IDENTITY_DURATION,
+    async_throw_if_falsy_func,
+    identity,
+    noarg_asyncify,
+    nothing,
+    slow_identity,
+    throw_func,
+    throw_if_falsy_func,
+)
 from tests.tools.iter import (
     ITERABLE_TYPES,
     IterableType,
@@ -22,6 +34,7 @@ from tests.tools.iter import (
     alist_or_list,
     aiter_or_iter,
     anext_or_next,
+    stopiteration_type,
 )
 from tests.tools.source import INTEGERS, N, ints
 from tests.tools.func import audit_async_func
@@ -317,3 +330,194 @@ def test_loop_lifecycle() -> None:
     assert list(it) == [0]
     # stopiteration does not close/unset the loop
     assert not get_current_loop().is_closed()
+
+
+@pytest.mark.parametrize(
+    "s, expected_yields, expected_error, iteration_resumes",
+    [
+        (
+            stream([1, 2, 3, 0, 4]).map(throw_if_falsy_func(TestBaseError)),
+            [1, 2, 3],
+            TestBaseError,
+            True,
+        ),
+        (
+            stream([1, 2, 3, 0, 4])
+            .map(throw_if_falsy_func(TestBaseError))
+            .do(nothing, concurrency=2),
+            [1],
+            TestBaseError,
+            False,
+        ),
+        # error in mapped func, FIFO
+        (
+            stream([1, 2, 3, 0, 4]).do(
+                throw_if_falsy_func(TestBaseError), concurrency=2
+            ),
+            [1, 2, 3],
+            TestBaseError,
+            False,
+        ),
+        # error in mapped func, FDFO
+        (
+            stream([1, 2, 3, 0, 4])
+            .do(lambda n: time.sleep(n / 10))
+            .do(throw_if_falsy_func(TestBaseError), concurrency=2, as_completed=True),
+            [1, 2, 3],
+            TestBaseError,
+            False,
+        ),
+        # asyncio.CancelledError in mapped func, FIFO
+        (
+            stream([1, 2, 3, 0, 4])
+            .map(slow_identity)
+            .do(
+                async_throw_if_falsy_func(asyncio.CancelledError),
+                concurrency=2,
+            ),
+            [1, 2, 3],
+            asyncio.CancelledError,
+            False,
+        ),
+        # asyncio.CancelledError in mapped func, FDFO
+        (
+            stream([1, 2, 3, 0, 4])
+            .map(slow_identity)
+            .do(
+                async_throw_if_falsy_func(asyncio.CancelledError),
+                concurrency=2,
+                as_completed=True,
+            ),
+            [1, 2, 3],
+            asyncio.CancelledError,
+            False,
+        ),
+        (
+            stream([1, 2, 3, 0, 4])
+            .map(throw_if_falsy_func(TestBaseError))
+            .group(1)
+            .flatten(concurrency=2),
+            [1, 2],
+            TestBaseError,
+            False,
+        ),
+        # BaseException thrown by inner iter
+        (
+            stream([1, 2, 3, 0, 4])
+            .group(1)
+            .map(lambda it: map(throw_if_falsy_func(TestBaseError), it))
+            .flatten(concurrency=2),
+            [1, 2, 3],
+            TestBaseError,
+            False,
+        ),
+        (
+            stream([1, 2, 3, 0, 4])
+            .map(throw_if_falsy_func(TestBaseError))
+            .group(1, within=timedelta(seconds=1))
+            .flatten(),
+            [1, 2, 3],
+            TestBaseError,
+            False,
+        ),
+        (
+            stream([1, 2, 3, 0, 4]).map(throw_if_falsy_func(TestBaseError)).buffer(1),
+            [1, 2, 3],
+            TestBaseError,
+            False,
+        ),
+        # buffered elements are droped as soon as a base exception is received from upstream
+        (
+            stream([1, 2, 3, 0, 4]).map(throw_if_falsy_func(TestBaseError)).buffer(10),
+            [],
+            TestBaseError,
+            False,
+        ),
+        (
+            stream([1, 2, 3, 0, 4])
+            .map(throw_if_falsy_func(TestBaseError))
+            .catch(ValueError),
+            [1, 2, 3],
+            TestBaseError,
+            True,
+        ),
+        (
+            stream([1, 2, 3, 0, 4])
+            .map(throw_if_falsy_func(TestBaseError))
+            .group(1)
+            .flatten(),
+            [1, 2, 3],
+            TestBaseError,
+            True,
+        ),
+        (
+            stream([1, 2, 3, 0, 4]).map(throw_if_falsy_func(TestBaseError)).skip(0),
+            [1, 2, 3],
+            TestBaseError,
+            True,
+        ),
+        (
+            stream([1, 2, 3, 0, 4]).map(throw_if_falsy_func(TestBaseError)).take(10),
+            [1, 2, 3],
+            TestBaseError,
+            True,
+        ),
+        (
+            stream([1, 2, 3, 0, 4])
+            .map(throw_if_falsy_func(TestBaseError))
+            .throttle(1, per=timedelta(microseconds=1)),
+            [1, 2, 3],
+            TestBaseError,
+            True,
+        ),
+        (
+            stream([1, 2, 3, 0, 4]).map(throw_if_falsy_func(TestBaseError)).observe(),
+            [1, 2, 3],
+            TestBaseError,
+            True,
+        ),
+        (
+            stream([1, 2, 3, 0, 4]).observe(
+                every=1,
+                do=lambda observation: throw_func(TestBaseError)(None)
+                if observation.elements == 4
+                else None,
+            ),
+            [1, 2, 3],
+            TestBaseError,
+            False,
+        ),
+        (
+            stream([1, 2, 3, 0, 4])
+            .map(slow_identity)
+            .observe(
+                every=timedelta(seconds=SLOW_IDENTITY_DURATION / 7),
+                do=lambda observation: throw_func(TestBaseError)(None)
+                if observation.elements == 3
+                else None,
+            ),
+            [1, 2, 3],
+            TestBaseError,
+            False,
+        ),
+    ],
+)
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_propagation_of_base_exceptions(
+    itype: IterableType,
+    s: stream[int],
+    expected_yields: List[int],
+    expected_error: Type[BaseException],
+    iteration_resumes: bool,
+):
+    it = aiter_or_iter(s, itype)
+    for expected_yield in expected_yields:
+        assert anext_or_next(it, itype) == expected_yield
+    with pytest.raises(expected_error):
+        anext_or_next(it, itype)
+    # after base exception, iteration is stopped if generators are involved, else it can resume
+    if iteration_resumes:
+        assert anext_or_next(it, itype) == 4
+    else:
+        with pytest.raises(stopiteration_type(itype)):
+            anext_or_next(it, itype)
