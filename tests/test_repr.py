@@ -1,8 +1,7 @@
 import datetime
 from typing import Any
 
-
-from streamable import stream, star
+from streamable import star, stream
 from tests.tools.func import async_identity
 
 

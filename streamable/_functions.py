@@ -1,6 +1,6 @@
 import builtins
-from concurrent.futures import Executor
 import datetime
+from concurrent.futures import Executor
 from operator import itemgetter
 from typing import (
     Callable,
@@ -15,9 +15,8 @@ from typing import (
     cast,
 )
 
-from streamable._tools._observation import Observation
-
 from streamable import _iterators
+from streamable._tools._observation import Observation
 
 T = TypeVar("T")
 U = TypeVar("U")
