@@ -1,46 +1,26 @@
-from functools import partial
-from typing import (
-    Callable,
-    NamedTuple,
-    TypeVar,
-    Union,
-)
-
-from streamable._tools._async import AsyncFunction
+from concurrent.futures import Future
+from typing import Awaitable, NamedTuple, TypeVar, Union
 
 T = TypeVar("T")
-U = TypeVar("U")
 
 
-def contained(func: Callable[[T], U], arg: T) -> Union[U, "ExceptionContainer"]:
-    try:
-        return func(arg)
-    except Exception as e:
-        return ExceptionContainer(e)
-
-
-async def acontained(
-    afunc: AsyncFunction[T, U], arg: T
-) -> Union[U, "ExceptionContainer"]:
-    try:
-        return await afunc(arg)
-    except Exception as e:
-        return ExceptionContainer(e)
-
-
-class BaseExceptionContainer(NamedTuple):
+class ExceptionContainer(NamedTuple):
     exception: BaseException
 
+    @classmethod
+    async def aresult(cls, future: Awaitable[T]) -> Union[T, "ExceptionContainer"]:
+        try:
+            return await future
+        except Exception as e:
+            return cls(e)
+        finally:
+            del future
 
-class ExceptionContainer(BaseExceptionContainer):
-    __slots__ = ()
-
-    @staticmethod
-    def wrap(func: Callable[[T], U]) -> Callable[[T], Union[U, "ExceptionContainer"]]:
-        return partial(contained, func)
-
-    @staticmethod
-    def awrap(
-        afunc: AsyncFunction[T, U],
-    ) -> AsyncFunction[T, Union[U, "ExceptionContainer"]]:
-        return partial(acontained, afunc)
+    @classmethod
+    def result(cls, future: "Future[T]") -> Union[T, "ExceptionContainer"]:
+        try:
+            return future.result()
+        except Exception as e:
+            return cls(e)
+        finally:
+            del future
