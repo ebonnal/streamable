@@ -478,14 +478,8 @@ async def test_closing_cancel_propagates_to_flattened_iterators(
 @pytest.mark.parametrize("as_completed", [False, True])
 @pytest.mark.asyncio
 async def test_closing_cancel_propagates_from_downstream_to_upstream_operator(
-    as_completed: bool, raise_base_exception: bool, request: pytest.FixtureRequest
+    as_completed: bool, raise_base_exception: bool
 ) -> None:
-    if as_completed and raise_base_exception:
-        # the FDFO done-callback raises the `BaseException` instead of queuing it
-        request.applymarker(
-            pytest.mark.xfail(strict=True, reason="`BaseException` not propagated")
-        )
-
     async def get_src() -> AsyncIterator[int]:
         for duration in (0, 5, 5, 5):
             yield duration

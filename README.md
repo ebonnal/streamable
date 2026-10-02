@@ -93,7 +93,7 @@ A `stream` can be iterated several times if its source allows it.
 
 Operations return a new `stream`.
 
-Operations allow iteration to resume after an exception.
+Operations allow iteration to resume after an `Exception`.
 
 Operations accept both sync and async functions.
 

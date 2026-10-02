@@ -7,7 +7,6 @@ from abc import ABC, abstractmethod
 from collections import defaultdict, deque
 
 from concurrent.futures import Executor, Future, ThreadPoolExecutor
-from contextlib import suppress
 from typing import (
     Callable,
     ContextManager,
@@ -31,7 +30,7 @@ from streamable._tools._observation import Observation
 from streamable._tools._sentinel import STOP_ITERATION
 from streamable._tools._validation import validate_sync_flatten_iterable
 
-from streamable._tools._error import ExceptionContainer
+from streamable._tools._error import BaseExceptionContainer, ExceptionContainer
 
 from streamable._tools._future import (
     FDFOFutureResults,
@@ -85,6 +84,7 @@ class _BufferIterable(Iterable[Union[T, ExceptionContainer]]):
         buffer: "queue.Queue[Union[T, ExceptionContainer]]",
         slots: Semaphore,
         stopped: Event,
+        base_exception: Deque[BaseException],
     ) -> None:
         elem: Union[T, ExceptionContainer]
         slots.acquire()
@@ -96,6 +96,11 @@ class _BufferIterable(Iterable[Union[T, ExceptionContainer]]):
                 stopped.set()
             except Exception as e:
                 elem = ExceptionContainer(e)
+            except BaseException as e:
+                base_exception.append(e)
+                buffer.put_nowait(STOP_ITERATION)
+                stopped.set()
+                continue
             buffer.put_nowait(elem)
             slots.acquire()
 
@@ -103,9 +108,10 @@ class _BufferIterable(Iterable[Union[T, ExceptionContainer]]):
         buffer: "queue.Queue[Union[T, ExceptionContainer]]" = queue.Queue()
         slots = Semaphore(self.up_to)
         stopped = Event()
+        base_exception: Deque[BaseException] = deque()
         thread = Thread(
             target=self._buffer_upstream,
-            args=(buffer, slots, stopped),
+            args=(buffer, slots, stopped, base_exception),
             daemon=True,
         )
         to_yield: Deque[Union[T, ExceptionContainer]] = deque(maxlen=1)
@@ -113,6 +119,11 @@ class _BufferIterable(Iterable[Union[T, ExceptionContainer]]):
             thread.start()
             while True:
                 to_yield.append(buffer.get())
+                if base_exception:
+                    try:
+                        raise base_exception.pop()
+                    finally:
+                        base_exception.clear()
                 if to_yield[-1] is STOP_ITERATION:
                     break
                 slots.release()
@@ -304,13 +315,13 @@ class _GroupByWithinIterable(Iterable[Union[ExceptionContainer, Tuple[U, List[T]
 
     @staticmethod
     def _get_next_elem(
-        next_elem: "queue.Queue[Union[T, ExceptionContainer]]",
+        next_elem: "queue.Queue[Union[T, BaseExceptionContainer]]",
         timeout: Optional[float],
     ) -> T:
         elem = next_elem.get(timeout=timeout)
         if elem is STOP_ITERATION:
             raise StopIteration
-        if isinstance(elem, ExceptionContainer):
+        if isinstance(elem, BaseExceptionContainer):
             try:
                 raise elem.exception
             finally:
@@ -326,11 +337,11 @@ class _GroupByWithinIterable(Iterable[Union[ExceptionContainer, Tuple[U, List[T]
 
     def _puller(
         self,
-        next_elem: "queue.Queue[Union[T, ExceptionContainer]]",
+        next_elem: "queue.Queue[Union[T, BaseExceptionContainer]]",
         let_pull_next: Semaphore,
         stopped: Event,
     ) -> None:
-        elem: Union[T, ExceptionContainer]
+        elem: Union[T, BaseExceptionContainer]
         let_pull_next.acquire()
         while not stopped.is_set():
             try:
@@ -340,6 +351,10 @@ class _GroupByWithinIterable(Iterable[Union[ExceptionContainer, Tuple[U, List[T]
                 stopped.set()
             except Exception as e:
                 elem = ExceptionContainer(e)
+            except BaseException as e:
+                next_elem.put_nowait(BaseExceptionContainer(e))
+                stopped.set()
+                continue
             try:
                 next_elem.put_nowait(elem)
             finally:
@@ -350,7 +365,7 @@ class _GroupByWithinIterable(Iterable[Union[ExceptionContainer, Tuple[U, List[T]
         groups: Dict[U, Tuple[float, List[T]]] = defaultdict(
             lambda: (time.perf_counter(), [])
         )
-        next_elem: "queue.Queue[Union[T, ExceptionContainer]]" = queue.Queue()
+        next_elem: "queue.Queue[Union[T, BaseExceptionContainer]]" = queue.Queue()
         let_pull_next = Semaphore(0)
         stopped = Event()
         thread = Thread(
@@ -497,6 +512,7 @@ class _BaseObserveIterator(Iterator[T]):
         "_activated",
         "_active",
         "_start_point",
+        "_do_base_exception",
     )
 
     def __init__(
@@ -516,6 +532,7 @@ class _BaseObserveIterator(Iterator[T]):
         self._activated = False
         self._active = False
         self._start_point: datetime.datetime
+        self._do_base_exception: Optional[BaseException] = None
 
     @property
     def _emissions(self) -> int:
@@ -540,8 +557,20 @@ class _BaseObserveIterator(Iterator[T]):
 
     def _observe(self) -> None:
         self._emissions_observed = self._emissions
-        with suppress(Exception):
+        try:
             self.do(self._observation())
+        except Exception:
+            pass
+        except BaseException as e:
+            self._do_base_exception = e
+
+    def _reraise_do_base_exception(self) -> None:
+        if self._do_base_exception:
+            self._active = False
+            try:
+                raise self._do_base_exception
+            finally:
+                self._do_base_exception = None
 
     @abstractmethod
     def _threshold(self, observed: int) -> int: ...
@@ -549,6 +578,8 @@ class _BaseObserveIterator(Iterator[T]):
     def __next__(self) -> T:
         if not self._activated:
             self._activate()
+        if not self._active:
+            raise StopIteration
         try:
             elem = self.upstream.__next__()
             self._elements += 1
@@ -567,6 +598,8 @@ class _BaseObserveIterator(Iterator[T]):
                 self._observe()
                 self._errors_observed = self._errors
             raise
+        finally:
+            self._reraise_do_base_exception()
 
 
 class PowerObserveIterator(_BaseObserveIterator[T]):
@@ -628,6 +661,8 @@ class EveryIntervalObserveIterator(_BaseObserveIterator[T]):
         self = weak_self()
         while self and self._active:
             self._observe()
+            if self._do_base_exception:
+                return
             self = None
             time.sleep(every_seconds)
             self = weak_self()

@@ -70,7 +70,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
     Operations return a new `stream`.
 
-    Operations allow iteration to resume after an exception.
+    Operations allow iteration to resume after an ``Exception``.
 
     Operations accept both sync and async functions.
 
@@ -961,7 +961,9 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         A ``streamable.Observation`` is passed to the ``do`` callback (the default emits a log), at a frequency defined by ``every``.
 
-        If an error is raised by ``do``, it is silently ignored and is not included in the errors count.
+        If an ``Exception`` is raised by ``do``, it is swallowed and it is not included in the errors count.
+
+        If a ``BaseException`` is raised by ``do``, it is surfaced and it interrupts the iteration.
 
         Args:
             subject (``str``, optional): Description of elements being observed.
