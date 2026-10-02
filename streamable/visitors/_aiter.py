@@ -14,8 +14,8 @@ from streamable._tools._iter import (
     ClosableAsyncIterator,
     NoopClosableAsyncIterator,
     afn_to_aiter,
-    fn_to_aiter,
     async_iter,
+    fn_to_aiter,
 )
 from streamable.visitors import Visitor
 
@@ -30,9 +30,9 @@ if TYPE_CHECKING:  # pragma: no cover
         MapStream,
         ObserveStream,
         SkipStream,
-        stream,
-        ThrottleStream,
         TakeStream,
+        ThrottleStream,
+        stream,
     )
 
 

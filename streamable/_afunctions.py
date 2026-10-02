@@ -1,5 +1,5 @@
-from concurrent.futures import Executor
 import datetime
+from concurrent.futures import Executor
 from inspect import iscoroutinefunction
 from operator import itemgetter
 from typing import (
@@ -15,12 +15,11 @@ from typing import (
     cast,
 )
 
-from streamable._tools._iter import ClosableAsyncIterator
-from streamable._tools._observation import Observation
-
 from streamable import _aiterators
 from streamable._tools._async import AsyncFunction
 from streamable._tools._func import asyncify
+from streamable._tools._iter import ClosableAsyncIterator
+from streamable._tools._observation import Observation
 
 T = TypeVar("T")
 U = TypeVar("U")

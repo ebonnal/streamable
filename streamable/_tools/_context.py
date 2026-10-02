@@ -1,8 +1,7 @@
-from concurrent.futures import Executor
-from typing import AsyncContextManager, Type
 import sys
+from concurrent.futures import Executor
 from types import TracebackType
-from typing import ContextManager, Optional, TypeVar
+from typing import AsyncContextManager, ContextManager, Optional, Type, TypeVar
 
 T = TypeVar("T")
 E = TypeVar("E", bound=Executor)

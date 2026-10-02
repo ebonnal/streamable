@@ -10,8 +10,8 @@ from tests.tools.func import throw_func
 from tests.tools.iter import (
     ITERABLE_TYPES,
     IterableType,
-    anext_or_next,
     aiter_or_iter,
+    anext_or_next,
 )
 
 

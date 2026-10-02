@@ -12,9 +12,9 @@ if TYPE_CHECKING:  # pragma: no cover
         MapStream,
         ObserveStream,
         SkipStream,
-        stream,
-        ThrottleStream,
         TakeStream,
+        ThrottleStream,
+        stream,
     )
 
 
