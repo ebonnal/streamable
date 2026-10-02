@@ -44,7 +44,7 @@ class FIFOFutureResults(FutureResults[T]):
     def __next__(self) -> T:
         future = next(iter(self.futures))
         result = future.result()
-        del self.futures[future]
+        self.futures.pop(future, None)
         return result
 
 
@@ -53,23 +53,22 @@ class FDFOFutureResults(FutureResults[T]):
     First Done First Out
     """
 
-    __slots__ = ("_results",)
+    __slots__ = ("_done_futures",)
 
     def __init__(self) -> None:
         super().__init__()
-        self._results: "Queue[T]" = Queue()
+        self._done_futures: "Queue[Future[T]]" = Queue()
 
     def __len__(self) -> int:
-        return self._results.qsize() + len(self.futures)
+        return self._done_futures.qsize() + len(self.futures)
 
     def _done_callback(self, future: "Future[T]") -> None:
-        if not future.cancelled():
-            self._results.put_nowait(future.result())
-        del self.futures[future]
+        self._done_futures.put_nowait(future)
+        self.futures.pop(future, None)
 
     def add(self, future: "Future[T]") -> None:
         super().add(future)
         future.add_done_callback(self._done_callback)
 
     def __next__(self) -> T:
-        return self._results.get()
+        return self._done_futures.get().result()

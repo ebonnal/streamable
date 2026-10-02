@@ -1,6 +1,5 @@
 import asyncio
 from asyncio.futures import Future
-from contextlib import suppress
 import datetime
 import sys
 
@@ -48,7 +47,7 @@ from streamable._tools._context import (
     NoopAsyncContextManager,
     aclosing,
 )
-from streamable._tools._error import ExceptionContainer
+from streamable._tools._error import BaseExceptionContainer, ExceptionContainer
 
 
 T = TypeVar("T")
@@ -141,6 +140,7 @@ class _BufferAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]]):
         buffer: "asyncio.Queue[Union[T, ExceptionContainer]]",
         slots: asyncio.Semaphore,
         stopped: asyncio.Event,
+        base_exception: Deque[BaseException],
     ) -> None:
         elem: Union[T, ExceptionContainer]
         await slots.acquire()
@@ -152,6 +152,11 @@ class _BufferAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]]):
                 stopped.set()
             except Exception as e:
                 elem = ExceptionContainer(e)
+            except BaseException as e:
+                base_exception.append(e)
+                buffer.put_nowait(STOP_ITERATION)
+                stopped.set()
+                continue
             buffer.put_nowait(elem)
             await slots.acquire()
 
@@ -161,10 +166,15 @@ class _BufferAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]]):
             slots: asyncio.Semaphore = asyncio.Semaphore(self.up_to)
             to_yield: Deque[Union[T, ExceptionContainer]] = deque(maxlen=1)
             stopped = asyncio.Event()
-            task = asyncio.create_task(self._buffer_upstream(buffer, slots, stopped))
+            base_exception: Deque[BaseException] = deque()
+            task = asyncio.create_task(
+                self._buffer_upstream(buffer, slots, stopped, base_exception)
+            )
             try:
                 while True:
                     to_yield.append(await buffer.get())
+                    if base_exception:
+                        raise base_exception.pop()
                     if to_yield[-1] is STOP_ITERATION:
                         break
                     slots.release()
@@ -372,18 +382,18 @@ class _GroupByWithinAsyncIterable(
 
     @staticmethod
     async def _get_next_elem(
-        next_elem: "asyncio.Queue[Union[T, ExceptionContainer]]",
+        next_elem: "asyncio.Queue[Union[T, BaseExceptionContainer]]",
         timeout: Optional[float],
     ) -> T:
         elem = await asyncio.wait_for(next_elem.get(), timeout=timeout)
         if elem is STOP_ITERATION:
             raise StopAsyncIteration
-        if isinstance(elem, ExceptionContainer):
+        if isinstance(elem, BaseExceptionContainer):
             try:
                 raise elem.exception
             finally:
                 del elem
-        return elem
+        return cast(T, elem)
 
     def _timeout(self, groups: Dict[U, Tuple[float, List[T]]]) -> Optional[float]:
         if groups:
@@ -394,11 +404,11 @@ class _GroupByWithinAsyncIterable(
 
     async def _puller(
         self,
-        next_elem: "asyncio.Queue[Union[T, ExceptionContainer]]",
+        next_elem: "asyncio.Queue[Union[T, BaseExceptionContainer]]",
         let_pull_next: asyncio.Semaphore,
         stopped: asyncio.Event,
     ) -> None:
-        elem: Union[T, ExceptionContainer]
+        elem: Union[T, BaseExceptionContainer]
         await let_pull_next.acquire()
         while not stopped.is_set():
             try:
@@ -408,6 +418,10 @@ class _GroupByWithinAsyncIterable(
                 stopped.set()
             except Exception as e:
                 elem = ExceptionContainer(e)
+            except BaseException as e:
+                next_elem.put_nowait(BaseExceptionContainer(e))
+                stopped.set()
+                continue
             try:
                 next_elem.put_nowait(elem)
             finally:
@@ -421,7 +435,9 @@ class _GroupByWithinAsyncIterable(
             groups: Dict[U, Tuple[float, List[T]]] = defaultdict(
                 lambda: (time.perf_counter(), [])
             )
-            next_elem: "asyncio.Queue[Union[T, ExceptionContainer]]" = asyncio.Queue()
+            next_elem: "asyncio.Queue[Union[T, BaseExceptionContainer]]" = (
+                asyncio.Queue()
+            )
             let_pull_next: asyncio.Semaphore = asyncio.Semaphore(0)
             stopped = asyncio.Event()
             task = asyncio.create_task(self._puller(next_elem, let_pull_next, stopped))
@@ -618,6 +634,7 @@ class _BaseObserveAsyncIterator(_BaseOperationAsyncIterator[T, T]):
         "_activated",
         "_active",
         "_start_point",
+        "_do_base_exception",
     )
 
     def __init__(
@@ -637,6 +654,7 @@ class _BaseObserveAsyncIterator(_BaseOperationAsyncIterator[T, T]):
         self._activated = False
         self._active = False
         self._start_point: datetime.datetime
+        self._do_base_exception: Optional[BaseException] = None
 
     @property
     def _emissions(self) -> int:
@@ -661,8 +679,22 @@ class _BaseObserveAsyncIterator(_BaseOperationAsyncIterator[T, T]):
 
     async def _observe(self) -> None:
         self._emissions_observed = self._emissions
-        with suppress(Exception):
+        try:
             await self.do(self._observation())
+        except Exception:
+            pass
+        except asyncio.CancelledError:
+            raise
+        except BaseException as e:
+            self._do_base_exception = e
+
+    def _reraise_do_base_exception(self) -> None:
+        if self._do_base_exception:
+            self._active = False
+            try:
+                raise self._do_base_exception
+            finally:
+                self._do_base_exception = None
 
     @abstractmethod
     def _threshold(self, observed: int) -> int: ...
@@ -670,6 +702,8 @@ class _BaseObserveAsyncIterator(_BaseOperationAsyncIterator[T, T]):
     async def _anext(self) -> T:
         if not self._activated:
             await self._activate()
+        if not self._active:
+            raise StopAsyncIteration
         try:
             elem = await self.upstream.__anext__()
             self._elements += 1
@@ -688,6 +722,8 @@ class _BaseObserveAsyncIterator(_BaseOperationAsyncIterator[T, T]):
                 await self._observe()
                 self._errors_observed = self._errors
             raise
+        finally:
+            self._reraise_do_base_exception()
 
 
 class PowerObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
@@ -750,6 +786,8 @@ class EveryIntervalObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
         self = weak_self()
         while self and self._active:
             await self._observe()
+            if self._do_base_exception:
+                return
             self = None
             await asyncio.sleep(every_seconds)
             self = weak_self()
