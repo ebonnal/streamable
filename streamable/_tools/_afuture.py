@@ -3,10 +3,10 @@ from asyncio import Future
 from typing import (
     AsyncIterator,
     Dict,
-    Optional,
     Sized,
     TypeVar,
 )
+
 
 T = TypeVar("T")
 
@@ -44,7 +44,7 @@ class FIFOFutureResults(FutureResults[T]):
     async def __anext__(self) -> T:
         future = next(iter(self.futures))
         result = await future
-        del self.futures[future]
+        self.futures.pop(future, None)
         return result
 
 
@@ -53,29 +53,22 @@ class FDFOFutureResults(FutureResults[T]):
     First Done First Out
     """
 
-    __slots__ = ("_results",)
+    __slots__ = ("_done_futures",)
 
     def __init__(self) -> None:
         super().__init__()
-        self._results: "Optional[asyncio.Queue[T]]" = None
-
-    @property
-    def _lazy_results(self) -> "asyncio.Queue[T]":
-        if self._results is None:
-            self._results = asyncio.Queue()
-        return self._results
+        self._done_futures: "asyncio.Queue[Future[T]]" = asyncio.Queue()
 
     def __len__(self) -> int:
-        return self._lazy_results.qsize() + len(self.futures)
+        return self._done_futures.qsize() + len(self.futures)
 
     def _done_callback(self, future: "Future[T]") -> None:
-        if not future.cancelled():
-            self._lazy_results.put_nowait(future.result())
-        del self.futures[future]
+        self._done_futures.put_nowait(future)
+        self.futures.pop(future, None)
 
     def add(self, future: "Future[T]") -> None:
         super().add(future)
         future.add_done_callback(self._done_callback)
 
     async def __anext__(self) -> T:
-        return await self._lazy_results.get()
+        return (await self._done_futures.get()).result()
