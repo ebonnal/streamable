@@ -1,6 +1,8 @@
 from concurrent.futures import ProcessPoolExecutor
 from typing import Any, Callable, List, Set
+
 import pytest
+
 from streamable import stream
 from streamable._tools._func import asyncify
 from tests.tools.func import identity

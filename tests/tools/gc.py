@@ -1,5 +1,5 @@
-from contextlib import contextmanager
 import gc
+from contextlib import contextmanager
 from typing import Optional, Type, TypeVar
 
 T = TypeVar("T")

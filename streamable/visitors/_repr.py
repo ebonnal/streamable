@@ -1,5 +1,5 @@
-from abc import ABC
 import logging
+from abc import ABC
 from typing import TYPE_CHECKING, List
 
 from streamable.visitors import Visitor
@@ -15,9 +15,9 @@ if TYPE_CHECKING:  # pragma: no cover
         MapStream,
         ObserveStream,
         SkipStream,
-        stream,
-        ThrottleStream,
         TakeStream,
+        ThrottleStream,
+        stream,
     )
 
 

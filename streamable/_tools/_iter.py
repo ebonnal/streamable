@@ -15,7 +15,6 @@ from typing import (
     runtime_checkable,
 )
 
-
 T = TypeVar("T")
 U = TypeVar("U")
 C = TypeVar("C", covariant=True)

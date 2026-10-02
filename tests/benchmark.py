@@ -1,6 +1,7 @@
+import timeit
 from collections.abc import Iterable
 from datetime import timedelta
-import timeit
+
 from streamable import stream
 
 N = 10_000_000

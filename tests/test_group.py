@@ -1,16 +1,17 @@
 import asyncio
 import datetime
 import time
-from typing import Any, AsyncIterable, Callable, Iterable, List, Optional
 from datetime import timedelta
+from typing import Any, AsyncIterable, Callable, Iterable, List, Optional
+
 import pytest
 
 from streamable import stream
 from streamable._tools._func import asyncify
 from tests.tools.func import (
     SLOW_IDENTITY_DURATION,
-    identity,
     async_slow_identity,
+    identity,
     slow_identity,
 )
 from tests.tools.iter import (

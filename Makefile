@@ -13,7 +13,7 @@ help:
 	@echo "  make type-check      - Check typing via mypy"
 	@echo "  make format          - Format via ruff"
 	@echo "  make format-check    - Check the formatting via ruff"
-	@echo "  make docs            - Build the docs via sphinx
+	@echo "  make docs            - Build the docs via sphinx"
 
 venv:
 	uv venv $(VENV_DIR) --clear
@@ -26,9 +26,11 @@ type-check:
 	$(VENV_DIR)/bin/python -m mypy --install-types --non-interactive streamable tests
 
 format:
+	$(VENV_DIR)/bin/python -m ruff check --select I --fix streamable tests
 	$(VENV_DIR)/bin/python -m ruff format streamable tests
 
 format-check:
+	$(VENV_DIR)/bin/python -m ruff check --select I streamable tests
 	$(VENV_DIR)/bin/python -m ruff format --check streamable tests
 
 lint:

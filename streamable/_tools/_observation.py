@@ -1,5 +1,6 @@
 import datetime
 from typing import NamedTuple
+
 from streamable._tools._logging import logfmt_str_escape
 
 

@@ -10,9 +10,9 @@ from streamable._stream import (
     MapStream,
     ObserveStream,
     SkipStream,
-    stream,
-    ThrottleStream,
     TakeStream,
+    ThrottleStream,
+    stream,
 )
 from streamable.visitors import Visitor
 

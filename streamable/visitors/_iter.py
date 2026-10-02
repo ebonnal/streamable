@@ -9,7 +9,6 @@ from typing import (
 )
 
 from streamable import _functions
-
 from streamable._tools._func import sidify
 from streamable._tools._iter import fn_to_iter
 from streamable.visitors import Visitor
@@ -25,9 +24,9 @@ if TYPE_CHECKING:  # pragma: no cover
         MapStream,
         ObserveStream,
         SkipStream,
-        stream,
-        ThrottleStream,
         TakeStream,
+        ThrottleStream,
+        stream,
     )
 
 T = TypeVar("T")
