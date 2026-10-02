@@ -9,11 +9,13 @@ get_referees = gc.get_referents
 
 @contextmanager
 def disabled_gc():
+    gc.collect()
     gc.disable()
     try:
         yield
     finally:
         gc.enable()
+        gc.collect()
 
 
 def find_object(id_: int, type: Type[T]) -> Optional[T]:

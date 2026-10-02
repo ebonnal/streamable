@@ -1,12 +1,14 @@
+import asyncio
 import sys
 import time
-from concurrent.futures import Executor, ProcessPoolExecutor, ThreadPoolExecutor
+from concurrent.futures import Executor, Future, ProcessPoolExecutor, ThreadPoolExecutor
 from pickle import PickleError
 from typing import Any, Callable, Iterable, List, Union
 
 import pytest
 
 from streamable import stream
+from streamable._tools import _afuture, _future
 from tests.tools.func import (
     async_identity,
     async_identity_sleep,
@@ -177,3 +179,26 @@ def test_map_concurrent_buffersize(
     it = aiter_or_iter(s, itype)
     assert anext_or_next(it, itype) == 0
     assert next(src) == pulled_elements
+
+
+def test_map_fdfo_late_arriving_done_future_is_dropped() -> None:
+    future_results: _future.FDFOFutureResults[int] = _future.FDFOFutureResults()
+    future: "Future[int]" = Future()
+    future_results.add(future)
+    future_results.clear()
+    # a future gets done post-clear
+    future.set_result(0)
+    # that newly done future is dropped and not stored
+    assert future_results._done_futures.empty()
+
+
+@pytest.mark.asyncio
+async def test_map_fdfo_late_arriving_done_future_is_dropped_async() -> None:
+    future_results: _afuture.FDFOFutureResults[int] = _afuture.FDFOFutureResults()
+    future: "asyncio.Future[int]" = asyncio.Future()
+    future_results.add(future)
+    future_results.clear()
+    # a future gets done post-clear
+    future.set_result(0)
+    # that newly done future is dropped and not stored
+    assert future_results._done_futures.empty()
