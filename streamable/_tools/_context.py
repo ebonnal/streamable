@@ -7,8 +7,9 @@ T = TypeVar("T")
 if sys.version_info >= (3, 10):
     from contextlib import aclosing
 else:  # pragma: no cover
-    from streamable._tools._iter import AsyncClosable
     from contextlib import AbstractAsyncContextManager
+
+    from streamable._tools._iter import AsyncClosable
 
     class aclosing(AbstractAsyncContextManager):
         def __init__(self, thing: AsyncClosable):

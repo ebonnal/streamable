@@ -1,9 +1,9 @@
 import asyncio
-from concurrent.futures import ThreadPoolExecutor
 import copy
-from datetime import timedelta
 import queue
 import time
+from concurrent.futures import ThreadPoolExecutor
+from datetime import timedelta
 from typing import (
     Any,
     AsyncIterator,
@@ -20,6 +20,7 @@ from tests.tools.error import TestBaseError
 from tests.tools.func import (
     SLOW_IDENTITY_DURATION,
     async_throw_if_falsy_func,
+    audit_async_func,
     identity,
     noarg_asyncify,
     nothing,
@@ -31,13 +32,12 @@ from tests.tools.iter import (
     ITERABLE_TYPES,
     IterableType,
     acount,
-    alist_or_list,
     aiter_or_iter,
+    alist_or_list,
     anext_or_next,
     stopiteration_type,
 )
 from tests.tools.source import INTEGERS, N, ints
-from tests.tools.func import audit_async_func
 
 
 def test_init() -> None:

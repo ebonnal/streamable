@@ -1,5 +1,5 @@
-from concurrent.futures import Executor
 import datetime
+from concurrent.futures import Executor
 from inspect import iscoroutinefunction
 from typing import (
     AsyncIterable,

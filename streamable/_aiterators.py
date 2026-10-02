@@ -1,9 +1,10 @@
 import asyncio
-from asyncio.futures import Future
 import datetime
 import sys
 import time
+import weakref
 from abc import ABC, abstractmethod
+from asyncio.futures import Future
 from collections import defaultdict, deque
 from concurrent.futures import Executor, ThreadPoolExecutor
 from typing import (
@@ -26,23 +27,20 @@ from typing import (
     Union,
     cast,
 )
-import weakref
-
-from streamable._tools._iter import ClosableAsyncIterator, AsyncClosable
-from streamable._tools._observation import Observation
-from streamable._tools._sentinel import STOP_ITERATION
-from streamable._tools._validation import validate_async_flatten_iterable
 
 from streamable._tools._afuture import (
-    FutureResult,
     FDFOFutureResults,
     FIFOFutureResults,
+    FutureResult,
     FutureResults,
 )
 from streamable._tools._async import AsyncFunction, anext, empty_aiter
 from streamable._tools._context import NoopContextManager, aclosing
 from streamable._tools._error import BaseExceptionContainer, ExceptionContainer
-
+from streamable._tools._iter import AsyncClosable, ClosableAsyncIterator
+from streamable._tools._observation import Observation
+from streamable._tools._sentinel import STOP_ITERATION
+from streamable._tools._validation import validate_async_flatten_iterable
 
 T = TypeVar("T")
 U = TypeVar("U")

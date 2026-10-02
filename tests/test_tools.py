@@ -1,12 +1,11 @@
 import asyncio
-import pytest
-from streamable._tools._func import sidify
-from streamable._tools._logging import logfmt_str_escape
-
 from typing import Any, Callable, List
 
+import pytest
 
-from streamable import stream, star
+from streamable import star, stream
+from streamable._tools._func import sidify
+from streamable._tools._logging import logfmt_str_escape
 from tests.tools.func import async_identity, identity
 from tests.tools.source import INTEGERS
 

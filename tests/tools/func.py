@@ -1,12 +1,17 @@
 import asyncio
 import random
 import time
-from typing import Any, Callable, Coroutine, Iterator, Type, TypeVar, Union
 from dataclasses import dataclass
 from typing import (
+    Any,
+    Callable,
+    Coroutine,
     Generic,
+    Iterator,
+    Type,
+    TypeVar,
+    Union,
 )
-
 
 from streamable._tools._async import AsyncFunction
 from tests.tools.error import TestError
