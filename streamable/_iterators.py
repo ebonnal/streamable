@@ -27,9 +27,9 @@ from typing import (
 from streamable._tools._context import NoopContextManager
 from streamable._tools._error import BaseExceptionContainer, ExceptionContainer
 from streamable._tools._future import (
+    FailedFuture,
     FDFOFutureResults,
     FIFOFutureResults,
-    FutureResult,
     FutureResults,
 )
 from streamable._tools._observation import Observation
@@ -743,7 +743,7 @@ class _ConcurrentMapIterable(
         as_completed: bool,
     ) -> None:
         self.upstream = upstream
-        self.into = ExceptionContainer.wrap(into)
+        self.into = into
         self.as_completed = as_completed
         self._executor: Optional[Executor] = None
         if isinstance(concurrency, int):
@@ -752,9 +752,7 @@ class _ConcurrentMapIterable(
             self._executor = concurrency
             self.concurrency = getattr(self._executor, "_max_workers")
 
-    def _launch_task(
-        self, elem: T, context: Executor
-    ) -> "Future[Union[U, ExceptionContainer]]":
+    def _launch_task(self, elem: T, context: Executor) -> "Future[U]":
         return context.submit(self.into, elem)
 
     def _task_context(self) -> ContextManager[Executor]:
@@ -763,38 +761,40 @@ class _ConcurrentMapIterable(
             return NoopContextManager(self._executor)
         return ThreadPoolExecutor(max_workers=self.concurrency)
 
-    def _next_future(
-        self, context: Executor
-    ) -> Optional["Future[Union[U, ExceptionContainer]]"]:
+    def _next_future(self, context: Executor) -> Optional["Future[U]"]:
         try:
             elem = self.upstream.__next__()
         except StopIteration:
             return None
         except Exception as e:
-            return FutureResult(ExceptionContainer(e))
+            return FailedFuture(e)
         return self._launch_task(elem, context)
 
     def __iter__(self) -> Iterator[Union[U, ExceptionContainer]]:
-        with self._task_context() as executor:
-            future_results: FutureResults[Union[U, ExceptionContainer]] = (
-                FDFOFutureResults() if self.as_completed else FIFOFutureResults()
-            )
-            # queue tasks up to buffersize
-            while len(future_results) < self.concurrency:
-                future = self._next_future(executor)
-                if not future:
-                    # no more tasks to queue
-                    break
-                future_results.add(future)
-                del future
-
-            # queue, wait, yield
-            while future_results:
-                future = self._next_future(executor)
-                if future:
+        future_results: FutureResults[U] = (
+            FDFOFutureResults() if self.as_completed else FIFOFutureResults()
+        )
+        try:
+            with self._task_context() as executor:
+                # queue tasks up to buffersize
+                while len(future_results) < self.concurrency:
+                    future = self._next_future(executor)
+                    if not future:
+                        # no more tasks to queue
+                        break
                     future_results.add(future)
                     del future
-                yield future_results.__next__()
+
+                # queue, wait, yield
+                while future_results:
+                    future = self._next_future(executor)
+                    if future:
+                        future_results.add(future)
+                        del future
+                    yield future_results.__next__()
+        finally:
+            future_results.cancel()
+            future_results.clear()
 
 
 class ConcurrentMapIterator(_RaisingIterator[U]):
@@ -834,12 +834,11 @@ class _ConcurrentFlattenIterable(Iterable[Union[T, ExceptionContainer]]):
         self.concurrency = concurrency
 
     def __iter__(self) -> Iterator[Union[T, ExceptionContainer]]:
-        safe_next = ExceptionContainer.wrap(next)
         with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
             iterator_and_future_pairs: Deque[
                 Tuple[
                     Optional[Iterator[T]],
-                    "Future[Union[T, ExceptionContainer]]",
+                    "Future[T]",
                 ]
             ] = deque()
             to_yield: Deque[Union[T, ExceptionContainer]] = deque(maxlen=1)
@@ -848,14 +847,15 @@ class _ConcurrentFlattenIterable(Iterable[Union[T, ExceptionContainer]]):
             while True:
                 if iterator_and_future_pairs:
                     iterator, future = iterator_and_future_pairs.popleft()
-                    elem = future.result()
+                    elem = ExceptionContainer.result(future)
+                    # the result's traceback may reference this frame
+                    del future
                     if not isinstance(elem, ExceptionContainer) or not isinstance(
                         elem.exception, StopIteration
                     ):
                         to_yield.append(elem)
-                        del elem
-                        del future
                         iterator_to_queue = iterator
+                    del elem
 
                 # queue tasks up to buffersize
                 while len(iterator_and_future_pairs) < self.concurrency:
@@ -869,12 +869,12 @@ class _ConcurrentFlattenIterable(Iterable[Union[T, ExceptionContainer]]):
                             iterator_to_queue = iterable.__iter__()
                         except Exception as e:
                             iterator_to_queue = None
-                            future = FutureResult(ExceptionContainer(e))
+                            future = FailedFuture(e)
                             iterator_and_future_pairs.append(
                                 (iterator_to_queue, future)
                             )
                             continue
-                    future = executor.submit(safe_next, iterator_to_queue)
+                    future = executor.submit(next, iterator_to_queue)
                     iterator_and_future_pairs.append((iterator_to_queue, future))
                     iterator_to_queue = None
                 if to_yield:
