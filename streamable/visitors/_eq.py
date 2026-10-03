@@ -1,6 +1,5 @@
 from typing import TYPE_CHECKING
 
-
 from streamable.visitors import Visitor
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -14,9 +13,9 @@ if TYPE_CHECKING:  # pragma: no cover
         MapStream,
         ObserveStream,
         SkipStream,
-        stream,
-        ThrottleStream,
         TakeStream,
+        ThrottleStream,
+        stream,
     )
 
 

@@ -8,9 +8,9 @@ from tests.tools.func import async_slow_identity, slow_identity
 from tests.tools.iter import (
     ITERABLE_TYPES,
     IterableType,
+    aiter_or_iter,
     alist_or_list,
     anext_or_next,
-    aiter_or_iter,
     stopiteration_type,
 )
 from tests.tools.source import INTEGERS, ints

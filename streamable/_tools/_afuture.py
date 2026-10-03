@@ -3,34 +3,47 @@ from asyncio import Future
 from typing import (
     AsyncIterator,
     Dict,
-    Optional,
     Sized,
     TypeVar,
+    Union,
 )
+
+from streamable._tools._error import ExceptionContainer
 
 T = TypeVar("T")
 
 
-class FutureResult(Future):
+class FailedFuture(Future):
     __slots__ = ()
 
-    def __init__(self, result: T):
+    def __init__(self, exception: Exception):
         super().__init__()
-        self.set_result(result)
+        self.set_exception(exception)
 
 
-class FutureResults(AsyncIterator[T], Sized):
+class FutureResults(AsyncIterator[Union[T, ExceptionContainer]], Sized):
     """
     Iterator over added futures' results. Supports adding new futures after iteration started.
     """
 
-    __slots__ = ("futures",)
+    __slots__ = ("_futures",)
 
     def __init__(self) -> None:
-        self.futures: Dict["Future[T]", object] = {}
+        self._futures: Dict["Future[T]", object] = {}
 
     def add(self, future: "Future[T]") -> None:
-        self.futures[future] = None
+        self._futures[future] = None
+
+    def __len__(self) -> int:
+        return len(self._futures)
+
+    async def cancel(self) -> None:
+        for future in self._futures:
+            future.cancel()
+        await asyncio.gather(*self._futures, return_exceptions=True)
+
+    def clear(self) -> None:
+        self._futures.clear()
 
 
 class FIFOFutureResults(FutureResults[T]):
@@ -38,14 +51,13 @@ class FIFOFutureResults(FutureResults[T]):
     First In First Out
     """
 
-    def __len__(self) -> int:
-        return len(self.futures)
-
-    async def __anext__(self) -> T:
-        future = next(iter(self.futures))
-        result = await future
-        del self.futures[future]
-        return result
+    async def __anext__(self) -> Union[T, ExceptionContainer]:
+        future = next(iter(self._futures))
+        try:
+            return await ExceptionContainer.aresult(future)
+        finally:
+            self._futures.pop(future, None)
+            del future
 
 
 class FDFOFutureResults(FutureResults[T]):
@@ -53,29 +65,28 @@ class FDFOFutureResults(FutureResults[T]):
     First Done First Out
     """
 
-    __slots__ = ("_results",)
+    __slots__ = ("_done_futures",)
 
     def __init__(self) -> None:
         super().__init__()
-        self._results: "Optional[asyncio.Queue[T]]" = None
-
-    @property
-    def _lazy_results(self) -> "asyncio.Queue[T]":
-        if self._results is None:
-            self._results = asyncio.Queue()
-        return self._results
-
-    def __len__(self) -> int:
-        return self._lazy_results.qsize() + len(self.futures)
+        self._done_futures: "asyncio.Queue[Future[T]]" = asyncio.Queue()
 
     def _done_callback(self, future: "Future[T]") -> None:
-        if not future.cancelled():
-            self._lazy_results.put_nowait(future.result())
-        del self.futures[future]
+        self._done_futures.put_nowait(future)
+
+    def clear(self) -> None:
+        super().clear()
+        while not self._done_futures.empty():
+            self._done_futures.get_nowait()
 
     def add(self, future: "Future[T]") -> None:
         super().add(future)
         future.add_done_callback(self._done_callback)
 
-    async def __anext__(self) -> T:
-        return await self._lazy_results.get()
+    async def __anext__(self) -> Union[T, ExceptionContainer]:
+        done_future = await self._done_futures.get()
+        try:
+            return await ExceptionContainer.aresult(done_future)
+        finally:
+            self._futures.pop(done_future, None)
+            del done_future

@@ -1,10 +1,10 @@
 import asyncio
-from asyncio.futures import Future
-from contextlib import suppress
 import datetime
 import sys
 import time
+import weakref
 from abc import ABC, abstractmethod
+from asyncio.futures import Future
 from collections import defaultdict, deque
 from concurrent.futures import Executor, ThreadPoolExecutor
 from typing import (
@@ -27,23 +27,20 @@ from typing import (
     Union,
     cast,
 )
-import weakref
-
-from streamable._tools._iter import AsyncClosable, ClosableAsyncIterator
-from streamable._tools._observation import Observation
-from streamable._tools._sentinel import STOP_ITERATION
-from streamable._tools._validation import validate_async_flatten_iterable
 
 from streamable._tools._afuture import (
-    FutureResult,
+    FailedFuture,
     FDFOFutureResults,
     FIFOFutureResults,
     FutureResults,
 )
 from streamable._tools._async import AsyncFunction, anext, empty_aiter
 from streamable._tools._context import NoopContextManager, aclosing
-from streamable._tools._error import ExceptionContainer
-
+from streamable._tools._error import BaseExceptionContainer, ExceptionContainer
+from streamable._tools._iter import AsyncClosable, ClosableAsyncIterator
+from streamable._tools._observation import Observation
+from streamable._tools._sentinel import STOP_ITERATION
+from streamable._tools._validation import validate_async_flatten_iterable
 
 T = TypeVar("T")
 U = TypeVar("U")
@@ -88,6 +85,8 @@ class _RaisingAsyncIterator(
 ):
     __slots__ = ()
 
+    upstream: AsyncGenerator[Union[T, ExceptionContainer], None]
+
     async def _anext(self) -> T:
         elem = await self.upstream.__anext__()
         if isinstance(elem, ExceptionContainer):
@@ -96,6 +95,23 @@ class _RaisingAsyncIterator(
             finally:
                 del elem
         return elem
+
+    async def aclose(self) -> None:
+        async with aclosing(self.upstream):
+            if not self._closed:
+                self._closed = True
+                error_from_context: Optional[BaseException] = sys.exc_info()[1]
+                if error_from_context and not isinstance(
+                    error_from_context, (Exception, GeneratorExit)
+                ):
+                    cancellation = asyncio.CancelledError()
+                    # a BaseException (e.g. CancelledError) is being handled somewhere up the await chain
+                    try:
+                        # cancel the generator's pending work
+                        await self.upstream.athrow(cancellation)
+                    except asyncio.CancelledError as e:
+                        if e is not cancellation:
+                            raise
 
 
 ##########
@@ -118,18 +134,24 @@ class _BufferAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]]):
         self,
         buffer: "asyncio.Queue[Union[T, ExceptionContainer]]",
         slots: asyncio.Semaphore,
+        stopped: asyncio.Event,
+        base_exception: Deque[BaseException],
     ) -> None:
         elem: Union[T, ExceptionContainer]
         await slots.acquire()
-        stopped = False
-        while not stopped:
+        while not stopped.is_set():
             try:
                 elem = await self.upstream.__anext__()
             except StopAsyncIteration:
                 elem = STOP_ITERATION
-                stopped = True
+                stopped.set()
             except Exception as e:
                 elem = ExceptionContainer(e)
+            except BaseException as e:
+                base_exception.append(e)
+                buffer.put_nowait(STOP_ITERATION)
+                stopped.set()
+                continue
             buffer.put_nowait(elem)
             await slots.acquire()
 
@@ -138,7 +160,11 @@ class _BufferAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]]):
             buffer: "asyncio.Queue[Union[T, ExceptionContainer]]" = asyncio.Queue()
             slots: asyncio.Semaphore = asyncio.Semaphore(self.up_to)
             to_yield: Deque[Union[T, ExceptionContainer]] = deque(maxlen=1)
-            task = asyncio.create_task(self._buffer_upstream(buffer, slots))
+            stopped = asyncio.Event()
+            base_exception: Deque[BaseException] = deque()
+            task = asyncio.create_task(
+                self._buffer_upstream(buffer, slots, stopped, base_exception)
+            )
             try:
                 while True:
                     to_yield.append(await buffer.get())
@@ -146,8 +172,19 @@ class _BufferAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]]):
                         break
                     slots.release()
                     yield to_yield.pop()
-            finally:
+                if base_exception:
+                    try:
+                        raise base_exception.pop()
+                    finally:
+                        base_exception.clear()
+            except GeneratorExit:
+                raise
+            except BaseException:
                 task.cancel()
+                raise
+            finally:
+                stopped.set()
+                slots.release()
                 await asyncio.gather(task, return_exceptions=True)
 
 
@@ -343,18 +380,18 @@ class _GroupByWithinAsyncIterable(
 
     @staticmethod
     async def _get_next_elem(
-        next_elem: "asyncio.Queue[Union[T, ExceptionContainer]]",
+        next_elem: "asyncio.Queue[Union[T, BaseExceptionContainer]]",
         timeout: Optional[float],
     ) -> T:
         elem = await asyncio.wait_for(next_elem.get(), timeout=timeout)
         if elem is STOP_ITERATION:
             raise StopAsyncIteration
-        if isinstance(elem, ExceptionContainer):
+        if isinstance(elem, BaseExceptionContainer):
             try:
                 raise elem.exception
             finally:
                 del elem
-        return elem
+        return cast(T, elem)
 
     def _timeout(self, groups: Dict[U, Tuple[float, List[T]]]) -> Optional[float]:
         if groups:
@@ -365,20 +402,24 @@ class _GroupByWithinAsyncIterable(
 
     async def _puller(
         self,
-        next_elem: "asyncio.Queue[Union[T, ExceptionContainer]]",
+        next_elem: "asyncio.Queue[Union[T, BaseExceptionContainer]]",
         let_pull_next: asyncio.Semaphore,
+        stopped: asyncio.Event,
     ) -> None:
-        elem: Union[T, ExceptionContainer]
+        elem: Union[T, BaseExceptionContainer]
         await let_pull_next.acquire()
-        stopped = False
-        while not stopped:
+        while not stopped.is_set():
             try:
                 elem = await self.upstream.__anext__()
             except StopAsyncIteration:
                 elem = STOP_ITERATION
-                stopped = True
+                stopped.set()
             except Exception as e:
                 elem = ExceptionContainer(e)
+            except BaseException as e:
+                next_elem.put_nowait(BaseExceptionContainer(e))
+                stopped.set()
+                continue
             try:
                 next_elem.put_nowait(elem)
             finally:
@@ -392,9 +433,12 @@ class _GroupByWithinAsyncIterable(
             groups: Dict[U, Tuple[float, List[T]]] = defaultdict(
                 lambda: (time.perf_counter(), [])
             )
-            next_elem: "asyncio.Queue[Union[T, ExceptionContainer]]" = asyncio.Queue()
+            next_elem: "asyncio.Queue[Union[T, BaseExceptionContainer]]" = (
+                asyncio.Queue()
+            )
             let_pull_next: asyncio.Semaphore = asyncio.Semaphore(0)
-            task = asyncio.create_task(self._puller(next_elem, let_pull_next))
+            stopped = asyncio.Event()
+            task = asyncio.create_task(self._puller(next_elem, let_pull_next, stopped))
             try:
                 while True:
                     let_pull_next.release()
@@ -423,8 +467,14 @@ class _GroupByWithinAsyncIterable(
                         error = [ExceptionContainer(e)]
                     # yield outside the except block so the frame's exception state is cleared
                     yield error.pop()
-            finally:
+            except GeneratorExit:
+                raise
+            except BaseException:
                 task.cancel()
+                raise
+            finally:
+                stopped.set()
+                let_pull_next.release()
                 await asyncio.gather(task, return_exceptions=True)
 
 
@@ -580,6 +630,7 @@ class _BaseObserveAsyncIterator(_BaseOperationAsyncIterator[T, T]):
         "_activated",
         "_active",
         "_start_point",
+        "_do_base_exception",
     )
 
     def __init__(
@@ -599,6 +650,7 @@ class _BaseObserveAsyncIterator(_BaseOperationAsyncIterator[T, T]):
         self._activated = False
         self._active = False
         self._start_point: datetime.datetime
+        self._do_base_exception: Optional[BaseException] = None
 
     @property
     def _emissions(self) -> int:
@@ -623,8 +675,22 @@ class _BaseObserveAsyncIterator(_BaseOperationAsyncIterator[T, T]):
 
     async def _observe(self) -> None:
         self._emissions_observed = self._emissions
-        with suppress(Exception):
+        try:
             await self.do(self._observation())
+        except Exception:
+            pass
+        except asyncio.CancelledError:
+            raise
+        except BaseException as e:
+            self._do_base_exception = e
+
+    def _reraise_do_base_exception(self) -> None:
+        if self._do_base_exception:
+            self._active = False
+            try:
+                raise self._do_base_exception
+            finally:
+                self._do_base_exception = None
 
     @abstractmethod
     def _threshold(self, observed: int) -> int: ...
@@ -632,6 +698,8 @@ class _BaseObserveAsyncIterator(_BaseOperationAsyncIterator[T, T]):
     async def _anext(self) -> T:
         if not self._activated:
             await self._activate()
+        if not self._active:
+            raise StopAsyncIteration
         try:
             elem = await self.upstream.__anext__()
             self._elements += 1
@@ -650,6 +718,8 @@ class _BaseObserveAsyncIterator(_BaseOperationAsyncIterator[T, T]):
                 await self._observe()
                 self._errors_observed = self._errors
             raise
+        finally:
+            self._reraise_do_base_exception()
 
 
 class PowerObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
@@ -712,6 +782,8 @@ class EveryIntervalObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
         self = weak_self()
         while self and self._active:
             await self._observe()
+            if self._do_base_exception:
+                return
             self = None
             await asyncio.sleep(every_seconds)
             self = weak_self()
@@ -806,9 +878,7 @@ class _BaseConcurrentMapAsyncIterable(
         self.as_completed = as_completed
 
     @abstractmethod
-    def _launch_task(
-        self, elem: T, context: C
-    ) -> "Future[Union[U, ExceptionContainer]]": ...
+    def _launch_task(self, elem: T, context: C) -> "Future[U]": ...
 
     @abstractmethod
     def _task_context(self) -> ContextManager[C]: ...
@@ -816,13 +886,13 @@ class _BaseConcurrentMapAsyncIterable(
     async def _next_future(
         self,
         context: C,
-    ) -> Optional["Future[Union[U, ExceptionContainer]]"]:
+    ) -> Optional["Future[U]"]:
         try:
             elem = await self.upstream.__anext__()
         except StopAsyncIteration:
             return None
         except Exception as e:
-            return FutureResult(ExceptionContainer(e))
+            return FailedFuture(e)
         return self._launch_task(elem, context)
 
     async def __aiter__(
@@ -830,7 +900,7 @@ class _BaseConcurrentMapAsyncIterable(
     ) -> AsyncGenerator[Union[U, ExceptionContainer], None]:
         async with aclosing(self.upstream):
             with self._task_context() as task_context:
-                future_results: FutureResults[Union[U, ExceptionContainer]] = (
+                future_results: FutureResults[U] = (
                     FDFOFutureResults() if self.as_completed else FIFOFutureResults()
                 )
                 try:
@@ -852,12 +922,8 @@ class _BaseConcurrentMapAsyncIterable(
                         yield await future_results.__anext__()
 
                 finally:
-                    for future in future_results.futures:
-                        future.cancel()
-                    await asyncio.gather(
-                        *future_results.futures, return_exceptions=True
-                    )
-                    future_results.futures.clear()
+                    await future_results.cancel()
+                    future_results.clear()
 
 
 class _AsyncConcurrentMapAsyncIterable(
@@ -873,17 +939,13 @@ class _AsyncConcurrentMapAsyncIterable(
         as_completed: bool,
     ) -> None:
         super().__init__(upstream, concurrency, as_completed)
-        self.into = ExceptionContainer.awrap(into)
+        self.into = into
 
-    async def _semaphored(
-        self, elem: T, semaphore: asyncio.Semaphore
-    ) -> Union[U, ExceptionContainer]:
+    async def _semaphored(self, elem: T, semaphore: asyncio.Semaphore) -> U:
         async with semaphore:
             return await self.into(elem)
 
-    def _launch_task(
-        self, elem: T, context: asyncio.Semaphore
-    ) -> "Future[Union[U, ExceptionContainer]]":
+    def _launch_task(self, elem: T, context: asyncio.Semaphore) -> "Future[U]":
         return asyncio.create_task(self._semaphored(elem, semaphore=context))
 
     def _task_context(self) -> ContextManager[asyncio.Semaphore]:
@@ -922,7 +984,7 @@ class _ExecutorConcurrentMapAsyncIterable(
         concurrency: Union[int, Executor],
         as_completed: bool,
     ) -> None:
-        self.into = ExceptionContainer.wrap(into)
+        self.into = into
         self._executor: Optional[Executor] = None
         if isinstance(concurrency, int):
             super().__init__(upstream, concurrency, as_completed)
@@ -932,9 +994,7 @@ class _ExecutorConcurrentMapAsyncIterable(
                 upstream, getattr(self._executor, "_max_workers"), as_completed
             )
 
-    def _launch_task(
-        self, elem: T, context: Executor
-    ) -> "Future[Union[U, ExceptionContainer]]":
+    def _launch_task(self, elem: T, context: Executor) -> "Future[U]":
         return asyncio.get_running_loop().run_in_executor(context, self.into, elem)
 
     def _task_context(self) -> ContextManager[Executor]:
@@ -984,13 +1044,11 @@ class _ConcurrentFlattenAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]
         self,
     ) -> AsyncGenerator[Union[T, ExceptionContainer], None]:
         async with aclosing(self.upstream):
-            safe_next = ExceptionContainer.wrap(next)
-            safe_anext = ExceptionContainer.awrap(anext)
             executor: Optional[Executor] = None
             iterator_and_future_pairs: Deque[
                 Tuple[
                     Union[None, Iterator[T], AsyncIterator[T]],
-                    Future[Union[T, ExceptionContainer]],
+                    Future[T],
                 ]
             ] = deque()
             to_yield: Deque[Union[T, ExceptionContainer]] = deque(maxlen=1)
@@ -1000,15 +1058,17 @@ class _ConcurrentFlattenAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]
                 while True:
                     if iterator_and_future_pairs:
                         iterator, future = iterator_and_future_pairs[0]
-                        elem = await future
+                        elem = await ExceptionContainer.aresult(future)
                         iterator_and_future_pairs.popleft()
-                        if not isinstance(elem, ExceptionContainer) or not isinstance(
-                            elem.exception, (StopIteration, StopAsyncIteration)
+                        # the result's traceback may reference this frame
+                        del future
+                        if elem is not STOP_ITERATION and (
+                            not isinstance(elem, ExceptionContainer)
+                            or not isinstance(elem.exception, StopAsyncIteration)
                         ):
                             to_yield.append(elem)
-                            del elem
-                            del future
                             iterator_to_queue = iterator
+                        del elem
 
                     # queue tasks up to buffersize
                     while len(iterator_and_future_pairs) < self.concurrency:
@@ -1025,20 +1085,22 @@ class _ConcurrentFlattenAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]
                                     iterator_to_queue = iterable.__iter__()
                             except Exception as e:
                                 iterator_to_queue = None
-                                future = FutureResult(ExceptionContainer(e))
+                                future = FailedFuture(e)
                                 iterator_and_future_pairs.append(
                                     (iterator_to_queue, future)
                                 )
                                 continue
                         if isinstance(iterator_to_queue, AsyncIterator):
-                            future = asyncio.create_task(safe_anext(iterator_to_queue))
+                            future = asyncio.create_task(anext(iterator_to_queue))
                         else:
                             if not executor:
                                 executor = ThreadPoolExecutor(self.concurrency)
                             future = asyncio.get_running_loop().run_in_executor(
                                 executor,
-                                safe_next,
+                                # sentinel: an asyncio future can't hold a `StopIteration`
+                                next,
                                 iterator_to_queue,
+                                STOP_ITERATION,
                             )
                         iterator_and_future_pairs.append((iterator_to_queue, future))
                         iterator_to_queue = None
@@ -1046,13 +1108,19 @@ class _ConcurrentFlattenAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]
                         yield to_yield.pop()
                     if not iterator_and_future_pairs:
                         break
-            finally:
-                futures = [fut for _, fut in iterator_and_future_pairs]
-                for future in futures:
+            except GeneratorExit:
+                raise
+            except BaseException:
+                for _, future in iterator_and_future_pairs:
                     future.cancel()
-                await asyncio.gather(*futures, return_exceptions=True)
+                raise
+            finally:
                 if executor:
                     executor.shutdown()
+                await asyncio.gather(
+                    *(fut for _, fut in iterator_and_future_pairs),
+                    return_exceptions=True,
+                )
 
 
 class ConcurrentFlattenAsyncIterator(_RaisingAsyncIterator[T]):

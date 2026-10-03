@@ -93,7 +93,7 @@ A `stream` can be iterated several times if its source allows it.
 
 Operations return a new `stream`.
 
-Operations allow iteration to resume after an exception.
+Operations allow iteration to resume after an `Exception`.
 
 Operations accept both sync and async functions.
 
@@ -559,9 +559,9 @@ During an async iteration, these operations spawn child tasks:
 
 When the iteration is complete, all the child tasks are done.
 
-When the iterator is destroyed before it is exhausted, the pending child tasks are cancelled at a subsequent cycle of the event loop.
+When the iterator is destroyed before it is exhausted, the pending child tasks terminate at a subsequent cycle of the event loop.
 
-`stream.__aiter__` returns an async iterator with an `.aclose` method to eagerly cancel any pending child tasks:
+`stream.__aiter__` returns an async iterator with an `.aclose` method to eagerly terminate any pending child tasks:
 
 ```python
 from contextlib import aclosing

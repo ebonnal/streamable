@@ -1,12 +1,17 @@
 import asyncio
 import random
 import time
-from typing import Any, Callable, Coroutine, Iterator, Type, TypeVar, Union
 from dataclasses import dataclass
 from typing import (
+    Any,
+    Callable,
+    Coroutine,
     Generic,
+    Iterator,
+    Type,
+    TypeVar,
+    Union,
 )
-
 
 from streamable._tools._async import AsyncFunction
 from tests.tools.error import TestError
@@ -44,31 +49,49 @@ async def async_square(x):
     return x**2
 
 
-def throw(exc: Union[Type[Exception], Exception]):
-    if isinstance(exc, Exception):
+def throw(exc: Union[Type[BaseException], BaseException]):
+    if isinstance(exc, BaseException):
         raise exc
     else:
         raise exc()
 
 
-def throw_func(exc: Type[Exception]) -> Callable[[T], T]:
+def throw_func(exc: Type[BaseException]) -> Callable[[T], T]:
     return lambda _: throw(exc)
 
 
-def async_throw_func(exc: Type[Exception]) -> AsyncFunction[T, T]:
+def async_throw_func(exc: Type[BaseException]) -> AsyncFunction[T, T]:
     async def f(_: T) -> T:
         raise exc
 
     return f
 
 
-def throw_for_odd_func(exc):
+def throw_for_odd_func(exc) -> Callable[[int], int]:
     return lambda i: throw(exc) if i % 2 == 1 else i
 
 
-def async_throw_for_odd_func(exc):
+def async_throw_for_odd_func(exc) -> AsyncFunction[int, int]:
     async def f(i):
         return throw(exc) if i % 2 == 1 else i
+
+    return f
+
+
+def throw_if_falsy_func(exc: Type[BaseException]) -> Callable[[T], T]:
+    def f(_: T) -> T:
+        if not _:
+            raise exc
+        return _
+
+    return f
+
+
+def async_throw_if_falsy_func(exc: Type[BaseException]) -> AsyncFunction[T, T]:
+    async def f(_: T) -> T:
+        if not _:
+            raise exc
+        return _
 
     return f
 

@@ -1,6 +1,6 @@
-from concurrent.futures import Executor
 import datetime
 import logging
+from concurrent.futures import Executor
 from typing import (
     TYPE_CHECKING,
     AsyncIterable,
@@ -24,6 +24,7 @@ from typing import (
     cast,
     overload,
 )
+
 from streamable._tools._async import AsyncFunction
 from streamable._tools._iter import (
     AsyncToSyncIterator,
@@ -34,15 +35,15 @@ from streamable._tools._logging import setup_logger
 from streamable._tools._observation import Observation
 from streamable._tools._validation import (
     validate_concurrency_executor,
-    validate_positive_timedelta,
     validate_int,
+    validate_positive_timedelta,
 )
 from streamable.visitors import Visitor
-from streamable.visitors._iter import IteratorVisitor
 from streamable.visitors._aiter import AsyncIteratorVisitor
 from streamable.visitors._eq import EqualityVisitor
-from streamable.visitors._repr import ReprVisitor
 from streamable.visitors._involves_async import InvolvesAsyncVisitor
+from streamable.visitors._iter import IteratorVisitor
+from streamable.visitors._repr import ReprVisitor
 
 setup_logger()
 
@@ -70,7 +71,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
     Operations return a new `stream`.
 
-    Operations allow iteration to resume after an exception.
+    Operations allow iteration to resume after an ``Exception``.
 
     Operations accept both sync and async functions.
 
@@ -172,9 +173,11 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         When the iteration is complete, all the child tasks are done.
 
-        When the iterator is destroyed before it is exhausted, the pending child tasks are cancelled at a subsequent cycle of the event loop.
+        When the iterator is destroyed before it is exhausted, the pending child tasks terminate at a subsequent cycle of the event loop.
 
-        Use the ``.aclose`` method to eagerly cancel any pending child tasks (see examples below).
+        Use the ``.aclose`` method to eagerly terminate any pending child tasks (see examples below).
+
+        Errors raised by child tasks during termination are not propagated.
 
         Returns:
             ``streamable.ClosableAsyncIterator[T]``: Closable async iterator over this stream's elements.
@@ -959,7 +962,9 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         A ``streamable.Observation`` is passed to the ``do`` callback (the default emits a log), at a frequency defined by ``every``.
 
-        If an error is raised by ``do``, it is silently ignored and is not included in the errors count.
+        If an ``Exception`` is raised by ``do``, it is silently swallowed.
+
+        If a ``BaseException`` is raised by ``do``, it is raised and interrupts the iteration.
 
         Args:
             subject (``str``, optional): Description of elements being observed.

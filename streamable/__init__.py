@@ -1,7 +1,7 @@
 from streamable._stream import stream
-from streamable._tools._star import star
-from streamable._tools._observation import Observation
 from streamable._tools._iter import ClosableAsyncIterator
+from streamable._tools._observation import Observation
+from streamable._tools._star import star
 
 Stream = stream
 
