@@ -1029,98 +1029,112 @@ class ExecutorConcurrentMapAsyncIterator(_RaisingAsyncIterator[U]):
 ######################
 
 
-class _ConcurrentFlattenAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]]):
-    __slots__ = ("upstream", "concurrency")
+class _ConcurrentFlattenAsyncIterable(
+    _BaseConcurrentMapAsyncIterable[Union[Iterable[T], AsyncIterable[T]], T, Executor]
+):
+    """
+    A concurrent map of `next`/`anext` over the inner iterators: each consumed result
+    re-launches the pull of the iterator it comes from, an exhaustion lets a new
+    iterable be pulled from upstream instead.
+    """
+
+    __slots__ = ("_pulls", "_relaunched", "_flattening_executor")
 
     def __init__(
         self,
         upstream: ClosableAsyncIterator[Union[Iterable[T], AsyncIterable[T]]],
         concurrency: int,
     ) -> None:
-        self.upstream = upstream
-        self.concurrency = concurrency
+        # the concurrent map launches a task before consuming a result: `concurrency - 1`,
+        # plus the pull re-launched on consumption, keeps `concurrency` iterators being
+        # pulled (`concurrency > 1` here)
+        super().__init__(upstream, concurrency - 1, as_completed=False)
+        # each pull's iterator (`None` for a failed future) and future, in launch order
+        self._pulls: Deque[
+            Tuple[Union[None, Iterator[T], AsyncIterator[T]], "Future[T]"]
+        ] = deque()
+        # pulls re-launched on consumption, to hand over to the concurrent map
+        self._relaunched: Deque["Future[T]"] = deque()
+        self._flattening_executor = ThreadPoolExecutor(max_workers=concurrency)
 
-    async def __aiter__(
-        self,
-    ) -> AsyncGenerator[Union[T, ExceptionContainer], None]:
-        async with aclosing(self.upstream):
-            executor: Optional[Executor] = None
-            iterator_and_future_pairs: Deque[
-                Tuple[
-                    Union[None, Iterator[T], AsyncIterator[T]],
-                    Future[T],
-                ]
-            ] = deque()
-            to_yield: Deque[Union[T, ExceptionContainer]] = deque(maxlen=1)
-            iterator_to_queue: Union[None, Iterator[T], AsyncIterator[T]] = None
+    def _launch_task(
+        self, elem: Union[Iterable[T], AsyncIterable[T]], context: Executor
+    ) -> "Future[T]":
+        if isinstance(elem, AsyncIterable):
+            return asyncio.create_task(anext(elem.__aiter__()))
+        return asyncio.get_running_loop().run_in_executor(
+            # sentinel: an asyncio future can't hold a `StopIteration`
+            context,
+            next,
+            elem.__iter__(),
+            STOP_ITERATION,
+        )
+
+    def _task_context(self) -> ContextManager[Executor]:
+        return self._flattening_executor
+
+    def _launch_pull(
+        self, iterator: Union[Iterator[T], AsyncIterator[T]]
+    ) -> "Future[T]":
+        future = self._launch_task(iterator, self._flattening_executor)
+        self._pulls.append((iterator, future))
+        return future
+
+    def _fail(self, error: Exception) -> "Future[T]":
+        future: "Future[T]" = FailedFuture(error)
+        self._pulls.append((None, future))
+        return future
+
+    async def _next_future(self, context: Executor) -> Optional["Future[T]"]:
+        if self._relaunched:
+            return self._relaunched.popleft()
+        try:
             try:
-                # wait, queue, yield (FIFO)
-                while True:
-                    if iterator_and_future_pairs:
-                        iterator, future = iterator_and_future_pairs[0]
-                        elem = await ExceptionContainer.aresult(future)
-                        iterator_and_future_pairs.popleft()
-                        # the result's traceback may reference this frame
-                        del future
-                        if elem is not STOP_ITERATION and (
-                            not isinstance(elem, ExceptionContainer)
-                            or not isinstance(elem.exception, StopAsyncIteration)
-                        ):
-                            to_yield.append(elem)
-                            iterator_to_queue = iterator
-                        del elem
+                iterable = await self.upstream.__anext__()
+            except StopAsyncIteration:
+                if not any(iterator for iterator, _ in self._pulls):
+                    return None
+                # an iterator is still being pulled: a placeholder keeps the
+                # concurrent map going until its pull gets re-launched (skipped as exhausted)
+                return self._fail(StopAsyncIteration())
+            validate_async_flatten_iterable(iterable)
+            if isinstance(iterable, AsyncIterable):
+                return self._launch_pull(iterable.__aiter__())
+            return self._launch_pull(iterable.__iter__())
+        except Exception as e:
+            return self._fail(e)
 
-                    # queue tasks up to buffersize
-                    while len(iterator_and_future_pairs) < self.concurrency:
-                        if not iterator_to_queue:
-                            try:
-                                try:
-                                    iterable = await self.upstream.__anext__()
-                                except StopAsyncIteration:
-                                    break
-                                validate_async_flatten_iterable(iterable)
-                                if isinstance(iterable, AsyncIterable):
-                                    iterator_to_queue = iterable.__aiter__()
-                                else:
-                                    iterator_to_queue = iterable.__iter__()
-                            except Exception as e:
-                                iterator_to_queue = None
-                                future = FailedFuture(e)
-                                iterator_and_future_pairs.append(
-                                    (iterator_to_queue, future)
-                                )
-                                continue
-                        if isinstance(iterator_to_queue, AsyncIterator):
-                            future = asyncio.create_task(anext(iterator_to_queue))
-                        else:
-                            if not executor:
-                                executor = ThreadPoolExecutor(self.concurrency)
-                            future = asyncio.get_running_loop().run_in_executor(
-                                executor,
-                                # sentinel: an asyncio future can't hold a `StopIteration`
-                                next,
-                                iterator_to_queue,
-                                STOP_ITERATION,
-                            )
-                        iterator_and_future_pairs.append((iterator_to_queue, future))
-                        iterator_to_queue = None
-                    if to_yield:
-                        yield to_yield.pop()
-                    if not iterator_and_future_pairs:
-                        break
-            except GeneratorExit:
-                raise
-            except BaseException:
-                for _, future in iterator_and_future_pairs:
-                    future.cancel()
-                raise
-            finally:
-                if executor:
-                    executor.shutdown()
-                await asyncio.gather(
-                    *(fut for _, fut in iterator_and_future_pairs),
-                    return_exceptions=True,
-                )
+    async def __aiter__(self) -> AsyncGenerator[Union[T, ExceptionContainer], None]:
+        results = super().__aiter__()
+        to_yield: Deque[Union[T, ExceptionContainer]] = deque(maxlen=1)
+        try:
+            async for result in results:
+                iterator = self._pulls.popleft()[0]
+                if result is not STOP_ITERATION and (
+                    not isinstance(result, ExceptionContainer)
+                    or not isinstance(result.exception, StopAsyncIteration)
+                ):
+                    if iterator:
+                        self._relaunched.append(self._launch_pull(iterator))
+                    to_yield.append(result)
+                # the result may hold an error that we don't want this frame to hold while suspended
+                del result, iterator
+                if to_yield:
+                    yield to_yield.pop()
+        except GeneratorExit:
+            # a stop waits for the inner iterators' pending pulls instead of cancelling them
+            await asyncio.gather(
+                *(future for _, future in self._pulls), return_exceptions=True
+            )
+            raise
+        except BaseException:
+            # the concurrent map cancels its pending pulls, but not the re-launched ones
+            for future in self._relaunched:
+                future.cancel()
+            raise
+        finally:
+            await results.aclose()
+            await asyncio.gather(*self._relaunched, return_exceptions=True)
 
 
 class ConcurrentFlattenAsyncIterator(_RaisingAsyncIterator[T]):

@@ -12,6 +12,7 @@ from typing import (
     ContextManager,
     Deque,
     Dict,
+    Generator,
     Generic,
     Iterable,
     Iterator,
@@ -822,65 +823,93 @@ class ConcurrentMapIterator(_RaisingIterator[U]):
 ######################
 
 
-class _ConcurrentFlattenIterable(Iterable[Union[T, ExceptionContainer]]):
-    __slots__ = ("upstream", "concurrency")
+def _pull(iterator: Iterable[T]) -> T:
+    # `iterator` is an iterator, `iter` returns it as is
+    return next(iter(iterator))
+
+
+class _ConcurrentFlattenIterable(_ConcurrentMapIterable[Iterable[T], T]):
+    """
+    A concurrent map of `next` over the inner iterators: each consumed result
+    re-launches the pull of the iterator it comes from, an exhaustion lets a new
+    iterable be pulled from upstream instead.
+    """
+
+    __slots__ = ("_pulls", "_relaunched", "_flattening_executor")
 
     def __init__(
         self,
         upstream: Iterator[Iterable[T]],
         concurrency: int,
     ) -> None:
-        self.upstream = upstream
-        self.concurrency = concurrency
+        # the concurrent map launches a task before consuming a result: `concurrency - 1`,
+        # plus the pull re-launched on consumption, keeps `concurrency` iterators being
+        # pulled (`concurrency > 1` here)
+        super().__init__(upstream, _pull, concurrency - 1, as_completed=False)
+        # each pull's iterator (`None` for a failed future) and future, in launch order
+        self._pulls: Deque[Tuple[Optional[Iterator[T]], "Future[T]"]] = deque()
+        # pulls re-launched on consumption, to hand over to the concurrent map
+        self._relaunched: Deque["Future[T]"] = deque()
+        self._flattening_executor = ThreadPoolExecutor(max_workers=concurrency)
+
+    def _task_context(self) -> ContextManager[Executor]:
+        return self._flattening_executor
+
+    def _launch_pull(self, iterator: Iterator[T]) -> "Future[T]":
+        future = self._launch_task(iterator, self._flattening_executor)
+        self._pulls.append((iterator, future))
+        return future
+
+    def _fail(self, error: Exception) -> "Future[T]":
+        future: "Future[T]" = FailedFuture(error)
+        self._pulls.append((None, future))
+        return future
+
+    def _next_future(self, context: Executor) -> Optional["Future[T]"]:
+        if self._relaunched:
+            return self._relaunched.popleft()
+        try:
+            try:
+                iterable = self.upstream.__next__()
+            except StopIteration:
+                if not any(iterator for iterator, _ in self._pulls):
+                    return None
+                # an iterator is still being pulled: a placeholder keeps the
+                # concurrent map going until its pull gets re-launched (skipped as exhausted)
+                return self._fail(StopIteration())
+            validate_sync_flatten_iterable(iterable)
+            return self._launch_pull(iterable.__iter__())
+        except Exception as e:
+            return self._fail(e)
 
     def __iter__(self) -> Iterator[Union[T, ExceptionContainer]]:
-        with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
-            iterator_and_future_pairs: Deque[
-                Tuple[
-                    Optional[Iterator[T]],
-                    "Future[T]",
-                ]
-            ] = deque()
-            to_yield: Deque[Union[T, ExceptionContainer]] = deque(maxlen=1)
-            iterator_to_queue: Optional[Iterator[T]] = None
-            # wait, queue, yield (FIFO)
-            while True:
-                if iterator_and_future_pairs:
-                    iterator, future = iterator_and_future_pairs.popleft()
-                    elem = ExceptionContainer.result(future)
-                    # the result's traceback may reference this frame
-                    del future
-                    if not isinstance(elem, ExceptionContainer) or not isinstance(
-                        elem.exception, StopIteration
-                    ):
-                        to_yield.append(elem)
-                        iterator_to_queue = iterator
-                    del elem
-
-                # queue tasks up to buffersize
-                while len(iterator_and_future_pairs) < self.concurrency:
-                    if not iterator_to_queue:
-                        try:
-                            try:
-                                iterable = self.upstream.__next__()
-                            except StopIteration:
-                                break
-                            validate_sync_flatten_iterable(iterable)
-                            iterator_to_queue = iterable.__iter__()
-                        except Exception as e:
-                            iterator_to_queue = None
-                            future = FailedFuture(e)
-                            iterator_and_future_pairs.append(
-                                (iterator_to_queue, future)
-                            )
-                            continue
-                    future = executor.submit(next, iterator_to_queue)
-                    iterator_and_future_pairs.append((iterator_to_queue, future))
-                    iterator_to_queue = None
+        results = super().__iter__()
+        to_yield: Deque[Union[T, ExceptionContainer]] = deque(maxlen=1)
+        try:
+            for result in results:
+                iterator = self._pulls.popleft()[0]
+                if not isinstance(result, ExceptionContainer) or not isinstance(
+                    result.exception, StopIteration
+                ):
+                    if iterator:
+                        self._relaunched.append(self._launch_pull(iterator))
+                    to_yield.append(result)
+                # the result may hold an error that we don't want this frame to hold while suspended
+                del result, iterator
                 if to_yield:
                     yield to_yield.pop()
-                if not iterator_and_future_pairs:
-                    break
+        except GeneratorExit:
+            # a stop waits for the inner iterators' pending pulls: done by the executor's shutdown
+            raise
+        except BaseException:
+            # the concurrent map cancels its pending pulls, but not the re-launched ones
+            for future in self._relaunched:
+                future.cancel()
+            raise
+        finally:
+            # runs the concurrent map's cleanup now
+            if isinstance(results, Generator):
+                results.close()
 
 
 class ConcurrentFlattenIterator(_RaisingIterator[T]):
