@@ -1,4 +1,6 @@
 import asyncio
+import threading
+import time
 from datetime import timedelta
 from typing import (
     Any,
@@ -6,6 +8,7 @@ from typing import (
     Awaitable,
     Callable,
     Generic,
+    Iterator,
     List,
     TypeVar,
 )
@@ -47,6 +50,13 @@ class MonitoredIdentity(Generic[T]):
         except asyncio.CancelledError:
             self.cancelled.append(arg)
             raise
+        self.completed.append(arg)
+        return arg
+
+    def sync_func(self, arg: T) -> T:
+        self.started.append(arg)
+        if len(self.started) > self.n_fast:
+            time.sleep(SLOW)
         self.completed.append(arg)
         return arg
 
@@ -421,3 +431,75 @@ async def test_cancel_during_cancel() -> None:
     audit_closing = await audit_awaitable(closing, assert_raises=asyncio.CancelledError)
     assert audit_closing.duration < SLOW / 10
     assert_only_current_task_is_alive()
+
+
+###########
+# THREADS #
+###########
+
+
+async def max_event_loop_stall(coro: Awaitable[None]) -> float:
+    """Awaits `coro` and returns the longest time the event loop went without running."""
+    task = asyncio.ensure_future(coro)
+    stall = 0.0
+    while not task.done():
+        start = time.perf_counter()
+        await asyncio.sleep(0)
+        stall = max(stall, time.perf_counter() - start)
+    await task
+    return stall
+
+
+THREAD_BACKED_STREAM_GETTERS: List[Callable[[MonitoredIdentity], "stream[int]"]] = [
+    lambda monitored_identity: stream(range(9)).map(
+        monitored_identity.sync_func, concurrency=2
+    ),
+    lambda monitored_identity: stream(range(9)).map(
+        monitored_identity.sync_func, concurrency=2, as_completed=True
+    ),
+    lambda monitored_identity: stream[Iterator[int]](
+        [map(monitored_identity.sync_func, range(9)) for _ in range(2)]
+    ).flatten(concurrency=2),
+]
+
+
+@pytest.mark.parametrize("get_stream", THREAD_BACKED_STREAM_GETTERS)
+@pytest.mark.parametrize("termination", NON_CANCELLING_TERMINATIONS)
+@pytest.mark.asyncio
+async def test_close_executor_backed(
+    get_stream: Callable[[MonitoredIdentity[int]], "stream[int]"],
+    termination: Termination,
+) -> None:
+    monitored_identity = MonitoredIdentity[int](n_fast=0)
+    threads = set(threading.enumerate())
+    stall = await max_event_loop_stall(
+        assert_pull_then_terminate_with_no_leak(
+            get_stream(monitored_identity), n_pulls=1, termination=termination
+        )
+    )
+    # the in-flight calls are awaited
+    assert sorted(monitored_identity.completed) == sorted(monitored_identity.started)
+    # without blocking the event loop
+    assert stall < SLOW / 10
+    # threads are joined
+    assert set(threading.enumerate()) == threads
+
+
+@pytest.mark.parametrize("get_stream", THREAD_BACKED_STREAM_GETTERS)
+@pytest.mark.parametrize("termination", CANCELLING_TERMINATIONS)
+@pytest.mark.asyncio
+async def test_cancel_executor_backed(
+    get_stream: Callable[[MonitoredIdentity[int]], "stream[int]"],
+    termination: Termination,
+) -> None:
+    monitored_identity = MonitoredIdentity[int](n_fast=0)
+    threads = set(threading.enumerate())
+    await assert_pull_then_terminate_with_no_leak(
+        get_stream(monitored_identity), n_pulls=1, termination=termination
+    )
+    # the in-flight calls are abandoned: their threads are left behind
+    assert set(threading.enumerate()) > threads
+    # ... and terminate on their own
+    await asyncio.sleep(3 * SLOW)
+    assert sorted(monitored_identity.completed) == sorted(monitored_identity.started)
+    assert set(threading.enumerate()) == threads
