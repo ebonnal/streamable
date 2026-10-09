@@ -3,17 +3,19 @@ from asyncio.futures import Future
 from contextlib import suppress
 import datetime
 import sys
+
 import time
 from abc import ABC, abstractmethod
 from collections import defaultdict, deque
 from concurrent.futures import Executor, ThreadPoolExecutor
 from typing import (
+    AsyncContextManager,
     AsyncGenerator,
     AsyncIterable,
     AsyncIterator,
     Awaitable,
     Callable,
-    ContextManager,
+    ClassVar,
     Deque,
     Dict,
     Generic,
@@ -41,7 +43,11 @@ from streamable._tools._afuture import (
     FutureResults,
 )
 from streamable._tools._async import AsyncFunction, anext, empty_aiter
-from streamable._tools._context import NoopContextManager, aclosing
+from streamable._tools._context import (
+    ExecutorAsyncContextManager,
+    NoopAsyncContextManager,
+    aclosing,
+)
 from streamable._tools._error import ExceptionContainer
 
 
@@ -827,6 +833,8 @@ class _BaseConcurrentMapAsyncIterable(
 ):
     __slots__ = ("upstream", "concurrency", "as_completed")
 
+    _CANCEL_ON_CLOSE: ClassVar[bool]
+
     def __init__(
         self,
         upstream: ClosableAsyncIterator[T],
@@ -843,7 +851,7 @@ class _BaseConcurrentMapAsyncIterable(
     ) -> "Future[Union[U, ExceptionContainer]]": ...
 
     @abstractmethod
-    def _task_context(self) -> ContextManager[C]: ...
+    def _task_context(self) -> AsyncContextManager[C]: ...
 
     async def _next_future(
         self,
@@ -861,7 +869,7 @@ class _BaseConcurrentMapAsyncIterable(
         self,
     ) -> AsyncGenerator[Union[U, ExceptionContainer], None]:
         async with aclosing(self.upstream):
-            with self._task_context() as task_context:
+            async with self._task_context() as task_context:
                 future_results: FutureResults[Union[U, ExceptionContainer]] = (
                     FDFOFutureResults() if self.as_completed else FIFOFutureResults()
                 )
@@ -882,10 +890,16 @@ class _BaseConcurrentMapAsyncIterable(
                             future_results.add(future)
                             del future
                         yield await future_results.__anext__()
-
-                finally:
+                except GeneratorExit:
+                    if self._CANCEL_ON_CLOSE:
+                        for future in future_results.futures:
+                            future.cancel()
+                    raise
+                except BaseException:
                     for future in future_results.futures:
                         future.cancel()
+                    raise
+                finally:
                     await asyncio.gather(
                         *future_results.futures, return_exceptions=True
                     )
@@ -896,6 +910,8 @@ class _AsyncConcurrentMapAsyncIterable(
     _BaseConcurrentMapAsyncIterable[T, U, asyncio.Semaphore]
 ):
     __slots__ = ("into",)
+
+    _CANCEL_ON_CLOSE: ClassVar[bool] = True
 
     def __init__(
         self,
@@ -918,8 +934,8 @@ class _AsyncConcurrentMapAsyncIterable(
     ) -> "Future[Union[U, ExceptionContainer]]":
         return asyncio.create_task(self._semaphored(elem, semaphore=context))
 
-    def _task_context(self) -> ContextManager[asyncio.Semaphore]:
-        return NoopContextManager(asyncio.Semaphore(self.concurrency))
+    def _task_context(self) -> AsyncContextManager[asyncio.Semaphore]:
+        return NoopAsyncContextManager(asyncio.Semaphore(self.concurrency))
 
 
 class AsyncConcurrentMapAsyncIterator(_RaisingAsyncIterator[U]):
@@ -947,6 +963,8 @@ class _ExecutorConcurrentMapAsyncIterable(
 ):
     __slots__ = ("into", "_executor")
 
+    _CANCEL_ON_CLOSE: ClassVar[bool] = False
+
     def __init__(
         self,
         upstream: ClosableAsyncIterator[T],
@@ -969,11 +987,13 @@ class _ExecutorConcurrentMapAsyncIterable(
     ) -> "Future[Union[U, ExceptionContainer]]":
         return asyncio.get_running_loop().run_in_executor(context, self.into, elem)
 
-    def _task_context(self) -> ContextManager[Executor]:
+    def _task_context(self) -> AsyncContextManager[Executor]:
         if self._executor:
             # avoid closing client's executor
-            return NoopContextManager(self._executor)
-        return ThreadPoolExecutor(max_workers=self.concurrency)
+            return NoopAsyncContextManager(self._executor)
+        return ExecutorAsyncContextManager(
+            ThreadPoolExecutor(max_workers=self.concurrency)
+        )
 
 
 class ExecutorConcurrentMapAsyncIterator(_RaisingAsyncIterator[U]):
@@ -1025,6 +1045,13 @@ class _ConcurrentFlattenAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]
                     Future[Union[T, ExceptionContainer]],
                 ]
             ] = deque()
+
+            async def gather_futures():
+                await asyncio.gather(
+                    *(fut for _, fut in iterator_and_future_pairs),
+                    return_exceptions=True,
+                )
+
             to_yield: Deque[Union[T, ExceptionContainer]] = deque(maxlen=1)
             iterator_to_queue: Union[None, Iterator[T], AsyncIterator[T]] = None
             try:
@@ -1078,19 +1105,21 @@ class _ConcurrentFlattenAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]
                         yield to_yield.pop()
                     if not iterator_and_future_pairs:
                         break
+                if executor:
+                    executor.shutdown()
             except GeneratorExit:
+                await gather_futures()
+                if executor:
+                    executor.shutdown()
                 raise
             except BaseException:
                 for _, future in iterator_and_future_pairs:
                     future.cancel()
+                await gather_futures()
                 raise
             finally:
                 if executor:
-                    executor.shutdown()
-                await asyncio.gather(
-                    *(fut for _, fut in iterator_and_future_pairs),
-                    return_exceptions=True,
-                )
+                    executor.shutdown(wait=False)
 
 
 class ConcurrentFlattenAsyncIterator(_RaisingAsyncIterator[T]):
