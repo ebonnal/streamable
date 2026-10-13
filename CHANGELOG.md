@@ -2,7 +2,7 @@
 
 `streamable` follows *MAJOR.MINOR.PATCH* semantic versioning, expect breaking changes only in *MAJOR* version bumps.
 
-## [2.1.0b0]
+## [2.1.0]
 
 - `.buffer`: `up_to` now defaults to `None` for unbounded buffer.
   ```python
