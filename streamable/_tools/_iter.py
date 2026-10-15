@@ -125,18 +125,21 @@ class ClosableAsyncIterator(AsyncClosable, Protocol[C]):
     def __anext__(self) -> Awaitable[C]: ...
 
 
-class NoopClosableAsyncIterator(ClosableAsyncIterator[T]):
+class StopOnCloseAsyncIterator(ClosableAsyncIterator[T]):
     """
-    Wraps an `AsyncIterator` with an `.aclose` that does nothing.
+    Wraps an `AsyncIterator` with an `.aclose` that stops the iteration.
     """
 
-    __slots__ = ("upstream",)
+    __slots__ = ("upstream", "_closed")
 
     def __init__(self, upstream: AsyncIterator[T]) -> None:
         self.upstream = upstream
+        self._closed = False
 
     def __anext__(self) -> Awaitable[T]:
+        if self._closed:
+            raise StopAsyncIteration
         return self.upstream.__anext__()
 
     async def aclose(self) -> None:
-        pass
+        self._closed = True
