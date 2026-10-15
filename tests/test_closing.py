@@ -185,6 +185,46 @@ async def assert_pull_then_terminate_with_no_leak(
 
 
 @pytest.mark.parametrize(
+    "s",
+    [
+        stream(range(4)),
+        stream(range(4)) + range(4),
+        stream(range(4)).buffer(2),
+        stream(range(4)).catch(ValueError),
+        stream(range(4)).do(nothing),
+        stream(range(4)).do(asyncio.sleep, concurrency=2),
+        stream(range(4)).filter(),
+        stream([range(2), range(2)]).flatten(),
+        stream([range(2), range(2)]).flatten(concurrency=2),
+        stream(range(4)).group(2),
+        stream(range(4)).group(by=nothing),
+        stream(range(4)).group(within=timedelta(seconds=1)),
+        stream(range(4)).group(by=nothing, within=timedelta(seconds=1)),
+        stream(range(4)).map(identity),
+        stream(range(4)).map(asyncio.sleep, concurrency=2),
+        stream(range(4)).map(identity, concurrency=2),
+        stream(range(4)).observe(do=nothing),
+        stream(range(4)).observe(every=2, do=nothing),
+        stream(range(4)).observe(every=timedelta(seconds=1), do=nothing),
+        stream(range(4)).skip(1),
+        stream(range(4)).skip(until=identity),
+        stream(range(4)).take(2),
+        stream(range(4)).take(until=nothing),
+        stream(range(4)).throttle(2, per=timedelta(seconds=1)),
+    ],
+)
+@pytest.mark.parametrize("n_yields", [0, 1])
+@pytest.mark.asyncio
+async def test_close_stops_iteration(s: stream, n_yields: int) -> None:
+    it = s.__aiter__()
+    for _ in range(n_yields):
+        await anext(it)
+    await it.aclose()
+    with pytest.raises(StopAsyncIteration):
+        await anext(it)
+
+
+@pytest.mark.parametrize(
     "termination", NON_CANCELLING_TERMINATIONS + CANCELLING_TERMINATIONS
 )
 @pytest.mark.asyncio
