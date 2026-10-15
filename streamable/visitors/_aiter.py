@@ -12,9 +12,9 @@ from streamable import _afunctions
 from streamable._tools._func import sidify
 from streamable._tools._iter import (
     ClosableAsyncIterator,
-    StopOnCloseAsyncIterator,
+    GuardedAsyncIterator,
+    SyncToAsyncIterator,
     afn_to_aiter,
-    async_iter,
     fn_to_aiter,
 )
 from streamable.visitors import Visitor
@@ -127,12 +127,14 @@ class AsyncIteratorVisitor(Visitor[ClosableAsyncIterator[T]]):
         )
 
     def visit_stream(self, s: "stream[T]") -> ClosableAsyncIterator[T]:
-        if isinstance(s.source, (Iterable, AsyncIterable)):
-            return StopOnCloseAsyncIterator(async_iter(s.source))
+        if isinstance(s.source, AsyncIterable):
+            return GuardedAsyncIterator(s.source)
+        if isinstance(s.source, Iterable):
+            return GuardedAsyncIterator(SyncToAsyncIterator(s.source.__iter__()))
         if callable(s.source):
             if iscoroutinefunction(s.source):
-                return StopOnCloseAsyncIterator(afn_to_aiter(s.source))
-            return StopOnCloseAsyncIterator(fn_to_aiter(s.source))
+                return GuardedAsyncIterator(afn_to_aiter(s.source))
+            return GuardedAsyncIterator(fn_to_aiter(s.source))
         raise TypeError(
             f"`source` must be Iterable or AsyncIterable or Callable but got: {s.source}"
         )

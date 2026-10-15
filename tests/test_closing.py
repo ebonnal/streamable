@@ -1,24 +1,34 @@
 import asyncio
+import sys
 import threading
 import time
 from datetime import timedelta
 from typing import (
     Any,
+    AsyncIterable,
     AsyncIterator,
     Awaitable,
     Callable,
     Generic,
+    Iterable,
     Iterator,
     List,
     TypeVar,
+    Union,
 )
 
 import pytest
 
 from streamable import ClosableAsyncIterator, Observation, star, stream
-from streamable._tools._async import anext
 from tests.tools.error import TestBaseError, TestError
-from tests.tools.func import async_identity, audit_awaitable, identity, nothing
+from tests.tools.func import (
+    async_identity,
+    async_throw_func,
+    audit_awaitable,
+    identity,
+    nothing,
+    throw_func,
+)
 from tests.tools.loop import assert_only_current_task_is_alive
 
 T = TypeVar("T")
@@ -62,13 +72,54 @@ class MonitoredIdentity(Generic[T]):
 
 
 class MonitoredIntAsyncIterator(MonitoredIdentity[int], AsyncIterator[int]):
-    closed = False
+    n_closes = 0
+    # pulls neither completed nor cancelled when `aclose` was called
+    n_pulls_in_flight_at_close = 0
+
+    def __init__(self, n_fast: int = 1, n_yields: int = sys.maxsize) -> None:
+        super().__init__(n_fast=n_fast)
+        self.n_yields = n_yields
+
+    @property
+    def closed(self) -> bool:
+        return self.n_closes > 0
 
     async def __anext__(self) -> int:
+        if len(self.started) >= self.n_yields:
+            raise StopAsyncIteration
         return await self.async_func(len(self.started))
 
     async def aclose(self) -> None:
-        self.closed = True
+        self.n_closes += 1
+
+
+class MonitoredIntAsyncIterable(AsyncIterable[int]):
+    def __init__(self, n_fast: int = 1, n_yields: int = sys.maxsize) -> None:
+        self.n_fast = n_fast
+        self.n_yields = n_yields
+        self.iterators: List[MonitoredIntAsyncIterator] = []
+
+    def __aiter__(self) -> MonitoredIntAsyncIterator:
+        iterator = MonitoredIntAsyncIterator(self.n_fast, self.n_yields)
+        self.iterators.append(iterator)
+        return iterator
+
+
+class CloseFailingMonitoredIntAsyncIterator(MonitoredIntAsyncIterator):
+    async def aclose(self) -> None:
+        await super().aclose()
+        raise TestError()
+
+
+class CloseFailingMonitoredIntAsyncIterable(AsyncIterable[int]):
+    def __init__(self, n_yields: int = sys.maxsize) -> None:
+        self.n_yields = n_yields
+        self.iterators: List[CloseFailingMonitoredIntAsyncIterator] = []
+
+    def __aiter__(self) -> CloseFailingMonitoredIntAsyncIterator:
+        iterator = CloseFailingMonitoredIntAsyncIterator(n_yields=self.n_yields)
+        self.iterators.append(iterator)
+        return iterator
 
 
 def chain(src: AsyncIterator[int]) -> "stream[int]":
@@ -118,13 +169,13 @@ async def close(it: ClosableAsyncIterator[Any]) -> None:
 
 async def expect_stop_on_next(it: ClosableAsyncIterator[Any]) -> None:
     with pytest.raises(StopAsyncIteration):
-        await anext(it)
+        await it.__anext__()
 
 
 async def next_until_timeout(it: ClosableAsyncIterator[Any]) -> None:
     with pytest.raises(asyncio.TimeoutError):
         while True:
-            await asyncio.wait_for(anext(it), timeout=SLOW / 10)
+            await asyncio.wait_for(it.__anext__(), timeout=SLOW / 10)
 
 
 async def close_while_handling_cancellation(it: ClosableAsyncIterator[Any]) -> None:
@@ -143,7 +194,7 @@ async def close_while_handling_base_exception(it: ClosableAsyncIterator[Any]) ->
 
 async def expect_test_base_error_on_next(it: ClosableAsyncIterator[Any]) -> None:
     with pytest.raises(TestBaseError):
-        await anext(it)
+        await it.__anext__()
 
 
 NON_CANCELLING_TERMINATIONS: List[Termination] = [close, expect_stop_on_next]
@@ -164,7 +215,7 @@ async def assert_pull_then_terminate_with_no_leak(
     async def pull_then_terminate() -> ClosableAsyncIterator[Any]:
         it = (s.take(n_pulls) if termination is expect_stop_on_next else s).__aiter__()
         for _ in range(n_pulls):
-            await anext(it)
+            await it.__anext__()
         # lets the work scheduled by the last pull start
         await asyncio.sleep(0)
         await termination(it)
@@ -173,10 +224,10 @@ async def assert_pull_then_terminate_with_no_leak(
     audit = await audit_awaitable(pull_then_terminate())
     assert audit.leftover_tasks == 0
     with pytest.raises(StopAsyncIteration):
-        await anext(audit.result)
+        await audit.result.__anext__()
     await audit.result.aclose()  # noop
     with pytest.raises(StopAsyncIteration):
-        await anext(audit.result)
+        await audit.result.__anext__()
 
 
 #########
@@ -218,10 +269,10 @@ async def assert_pull_then_terminate_with_no_leak(
 async def test_close_stops_iteration(s: stream, n_yields: int) -> None:
     it = s.__aiter__()
     for _ in range(n_yields):
-        await anext(it)
+        await it.__anext__()
     await it.aclose()
     with pytest.raises(StopAsyncIteration):
-        await anext(it)
+        await it.__anext__()
 
 
 @pytest.mark.parametrize(
@@ -235,6 +286,114 @@ async def test_map_termination(termination: Termination) -> None:
     )
     # nothing is in flight but the pull of a cancelled `anext`, the source is not closed
     assert (src.completed, src.cancelled, src.closed) == ([0], src.started[1:], False)
+
+
+@pytest.mark.parametrize(
+    "termination", NON_CANCELLING_TERMINATIONS + CANCELLING_TERMINATIONS
+)
+@pytest.mark.asyncio
+async def test_source_termination(termination: Termination) -> None:
+    # the source iterator is closed if the stream created it
+    iterable = MonitoredIntAsyncIterable()
+    await assert_pull_then_terminate_with_no_leak(
+        stream(iterable), n_pulls=1, termination=termination
+    )
+    assert [iterator.closed for iterator in iterable.iterators] == [True]
+
+    # but not if it was provided by the client
+    iterator = MonitoredIntAsyncIterator()
+    await assert_pull_then_terminate_with_no_leak(
+        stream(iterator), n_pulls=1, termination=termination
+    )
+    assert not iterator.closed
+
+
+@pytest.mark.asyncio
+async def test_owned_source_close_error_is_raised() -> None:
+    it = stream(CloseFailingMonitoredIntAsyncIterable()).__aiter__()
+    assert await it.__anext__() == 0
+
+    # the TestError is raised on close
+    with pytest.raises(TestError):
+        await it.aclose()
+
+    # the TestError is raised on stop
+    with pytest.raises(TestError):
+        await stream(CloseFailingMonitoredIntAsyncIterable()).take(1)
+
+
+@pytest.mark.parametrize(
+    "termination", NON_CANCELLING_TERMINATIONS + CANCELLING_TERMINATIONS
+)
+@pytest.mark.asyncio
+async def test_owned_source_closed_once(termination: Termination) -> None:
+    # each operator propagates the closure upstream, but the source is closed once
+    iterable = MonitoredIntAsyncIterable()
+    s = stream(iterable).map(identity).filter(lambda _: True).do(nothing)
+    await assert_pull_then_terminate_with_no_leak(s, n_pulls=1, termination=termination)
+    assert [iterator.n_closes for iterator in iterable.iterators] == [1]
+
+
+@pytest.mark.asyncio
+async def test_owned_source_closed_once_on_upstream_stop() -> None:
+    # a stop right above the source is propagated by every operator above it, but the source is closed once
+    iterable = MonitoredIntAsyncIterable()
+    s = stream(iterable).take(1).map(identity).filter(lambda _: True).do(nothing)
+    it = s.__aiter__()
+    assert [elem async for elem in it] == [0]
+    await it.aclose()
+    assert [iterator.n_closes for iterator in iterable.iterators] == [1]
+
+    # a failing close is not retried: its error is raised once, then the iteration stops
+    failing_iterable = CloseFailingMonitoredIntAsyncIterable()
+    s = stream(failing_iterable).take(1).map(identity).filter(lambda _: True)
+    it = s.__aiter__()
+    assert await it.__anext__() == 0
+    with pytest.raises(TestError):
+        await it.__anext__()
+    with pytest.raises(StopAsyncIteration):
+        await it.__anext__()
+    await it.aclose()
+    assert [iterator.n_closes for iterator in failing_iterable.iterators] == [1]
+
+
+@pytest.mark.parametrize(
+    "operate",
+    [
+        lambda s: s.map(throw_func(TestError)),
+        lambda s: s.map(async_throw_func(TestError), concurrency=2),
+        lambda s: s.map(throw_func(TestError), concurrency=2),
+        lambda s: s.buffer(2).map(throw_func(TestError)),
+    ],
+)
+@pytest.mark.asyncio
+async def test_await_closes_owned_source_on_error(
+    operate: Callable[["stream[int]"], "stream[int]"],
+) -> None:
+    iterable = MonitoredIntAsyncIterable()
+    # await stream
+    audit = await audit_awaitable(operate(stream(iterable)), assert_raises=TestError)
+    assert audit.leftover_tasks == 0
+    assert [iterator.n_closes for iterator in iterable.iterators] == [1]
+
+
+@pytest.mark.parametrize(
+    "operate",
+    [
+        lambda s: s.map(throw_func(TestError)),
+        lambda s: s.map(async_throw_func(TestError), concurrency=2),
+        lambda s: s.map(throw_func(TestError), concurrency=2),
+        lambda s: s.buffer(2).map(throw_func(TestError)),
+    ],
+)
+def test_call_closes_owned_source_on_error(
+    operate: Callable[["stream[int]"], "stream[int]"],
+) -> None:
+    iterable = MonitoredIntAsyncIterable()
+    # call stream
+    with pytest.raises(TestError):
+        operate(stream(iterable))()
+    assert [iterator.n_closes for iterator in iterable.iterators] == [1]
 
 
 @pytest.mark.parametrize(
@@ -291,7 +450,7 @@ async def test_buffer_cancel(termination: Termination) -> None:
 @pytest.mark.asyncio
 async def test_buffer_task_cancel() -> None:
     it = stream(MonitoredIntAsyncIterator()).buffer(1).__aiter__()
-    await anext(it)
+    await it.__anext__()
     await asyncio.sleep(0)  # the puller's next pull is in flight
     background_tasks = asyncio.all_tasks() - {asyncio.current_task()}
     assert len(background_tasks) == 1
@@ -341,7 +500,7 @@ async def test_group_cancel(termination: Termination) -> None:
 
 @pytest.mark.parametrize("termination", NON_CANCELLING_TERMINATIONS)
 @pytest.mark.asyncio
-async def test_flatten_close(termination: Termination) -> None:
+async def test_flatten_provided_inner_iter_close(termination: Termination) -> None:
     a, b, c = (
         MonitoredIntAsyncIterator(),
         MonitoredIntAsyncIterator(),
@@ -357,7 +516,7 @@ async def test_flatten_close(termination: Termination) -> None:
 
 @pytest.mark.parametrize("termination", CANCELLING_TERMINATIONS)
 @pytest.mark.asyncio
-async def test_flatten_cancel(termination: Termination) -> None:
+async def test_flatten_provided_inner_iter_cancel(termination: Termination) -> None:
     a, b, c = (
         MonitoredIntAsyncIterator(),
         MonitoredIntAsyncIterator(),
@@ -369,6 +528,61 @@ async def test_flatten_cancel(termination: Termination) -> None:
     for src in (a, b):
         assert (src.completed, src.cancelled, src.closed) == ([0], [1], False)
     assert c.started == []
+
+
+@pytest.mark.parametrize("termination", NON_CANCELLING_TERMINATIONS)
+@pytest.mark.parametrize("concurrency", [1, 2])
+@pytest.mark.asyncio
+async def test_flatten_owned_inner_iter_close(
+    termination: Termination, concurrency: int
+) -> None:
+    src = MonitoredIntAsyncIterator()
+    s = stream([stream(src).buffer(1)]).flatten(concurrency=concurrency)
+    await assert_pull_then_terminate_with_no_leak(s, n_pulls=1, termination=termination)
+    # outside of any cancellation context: closing the owned inner stream awaits its in-flight pull
+    assert src.started[:2] == [0, 1]
+    assert (src.completed, src.cancelled, src.closed) == (src.started, [], False)
+
+
+@pytest.mark.parametrize("concurrency", [1, 2])
+@pytest.mark.asyncio
+async def test_flatten_owned_inner_iter_close_error_is_silent(concurrency: int) -> None:
+    # the owned inner iters closure is done in best effort, errors are silenced
+    iterable = CloseFailingMonitoredIntAsyncIterable()
+    # on close:
+    s = stream[AsyncIterable[int]]([iterable]).flatten(concurrency=concurrency)
+    it = s.__aiter__()
+    assert await it.__anext__() == 0
+    await it.aclose()
+    assert iterable.iterators[-1].closed is True
+
+    # on stop:
+    it = s.take(1).__aiter__()
+    assert await it.__anext__() == 0
+    with pytest.raises(StopAsyncIteration):
+        await it.__anext__()
+    assert iterable.iterators[-1].closed is True
+
+    # on exhaustion:
+    iterables = [CloseFailingMonitoredIntAsyncIterable(n_yields=1) for _ in range(2)]
+    s = stream[AsyncIterable[int]](iterables).flatten(concurrency=concurrency)
+    assert [elem async for elem in s] == [0, 0]
+    assert [
+        iterator.closed for iterable in iterables for iterator in iterable.iterators
+    ] == [True, True]
+
+
+@pytest.mark.parametrize("termination", CANCELLING_TERMINATIONS)
+@pytest.mark.parametrize("concurrency", [1, 2])
+@pytest.mark.asyncio
+async def test_flatten_owned_inner_iter_cancel(
+    termination: Termination, concurrency: int
+) -> None:
+    src = MonitoredIntAsyncIterator()
+    s = stream([stream(src).buffer(1)]).flatten(concurrency=concurrency)
+    await assert_pull_then_terminate_with_no_leak(s, n_pulls=1, termination=termination)
+    # within cancellation context: closing the owned inner stream iter cancels its in-flight pull
+    assert (src.completed, src.cancelled, src.closed) == ([0], [1], False)
 
 
 @pytest.mark.asyncio
@@ -388,15 +602,62 @@ async def test_flatten_interrupt() -> None:
     assert (src.completed, src.cancelled, src.closed) == ([0], [1], False)
 
 
-@pytest.mark.parametrize("termination", NON_CANCELLING_TERMINATIONS)
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason="`+` flattens its operands and `.flatten` does not close inner iterators",
+@pytest.mark.parametrize(
+    "termination", NON_CANCELLING_TERMINATIONS + CANCELLING_TERMINATIONS
+)
+@pytest.mark.parametrize(
+    "concurrency, src_getters",
+    [
+        (1, [MonitoredIntAsyncIterable]),
+        (1, [MonitoredIntAsyncIterator]),
+        (
+            2,
+            [
+                MonitoredIntAsyncIterable,
+                MonitoredIntAsyncIterator,
+                MonitoredIntAsyncIterable,
+            ],
+        ),
+        (
+            3,
+            [
+                MonitoredIntAsyncIterable,
+                MonitoredIntAsyncIterator,
+                MonitoredIntAsyncIterable,
+            ],
+        ),
+        (3, [lambda: [0], MonitoredIntAsyncIterable, MonitoredIntAsyncIterator]),
+    ],
 )
 @pytest.mark.asyncio
+async def test_flatten_both_owned_and_provided_inner_iters(
+    termination: Termination,
+    concurrency: int,
+    src_getters: List[Callable[[], Union[AsyncIterable[int], Iterable[int]]]],
+) -> None:
+    src = [get_src() for get_src in src_getters]
+    s = stream[Union[AsyncIterable[int], Iterable[int]]](src).flatten(
+        concurrency=concurrency
+    )
+    await assert_pull_then_terminate_with_no_leak(s, n_pulls=2, termination=termination)
+    # in-flight owned iterators are closed
+    assert all(
+        iterator.closed
+        for iterable in src[:concurrency]
+        if isinstance(iterable, MonitoredIntAsyncIterable)
+        for iterator in iterable.iterators
+    )
+    # in-flight client-provided iterators are not
+    assert not any(
+        iterable.closed
+        for iterable in src[:concurrency]
+        if isinstance(iterable, MonitoredIntAsyncIterator)
+    )
+
+
+@pytest.mark.parametrize("termination", NON_CANCELLING_TERMINATIONS)
+@pytest.mark.asyncio
 async def test_add_close(termination: Termination) -> None:
-    # for now the `.buffer`'s puller task is left behind
     await assert_pull_then_terminate_with_no_leak(
         stream(MonitoredIntAsyncIterator()).buffer(1) + [9],
         n_pulls=1,

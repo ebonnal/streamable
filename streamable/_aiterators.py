@@ -36,14 +36,18 @@ from streamable._tools._afuture import (
     FIFOFutureResults,
     FutureResults,
 )
-from streamable._tools._async import AsyncFunction, anext, empty_aiter
+from streamable._tools._async import AsyncFunction, anext
 from streamable._tools._context import (
     ExecutorAsyncContextManager,
     NoopAsyncContextManager,
     aclosing,
 )
 from streamable._tools._error import ExceptionContainer
-from streamable._tools._iter import AsyncClosable, ClosableAsyncIterator
+from streamable._tools._iter import (
+    AsyncClosable,
+    ClosableAsyncIterator,
+    GuardedAsyncIterator,
+)
 from streamable._tools._observation import Observation
 from streamable._tools._sentinel import STOP_ITERATION
 from streamable._tools._validation import validate_async_flatten_iterable
@@ -266,8 +270,8 @@ class FlattenAsyncIterator(
         self, upstream: ClosableAsyncIterator[Union[Iterable[T], AsyncIterable[T]]]
     ) -> None:
         super().__init__(upstream)
-        self._current_iterator_elem: Union[Iterator[T], AsyncIterator[T]] = (
-            empty_aiter()
+        self._current_iterator_elem: Union[Iterator[T], ClosableAsyncIterator[T]] = (
+            iter(())
         )
 
     async def _anext(self) -> T:
@@ -281,9 +285,16 @@ class FlattenAsyncIterator(
                 iterable = await self.upstream.__anext__()
                 validate_async_flatten_iterable(iterable)
                 if isinstance(iterable, AsyncIterable):
-                    self._current_iterator_elem = iterable.__aiter__()
+                    self._current_iterator_elem = GuardedAsyncIterator(
+                        iterable, silent_close=True
+                    )
                 else:
                     self._current_iterator_elem = iterable.__iter__()
+
+    async def aclose(self) -> None:
+        async with aclosing(cast(AsyncClosable, super())):
+            if isinstance(self._current_iterator_elem, AsyncClosable):
+                await self._current_iterator_elem.aclose()
 
 
 #########
@@ -1090,7 +1101,9 @@ class _ConcurrentFlattenAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]
                                     break
                                 validate_async_flatten_iterable(iterable)
                                 if isinstance(iterable, AsyncIterable):
-                                    iterator_to_queue = iterable.__aiter__()
+                                    iterator_to_queue = GuardedAsyncIterator(
+                                        iterable, silent_close=True
+                                    )
                                 else:
                                     iterator_to_queue = iterable.__iter__()
                             except Exception as e:
@@ -1135,6 +1148,14 @@ class _ConcurrentFlattenAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]
             finally:
                 if executor:
                     executor.shutdown(wait=False)
+                await asyncio.gather(
+                    *(
+                        cast(AsyncClosable, iterator).aclose()
+                        for iterator, _ in iterator_and_future_pairs
+                        if isinstance(iterator, AsyncClosable)
+                    ),
+                    return_exceptions=True,
+                )
 
 
 class ConcurrentFlattenAsyncIterator(_RaisingAsyncIterator[T]):
