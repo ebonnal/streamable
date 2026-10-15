@@ -312,24 +312,6 @@ class _GroupByWithinIterable(Iterable[Union[ExceptionContainer, Tuple[U, List[T]
         oldest_key = next(iter(groups.keys()))
         return (oldest_key, groups.pop(oldest_key)[1])
 
-    @staticmethod
-    def _get_next_elem(
-        next_elem: "queue.Queue[Union[T, ExceptionContainer]]",
-        timeout: Optional[float],
-        base_exception: Deque[BaseException],
-    ) -> T:
-        elem = next_elem.get(timeout=timeout)
-        if base_exception:
-            raise base_exception.pop()
-        if elem is STOP_ITERATION:
-            raise StopIteration
-        if isinstance(elem, ExceptionContainer):
-            try:
-                raise elem.exception
-            finally:
-                del elem
-        return elem
-
     def _timeout(self, groups: Dict[U, Tuple[float, List[T]]]) -> Optional[float]:
         if groups:
             oldest_group_time = next(iter(groups.values()))[0]
@@ -357,30 +339,40 @@ class _GroupByWithinIterable(Iterable[Union[ExceptionContainer, Tuple[U, List[T]
                 try:
                     while True:
                         try:
-                            elem = self._get_next_elem(
-                                next_elem,
-                                timeout=self._timeout(groups),
-                                base_exception=base_exception,
-                            )
-                            break
+                            elem = next_elem.get(timeout=self._timeout(groups))
                         except queue.Empty:
                             yield self._oldest_group(groups)
+                            continue
+                        if base_exception:
+                            raise base_exception.pop()
+                        if isinstance(elem, ExceptionContainer):
+                            try:
+                                raise elem.exception
+                            finally:
+                                del elem
+                        if elem is STOP_ITERATION:
+                            while groups:
+                                yield self._oldest_group(groups)
+                            return
+                        # elem received from upstream, exit the timeout loop
+                        break
+                    # add elem to group
                     key = self.by(elem)
                     _, group = groups[key]
                     group.append(elem)
+                    # yield group if full
                     if len(group) == self.up_to:
                         del groups[key]
                         yield (key, group)
+                    # get the next upstream elem
                     continue
                 except Exception as e:
-                    # upstream stopped iteration, or raised an error, or `by` did
+                    # upstream or `by` raised an error, yield all groups
                     while groups:
                         yield self._oldest_group(groups)
-                    if isinstance(e, StopIteration):
-                        return
-                    error = [ExceptionContainer(e)]
+                    to_raise = [ExceptionContainer(e)]
                 # yield outside the except block so the frame's exception state is cleared
-                yield error.pop()
+                yield to_raise.pop()
         finally:
             stopped.set()
             limit.release()
