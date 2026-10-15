@@ -1,8 +1,9 @@
 import asyncio
 import datetime
+import queue
 import time
 from datetime import timedelta
-from typing import Any, AsyncIterable, Callable, Iterable, List, Optional
+from typing import Any, AsyncIterable, Callable, Iterable, List, Optional, Type
 
 import pytest
 
@@ -13,6 +14,7 @@ from tests.tools.func import (
     async_slow_identity,
     identity,
     slow_identity,
+    throw_if_none_func,
 )
 from tests.tools.iter import (
     ITERABLE_TYPES,
@@ -47,18 +49,32 @@ def test_group_raises_on_non_positive_up_to(up_to: int) -> None:
 
 
 @pytest.mark.parametrize(
-    "upstream, up_to, by, within, expected",
+    "upstream, up_to, by, within, expected, expected_error_type",
     [
         # empty upstream
-        (stream([]), 4, None, None, []),
+        (stream([]), 4, None, None, [], None),
         # no up_to
-        (stream(range(10)), None, None, None, [list(range(10))]),
+        (stream(range(10)), None, None, None, [list(range(10))], None),
         # all groups full
-        (stream(range(10)), 2, None, None, [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]]),
+        (
+            stream(range(10)),
+            2,
+            None,
+            None,
+            [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]],
+            None,
+        ),
         # incomplete last group
-        (stream(range(10)), 4, None, None, [[0, 1, 2, 3], [4, 5, 6, 7], [8, 9]]),
+        (stream(range(10)), 4, None, None, [[0, 1, 2, 3], [4, 5, 6, 7], [8, 9]], None),
         # mono-element last group
-        (stream(range(10)), 3, None, None, [[0, 1, 2], [3, 4, 5], [6, 7, 8], [9]]),
+        (
+            stream(range(10)),
+            3,
+            None,
+            None,
+            [[0, 1, 2], [3, 4, 5], [6, 7, 8], [9]],
+            None,
+        ),
         # yield incomplete group on upstream exception
         (
             stream("01-23456789").map(int),
@@ -66,6 +82,7 @@ def test_group_raises_on_non_positive_up_to(up_to: int) -> None:
             None,
             None,
             [[0, 1], [2, 3, 4], [5, 6, 7], [8, 9]],
+            ValueError,
         ),
         # by key
         (
@@ -74,6 +91,7 @@ def test_group_raises_on_non_positive_up_to(up_to: int) -> None:
             lambda n: n % 2,
             None,
             [(0, [0, 2]), (1, [1, 3]), (0, [4, 6]), (1, [5, 7]), (0, [8]), (1, [9])],
+            None,
         ),
         # by with upstream exception, yield all pending groups FIFO
         (
@@ -82,6 +100,7 @@ def test_group_raises_on_non_positive_up_to(up_to: int) -> None:
             lambda n: n % 2,
             None,
             [(0, [0]), (1, [1]), (0, [2, 4]), (1, [3, 5]), (0, [6, 8]), (1, [7, 9])],
+            ValueError,
         ),
         # by with by exception, yield all pending groups FIFO
         (
@@ -97,6 +116,7 @@ def test_group_raises_on_non_positive_up_to(up_to: int) -> None:
                 (0, ["6", "8"]),
                 (1, ["7", "9"]),
             ],
+            ValueError,
         ),
         # within
         (
@@ -105,6 +125,7 @@ def test_group_raises_on_non_positive_up_to(up_to: int) -> None:
             None,
             timedelta(seconds=3.9 * SLOW_IDENTITY_DURATION),
             [[0, 1, 2, 3], [4, 5, 6, 7], [8, 9]],
+            None,
         ),
         # within + by + up_to: within triggering before up_to triggers
         (
@@ -120,6 +141,7 @@ def test_group_raises_on_non_positive_up_to(up_to: int) -> None:
                 (0, [8]),
                 (1, [9]),
             ],
+            None,
         ),
         # within + by + up_to: up_to sometimes triggering before within
         (
@@ -135,6 +157,7 @@ def test_group_raises_on_non_positive_up_to(up_to: int) -> None:
                 (False, [7, 8]),  # up_to triggers
                 (False, [9]),  # up_to triggers
             ],
+            None,
         ),
         # within + by with upstream exception, yield all pending groups FIFO
         # when within triggers it only yields the oldest group
@@ -144,6 +167,31 @@ def test_group_raises_on_non_positive_up_to(up_to: int) -> None:
             lambda n: n % 2,
             timedelta(seconds=3.9 * SLOW_IDENTITY_DURATION),
             [(0, [0]), (1, [1]), (0, [2, 4]), (1, [3, 5]), (0, [6, 8]), (1, [7, 9])],
+            ValueError,
+        ),
+        # within + by with upstream queue.Empty exception, yield all pending groups FIFO
+        # when within triggers it only yields the oldest group
+        (
+            stream([None, 0, 1, None, 2, 3, 4, 5, 6, 7, 8, 9]).map(
+                throw_if_none_func(queue.Empty)
+            ),
+            None,
+            lambda n: n % 2,
+            timedelta(seconds=3.9 * SLOW_IDENTITY_DURATION),
+            [(0, [0]), (1, [1]), (0, [2, 4]), (1, [3, 5]), (0, [6, 8]), (1, [7, 9])],
+            queue.Empty,
+        ),
+        # within + by with upstream asyncio.TimeoutError exception, yield all pending groups FIFO
+        # when within triggers it only yields the oldest group
+        (
+            stream([None, 0, 1, None, 2, 3, 4, 5, 6, 7, 8, 9]).map(
+                throw_if_none_func(asyncio.TimeoutError)
+            ),
+            None,
+            lambda n: n % 2,
+            timedelta(seconds=3.9 * SLOW_IDENTITY_DURATION),
+            [(0, [0]), (1, [1]), (0, [2, 4]), (1, [3, 5]), (0, [6, 8]), (1, [7, 9])],
+            asyncio.TimeoutError,
         ),
         # within + by with by exception, yield all pending groups FIFO
         # when within triggers it only yields the oldest group
@@ -160,6 +208,7 @@ def test_group_raises_on_non_positive_up_to(up_to: int) -> None:
                 (0, ["6", "8"]),
                 (1, ["7", "9"]),
             ],
+            ValueError,
         ),
         # within faster than upstream
         (
@@ -168,6 +217,7 @@ def test_group_raises_on_non_positive_up_to(up_to: int) -> None:
             None,
             timedelta(seconds=0.9 * SLOW_IDENTITY_DURATION),
             [[elem] for elem in range(10)],
+            None,
         ),
     ],
 )
@@ -186,14 +236,13 @@ def test_group_cases(
     by: Optional[Callable[[int], int]],
     within: Optional[datetime.timedelta],
     expected: List[List[int]],
+    expected_error_type: Optional[Type[Exception]],
     adapt: Callable[[Any], Any],
     slow_identity: Callable[[Any], Any],
 ) -> None:
-    s = (
-        upstream.map(slow_identity)
-        .group(up_to=up_to, by=adapt(by), within=within)
-        .catch(ValueError)
-    )
+    s = upstream.map(slow_identity).group(up_to=up_to, by=adapt(by), within=within)
+    if expected_error_type:
+        s = s.catch(expected_error_type)
     assert alist_or_list(s, itype) == expected
 
 
