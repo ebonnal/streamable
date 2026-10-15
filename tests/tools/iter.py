@@ -12,8 +12,6 @@ from typing import (
     cast,
 )
 
-from streamable import stream
-from streamable._tools._async import awaitable_to_coroutine
 from streamable._tools._iter import SyncAsyncIterable, SyncToAsyncIterator
 from tests.tools.loop import TEST_LOOP
 
@@ -58,9 +56,7 @@ def aiter_or_iter(
 
 def anext_or_next(it: Union[Iterator[T], AsyncIterator[T]], itype: IterableType) -> T:
     if itype is AsyncIterable:
-        return TEST_LOOP.run_until_complete(
-            awaitable_to_coroutine(cast(AsyncIterator[T], it).__anext__())
-        )
+        return TEST_LOOP.run_until_complete(cast(AsyncIterator[T], it).__anext__())
     return next(cast(Iterator[T], it))
 
 
@@ -70,12 +66,6 @@ def alist_or_list(
     if itype is AsyncIterable:
         return aiterable_to_list(cast(AsyncIterable[T], iterable))
     return list(cast(Iterable[T], iterable))
-
-
-def aiterate_or_iterate(s: stream, itype: IterableType) -> None:
-    if itype is AsyncIterable:
-        TEST_LOOP.run_until_complete(awaitable_to_coroutine(s))
-    s()
 
 
 class SyncToBiIterable(SyncAsyncIterable[T]):
@@ -90,3 +80,9 @@ class SyncToBiIterable(SyncAsyncIterable[T]):
 
 
 sync_to_bi_iterable: Callable[[Iterable[T]], SyncAsyncIterable[T]] = SyncToBiIterable
+
+
+def async_iter(iterable: Union[Iterable[T], AsyncIterable[T]]) -> AsyncIterator[T]:
+    if isinstance(iterable, AsyncIterable):
+        return iterable.__aiter__()
+    return SyncToAsyncIterator(iterable.__iter__())

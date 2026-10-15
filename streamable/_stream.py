@@ -26,6 +26,7 @@ from typing import (
 )
 
 from streamable._tools._async import AsyncFunction
+from streamable._tools._context import aclosing
 from streamable._tools._iter import (
     AsyncToSyncIterator,
     ClosableAsyncIterator,
@@ -179,6 +180,8 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         Errors raised by child tasks during termination are not propagated.
 
+        If an async source is already provided as an ``AsyncIterator``, it is considered owned by the client and ``.aclose`` will not propagate to it (the same applies to inner async iterables processed by ``.flatten``).
+
         Returns:
             ``streamable.ClosableAsyncIterator[T]``: Closable async iterator over this stream's elements.
 
@@ -238,8 +241,14 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             pipeline()
             assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
         """
-        for _ in self:
-            pass
+        iterator = iter(self)
+        try:
+            for _ in iterator:
+                pass
+        except Exception:
+            if isinstance(iterator, AsyncToSyncIterator):
+                iterator.close()
+            raise
         return self
 
     def __await__(self) -> Generator[None, None, "stream[T]"]:
@@ -258,8 +267,9 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         """
 
         async def consume():
-            async for _ in self:
-                pass
+            async with aclosing(self.__aiter__()) as self_iterator:
+                async for _ in self_iterator:
+                    pass
 
         yield from (consume().__await__())
         return self
