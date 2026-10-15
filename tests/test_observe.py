@@ -3,6 +3,7 @@ import datetime
 import time
 from typing import (
     Any,
+    AsyncIterator,
     Callable,
     Iterable,
     Iterator,
@@ -14,6 +15,7 @@ from typing import (
 import pytest
 
 from streamable import stream
+from streamable._aiterators import EveryIntervalObserveAsyncIterator
 from streamable._tools._func import asyncify
 from streamable._tools._observation import Observation
 from tests.tools.error import TestError
@@ -21,8 +23,10 @@ from tests.tools.func import (
     SLOW_IDENTITY_DURATION,
     async_inverse,
     async_slow_identity,
+    audit_awaitable,
     identity,
     inverse,
+    nothing,
     slow_identity,
     throw_func,
 )
@@ -321,3 +325,36 @@ def test_observe_iterate_after_stop_does_not_retrigger_an_observation(
     with pytest.raises(stopiteration_type(itype)):
         anext_or_next(it, itype)
     assert post_stop_observations == observations
+
+
+@pytest.mark.asyncio
+async def test_observe_task_cancelled_on_del() -> None:
+    s = stream([1, 2, 3]).observe("ints", every=datetime.timedelta(hours=1))
+
+    async def anext_then_del(it: AsyncIterator) -> None:
+        await it.__anext__()
+        del it
+        # let the event loop run the cancellation
+        await asyncio.sleep(0)
+        await asyncio.sleep(0)
+
+    audit = await audit_awaitable(anext_then_del(s.__aiter__()))
+    assert audit.leftover_tasks == 0
+
+
+@pytest.mark.asyncio
+async def test_observe_task_ends_on_its_own_if_not_cancelled_on_del(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # make __del__ unable to cancel the task
+    monkeypatch.setattr(EveryIntervalObserveAsyncIterator, "__del__", nothing)
+    every = datetime.timedelta(milliseconds=10)
+    s = stream([1, 2, 3]).observe("ints", every=every, do=nothing)
+
+    async def anext_then_del_then_sleep(it: AsyncIterator) -> None:
+        await it.__anext__()
+        del it
+        await asyncio.sleep(2 * every.total_seconds())
+
+    audit = await audit_awaitable(anext_then_del_then_sleep(s.__aiter__()))
+    assert audit.leftover_tasks == 0
