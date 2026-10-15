@@ -386,24 +386,6 @@ class _GroupByWithinAsyncIterable(
         oldest_key = next(iter(groups.keys()))
         return (oldest_key, groups.pop(oldest_key)[1])
 
-    @staticmethod
-    async def _get_next_elem(
-        next_elem: "asyncio.Queue[Union[T, ExceptionContainer]]",
-        timeout: Optional[float],
-        base_exception: Deque[BaseException],
-    ) -> T:
-        elem = await asyncio.wait_for(next_elem.get(), timeout=timeout)
-        if base_exception:
-            raise base_exception.pop()
-        if elem is STOP_ITERATION:
-            raise StopAsyncIteration
-        if isinstance(elem, ExceptionContainer):
-            try:
-                raise elem.exception
-            finally:
-                del elem
-        return cast(T, elem)
-
     def _timeout(self, groups: Dict[U, Tuple[float, List[T]]]) -> Optional[float]:
         if groups:
             oldest_group_time = next(iter(groups.values()))[0]
@@ -431,30 +413,42 @@ class _GroupByWithinAsyncIterable(
                     try:
                         while True:
                             try:
-                                elem = await self._get_next_elem(
-                                    next_elem,
-                                    timeout=self._timeout(groups),
-                                    base_exception=base_exception,
+                                elem = await asyncio.wait_for(
+                                    next_elem.get(), timeout=self._timeout(groups)
                                 )
-                                break
                             except asyncio.TimeoutError:
                                 yield self._oldest_group(groups)
+                                continue
+                            if base_exception:
+                                raise base_exception.pop()
+                            if isinstance(elem, ExceptionContainer):
+                                try:
+                                    raise elem.exception
+                                finally:
+                                    del elem
+                            if elem is STOP_ITERATION:
+                                while groups:
+                                    yield self._oldest_group(groups)
+                                return
+                            # elem received from upstream, exit the timeout loop
+                            break
+                        # add elem to group
                         key = await self.by(elem)
                         _, group = groups[key]
                         group.append(elem)
+                        # yield group if full
                         if len(group) == self.up_to:
                             del groups[key]
                             yield (key, group)
+                        # get the next upstream elem
                         continue
                     except Exception as e:
-                        # upstream stopped iteration, or raised an error, or `by` did
+                        # upstream or `by` raised an error, yield all groups
                         while groups:
                             yield self._oldest_group(groups)
-                        if isinstance(e, StopAsyncIteration):
-                            return
-                        error = [ExceptionContainer(e)]
+                        to_raise = [ExceptionContainer(e)]
                     # yield outside the except block so the frame's exception state is cleared
-                    yield error.pop()
+                    yield to_raise.pop()
             except GeneratorExit:
                 raise
             except BaseException:

@@ -92,6 +92,15 @@ def throw_if_falsy_func(exc: Type[BaseException]) -> Callable[[T], T]:
     return f
 
 
+def throw_if_none_func(exc: Type[BaseException]) -> Callable[[T], T]:
+    def f(_: T) -> T:
+        if _ is None:
+            raise exc
+        return _
+
+    return f
+
+
 def async_throw_if_falsy_func(exc: Type[BaseException]) -> AsyncFunction[T, T]:
     async def f(_: T) -> T:
         if not _:
