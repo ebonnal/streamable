@@ -11,7 +11,6 @@ from typing import (
 import pytest
 
 from streamable import stream
-from streamable._tools._iter import async_iter
 from tests.tools.func import (
     identity,
 )
@@ -21,6 +20,7 @@ from tests.tools.iter import (
     aiter_or_iter,
     alist_or_list,
     anext_or_next,
+    async_iter,
 )
 
 
