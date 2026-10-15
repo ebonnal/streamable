@@ -7,6 +7,7 @@ from abc import ABC, abstractmethod
 from asyncio.futures import Future
 from collections import defaultdict, deque
 from concurrent.futures import Executor, ThreadPoolExecutor
+from contextlib import suppress
 from typing import (
     AsyncContextManager,
     AsyncGenerator,
@@ -797,6 +798,11 @@ class EveryIntervalObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
             if self._task:
                 self._task.cancel()
                 await asyncio.gather(self._task, return_exceptions=True)
+
+    def __del__(self) -> None:
+        if self._task:
+            with suppress(RuntimeError):
+                self._task.get_loop().call_soon_threadsafe(self._task.cancel)
 
 
 ############
