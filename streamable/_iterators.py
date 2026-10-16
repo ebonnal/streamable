@@ -565,7 +565,7 @@ class _BaseObserveIterator(Iterator[T]):
             if not self._emissions or self._emissions > self._emissions_observed:
                 self._observe()
             self._active = False
-            raise
+            return self.__next__()
         except Exception:
             self._errors += 1
             if self._errors >= self._threshold(self._errors_observed):
