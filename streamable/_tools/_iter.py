@@ -152,10 +152,11 @@ class GuardedAsyncIterator(ClosableAsyncIterator[T]):
             raise
 
     async def aclose(self) -> None:
-        self._closure_requested = True
-        if self._owned and isinstance(self._upstream_iterator, AsyncClosable):
-            try:
-                await self._upstream_iterator.aclose()
-            except Exception:
-                if not self.silent_close:
-                    raise
+        if not self._closure_requested:
+            self._closure_requested = True
+            if self._owned and isinstance(self._upstream_iterator, AsyncClosable):
+                try:
+                    await self._upstream_iterator.aclose()
+                except Exception:
+                    if not self.silent_close:
+                        raise

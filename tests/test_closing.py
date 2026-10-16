@@ -91,6 +91,9 @@ class MonitoredIntAsyncIterator(MonitoredIdentity[int], AsyncIterator[int]):
 
     async def aclose(self) -> None:
         self.n_closes += 1
+        self.n_pulls_in_flight_at_close = (
+            len(self.started) - len(self.completed) - len(self.cancelled)
+        )
 
 
 class MonitoredIntAsyncIterable(AsyncIterable[int]):
@@ -122,7 +125,7 @@ class CloseFailingMonitoredIntAsyncIterable(AsyncIterable[int]):
         return iterator
 
 
-def chain(src: AsyncIterator[int]) -> "stream[int]":
+def chain(src: AsyncIterable[int]) -> "stream[int]":
     """Every operator flavor, downstream of a `.buffer` pulling `src` ahead."""
     return (
         stream(src)
@@ -704,6 +707,26 @@ async def test_chain_cancellation(
     # the cancellation reaches the in-flight pull through every operator
     assert (src.completed + src.cancelled, src.closed) == (src.started, False)
     assert len(src.cancelled) == 1
+
+
+@pytest.mark.parametrize(
+    "termination", NON_CANCELLING_TERMINATIONS + CANCELLING_TERMINATIONS
+)
+@pytest.mark.parametrize("n_pulls", [0, 1])
+@pytest.mark.asyncio
+async def test_chain_with_owned_source_termination(
+    termination: Termination, n_pulls: int
+) -> None:
+    iterable = MonitoredIntAsyncIterable(n_fast=20)
+    await assert_pull_then_terminate_with_no_leak(
+        chain(iterable), n_pulls=n_pulls, termination=termination
+    )
+    # the closure reaches the source through every operator, even the ones not started yet,
+    # and closes it once its in-flight pull is done
+    assert [
+        (iterator.n_closes, iterator.n_pulls_in_flight_at_close)
+        for iterator in iterable.iterators
+    ] == [(1, 0)]
 
 
 @pytest.mark.asyncio
