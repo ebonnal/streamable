@@ -1,11 +1,12 @@
 import asyncio
+import logging
 from typing import Any, Callable, List
 
 import pytest
 
 from streamable import star, stream
 from streamable._tools._func import sidify
-from streamable._tools._logging import logfmt_str_escape
+from streamable._tools._logging import logfmt_str_escape, setup_logger
 from tests.tools.func import async_identity, identity
 from tests.tools.source import INTEGERS
 
@@ -87,3 +88,11 @@ def test_logfmt_str_escape():
     assert logfmt_str_escape("in ts") == '"in ts"'
     assert logfmt_str_escape("in\\ts") == r'"in\\ts"'
     assert logfmt_str_escape('"ints"') == r'"\"ints\""'
+
+
+def test_setup_logger_keeps_existing_handlers() -> None:
+    logger = logging.getLogger("streamable")
+    pre_setup_handlers = list(logger.handlers)
+    assert pre_setup_handlers
+    setup_logger()
+    assert logger.handlers == pre_setup_handlers
