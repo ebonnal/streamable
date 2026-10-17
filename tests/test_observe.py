@@ -278,7 +278,7 @@ async def test_observe_every_timedelta_observation_stops_on_gc(
     del it
     n_observations = len(observations)
     assert n_observations >= sleep_time / every_seconds
-    if itype is Iterable:
+    if itype == "sync":
         time.sleep(sleep_time)
     else:
         await asyncio.sleep(sleep_time)
