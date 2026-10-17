@@ -26,7 +26,7 @@ T = TypeVar("T")
 R = TypeVar("R")
 
 
-def nothing(_: T) -> None:
+def nothing(_: object) -> None:
     pass
 
 

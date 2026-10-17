@@ -10,7 +10,7 @@ help:
 	@echo "  make all             - Run all tasks: venv, test, type-check, format"
 	@echo "  make venv            - Create a virtual environment and install dependencies"
 	@echo "  make test            - Run unit tests and check coverage"
-	@echo "  make type-check      - Check typing via mypy"
+	@echo "  make type-check      - Check typing via mypy and pyright"
 	@echo "  make format          - Format via ruff"
 	@echo "  make format-check    - Check the formatting via ruff"
 	@echo "  make docs            - Build the docs via sphinx"
@@ -24,6 +24,7 @@ test:
 
 type-check:
 	$(VENV_DIR)/bin/python -m mypy --install-types --non-interactive streamable tests
+	$(VENV_DIR)/bin/python -m pyright --pythonpath $(VENV_DIR)/bin/python streamable tests
 
 format:
 	$(VENV_DIR)/bin/python -m ruff check --select I --fix streamable tests
