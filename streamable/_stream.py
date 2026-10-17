@@ -3,6 +3,7 @@ import logging
 from concurrent.futures import Executor
 from typing import (
     TYPE_CHECKING,
+    Any,
     AsyncIterable,
     AsyncIterator,
     Awaitable,
@@ -601,25 +602,11 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         """
         return FilterStream(self, where)
 
-    @overload
-    def flatten(
-        self: "stream[Iterable[U]]",
-        *,
-        concurrency: int = 1,
-    ) -> "stream[U]": ...
+    #####################
+    # flatten overloads #
+    #####################
 
-    @overload
-    def flatten(
-        self: "stream[AsyncIterable[U]]",
-        *,
-        concurrency: int = 1,
-    ) -> "stream[U]": ...
-    @overload
-    def flatten(
-        self: "stream[Iterator[U]]",
-        *,
-        concurrency: int = 1,
-    ) -> "stream[U]": ...
+    # ASYNC
 
     @overload
     def flatten(
@@ -630,21 +617,16 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
     @overload
     def flatten(
+        self: "stream[AsyncIterable[U]]",
+        *,
+        concurrency: int = 1,
+    ) -> "stream[U]": ...
+
+    # SYNC
+
+    @overload
+    def flatten(
         self: "stream[stream[U]]",
-        *,
-        concurrency: int = 1,
-    ) -> "stream[U]": ...
-
-    @overload
-    def flatten(
-        self: "stream[Collection[U]]",
-        *,
-        concurrency: int = 1,
-    ) -> "stream[U]": ...
-
-    @overload
-    def flatten(
-        self: "stream[Sequence[U]]",
         *,
         concurrency: int = 1,
     ) -> "stream[U]": ...
@@ -700,10 +682,49 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
     @overload
     def flatten(
+        self: "stream[Generator[U, Any, Any]]",
+        *,
+        concurrency: int = 1,
+    ) -> "stream[U]": ...
+
+    @overload
+    def flatten(
+        self: "stream[Sequence[U]]",
+        *,
+        concurrency: int = 1,
+    ) -> "stream[U]": ...
+
+    @overload
+    def flatten(
+        self: "stream[Collection[U]]",
+        *,
+        concurrency: int = 1,
+    ) -> "stream[U]": ...
+
+    @overload
+    def flatten(
+        self: "stream[Iterator[U]]",
+        *,
+        concurrency: int = 1,
+    ) -> "stream[U]": ...
+
+    @overload
+    def flatten(
+        self: "stream[Iterable[U]]",
+        *,
+        concurrency: int = 1,
+    ) -> "stream[U]": ...
+
+    # BOTH
+
+    @overload
+    def flatten(
         self: "stream[SyncAsyncIterable[U]]",
         *,
         concurrency: int = 1,
     ) -> "stream[U]": ...
+
+    # UNION
 
     @overload
     def flatten(
@@ -720,10 +741,10 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
     ) -> "stream[U]": ...
 
     def flatten(
-        self: "stream[Union[Iterable[U], AsyncIterable[U]]]",
+        self: "stream[Any]",
         *,
         concurrency: int = 1,
-    ) -> "stream[U]":
+    ) -> "stream[Any]":
         """
         Explode upstream elements, assumed to be ``Iterable`` or ``AsyncIterable``.
 

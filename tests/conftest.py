@@ -19,8 +19,7 @@ def mock_pokeapi() -> Generator:
             respx.get(f"https://pokeapi.co/api/v2/pokemon-species/{i + 1}").mock(
                 return_value=httpx.Response(HTTPStatus.OK, json=pokemon)
             )
-        for i in range(i, i + 32):
-            respx.get(f"https://pokeapi.co/api/v2/pokemon-species/{i + 1}").mock(
-                return_value=httpx.Response(HTTPStatus.NOT_FOUND, text="")
-            )
+        respx.get(
+            f"https://pokeapi.co/api/v2/pokemon-species/{len(POKEMONS) + 1}"
+        ).mock(return_value=httpx.Response(HTTPStatus.NOT_FOUND, text=""))
         yield
