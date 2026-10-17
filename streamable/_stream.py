@@ -135,7 +135,6 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         ],
     ) -> None:
         self._source = source
-        self._upstream: "Optional[stream]" = None
 
     @property
     def upstream(self) -> "Optional[stream]":
@@ -145,7 +144,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         Returns:
             ``stream | None``
         """
-        return self._upstream
+        return None
 
     @property
     def source(self) -> Union[Iterable, AsyncIterable, Callable]:
