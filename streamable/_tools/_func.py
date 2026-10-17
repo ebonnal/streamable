@@ -49,13 +49,13 @@ async def _async_call(func: Callable[[T], R], o: T) -> R:
 
 
 @overload
-def asyncify(
-    func: AsyncFunction[T, R],
-) -> AsyncFunction[T, R]: ...
+def asyncify(func: AsyncFunction[T, R]) -> AsyncFunction[T, R]: ...
 
 
 @overload
-def asyncify(func: Callable[[T], R]) -> AsyncFunction[T, R]: ...
+def asyncify(
+    func: Union[Callable[[T], R], AsyncFunction[T, R]],
+) -> AsyncFunction[T, R]: ...
 
 
 @overload
