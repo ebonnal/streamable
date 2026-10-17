@@ -1,5 +1,6 @@
 __pycache__/
 htmlcov/
+coverage.xml
 docs/_build/
 build/
 dist/
