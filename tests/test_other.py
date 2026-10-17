@@ -150,6 +150,11 @@ def test_call() -> None:
     assert store == list(INTEGERS)
 
 
+def test_call_raises() -> None:
+    with pytest.raises(ZeroDivisionError):
+        stream([0]).map(lambda n: 1 / n)()
+
+
 @pytest.mark.asyncio
 async def test_await() -> None:
     store: List[int] = []

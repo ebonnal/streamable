@@ -20,7 +20,7 @@ venv:
 	uv pip install -e ".[dev]"
 
 test:
-	$(VENV_DIR)/bin/python -m pytest --cov=streamable --cov-report=term-missing --cov-fail-under=100 -sx
+	$(VENV_DIR)/bin/python -m pytest --cov=streamable --cov-branch --cov-report=term-missing --cov-fail-under=100 -sx
 
 type-check:
 	$(VENV_DIR)/bin/python -m mypy --install-types --non-interactive streamable tests
