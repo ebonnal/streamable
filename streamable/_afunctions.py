@@ -83,9 +83,7 @@ def group(
         if by is None:
             return _aiterators.GroupAsyncIterator(upstream, up_to=up_to)
         return _aiterators.FlattenAsyncIterator(
-            _aiterators.GroupByAsyncIterator(
-                upstream, by=cast(AsyncFunction[T, U], asyncify(by)), up_to=up_to
-            )
+            _aiterators.GroupByAsyncIterator(upstream, by=asyncify(by), up_to=up_to)
         )
     if by is None:
         return _aiterators.MapAsyncIterator(
@@ -114,7 +112,7 @@ def map(
     if iscoroutinefunction(into):
         return _aiterators.AsyncConcurrentMapAsyncIterator(
             upstream,
-            cast(AsyncFunction[T, U], into),
+            into,
             concurrency=cast(int, concurrency),
             as_completed=as_completed,
         )
