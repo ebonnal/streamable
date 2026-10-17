@@ -34,9 +34,9 @@ def catch(
     upstream: Iterator[T],
     errors: Union[Type[Exc], Tuple[Type[Exc], ...]],
     *,
-    where: Optional[Union[Callable[[Exc], object]]] = None,
-    replace: Optional[Union[Callable[[Exc], U]]] = None,
-    do: Optional[Union[Callable[[Exc], object]]] = None,
+    where: Optional[Callable[[Exc], object]] = None,
+    replace: Optional[Callable[[Exc], U]] = None,
+    do: Optional[Callable[[Exc], object]] = None,
     stop: bool = False,
 ) -> Iterator[Union[T, U]]:
     return _iterators.CatchIterator(
@@ -50,7 +50,7 @@ def catch(
 
 
 def filter(
-    where: Union[Callable[[T], object]],
+    where: Callable[[T], object],
     upstream: Iterator[T],
 ) -> Iterator[T]:
     return builtins.filter(where, upstream)
@@ -93,7 +93,7 @@ def group(
 
 
 def map(
-    into: Union[Callable[[T], U]],
+    into: Callable[[T], U],
     upstream: Iterator[T],
     *,
     concurrency: Union[int, Executor] = 1,
@@ -114,7 +114,7 @@ def observe(
     upstream: Iterator[T],
     subject: str,
     every: Union[None, int, datetime.timedelta],
-    do: Union[Callable[[Observation], object],],
+    do: Callable[[Observation], object],
 ) -> Iterator[T]:
     if every is None:
         return _iterators.PowerObserveIterator(upstream, subject, do)
