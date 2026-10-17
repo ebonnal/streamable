@@ -13,7 +13,7 @@ def consume(s: Iterable):
         pass
 
 
-timeit.timeit(lambda: consume(map(lambda _: _, ints)), number=50) / 50
+_ = timeit.timeit(lambda: consume(map(lambda _: _, ints)), number=50) / 50
 baseline = timeit.timeit(lambda: consume(map(lambda _: _, ints)), number=50) / 50
 
 for times, s in (
