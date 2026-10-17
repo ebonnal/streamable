@@ -109,8 +109,8 @@ def test_repr_star() -> None:
     s = stream([(0, 1)]).filter(star(print))
     assert repr(s) == "stream([(0, 1)]).filter(star(print))"
 
-    s2 = stream([(0, 1)]).filter(star(async_identity))
-    assert repr(s2) == "stream([(0, 1)]).filter(star(async_identity))"
+    s2 = stream([(0,)]).filter(star(async_identity))
+    assert repr(s2) == "stream([(0,)]).filter(star(async_identity))"
 
 
 def test_repr_cast() -> None:
