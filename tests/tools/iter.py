@@ -1,7 +1,6 @@
 from typing import (
     AsyncIterable,
     AsyncIterator,
-    Callable,
     Iterable,
     Iterator,
     List,
@@ -79,7 +78,8 @@ class SyncToBiIterable(SyncAsyncIterable[T]):
         return SyncToAsyncIterator(self.iterable.__iter__())
 
 
-sync_to_bi_iterable: Callable[[Iterable[T]], SyncAsyncIterable[T]] = SyncToBiIterable
+def sync_to_bi_iterable(iterable: Iterable[T]) -> SyncAsyncIterable[T]:
+    return SyncToBiIterable(iterable)
 
 
 def async_iter(iterable: Union[Iterable[T], AsyncIterable[T]]) -> AsyncIterator[T]:

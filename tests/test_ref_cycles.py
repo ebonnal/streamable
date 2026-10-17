@@ -9,7 +9,6 @@ from typing import (
     Callable,
     Iterable,
     Iterator,
-    List,
     TypeVar,
     cast,
 )
@@ -123,7 +122,7 @@ def test_ref_cycles_with_exhausted_flattened_iterators(
     itype: IterableType,
 ) -> None:
     with disabled_gc():
-        iterators: List[Iterable[int]] = [(n for n in [0]), (n for n in [1])]
+        iterators = [(n for n in [0]), (n for n in [1])]
         refs = [weakref.ref(iterator) for iterator in iterators]
         assert alist_or_list(stream(iterators).flatten(concurrency=2), itype) == [0, 1]
         del iterators
