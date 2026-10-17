@@ -3,7 +3,7 @@ import datetime
 import queue
 import time
 from datetime import timedelta
-from typing import Any, AsyncIterable, Callable, Iterable, List, Optional, Type
+from typing import Any, Callable, Iterable, List, Optional, Type
 
 import pytest
 
@@ -224,9 +224,9 @@ def test_group_raises_on_non_positive_up_to(up_to: int) -> None:
 @pytest.mark.parametrize(
     "itype, slow_identity, adapt",
     [
-        (Iterable, slow_identity, identity),
-        (Iterable, async_slow_identity, asyncify),
-        (AsyncIterable, async_slow_identity, asyncify),
+        ("sync", slow_identity, identity),
+        ("sync", async_slow_identity, asyncify),
+        ("async", async_slow_identity, asyncify),
     ],
 )
 def test_group_cases(

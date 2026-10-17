@@ -1,5 +1,5 @@
 import sys
-from typing import Any, AsyncIterable, Callable, Iterable, List
+from typing import Any, Callable, List
 
 import pytest
 
@@ -30,7 +30,7 @@ def test_buffer_preserves_elements(itype: IterableType) -> None:
 @pytest.mark.parametrize("buffer_size", [1, 10, None])
 @pytest.mark.parametrize(
     "itype, slow_identity",
-    [(Iterable, slow_identity), (AsyncIterable, async_slow_identity)],
+    [("sync", slow_identity), ("async", async_slow_identity)],
 )
 def test_buffer_size_is_respected(
     itype: IterableType, buffer_size: int, slow_identity: Callable[..., Any]
@@ -51,7 +51,7 @@ def test_buffer_size_is_respected(
 
 @pytest.mark.parametrize(
     "itype, slow_identity",
-    [(Iterable, slow_identity), (AsyncIterable, async_slow_identity)],
+    [("sync", slow_identity), ("async", async_slow_identity)],
 )
 def test_buffer_with_exceptions(
     itype: IterableType, slow_identity: Callable[..., Any]

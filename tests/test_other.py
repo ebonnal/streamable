@@ -5,7 +5,6 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from typing import (
     Any,
-    AsyncIterable,
     AsyncIterator,
     Callable,
     List,
@@ -519,7 +518,7 @@ def test_propagation_of_base_exceptions(
     with pytest.raises(expected_error):
         anext_or_next(it, itype)
     # after base exception, sync iteration is stopped if generators are involved, else it can resume
-    if iteration_resumes and itype is not AsyncIterable:
+    if itype == "sync" and iteration_resumes:
         assert anext_or_next(it, itype) == 4
     else:
         with pytest.raises(stopiteration_type(itype)):

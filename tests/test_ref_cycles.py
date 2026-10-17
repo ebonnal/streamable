@@ -5,9 +5,7 @@ import weakref
 from datetime import timedelta
 from typing import (
     Any,
-    AsyncIterable,
     Callable,
-    Iterable,
     Iterator,
     TypeVar,
     cast,
@@ -146,7 +144,7 @@ def test_ref_cycles_with_in_flight_errors(
         assert anext_or_next(it, itype) == 1
         # wait for the 3 errors to happen and be in-flight
         TEST_LOOP.run_until_complete(asyncio.sleep(SLOW_IDENTITY_DURATION * 5))
-        if itype is AsyncIterable:
+        if itype == "async":
             TEST_LOOP.run_until_complete(cast(ClosableAsyncIterator[int], it).aclose())
         del it
         # the in-flight errors have been garbage collected (ref count)
@@ -166,7 +164,7 @@ def test_ref_cycles_with_in_flight_errors(
 )
 @pytest.mark.parametrize(
     "itype, slow_identity",
-    [(Iterable, slow_identity), (AsyncIterable, async_slow_identity)],
+    [("sync", slow_identity), ("async", async_slow_identity)],
 )
 def test_ref_cycles_with_errors_left_queued_by_pullers(
     itype: IterableType,
@@ -178,7 +176,7 @@ def test_ref_cycles_with_errors_left_queued_by_pullers(
         it = aiter_or_iter(s, itype)
         anext_or_next(it, itype)
         # error stored within the generator, never yielded out
-        if itype is AsyncIterable:
+        if itype == "async":
             TEST_LOOP.run_until_complete(asyncio.sleep(0.1))
             TEST_LOOP.run_until_complete(cast(ClosableAsyncIterator[int], it).aclose())
         else:

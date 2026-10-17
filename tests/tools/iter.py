@@ -4,6 +4,7 @@ from typing import (
     Iterable,
     Iterator,
     List,
+    Literal,
     Tuple,
     Type,
     TypeVar,
@@ -14,8 +15,8 @@ from typing import (
 from streamable._tools._iter import SyncAsyncIterable, SyncToAsyncIterator
 from tests.tools.loop import TEST_LOOP
 
-IterableType = Union[Type[Iterable], Type[AsyncIterable]]
-ITERABLE_TYPES: Tuple[IterableType, ...] = (Iterable, AsyncIterable)
+IterableType = Literal["sync", "async"]
+ITERABLE_TYPES: Tuple[IterableType, ...] = ("sync", "async")
 
 T = TypeVar("T")
 
@@ -29,7 +30,8 @@ def aiterable_to_list(aiterable: AsyncIterable[T]) -> List[T]:
 
 
 def stopiteration_type(itype: IterableType) -> Type[Exception]:
-    if issubclass(itype, AsyncIterable):
+    assert itype in ITERABLE_TYPES
+    if itype == "async":
         return StopAsyncIteration
     return StopIteration
 
@@ -48,13 +50,15 @@ async def acount(iterator: AsyncIterable) -> int:
 def aiter_or_iter(
     iterable: Union[Iterable[T], AsyncIterable[T]], itype: IterableType
 ) -> Union[Iterator[T], AsyncIterator[T]]:
-    if itype is AsyncIterable:
+    assert itype in ITERABLE_TYPES
+    if itype == "async":
         return cast(AsyncIterator[T], iterable).__aiter__()
     return cast(Iterator[T], iterable).__iter__()
 
 
 def anext_or_next(it: Union[Iterator[T], AsyncIterator[T]], itype: IterableType) -> T:
-    if itype is AsyncIterable:
+    assert itype in ITERABLE_TYPES
+    if itype == "async":
         return TEST_LOOP.run_until_complete(cast(AsyncIterator[T], it).__anext__())
     return next(cast(Iterator[T], it))
 
@@ -62,7 +66,8 @@ def anext_or_next(it: Union[Iterator[T], AsyncIterator[T]], itype: IterableType)
 def alist_or_list(
     iterable: Union[Iterable[T], AsyncIterable[T]], itype: IterableType
 ) -> List[T]:
-    if itype is AsyncIterable:
+    assert itype in ITERABLE_TYPES
+    if itype == "async":
         return aiterable_to_list(cast(AsyncIterable[T], iterable))
     return list(cast(Iterable[T], iterable))
 
