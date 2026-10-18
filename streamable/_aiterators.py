@@ -171,24 +171,42 @@ async def puller_task(
 ##########
 
 
-class _BufferAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]]):
-    __slots__ = ("upstream", "up_to")
+class BufferAsyncIterator(_RaisingAsyncIterator[T]):
+    __slots__ = ("_buffer",)
 
     def __init__(
         self,
         upstream: ClosableAsyncIterator[T],
         up_to: Optional[int],
     ) -> None:
-        self.upstream = upstream
-        self.up_to = up_to or sys.maxsize
+        # filled by the generator with its queue: an `asyncio.Queue` must be created
+        # within the running loop (it binds a loop when created on Python 3.8/3.9)
+        self._buffer: "List[asyncio.Queue[Union[T, ExceptionContainer]]]" = []
+        super().__init__(
+            BufferAsyncIterator.create_generator(
+                upstream, up_to or sys.maxsize, self._buffer
+            ),
+            upstream,
+        )
 
-    async def __aiter__(self) -> AsyncGenerator[Union[T, ExceptionContainer], None]:
+    @property
+    def buffer(self) -> "Optional[asyncio.Queue[Union[T, ExceptionContainer]]]":
+        """The queue of pulled elements, `None` until the first pull."""
+        return self._buffer[0] if self._buffer else None
+
+    @staticmethod
+    async def create_generator(
+        upstream: ClosableAsyncIterator[T],
+        up_to: int,
+        buffer_holder: "List[asyncio.Queue[Union[T, ExceptionContainer]]]",
+    ) -> AsyncGenerator[Union[T, ExceptionContainer], None]:
         buffer: "asyncio.Queue[Union[T, ExceptionContainer]]" = asyncio.Queue()
-        limit = asyncio.Semaphore(self.up_to)
+        buffer_holder.append(buffer)
+        limit = asyncio.Semaphore(up_to)
         stopped = asyncio.Event()
         base_exception: Deque[BaseException] = deque()
         task = asyncio.create_task(
-            puller_task(self.upstream, buffer, limit, stopped, base_exception)
+            puller_task(upstream, buffer, limit, stopped, base_exception)
         )
         to_yield: Deque[Union[T, ExceptionContainer]] = deque(maxlen=1)
         try:
@@ -213,17 +231,6 @@ class _BufferAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]]):
             finally:
                 while not buffer.empty():
                     buffer.get_nowait()
-
-
-class BufferAsyncIterator(_RaisingAsyncIterator[T]):
-    __slots__ = ()
-
-    def __init__(
-        self,
-        upstream: ClosableAsyncIterator[T],
-        up_to: Optional[int],
-    ) -> None:
-        super().__init__(_BufferAsyncIterable(upstream, up_to).__aiter__(), upstream)
 
 
 #########
@@ -924,22 +931,44 @@ class _BaseConcurrentMapAsyncIterable(
                 FDFOFutureResults() if self.as_completed else FIFOFutureResults()
             )
             try:
-                # queue tasks up to buffersize
-                while len(future_results) < self.concurrency:
-                    future = await self._next_future(task_context)
-                    if not future:
-                        # no more tasks to queue
-                        break
-                    future_results.add(future)
-                    del future
+                if isinstance(self.upstream, BufferAsyncIterator):
+                    upstream_exhausted: bool = False
+                    while not upstream_exhausted or future_results:
+                        # launch the processing of available upstream elements, up to `concurrency`
+                        while not upstream_exhausted and (
+                            not future_results
+                            or (
+                                self.upstream.buffer is not None
+                                and self.upstream.buffer.qsize()
+                                and len(future_results) < self.concurrency
+                            )
+                        ):
+                            future = await self._next_future(task_context)
+                            if future:
+                                future_results.add(future)
+                                del future
+                            else:
+                                upstream_exhausted = True
+                        if future_results:
+                            yield await future_results.__anext__()
 
-                # queue, wait, yield
-                while future_results:
-                    future = await self._next_future(task_context)
-                    if future:
+                else:
+                    # queue tasks up to buffersize
+                    while len(future_results) < self.concurrency:
+                        future = await self._next_future(task_context)
+                        if not future:
+                            # no more tasks to queue
+                            break
                         future_results.add(future)
                         del future
-                    yield await future_results.__anext__()
+
+                    # queue, wait, yield
+                    while future_results:
+                        future = await self._next_future(task_context)
+                        if future:
+                            future_results.add(future)
+                            del future
+                        yield await future_results.__anext__()
             except GeneratorExit:
                 if self._CANCEL_ON_CLOSE:
                     future_results.cancel()

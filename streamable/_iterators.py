@@ -12,6 +12,7 @@ from typing import (
     ContextManager,
     Deque,
     Dict,
+    Generator,
     Generic,
     Iterable,
     Iterator,
@@ -94,8 +95,8 @@ def puller_task(
 ##########
 
 
-class _BufferIterable(Iterable[Union[T, ExceptionContainer]]):
-    __slots__ = ("upstream", "up_to")
+class BufferIterator(_RaisingIterator[T]):
+    __slots__ = ("upstream", "up_to", "buffer")
 
     def __init__(
         self,
@@ -104,15 +105,23 @@ class _BufferIterable(Iterable[Union[T, ExceptionContainer]]):
     ) -> None:
         self.upstream = upstream
         self.up_to = up_to or sys.maxsize
+        self.buffer: "queue.Queue[Union[T, ExceptionContainer]]" = queue.Queue()
+        super().__init__(
+            BufferIterator.create_generator(self.upstream, self.up_to, self.buffer)
+        )
 
-    def __iter__(self) -> Iterator[Union[T, ExceptionContainer]]:
-        buffer: "queue.Queue[Union[T, ExceptionContainer]]" = queue.Queue()
-        limit = Semaphore(self.up_to)
+    @staticmethod
+    def create_generator(
+        upstream: Iterator[T],
+        up_to: int,
+        buffer: "queue.Queue[Union[T, ExceptionContainer]]",
+    ) -> Generator[Union[T, ExceptionContainer], None, None]:
+        limit = Semaphore(up_to)
         stopped = Event()
         base_exception: Deque[BaseException] = deque()
         thread = Thread(
             target=puller_task,
-            args=(self.upstream, buffer, limit, stopped, base_exception),
+            args=(upstream, buffer, limit, stopped, base_exception),
             daemon=True,
         )
         to_yield: Deque[Union[T, ExceptionContainer]] = deque(maxlen=1)
@@ -131,17 +140,6 @@ class _BufferIterable(Iterable[Union[T, ExceptionContainer]]):
             limit.release()
             thread.join()
             buffer.queue.clear()
-
-
-class BufferIterator(_RaisingIterator[T]):
-    __slots__ = ()
-
-    def __init__(
-        self,
-        upstream: Iterator[T],
-        up_to: Optional[int],
-    ) -> None:
-        super().__init__(_BufferIterable(upstream, up_to).__iter__())
 
 
 #########
@@ -753,22 +751,43 @@ class _ConcurrentMapIterable(
         )
         with self._task_context() as executor:
             try:
-                # queue tasks up to buffersize
-                while len(future_results) < self.concurrency:
-                    future = self._next_future(executor)
-                    if not future:
-                        # no more tasks to queue
-                        break
-                    future_results.add(future)
-                    del future
+                if isinstance(self.upstream, BufferIterator):
+                    upstream_exhausted: bool = False
+                    while not upstream_exhausted or future_results:
+                        # launch the processing of available upstream elements, up to `concurrency`
+                        while not upstream_exhausted and (
+                            not future_results
+                            or (
+                                self.upstream.buffer.qsize()
+                                and len(future_results) < self.concurrency
+                            )
+                        ):
+                            future = self._next_future(executor)
+                            if future:
+                                future_results.add(future)
+                                del future
+                            else:
+                                upstream_exhausted = True
+                        if future_results:
+                            yield future_results.__next__()
 
-                # queue, wait, yield
-                while future_results:
-                    future = self._next_future(executor)
-                    if future:
+                else:
+                    # queue tasks up to buffersize
+                    while len(future_results) < self.concurrency:
+                        future = self._next_future(executor)
+                        if not future:
+                            # no more tasks to queue
+                            break
                         future_results.add(future)
                         del future
-                    yield future_results.__next__()
+
+                    # queue, wait, yield
+                    while future_results:
+                        future = self._next_future(executor)
+                        if future:
+                            future_results.add(future)
+                            del future
+                        yield future_results.__next__()
             finally:
                 future_results.cancel()
                 future_results.clear()
