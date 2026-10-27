@@ -1097,10 +1097,11 @@ class _ConcurrentFlattenAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]
             # wait, queue, yield (FIFO)
             while True:
                 if iterator_and_future_pairs:
-                    iterator, future = iterator_and_future_pairs[0]
-                    elem = await ExceptionContainer.aresult(future)
-                    iterator_and_future_pairs.popleft()
-                    del future
+                    iterator, future = iterator_and_future_pairs.popleft()
+                    try:
+                        elem = await ExceptionContainer.aresult(future)
+                    finally:
+                        del future
                     if elem is not STOP_ITERATION:
                         to_yield.append(elem)
                         iterator_to_queue = iterator
@@ -1123,9 +1124,8 @@ class _ConcurrentFlattenAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]
                                 iterator_to_queue = iterable.__iter__()
                         except Exception as e:
                             iterator_to_queue = None
-                            future = FailedFuture(e)
                             iterator_and_future_pairs.append(
-                                (iterator_to_queue, future)
+                                (iterator_to_queue, FailedFuture(e))
                             )
                             continue
                     if isinstance(iterator_to_queue, AsyncIterator):

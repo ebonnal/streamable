@@ -824,8 +824,10 @@ class _ConcurrentFlattenIterable(Iterable[Union[T, ExceptionContainer]]):
             while True:
                 if iterator_and_future_pairs:
                     iterator, future = iterator_and_future_pairs.popleft()
-                    elem = ExceptionContainer.result(future)
-                    del future
+                    try:
+                        elem = ExceptionContainer.result(future)
+                    finally:
+                        del future
                     if elem is not STOP_ITERATION:
                         to_yield.append(elem)
                         iterator_to_queue = iterator
@@ -843,9 +845,8 @@ class _ConcurrentFlattenIterable(Iterable[Union[T, ExceptionContainer]]):
                             iterator_to_queue = iterable.__iter__()
                         except Exception as e:
                             iterator_to_queue = None
-                            future = FailedFuture(e)
                             iterator_and_future_pairs.append(
-                                (iterator_to_queue, future)
+                                (iterator_to_queue, FailedFuture(e))
                             )
                             continue
                     future = executor.submit(next, iterator_to_queue, STOP_ITERATION)
