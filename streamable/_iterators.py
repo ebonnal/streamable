@@ -5,7 +5,13 @@ import time
 import weakref
 from abc import ABC, abstractmethod
 from collections import defaultdict, deque
-from concurrent.futures import Executor, Future, ThreadPoolExecutor
+from concurrent.futures import (
+    FIRST_COMPLETED,
+    Executor,
+    Future,
+    ThreadPoolExecutor,
+    wait,
+)
 from threading import Event, Semaphore, Thread
 from typing import (
     Callable,
@@ -88,6 +94,23 @@ def puller_task(
         finally:
             del elem
         limit.acquire()
+
+
+def _pull_into(iterator: Iterator[T], future: "Future[T]") -> None:
+    try:
+        future.set_result(iterator.__next__())
+    except BaseException as e:
+        future.set_exception(e)
+    finally:
+        # avoid a reference cycle: exception -> traceback -> this frame -> future
+        del future
+
+
+def pull_in_background(iterator: Iterator[T]) -> "Future[T]":
+    """Pulls the next element of `iterator` in a daemon thread."""
+    future: "Future[T]" = Future()
+    Thread(target=_pull_into, args=(iterator, future), daemon=True).start()
+    return future
 
 
 ##########
@@ -736,14 +759,25 @@ class _ConcurrentMapIterable(
             return NoopContextManager(self._executor)
         return ThreadPoolExecutor(max_workers=self.concurrency)
 
-    def _next_future(self, context: Executor) -> Optional["Future[U]"]:
+    def _launch_next(
+        self,
+        future_results: "FutureResults[U]",
+        context: Executor,
+        future_upstream_elem: "Optional[Future[T]]" = None,
+    ) -> bool:
         try:
-            elem = self.upstream.__next__()
+            if future_upstream_elem:
+                elem = future_upstream_elem.result()
+            else:
+                elem = self.upstream.__next__()
+            future = self._launch_task(elem, context)
         except StopIteration:
-            return None
+            return False
         except Exception as e:
-            return FailedFuture(e)
-        return self._launch_task(elem, context)
+            future = FailedFuture(e)
+        future_results.add(future)
+        del future
+        return True
 
     def __iter__(self) -> Iterator[Union[U, ExceptionContainer]]:
         future_results: FutureResults[U] = (
@@ -752,41 +786,64 @@ class _ConcurrentMapIterable(
         with self._task_context() as executor:
             try:
                 if isinstance(self.upstream, BufferIterator):
-                    upstream_exhausted: bool = False
-                    while not upstream_exhausted or future_results:
-                        # launch the processing of available upstream elements, up to `concurrency`
-                        while not upstream_exhausted and (
-                            not future_results
-                            or (
-                                self.upstream.buffer.qsize()
+                    upstream_exhausted = False
+                    # at most one pull of the upstream in the background, consumed exactly once
+                    pending_pull: Optional["Future[T]"] = None
+                    try:
+                        while not upstream_exhausted or future_results:
+                            # launch the available upstream elements, up to `concurrency`
+                            while (
+                                not upstream_exhausted
                                 and len(future_results) < self.concurrency
-                            )
-                        ):
-                            future = self._next_future(executor)
-                            if future:
-                                future_results.add(future)
-                                del future
-                            else:
-                                upstream_exhausted = True
-                        if future_results:
+                            ):
+                                pull: Optional["Future[T]"] = None
+                                if pending_pull:
+                                    if future_results and not pending_pull.done():
+                                        break
+                                    pull, pending_pull = pending_pull, None
+                                elif (
+                                    future_results and not self.upstream.buffer.qsize()
+                                ):
+                                    break
+                                # blocks only if nothing is in flight
+                                if not self._launch_next(
+                                    future_results, executor, pull
+                                ):
+                                    upstream_exhausted = True
+                                del pull
+                            if not future_results:
+                                continue
+                            waitables = future_results.waitables()
+                            if (
+                                not upstream_exhausted
+                                and len(future_results) < self.concurrency
+                            ):
+                                # wait for the next result or the next upstream element, whichever comes first
+                                if not pending_pull:
+                                    pending_pull = pull_in_background(self.upstream)
+                                to_wait: "List[Future]" = [*waitables, pending_pull]
+                                wait(to_wait, return_when=FIRST_COMPLETED)
+                                del to_wait
+                                if not any(future.done() for future in waitables):
+                                    del waitables
+                                    continue
+                            del waitables
                             yield future_results.__next__()
+                    finally:
+                        # like the buffer's own puller: wait for the in-flight pull
+                        if pending_pull:
+                            wait([pending_pull])
+                            del pending_pull
 
                 else:
                     # queue tasks up to buffersize
                     while len(future_results) < self.concurrency:
-                        future = self._next_future(executor)
-                        if not future:
+                        if not self._launch_next(future_results, executor):
                             # no more tasks to queue
                             break
-                        future_results.add(future)
-                        del future
-
                     # queue, wait, yield
                     while future_results:
-                        future = self._next_future(executor)
-                        if future:
-                            future_results.add(future)
-                            del future
+                        self._launch_next(future_results, executor)
                         yield future_results.__next__()
             finally:
                 future_results.cancel()

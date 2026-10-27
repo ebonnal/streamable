@@ -1,10 +1,12 @@
 from concurrent.futures import Future
 from queue import Queue
 from threading import Lock
+from abc import abstractmethod
 from typing import (
     Dict,
     Iterator,
     Sized,
+    Tuple,
     TypeVar,
     Union,
 )
@@ -45,6 +47,9 @@ class FutureResults(Iterator[Union[T, ExceptionContainer]], Sized):
     def clear(self) -> None:
         self._futures.clear()
 
+    @abstractmethod
+    def waitables(self) -> Tuple["Future[T]", ...]: ...
+
 
 class FIFOFutureResults(FutureResults[T]):
     """
@@ -52,6 +57,10 @@ class FIFOFutureResults(FutureResults[T]):
     """
 
     __slots__ = ()
+
+    def waitables(self) -> Tuple["Future[T]", ...]:
+        # the next result is the head's
+        return (next(iter(self._futures)),)
 
     def __next__(self) -> Union[T, ExceptionContainer]:
         future = next(iter(self._futures))
@@ -90,6 +99,10 @@ class FDFOFutureResults(FutureResults[T]):
     def add(self, future: "Future[T]") -> None:
         super().add(future)
         future.add_done_callback(self._done_callback)
+
+    def waitables(self) -> Tuple["Future[T]", ...]:
+        # the next result is the first one done
+        return tuple(self._futures)
 
     def __next__(self) -> Union[T, ExceptionContainer]:
         done_future = self._done_futures.get()
