@@ -12,4 +12,4 @@ ClosableAsyncIterator.__module__ = __name__
 
 __all__ = ["stream", "star", "Observation", "ClosableAsyncIterator"]
 
-__version__ = "2.1.0b1"
+__version__ = "2.1.0b2"
