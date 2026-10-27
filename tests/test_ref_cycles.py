@@ -7,6 +7,8 @@ from typing import (
     Any,
     Callable,
     Iterator,
+    List,
+    Type,
     TypeVar,
     cast,
 )
@@ -15,12 +17,13 @@ import pytest
 
 from streamable import stream
 from streamable._tools._iter import ClosableAsyncIterator
-from tests.tools.error import TestError
+from tests.tools.error import TestBaseError, TestError
 from tests.tools.func import (
     SLOW_IDENTITY_DURATION,
     async_slow_identity,
     identity,
     slow_identity,
+    throw_if_falsy_func,
 )
 from tests.tools.gc import disabled_gc, find_object
 from tests.tools.iter import (
@@ -35,70 +38,80 @@ from tests.tools.loop import TEST_LOOP
 T = TypeVar("T")
 
 
-@pytest.mark.parametrize(
-    "operate",
-    [
-        lambda src: stream(cast(Iterator[int], src)).buffer(10),
-        lambda src: stream(cast(Iterator[int], src)).catch(TestError),
-        lambda src: stream(cast(Iterator[int], src)).do(identity),
-        lambda src: stream(cast(Iterator[int], src)).filter(),
-        lambda src: stream(cast(Iterator[int], src)).group(2).flatten(),
-        lambda src: stream(cast(Iterator[int], src)).group(2).flatten(concurrency=2),
-        lambda src: stream(cast(Iterator[int], src)).group(2).flatten(concurrency=10),
-        lambda src: stream(cast(Iterator[int], src)).group(1, by=identity).flatten(),
-        lambda src: stream(cast(Iterator[int], src)).group(
-            1, by=identity, within=timedelta(seconds=1)
-        ),
-        lambda src: stream(cast(Iterator[int], src)).map(identity),
-        lambda src: stream(cast(Iterator[int], src)).map(identity, concurrency=2),
-        lambda src: stream(cast(Iterator[int], src)).map(identity, concurrency=10),
-        lambda src: stream(cast(Iterator[int], src)).map(
-            identity, concurrency=2, as_completed=True
-        ),
-        lambda src: stream(cast(Iterator[int], src)).map(
-            identity, concurrency=10, as_completed=True
-        ),
-        lambda src: stream(cast(Iterator[int], src)).observe(),
-        lambda src: stream(cast(Iterator[int], src)).observe(every=1000),
-        lambda src: stream(cast(Iterator[int], src)).observe(
-            every=timedelta(seconds=1)
-        ),
-        lambda src: stream(cast(Iterator[int], src)).skip(10),
-        lambda src: stream(cast(Iterator[int], src)).take(10),
-        lambda src: stream(cast(Iterator[int], src)).throttle(
-            10, per=timedelta(seconds=1)
-        ),
-        # errors raised by the mapped function / a flattened inner iterator
-        lambda _: stream("123-").map(int),
-        lambda _: stream("123-").map(int, concurrency=2),
-        lambda _: stream("123-").map(int, concurrency=2, as_completed=True),
-        lambda _: stream("123-").group(2).map(lambda g: map(int, g)).flatten(),
-        lambda _: stream("123-")
-        .group(2)
-        .map(lambda g: map(int, g))
-        .flatten(concurrency=2),
-        lambda _: stream("123-").group(2).map(lambda g: stream(g).map(int)).flatten(),
-        lambda _: stream("123-")
-        .group(2)
-        .map(lambda g: stream(g).map(int))
-        .flatten(concurrency=2),
-    ],
-)
+operate_cases: List[Callable[[Iterator[int], Type[BaseException]], Any]] = [
+    lambda raising_src, _: stream(raising_src).buffer(10),
+    lambda raising_src, _: stream(raising_src).catch(ValueError),
+    lambda raising_src, _: stream(raising_src).do(identity),
+    lambda raising_src, _: stream(raising_src).filter(),
+    lambda raising_src, _: stream(raising_src).group(2).flatten(),
+    lambda raising_src, _: stream(raising_src).group(2).flatten(concurrency=2),
+    lambda raising_src, _: stream(raising_src).group(2).flatten(concurrency=10),
+    lambda raising_src, _: stream(raising_src).group(1, by=identity).flatten(),
+    lambda raising_src, _: stream(raising_src).group(
+        1, by=identity, within=timedelta(seconds=1)
+    ),
+    lambda raising_src, _: stream(raising_src).map(identity),
+    lambda raising_src, _: stream(raising_src).map(identity, concurrency=2),
+    lambda raising_src, _: stream(raising_src).map(identity, concurrency=10),
+    lambda raising_src, _: stream(raising_src).map(
+        identity, concurrency=2, as_completed=True
+    ),
+    lambda raising_src, _: stream(raising_src).map(
+        identity, concurrency=10, as_completed=True
+    ),
+    lambda raising_src, _: stream(raising_src).observe(),
+    lambda raising_src, _: stream(raising_src).observe(every=1000),
+    lambda raising_src, _: stream(raising_src).observe(every=timedelta(seconds=1)),
+    lambda raising_src, _: stream(raising_src).skip(10),
+    lambda raising_src, _: stream(raising_src).take(10),
+    lambda raising_src, _: stream(raising_src).throttle(10, per=timedelta(seconds=1)),
+    # errors raised by the mapped function / a flattened inner iterator
+    lambda _, error_type: stream([1, 2, 3, 0]).map(throw_if_falsy_func(error_type)),
+    lambda _, error_type: stream([1, 2, 3, 0]).map(
+        throw_if_falsy_func(error_type), concurrency=2
+    ),
+    lambda _, error_type: stream([1, 2, 3, 0]).map(
+        throw_if_falsy_func(error_type), concurrency=2, as_completed=True
+    ),
+    lambda _, error_type: stream([1, 2, 3, 0])
+    .group(2)
+    .map(lambda g: map(throw_if_falsy_func(error_type), g))
+    .flatten(),
+    lambda _, error_type: stream([1, 2, 3, 0])
+    .group(2)
+    .map(lambda g: map(throw_if_falsy_func(error_type), g))
+    .flatten(concurrency=2),
+    lambda _, error_type: stream([1, 2, 3, 0])
+    .group(2)
+    .map(lambda g: stream(g).map(throw_if_falsy_func(error_type)))
+    .flatten(),
+    lambda _, error_type: stream([1, 2, 3, 0])
+    .group(2)
+    .map(lambda g: stream(g).map(throw_if_falsy_func(error_type)))
+    .flatten(concurrency=2),
+]
+
+
+@pytest.mark.parametrize("operate", operate_cases)
+@pytest.mark.parametrize("error_type", (TestError, TestBaseError))
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 @pytest.mark.asyncio
 async def test_ref_cycles(
-    itype: IterableType, operate: Callable[[Iterator[int]], Any]
+    itype: IterableType,
+    operate: Callable[[Iterator[int], Type[BaseException]], Any],
+    error_type: Type[BaseException],
 ) -> None:
     with disabled_gc():
-        it = aiter_or_iter(operate(map(int, "123-")), itype)
-        # complete iteration, capturing the ValueError's id
+        raising_src = map(throw_if_falsy_func(error_type), [1, 2, 3, 0])
+        it = aiter_or_iter(operate(raising_src, error_type), itype)
+        # complete iteration, capturing the error's id
         while True:
             try:
                 if isinstance(it, Iterator):
                     it.__next__()
                 else:
                     await it.__anext__()
-            except ValueError as e:
+            except error_type as e:
                 error_id = id(e)
                 break
 
@@ -108,7 +121,7 @@ async def test_ref_cycles(
         # At this point the error should have been garbage collected (ref count)
 
         # Get the object if it still exists
-        error = find_object(error_id, ValueError)
+        error = find_object(error_id, error_type)
 
         # objgraph.show_backrefs([error], filename="cycles.png", max_depth=10)
 
