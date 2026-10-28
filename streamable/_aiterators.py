@@ -36,7 +36,7 @@ from streamable._tools._afuture import (
     FIFOFutureResults,
     FutureResults,
 )
-from streamable._tools._async import AsyncFunction, anext
+from streamable._tools._async import AsyncFunction, anext, wait_for
 from streamable._tools._context import (
     ExecutorAsyncContextManager,
     NoopAsyncContextManager,
@@ -439,7 +439,7 @@ class _GroupByWithinAsyncIterable(
                 try:
                     while True:
                         try:
-                            elem = await asyncio.wait_for(
+                            elem = await wait_for(
                                 next_elem.get(), timeout=self._timeout(groups)
                             )
                         except asyncio.TimeoutError:
