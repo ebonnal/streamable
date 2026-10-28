@@ -22,6 +22,7 @@ from tests.tools.iter import (
     aiter_or_iter,
     alist_or_list,
 )
+from tests.tools.loop import advance_cycles
 from tests.tools.source import INTEGERS, ints
 
 
@@ -296,6 +297,31 @@ async def test_group_within_does_not_pull_ahead_of_consumption_on_timeout(
         assert await it.__anext__() == [2]
         await asyncio.sleep(2 * per)
     assert pulled == [0, 1, 2, 3]
+
+
+@pytest.mark.parametrize("cycles_before_cancel", range(10))
+@pytest.mark.asyncio
+async def test_group_within_does_not_swallow_cancellation(
+    cycles_before_cancel: int,
+) -> None:
+    a_lot_of_cycles = 10
+    src: "asyncio.Queue[int]" = asyncio.Queue()
+    s = stream(src.get).group(100, within=timedelta(seconds=10))
+    consumer = asyncio.ensure_future(s)
+    # opens a group: the wait for the next element now has a timeout
+    src.put_nowait(0)
+    await advance_cycles(a_lot_of_cycles)
+    src.put_nowait(1)
+    await advance_cycles(cycles_before_cancel)
+    # consumer cancelled as the next element arrives is cancelled
+    consumer.cancel()
+    await advance_cycles(a_lot_of_cycles)
+    try:
+        # the cancellation has not been swallowed
+        assert consumer.cancelled()
+    finally:
+        consumer.cancel()
+        await asyncio.gather(consumer, return_exceptions=True)
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
