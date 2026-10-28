@@ -135,6 +135,8 @@ class _RaisingAsyncIterator(
                         except asyncio.CancelledError as e:
                             if e is not cancellation:
                                 raise
+                        finally:
+                            del cancellation
 
 
 async def puller_task(
