@@ -130,6 +130,7 @@ class _BufferIterable(Iterable[Union[T, ExceptionContainer]]):
             stopped.set()
             limit.release()
             thread.join()
+            base_exception.clear()
             buffer.queue.clear()
 
 
@@ -377,6 +378,7 @@ class _GroupByWithinIterable(Iterable[Union[ExceptionContainer, Tuple[U, List[T]
             stopped.set()
             limit.release()
             thread.join()
+            base_exception.clear()
             next_elem.queue.clear()
 
 

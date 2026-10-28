@@ -211,6 +211,7 @@ class _BufferAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]]):
             try:
                 await asyncio.gather(task, return_exceptions=True)
             finally:
+                base_exception.clear()
                 while not buffer.empty():
                     buffer.get_nowait()
 
@@ -485,6 +486,7 @@ class _GroupByWithinAsyncIterable(
             try:
                 await asyncio.gather(task, return_exceptions=True)
             finally:
+                base_exception.clear()
                 while not next_elem.empty():
                     next_elem.get_nowait()
 
