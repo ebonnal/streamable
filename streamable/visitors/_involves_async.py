@@ -1,5 +1,5 @@
 from inspect import iscoroutinefunction
-from typing import TYPE_CHECKING, AsyncIterable
+from typing import TYPE_CHECKING, AsyncIterable, Iterable
 
 from streamable.visitors._base import Visitor
 
@@ -25,13 +25,11 @@ class InvolvesAsyncVisitor(Visitor[bool]):
         return s.upstream.accept(self)
 
     def visit_catch_stream(self, s: "CatchStream") -> bool:
-        if (
+        return (
             iscoroutinefunction(s._where)
             or iscoroutinefunction(s._replace)
             or iscoroutinefunction(s._do)
-        ):
-            return True
-        return s.upstream.accept(self)
+        ) or s.upstream.accept(self)
 
     def visit_do_stream(self, s: "DoStream") -> bool:
         return iscoroutinefunction(s._effect) or s.upstream.accept(self)
@@ -61,6 +59,11 @@ class InvolvesAsyncVisitor(Visitor[bool]):
         return s.upstream.accept(self)
 
     def visit_stream(self, s: "stream") -> bool:
-        if isinstance(s.source, AsyncIterable) or iscoroutinefunction(s.source):
-            return True
-        return False
+        from streamable._stream import stream
+
+        if isinstance(s.source, stream):
+            return s.source.accept(self)
+        is_only_async_iterable = isinstance(s.source, AsyncIterable) and not isinstance(
+            s.source, Iterable
+        )
+        return is_only_async_iterable or iscoroutinefunction(s.source)
