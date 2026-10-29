@@ -605,6 +605,27 @@ async def test_flatten_interrupt() -> None:
     assert (src.completed, src.cancelled, src.closed) == ([0], [1], False)
 
 
+@pytest.mark.asyncio
+async def test_flatten_cancel_as_owned_inner_pull_completes() -> None:
+    consumer: asyncio.Task
+
+    src = MonitoredIntAsyncIterable()
+    self_cancelling = (
+        stream(src)
+        # Triggers a cancellation landing just after the pull completed.
+        # Closing `src` is the sole responsibility of
+        # `_ConcurrentFlattenAsyncIterable`'s `finally`, because
+        # `GuardedAsyncIterator.__anext__` will be done at cancellation time.
+        .do(lambda _: asyncio.get_running_loop().call_soon(consumer.cancel))
+    )
+    consumer = asyncio.ensure_future(stream([self_cancelling]).flatten(concurrency=2))
+
+    with pytest.raises(asyncio.CancelledError):
+        await consumer
+    assert_only_current_task_is_alive()
+    assert [iterator.closed for iterator in src.iterators] == [True]
+
+
 @pytest.mark.parametrize(
     "termination", NON_CANCELLING_TERMINATIONS + CANCELLING_TERMINATIONS
 )
