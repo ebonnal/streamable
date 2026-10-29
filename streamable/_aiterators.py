@@ -856,16 +856,7 @@ class ThrottleAsyncIterator(_BaseOperationAsyncIterator[T, T]):
         self._window_seconds = per.total_seconds()
         self._emission_timestamps: Deque[float] = deque()
 
-    async def _anext(self) -> T:
-        elem: Optional[T] = None
-        error: Optional[Exception] = None
-        try:
-            elem = await self.upstream.__anext__()
-        except StopAsyncIteration:
-            raise
-        except Exception as e:
-            error = e
-
+    async def _sleep(self) -> None:
         # did we reach `up_to` emissions?
         if len(self._emission_timestamps) >= self.up_to:
             # sleep until the oldest emission leaves the window
@@ -875,15 +866,19 @@ class ThrottleAsyncIterator(_BaseOperationAsyncIterator[T, T]):
             await asyncio.sleep(max(0, oldest_leaves_window_at - time.perf_counter()))
             # remove the oldest emission
             self._emission_timestamps.popleft()
-
         # register the new emission
         self._emission_timestamps.append(time.perf_counter())
-        if error:
-            try:
-                raise error
-            finally:
-                error = None
-        return cast(T, elem)
+
+    async def _anext(self) -> T:
+        try:
+            elem = await self.upstream.__anext__()
+            await self._sleep()
+            return elem
+        except StopAsyncIteration:
+            raise
+        except Exception:
+            await self._sleep()
+            raise
 
 
 ##################
