@@ -1111,7 +1111,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         """
         Limit to ``up_to`` emissions (elements or exceptions) ``per`` time window.
 
-        For each new upstream element or exception, if fewer than ``up_to`` were emitted in the last ``per`` interval, emits it immediately; otherwise sleeps until oldest emission leaves the sliding window.
+        For each new upstream element or ``Exception``, if fewer than ``up_to`` were emitted in the last ``per`` interval, emits it immediately; otherwise sleeps until oldest emission leaves the sliding window.
 
         Args:
             up_to (``int``): Maximum emissions allowed in the sliding window (``per``). Must be >= 1.
