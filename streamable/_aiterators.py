@@ -352,6 +352,10 @@ class GroupAsyncIterator(_BaseOperationAsyncIterator[T, List[T]]):
         finally:
             self._group = []
 
+    async def aclose(self) -> None:
+        async with aclosing(cast(AsyncClosable, super())):
+            self._to_raise = None
+
 
 class GroupByAsyncIterator(_BaseOperationAsyncIterator[T, Iterable[Tuple[U, List[T]]]]):
     __slots__ = ("up_to", "by", "_groups", "_to_raise")
@@ -391,6 +395,10 @@ class GroupByAsyncIterator(_BaseOperationAsyncIterator[T, Iterable[Tuple[U, List
                     finally:
                         self._groups = defaultdict(list)
                 raise
+
+    async def aclose(self) -> None:
+        async with aclosing(cast(AsyncClosable, super())):
+            self._to_raise = None
 
 
 class _GroupByWithinAsyncIterable(
