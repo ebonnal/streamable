@@ -821,11 +821,10 @@ class _ConcurrentFlattenIterable(Iterable[Union[T, ExceptionContainer]]):
                 # wait, queue, yield (FIFO)
                 while True:
                     if iterator_and_future_pairs:
-                        iterator, future = iterator_and_future_pairs.popleft()
-                        try:
-                            elem = ExceptionContainer.result(future)
-                        finally:
-                            del future
+                        elem = ExceptionContainer.result(
+                            iterator_and_future_pairs[0][1]
+                        )
+                        iterator = iterator_and_future_pairs.popleft()[0]
                         if elem is not STOP_ITERATION:
                             to_yield.append(elem)
                             iterator_to_queue = iterator
