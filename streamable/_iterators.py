@@ -674,16 +674,7 @@ class ThrottleIterator(Iterator[T]):
         self._window_seconds = per.total_seconds()
         self._emission_timestamps: Deque[float] = deque()
 
-    def __next__(self) -> T:
-        elem: Optional[T] = None
-        error: Optional[Exception] = None
-        try:
-            elem = self.upstream.__next__()
-        except StopIteration:
-            raise
-        except Exception as e:
-            error = e
-
+    def _sleep(self) -> None:
         # did we reach `up_to` emissions?
         if len(self._emission_timestamps) >= self.up_to:
             # sleep until the oldest emission leaves the window
@@ -693,15 +684,19 @@ class ThrottleIterator(Iterator[T]):
             time.sleep(max(0, oldest_leaves_window_at - time.perf_counter()))
             # remove the oldest emission
             self._emission_timestamps.popleft()
-
         # register the new emission
         self._emission_timestamps.append(time.perf_counter())
-        if error:
-            try:
-                raise error
-            finally:
-                error = None
-        return cast(T, elem)
+
+    def __next__(self) -> T:
+        try:
+            elem = self.upstream.__next__()
+            self._sleep()
+            return elem
+        except StopIteration:
+            raise
+        except Exception:
+            self._sleep()
+            raise
 
 
 ##################
