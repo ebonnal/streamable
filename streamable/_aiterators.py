@@ -1170,12 +1170,14 @@ class _ConcurrentFlattenAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]
         finally:
             if executor:
                 executor.shutdown(wait=False)
+            closable_iterators: List[AsyncClosable] = [
+                cast(AsyncClosable, iterator)
+                for iterator, _ in iterator_and_future_pairs
+                if isinstance(iterator, AsyncClosable)
+            ]
+            iterator_and_future_pairs.clear()
             await asyncio.gather(
-                *(
-                    cast(AsyncClosable, iterator).aclose()
-                    for iterator, _ in iterator_and_future_pairs
-                    if isinstance(iterator, AsyncClosable)
-                ),
+                *(it.aclose() for it in closable_iterators),
                 return_exceptions=True,
             )
 

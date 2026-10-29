@@ -817,42 +817,47 @@ class _ConcurrentFlattenIterable(Iterable[Union[T, ExceptionContainer]]):
             ] = deque()
             to_yield: Deque[Union[T, ExceptionContainer]] = deque(maxlen=1)
             iterator_to_queue: Optional[Iterator[T]] = None
-            # wait, queue, yield (FIFO)
-            while True:
-                if iterator_and_future_pairs:
-                    iterator, future = iterator_and_future_pairs.popleft()
-                    try:
-                        elem = ExceptionContainer.result(future)
-                    finally:
-                        del future
-                    if elem is not STOP_ITERATION:
-                        to_yield.append(elem)
-                        iterator_to_queue = iterator
-                    del elem
-
-                # queue tasks up to buffersize
-                while len(iterator_and_future_pairs) < self.concurrency:
-                    if not iterator_to_queue:
+            try:
+                # wait, queue, yield (FIFO)
+                while True:
+                    if iterator_and_future_pairs:
+                        iterator, future = iterator_and_future_pairs.popleft()
                         try:
+                            elem = ExceptionContainer.result(future)
+                        finally:
+                            del future
+                        if elem is not STOP_ITERATION:
+                            to_yield.append(elem)
+                            iterator_to_queue = iterator
+                        del elem
+
+                    # queue tasks up to buffersize
+                    while len(iterator_and_future_pairs) < self.concurrency:
+                        if not iterator_to_queue:
                             try:
-                                iterable = self.upstream.__next__()
-                            except StopIteration:
-                                break
-                            validate_sync_flatten_iterable(iterable)
-                            iterator_to_queue = iterable.__iter__()
-                        except Exception as e:
-                            iterator_to_queue = None
-                            iterator_and_future_pairs.append(
-                                (iterator_to_queue, FailedFuture(e))
-                            )
-                            continue
-                    future = executor.submit(next, iterator_to_queue, STOP_ITERATION)
-                    iterator_and_future_pairs.append((iterator_to_queue, future))
-                    iterator_to_queue = None
-                if to_yield:
-                    yield to_yield.pop()
-                if not iterator_and_future_pairs:
-                    break
+                                try:
+                                    iterable = self.upstream.__next__()
+                                except StopIteration:
+                                    break
+                                validate_sync_flatten_iterable(iterable)
+                                iterator_to_queue = iterable.__iter__()
+                            except Exception as e:
+                                iterator_to_queue = None
+                                iterator_and_future_pairs.append(
+                                    (iterator_to_queue, FailedFuture(e))
+                                )
+                                continue
+                        future = executor.submit(
+                            next, iterator_to_queue, STOP_ITERATION
+                        )
+                        iterator_and_future_pairs.append((iterator_to_queue, future))
+                        iterator_to_queue = None
+                    if to_yield:
+                        yield to_yield.pop()
+                    if not iterator_and_future_pairs:
+                        break
+            finally:
+                iterator_and_future_pairs.clear()
 
 
 class ConcurrentFlattenIterator(_RaisingIterator[T]):
