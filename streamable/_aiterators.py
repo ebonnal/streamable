@@ -50,7 +50,8 @@ from streamable._tools._iter import (
 )
 from streamable._tools._observation import Observation
 from streamable._tools._sentinel import STOP_ITERATION
-from streamable._tools._validation import validate_async_flatten_iterable
+from streamable._tools._thread import init_thread_local
+from streamable._tools._validation import validate_iterable
 
 T = TypeVar("T")
 U = TypeVar("U")
@@ -301,7 +302,7 @@ class FlattenAsyncIterator(
                     return self._current_iterator_elem.__next__()
             except (StopIteration, StopAsyncIteration):
                 iterable = await self.upstream.__anext__()
-                validate_async_flatten_iterable(iterable)
+                validate_iterable(iterable)
                 if isinstance(iterable, AsyncIterable):
                     self._current_iterator_elem = GuardedAsyncIterator(
                         iterable, silent_close=True
@@ -1036,7 +1037,9 @@ class _ExecutorConcurrentMapAsyncIterable(
             # avoid closing client's executor
             return NoopAsyncContextManager(self._executor)
         return ExecutorAsyncContextManager(
-            ThreadPoolExecutor(max_workers=self.concurrency)
+            ThreadPoolExecutor(
+                max_workers=self.concurrency, initializer=init_thread_local
+            )
         )
 
 
@@ -1117,7 +1120,7 @@ class _ConcurrentFlattenAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]
                                 iterable = await self.upstream.__anext__()
                             except StopAsyncIteration:
                                 break
-                            validate_async_flatten_iterable(iterable)
+                            validate_iterable(iterable)
                             if isinstance(iterable, AsyncIterable):
                                 iterator_to_queue = GuardedAsyncIterator(
                                     iterable, silent_close=True
@@ -1137,7 +1140,9 @@ class _ConcurrentFlattenAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]
                         )
                     else:
                         if not executor:
-                            executor = ThreadPoolExecutor(self.concurrency)
+                            executor = ThreadPoolExecutor(
+                                self.concurrency, initializer=init_thread_local
+                            )
                         future = asyncio.get_running_loop().run_in_executor(
                             executor,
                             # sentinel: an asyncio future can't hold a `StopIteration`

@@ -14,6 +14,8 @@ from typing import (
     runtime_checkable,
 )
 
+from streamable._tools._thread import is_owned_thread
+
 T = TypeVar("T")
 U = TypeVar("U")
 C = TypeVar("C", covariant=True)
@@ -36,29 +38,55 @@ class SyncToAsyncIterator(AsyncIterator[T]):
             raise StopAsyncIteration from e
 
 
-class AsyncToSyncIterator(Iterator[T]):
-    __slots__ = ("upstream", "_loop")
+@runtime_checkable
+class Closable(Protocol):
+    __slots__ = ()
+
+    def close(self) -> None: ...
+
+
+class AsyncToSyncIterator(Iterator[T], Closable):
+    __slots__ = ("upstream", "__loop", "_owned_loop", "_closure_requested")
 
     def __init__(self, upstream: "ClosableAsyncIterator[T]"):
         self.upstream = upstream
-        self._loop: Optional[asyncio.AbstractEventLoop] = None
+        self.__loop: Optional[asyncio.AbstractEventLoop] = None
+        self._owned_loop = False
+        self._closure_requested = False
 
-    def _lazy_loop(self) -> asyncio.AbstractEventLoop:
-        if self._loop is None:
+    @property
+    def _loop(self) -> asyncio.AbstractEventLoop:
+        if self.__loop is None:
             with suppress(RuntimeError):
-                self._loop = asyncio.get_event_loop()
-            if not self._loop or self._loop.is_closed():
-                self._loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(self._loop)
-        return self._loop
+                self.__loop = asyncio.get_event_loop()
+            if not self.__loop or self.__loop.is_closed():
+                self.__loop = asyncio.new_event_loop()
+                if is_owned_thread():
+                    self._owned_loop = True
+                else:
+                    asyncio.set_event_loop(self.__loop)
+        return self.__loop
 
     def close(self) -> None:
-        self._lazy_loop().run_until_complete(self.upstream.aclose())
+        if not self._closure_requested:
+            self._closure_requested = True
+            try:
+                self._loop.run_until_complete(self.upstream.aclose())
+            finally:
+                if self._owned_loop:
+                    self._loop.close()
 
     def __next__(self) -> T:
+        if self._closure_requested:
+            raise StopIteration
         try:
-            return self._lazy_loop().run_until_complete(self.upstream.__anext__())
+            if not self._loop.is_running():
+                return self._loop.run_until_complete(self.upstream.__anext__())
+            raise RuntimeError(
+                "event loop already running: do an async iteration instead"
+            )
         except StopAsyncIteration:
+            self.close()
             raise StopIteration
 
 

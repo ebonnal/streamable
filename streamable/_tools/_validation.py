@@ -5,6 +5,7 @@ from typing import (
     AsyncIterable,
     Callable,
     Iterable,
+    Union,
 )
 
 
@@ -29,17 +30,6 @@ def validate_int(integer: int, *, gte: int, name: str) -> None:
         raise ValueError(f"`{name}` must be >= {gte} but got: {integer}")
 
 
-def validate_sync_flatten_iterable(iterable: object) -> None:
-    if isinstance(iterable, Iterable):
-        return
-    if isinstance(iterable, AsyncIterable):
-        raise TypeError(
-            "async iterables flattening is only possible during async iteration"
-        )
-    raise TypeError(f"flatten expects iterables but got: {repr(iterable)}")
-
-
-def validate_async_flatten_iterable(iterable: object) -> None:
-    if isinstance(iterable, (AsyncIterable, Iterable)):
-        return
-    raise TypeError(f"flatten expects iterables but got: {repr(iterable)}")
+def validate_iterable(iterable: Union[Iterable, AsyncIterable]) -> None:
+    if not isinstance(iterable, (Iterable, AsyncIterable)):
+        raise TypeError(f"flatten expects iterables but got: {repr(iterable)}")

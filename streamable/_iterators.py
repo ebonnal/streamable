@@ -6,8 +6,10 @@ import weakref
 from abc import ABC, abstractmethod
 from collections import defaultdict, deque
 from concurrent.futures import Executor, Future, ThreadPoolExecutor
+from contextlib import suppress
 from threading import Event, Semaphore, Thread
 from typing import (
+    AsyncIterable,
     Callable,
     ContextManager,
     Deque,
@@ -32,9 +34,14 @@ from streamable._tools._future import (
     FIFOFutureResults,
     FutureResults,
 )
+from streamable._tools._iter import (
+    AsyncToSyncIterator,
+    GuardedAsyncIterator,
+)
 from streamable._tools._observation import Observation
 from streamable._tools._sentinel import STOP_ITERATION
-from streamable._tools._validation import validate_sync_flatten_iterable
+from streamable._tools._thread import init_thread_local
+from streamable._tools._validation import validate_iterable
 
 T = TypeVar("T")
 U = TypeVar("U")
@@ -200,7 +207,7 @@ class FlattenIterator(Iterator[T]):
 
     def __init__(
         self,
-        upstream: Iterator[Iterable[T]],
+        upstream: Iterator[Union[Iterable[T], AsyncIterable[T]]],
     ) -> None:
         self.upstream = upstream
         self._current_iterator_elem: Iterator[T] = ().__iter__()
@@ -211,8 +218,14 @@ class FlattenIterator(Iterator[T]):
                 return self._current_iterator_elem.__next__()
             except StopIteration:
                 iterable = self.upstream.__next__()
-                validate_sync_flatten_iterable(iterable)
-                self._current_iterator_elem = iterable.__iter__()
+                validate_iterable(iterable)
+                self._current_iterator_elem = (
+                    iterable.__iter__()
+                    if isinstance(iterable, Iterable)
+                    else AsyncToSyncIterator(
+                        GuardedAsyncIterator(iterable, silent_close=True)
+                    )
+                )
 
 
 #########
@@ -729,7 +742,9 @@ class _ConcurrentMapIterable(
         if self._executor:
             # avoid closing client's executor
             return NoopContextManager(self._executor)
-        return ThreadPoolExecutor(max_workers=self.concurrency)
+        return ThreadPoolExecutor(
+            max_workers=self.concurrency, initializer=init_thread_local
+        )
 
     def _next_future(self, context: Executor) -> Optional["Future[U]"]:
         try:
@@ -797,23 +812,26 @@ class _ConcurrentFlattenIterable(Iterable[Union[T, ExceptionContainer]]):
 
     def __init__(
         self,
-        upstream: Iterator[Iterable[T]],
+        upstream: Iterator[Union[Iterable[T], AsyncIterable[T]]],
         concurrency: int,
     ) -> None:
         self.upstream = upstream
         self.concurrency = concurrency
 
     def __iter__(self) -> Iterator[Union[T, ExceptionContainer]]:
-        with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
-            iterator_and_future_pairs: Deque[
-                Tuple[
-                    Optional[Iterator[T]],
-                    "Future[T]",
-                ]
-            ] = deque()
-            to_yield: Deque[Union[T, ExceptionContainer]] = deque(maxlen=1)
-            iterator_to_queue: Optional[Iterator[T]] = None
-            try:
+        iterator_and_future_pairs: Deque[
+            Tuple[
+                Optional[Iterator[T]],
+                "Future[T]",
+            ]
+        ] = deque()
+        to_yield: Deque[Union[T, ExceptionContainer]] = deque(maxlen=1)
+        iterator_to_queue: Optional[Iterator[T]] = None
+
+        try:
+            with ThreadPoolExecutor(
+                max_workers=self.concurrency, initializer=init_thread_local
+            ) as executor:
                 # wait, queue, yield (FIFO)
                 while True:
                     if iterator_and_future_pairs:
@@ -834,8 +852,15 @@ class _ConcurrentFlattenIterable(Iterable[Union[T, ExceptionContainer]]):
                                     iterable = self.upstream.__next__()
                                 except StopIteration:
                                     break
-                                validate_sync_flatten_iterable(iterable)
-                                iterator_to_queue = iterable.__iter__()
+                                validate_iterable(iterable)
+                                if isinstance(iterable, Iterable):
+                                    iterator_to_queue = iterable.__iter__()
+                                else:
+                                    iterator_to_queue = AsyncToSyncIterator(
+                                        GuardedAsyncIterator(
+                                            iterable, silent_close=True
+                                        )
+                                    )
                             except Exception as e:
                                 iterator_to_queue = None
                                 iterator_and_future_pairs.append(
@@ -851,8 +876,12 @@ class _ConcurrentFlattenIterable(Iterable[Union[T, ExceptionContainer]]):
                         yield to_yield.pop()
                     if not iterator_and_future_pairs:
                         break
-            finally:
-                iterator_and_future_pairs.clear()
+        finally:
+            for iterator, _ in iterator_and_future_pairs:
+                if isinstance(iterator, AsyncToSyncIterator):
+                    with suppress(Exception):
+                        iterator.close()
+            iterator_and_future_pairs.clear()
 
 
 class ConcurrentFlattenIterator(_RaisingIterator[T]):
@@ -860,7 +889,7 @@ class ConcurrentFlattenIterator(_RaisingIterator[T]):
 
     def __init__(
         self,
-        upstream: Iterator[Iterable[T]],
+        upstream: Iterator[Union[Iterable[T], AsyncIterable[T]]],
         concurrency: int,
     ) -> None:
         super().__init__(

@@ -679,6 +679,20 @@ async def test_flatten_both_owned_and_provided_inner_iters(
     )
 
 
+@pytest.mark.parametrize("n_pulls", [1, 4])
+def test_flatten_concurrently_async_iters_in_sync_iteration(
+    n_pulls: int,
+) -> None:
+    owned = MonitoredIntAsyncIterable()
+    provided = MonitoredIntAsyncIterator()
+    it = iter(stream[AsyncIterable[int]]([owned, provided]).flatten(concurrency=2))
+    for i in range(n_pulls):
+        assert next(it) == i // 2
+    del it
+    assert owned.iterators[0].closed
+    assert not provided.closed
+
+
 @pytest.mark.parametrize("termination", NON_CANCELLING_TERMINATIONS)
 @pytest.mark.asyncio
 async def test_add_close(termination: Termination) -> None:

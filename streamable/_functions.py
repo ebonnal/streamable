@@ -3,6 +3,7 @@ import datetime
 from concurrent.futures import Executor
 from operator import itemgetter
 from typing import (
+    AsyncIterable,
     Callable,
     Iterable,
     Iterator,
@@ -57,7 +58,7 @@ def filter(
 
 
 def flatten(
-    upstream: Iterator[Iterable[T]],
+    upstream: Iterator[Union[Iterable[T], AsyncIterable[T]]],
     *,
     concurrency: int = 1,
 ) -> Iterator[T]:
