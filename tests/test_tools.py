@@ -7,8 +7,10 @@ import pytest
 
 from streamable import star, stream
 from streamable._tools._func import sidify
+from streamable._tools._iter import AsyncToSyncIterator, GuardedAsyncIterator
 from streamable._tools._logging import logfmt_str_escape, setup_logger
 from tests.tools.func import async_identity, identity
+from tests.tools.iter import async_iter
 from tests.tools.source import INTEGERS
 
 ##############
@@ -105,3 +107,19 @@ def test_setup_logger_keeps_existing_handlers() -> None:
     assert pre_setup_handlers
     setup_logger()
     assert logger.handlers == pre_setup_handlers
+
+
+########
+# iter #
+########
+
+
+@pytest.mark.parametrize("n_pulls", [1, 2])
+def test_async_to_sync_iterator_already_closed(n_pulls: int) -> None:
+    it = AsyncToSyncIterator(GuardedAsyncIterator(async_iter([0])))
+    for _ in range(n_pulls):
+        next(it, None)
+    it.close()
+    it.close()
+    with pytest.raises(StopIteration):
+        next(it)

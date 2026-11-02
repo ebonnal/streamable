@@ -1,5 +1,6 @@
 from typing import (
     TYPE_CHECKING,
+    AsyncIterable,
     Callable,
     Iterable,
     Iterator,
@@ -68,7 +69,9 @@ class IteratorVisitor(Visitor[Iterator[T]]):
 
     def visit_flatten_stream(self, s: "FlattenStream[T]") -> Iterator[T]:
         return _functions.flatten(
-            s.upstream.accept(cast(IteratorVisitor[Iterable[T]], self)),
+            s.upstream.accept(
+                cast(IteratorVisitor[Union[Iterable[T], AsyncIterable[T]]], self)
+            ),
             concurrency=s._concurrency,
         )
 

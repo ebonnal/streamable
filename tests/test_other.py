@@ -1,6 +1,7 @@
 import asyncio
 import copy
 import queue
+import threading
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from typing import (
@@ -34,6 +35,7 @@ from tests.tools.iter import (
     aiter_or_iter,
     alist_or_list,
     anext_or_next,
+    async_iter,
     stopiteration_type,
 )
 from tests.tools.source import INTEGERS, N, ints
@@ -141,6 +143,8 @@ def test_add(itype: IterableType) -> None:
     assert alist_or_list(union_stream, itype) == list(INTEGERS) + list(
         map(str, INTEGERS)
     )
+
+    assert alist_or_list(ints + async_iter(INTEGERS), itype) == list(INTEGERS) * 2
 
 
 def test_call() -> None:
@@ -333,6 +337,26 @@ def test_loop_lifecycle() -> None:
     assert list(it) == [0]
     # stopiteration does not close/unset the loop
     assert not get_current_loop().is_closed()
+
+
+@pytest.mark.parametrize("in_thread", [False, True])
+def test_sync_iteration_shares_the_thread_loop(in_thread: bool) -> None:
+    loops: List[asyncio.AbstractEventLoop] = []
+
+    async def record_loop(x: int) -> int:
+        loops.append(asyncio.get_running_loop())
+        return x
+
+    s = stream([0]).map(record_loop)
+    result: List[int] = []
+    if in_thread:
+        thread = threading.Thread(target=lambda: result.extend(s + s))
+        thread.start()
+        thread.join()
+    else:
+        result.extend(s + s)
+    assert result == [0, 0]
+    assert loops[0] is loops[1]
 
 
 @pytest.mark.parametrize(

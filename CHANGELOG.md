@@ -41,6 +41,8 @@
       # these 4 tasks are cancelled
   ```
 
+- `.flatten`: handle inner `AsyncIterable`s during sync iterations too.
+
 ## [2.0.0]
 
 `stream` lowercase is now preferred over `Stream`.

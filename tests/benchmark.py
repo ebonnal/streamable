@@ -1,6 +1,6 @@
 import timeit
-from collections.abc import Iterable
 from datetime import timedelta
+from typing import Iterable
 
 from streamable import stream
 

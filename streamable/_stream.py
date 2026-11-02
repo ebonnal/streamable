@@ -751,7 +751,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             concurrency (``int``, optional): Concurrency control:
 
               ‣ ``1`` (default): Flatten each upstream iterable before moving on to the next one.
-              ‣ ``int > 1``: Flatten ``concurrency`` upstream iterables at a time in a round-robin fashion (via threads, or via async tasks for ``AsyncIterable`` elements).
+              ‣ ``int > 1``: Flatten ``concurrency`` upstream iterables at a time in a round-robin fashion (via threads or async tasks).
 
         Returns:
             ``stream[U]``: Stream of all elements from upstream iterables.

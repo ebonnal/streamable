@@ -11,6 +11,7 @@ import pytest
 
 from streamable import stream
 from tests.tools.func import (
+    async_identity,
     identity,
 )
 from tests.tools.iter import (
@@ -124,17 +125,47 @@ def test_flatten_on_non_iterable(itype: IterableType, concurrency: int) -> None:
     assert anext_or_next(it, itype) == 1
 
 
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 @pytest.mark.parametrize(
-    "concurrency, expected",
-    [(1, [0, 1, 0, 1]), (2, [0, 0, 1, 1])],
+    "concurrency, expected", [(1, [0, 1, 0, 1]), (2, [0, 0, 1, 1])]
 )
-def test_flatten_on_async_iterables(concurrency: int, expected: List[int]) -> None:
-    s = stream([async_iter([0, 1]), async_iter([0, 1])]).flatten(
-        concurrency=concurrency
-    )
-    assert alist_or_list(s, "async") == expected
+@pytest.mark.parametrize(
+    "to_inner", [async_iter, lambda elems: stream(elems).map(async_identity)]
+)
+def test_flatten_async_inner_iterables(
+    itype: IterableType,
+    concurrency: int,
+    expected: List[int],
+    to_inner: Callable[[List[int]], Any],
+) -> None:
+    s = stream([to_inner([0, 1]), to_inner([0, 1])]).flatten(concurrency=concurrency)
+    assert alist_or_list(s, itype) == expected
+
+
+@pytest.mark.parametrize(
+    "operate", [identity, lambda s: s + [], lambda s: stream([s]).flatten()]
+)
+def test_flatten_concurrently_many_inner_streams_involving_async(
+    operate: Callable[[stream], stream],
+) -> None:
+    ints = range(10)
+    inner = operate(stream(ints).map(async_identity))
+    num_inner_iters = 8
+    src = [inner] * num_inner_iters
+    # enough concurrency for errors to be raised if the same loop was run from multiple threads
+    concurrency = 4
+    for _ in range(10):
+        assert list(stream(src).flatten(concurrency=concurrency)) == [
+            i
+            for _ in range(num_inner_iters // concurrency)
+            for i in ints
+            for _ in range(concurrency)
+        ]
+
+
+@pytest.mark.asyncio
+async def test_sync_iteration_in_running_loop_raises() -> None:
     with pytest.raises(
-        TypeError,
-        match="async iterables flattening is only possible during async iteration",
+        RuntimeError, match="event loop already running: do an async iteration instead"
     ):
-        list(s)
+        next(iter(stream([async_iter([0])]).flatten()))
