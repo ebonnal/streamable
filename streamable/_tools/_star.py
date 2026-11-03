@@ -18,6 +18,10 @@ if TYPE_CHECKING:  # pragma: no cover
 R = TypeVar("R")
 
 
+def func_name(func: Callable[..., Any]) -> str:
+    return getattr(func, "__name__", repr(func))
+
+
 class _Star(Generic[R]):
     __slots__ = ("func",)
 
@@ -28,7 +32,7 @@ class _Star(Generic[R]):
         return self.func(*args)
 
     def __repr__(self) -> str:
-        return f"star({self.func.__name__})"
+        return f"star({func_name(self.func)})"
 
 
 @overload
@@ -60,6 +64,6 @@ def star(func: "Callable[[Unpack[Ts]], Any]") -> "Callable[[Tuple[Unpack[Ts]]], 
         async def astared(args: "Tuple[Unpack[Ts]]") -> Any:
             return await func(*args)
 
-        astared.__name__ = f"star({func.__name__})"
+        astared.__name__ = f"star({func_name(func)})"
         return astared
     return _Star(func)
