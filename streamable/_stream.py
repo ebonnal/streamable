@@ -3,12 +3,9 @@ import logging
 from concurrent.futures import Executor
 from typing import (
     TYPE_CHECKING,
-    Any,
     AsyncIterable,
-    AsyncIterator,
     Awaitable,
     Callable,
-    Collection,
     Coroutine,
     Generator,
     Generic,
@@ -16,8 +13,6 @@ from typing import (
     Iterator,
     List,
     Optional,
-    Sequence,
-    Set,
     Tuple,
     Type,
     TypeVar,
@@ -31,7 +26,6 @@ from streamable._tools._context import aclosing
 from streamable._tools._iter import (
     AsyncToSyncIterator,
     ClosableAsyncIterator,
-    SyncAsyncIterable,
 )
 from streamable._tools._logging import setup_logger
 from streamable._tools._observation import Observation
@@ -50,15 +44,13 @@ from streamable.visitors._repr import ReprVisitor
 setup_logger()
 
 if TYPE_CHECKING:  # pragma: no cover
-    import builtins
-
     from typing_extensions import Concatenate, ParamSpec
 
     P = ParamSpec("P")
 
-
+T = TypeVar("T", covariant=True)
 U = TypeVar("U")
-T = TypeVar("T")
+
 V = TypeVar("V")
 Exc = TypeVar("Exc", bound=Exception)
 
@@ -601,149 +593,11 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         """
         return FilterStream(self, where)
 
-    #####################
-    # flatten overloads #
-    #####################
-
-    # ASYNC
-
-    @overload
-    def flatten(
-        self: "stream[AsyncIterator[U]]",
-        *,
-        concurrency: int = 1,
-    ) -> "stream[U]": ...
-
-    @overload
-    def flatten(
-        self: "stream[AsyncIterable[U]]",
-        *,
-        concurrency: int = 1,
-    ) -> "stream[U]": ...
-
-    # SYNC
-
-    @overload
-    def flatten(
-        self: "stream[stream[U]]",
-        *,
-        concurrency: int = 1,
-    ) -> "stream[U]": ...
-
-    @overload
-    def flatten(
-        self: "stream[List[U]]",
-        *,
-        concurrency: int = 1,
-    ) -> "stream[U]": ...
-
-    @overload
-    def flatten(
-        self: "stream[Set[U]]",
-        *,
-        concurrency: int = 1,
-    ) -> "stream[U]": ...
-
-    @overload
-    def flatten(
-        self: "stream[Tuple[U, ...]]",
-        *,
-        concurrency: int = 1,
-    ) -> "stream[U]": ...
-
-    @overload
-    def flatten(
-        self: "stream[builtins.map[U]]",
-        *,
-        concurrency: int = 1,
-    ) -> "stream[U]": ...
-
-    @overload
-    def flatten(
-        self: "stream[builtins.filter[U]]",
-        *,
-        concurrency: int = 1,
-    ) -> "stream[U]": ...
-
-    @overload
-    def flatten(
-        self: "stream[range]",
-        *,
-        concurrency: int = 1,
-    ) -> "stream[int]": ...
-
-    @overload
-    def flatten(
-        self: "stream[str]",
-        *,
-        concurrency: int = 1,
-    ) -> "stream[str]": ...
-
-    @overload
-    def flatten(
-        self: "stream[Generator[U, Any, Any]]",
-        *,
-        concurrency: int = 1,
-    ) -> "stream[U]": ...
-
-    @overload
-    def flatten(
-        self: "stream[Sequence[U]]",
-        *,
-        concurrency: int = 1,
-    ) -> "stream[U]": ...
-
-    @overload
-    def flatten(
-        self: "stream[Collection[U]]",
-        *,
-        concurrency: int = 1,
-    ) -> "stream[U]": ...
-
-    @overload
-    def flatten(
-        self: "stream[Iterator[U]]",
-        *,
-        concurrency: int = 1,
-    ) -> "stream[U]": ...
-
-    @overload
-    def flatten(
-        self: "stream[Iterable[U]]",
-        *,
-        concurrency: int = 1,
-    ) -> "stream[U]": ...
-
-    # BOTH
-
-    @overload
-    def flatten(
-        self: "stream[SyncAsyncIterable[U]]",
-        *,
-        concurrency: int = 1,
-    ) -> "stream[U]": ...
-
-    # UNION
-
-    @overload
     def flatten(
         self: "stream[Union[Iterable[U], AsyncIterable[U]]]",
         *,
         concurrency: int = 1,
-    ) -> "stream[U]": ...
-
-    @overload
-    def flatten(
-        self: "stream[Union[Iterator[U], AsyncIterator[U]]]",
-        *,
-        concurrency: int = 1,
-    ) -> "stream[U]": ...
-
-    def flatten(
-        self: "stream[Any]",
-        *,
-        concurrency: int = 1,
-    ) -> "stream[Any]":
+    ) -> "stream[U]":
         """
         Explode upstream elements, assumed to be ``Iterable`` or ``AsyncIterable``.
 
@@ -1133,37 +987,37 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         return ThrottleStream(self, up_to, per)
 
 
-class DownStream(stream[U], Generic[T, U]):
+class DownStream(stream[T], Generic[U, T]):
     """
     A stream having an upstream.
     """
 
     __slots__ = ()
 
-    def __init__(self, upstream: stream[T]) -> None:
-        self._upstream: stream[T] = upstream
+    def __init__(self, upstream: stream[U]) -> None:
+        self._upstream: stream[U] = upstream
 
     @property
     def source(self) -> Union[Iterable, AsyncIterable, Callable]:
         return self._upstream.source
 
     @property
-    def upstream(self) -> stream[T]:
+    def upstream(self) -> stream[U]:
         """
         The parent stream that this downstream stream operates on.
 
         Returns:
-            ``stream[T]``: Upstream stream in the operation chain.
+            ``stream[U]``: Upstream stream in the operation chain.
         """
         return self._upstream
 
 
-class BufferStream(DownStream[T, T]):
+class BufferStream(DownStream[U, U]):
     __slots__ = ("_up_to",)
 
     def __init__(
         self,
-        upstream: stream[T],
+        upstream: stream[U],
         up_to: Optional[int],
     ) -> None:
         super().__init__(upstream)
@@ -1173,12 +1027,12 @@ class BufferStream(DownStream[T, T]):
         return visitor.visit_buffer_stream(self)
 
 
-class CatchStream(DownStream[T, Union[T, U]]):
+class CatchStream(DownStream[U, Union[U, T]]):
     __slots__ = ("_errors", "_where", "_replace", "_do", "_stop")
 
     def __init__(
         self,
-        upstream: stream[T],
+        upstream: stream[U],
         errors: Union[Type[Exc], Tuple[Type[Exc], ...]],
         where: Union[
             None,
@@ -1187,8 +1041,8 @@ class CatchStream(DownStream[T, Union[T, U]]):
         ],
         replace: Union[
             None,
-            Callable[[Exc], U],
-            AsyncFunction[Exc, U],
+            Callable[[Exc], T],
+            AsyncFunction[Exc, T],
         ],
         do: Union[
             None,
@@ -1208,15 +1062,15 @@ class CatchStream(DownStream[T, Union[T, U]]):
         return visitor.visit_catch_stream(self)
 
 
-class DoStream(DownStream[T, T]):
+class DoStream(DownStream[U, U]):
     __slots__ = ("_effect", "_concurrency", "_as_completed")
 
     def __init__(
         self,
-        upstream: stream[T],
+        upstream: stream[U],
         effect: Union[
-            Callable[[T], object],
-            AsyncFunction[T, object],
+            Callable[[U], object],
+            AsyncFunction[U, object],
         ],
         concurrency: Union[int, Executor],
         as_completed: bool,
@@ -1230,10 +1084,10 @@ class DoStream(DownStream[T, T]):
         return visitor.visit_do_stream(self)
 
 
-class FilterStream(DownStream[T, T]):
+class FilterStream(DownStream[U, U]):
     __slots__ = ("_where",)
 
-    def __init__(self, upstream: stream[T], where: Callable[[T], object]) -> None:
+    def __init__(self, upstream: stream[U], where: Callable[[U], object]) -> None:
         super().__init__(upstream)
         self._where = where
 
@@ -1241,12 +1095,12 @@ class FilterStream(DownStream[T, T]):
         return visitor.visit_filter_stream(self)
 
 
-class FlattenStream(DownStream[Union[Iterable[T], AsyncIterable[T]], T]):
+class FlattenStream(DownStream[Union[Iterable[U], AsyncIterable[U]], U]):
     __slots__ = ("_concurrency",)
 
     def __init__(
         self,
-        upstream: stream[Union[Iterable[T], AsyncIterable[T]]],
+        upstream: stream[Union[Iterable[U], AsyncIterable[U]]],
         concurrency: int,
     ) -> None:
         super().__init__(upstream)
@@ -1256,18 +1110,18 @@ class FlattenStream(DownStream[Union[Iterable[T], AsyncIterable[T]], T]):
         return visitor.visit_flatten_stream(self)
 
 
-class GroupStream(DownStream[T, List[T]]):
+class GroupStream(DownStream[U, List[U]]):
     __slots__ = ("_up_to", "_within", "_by")
 
     def __init__(
         self,
-        upstream: stream[T],
+        upstream: stream[U],
         up_to: Optional[int],
         within: Optional[datetime.timedelta],
         by: Union[
             None,
-            Callable[[T], object],
-            AsyncFunction[T, object],
+            Callable[[U], object],
+            AsyncFunction[U, object],
         ],
     ) -> None:
         super().__init__(upstream)
@@ -1279,15 +1133,15 @@ class GroupStream(DownStream[T, List[T]]):
         return visitor.visit_group_stream(self)
 
 
-class MapStream(DownStream[T, U]):
+class MapStream(DownStream[U, T]):
     __slots__ = ("_into", "_concurrency", "_as_completed")
 
     def __init__(
         self,
-        upstream: stream[T],
+        upstream: stream[U],
         into: Union[
-            Callable[[T], U],
-            AsyncFunction[T, U],
+            Callable[[U], T],
+            AsyncFunction[U, T],
         ],
         concurrency: Union[int, Executor],
         as_completed: bool,
@@ -1301,12 +1155,12 @@ class MapStream(DownStream[T, U]):
         return visitor.visit_map_stream(self)
 
 
-class ObserveStream(DownStream[T, T]):
+class ObserveStream(DownStream[U, U]):
     __slots__ = ("_subject", "_every", "_do")
 
     def __init__(
         self,
-        upstream: stream[T],
+        upstream: stream[U],
         subject: str,
         every: Union[None, int, datetime.timedelta],
         do: Union[
@@ -1323,16 +1177,16 @@ class ObserveStream(DownStream[T, T]):
         return visitor.visit_observe_stream(self)
 
 
-class SkipStream(DownStream[T, T]):
+class SkipStream(DownStream[U, U]):
     __slots__ = ("_until",)
 
     def __init__(
         self,
-        upstream: stream[T],
+        upstream: stream[U],
         until: Union[
             int,
-            Callable[[T], object],
-            AsyncFunction[T, object],
+            Callable[[U], object],
+            AsyncFunction[U, object],
         ],
     ) -> None:
         super().__init__(upstream)
@@ -1342,16 +1196,16 @@ class SkipStream(DownStream[T, T]):
         return visitor.visit_skip_stream(self)
 
 
-class TakeStream(DownStream[T, T]):
+class TakeStream(DownStream[U, U]):
     __slots__ = ("_until",)
 
     def __init__(
         self,
-        upstream: stream[T],
+        upstream: stream[U],
         until: Union[
             int,
-            Callable[[T], object],
-            AsyncFunction[T, object],
+            Callable[[U], object],
+            AsyncFunction[U, object],
         ],
     ) -> None:
         super().__init__(upstream)
@@ -1361,12 +1215,12 @@ class TakeStream(DownStream[T, T]):
         return visitor.visit_take_stream(self)
 
 
-class ThrottleStream(DownStream[T, T]):
+class ThrottleStream(DownStream[U, U]):
     __slots__ = ("_up_to", "_per")
 
     def __init__(
         self,
-        upstream: stream[T],
+        upstream: stream[U],
         up_to: int,
         per: datetime.timedelta,
     ) -> None:

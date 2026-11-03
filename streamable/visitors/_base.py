@@ -18,7 +18,7 @@ if TYPE_CHECKING:  # pragma: no cover
     )
 
 
-V = TypeVar("V")
+V = TypeVar("V", covariant=True)
 
 
 class Visitor(ABC, Generic[V]):
