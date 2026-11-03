@@ -1,9 +1,20 @@
+from collections import Counter, OrderedDict, defaultdict, deque
 from typing import (
+    AbstractSet,
     Any,
+    AsyncIterator,
     Callable,
+    ItemsView,
     Iterable,
+    Iterator,
+    KeysView,
     List,
+    Mapping,
+    MutableMapping,
+    MutableSequence,
+    MutableSet,
     Tuple,
+    ValuesView,
     cast,
 )
 
@@ -25,6 +36,14 @@ from tests.tools.iter import (
 
 
 def test_flatten_typing() -> None:
+    class UserIterable:
+        def __iter__(self) -> Iterator[int]:
+            return iter([0])  # pragma: no cover
+
+    class UserAsyncIterable:
+        def __aiter__(self) -> AsyncIterator[int]:
+            return async_iter([0])  # pragma: no cover
+
     s: stream[int] = stream([[0]]).map(iter).flatten()
     s = stream([[0]]).map(list).flatten()
     s = stream([[0]]).map(set).flatten()
@@ -33,7 +52,26 @@ def test_flatten_typing() -> None:
     s = stream([[0]]).map(lambda _: map(identity, _)).flatten()
     s = stream([[0]]).map(lambda _: filter(identity, _)).flatten()
     s = stream([[0]]).map(async_iter).flatten()
+    s = stream([{0: "a"}]).flatten()
+    s = stream([defaultdict(str, {0: "a"})]).flatten()
+    s = stream([OrderedDict({0: "a"})]).flatten()
+    s = stream([Counter([0])]).flatten()
+    s = stream([{0: "a"}.keys()]).flatten()
+    s = stream([{"a": 0}.values()]).flatten()
+    s = stream([deque([0])]).flatten()
+    s = stream([frozenset([0])]).flatten()
+    s = stream[MutableMapping[int, str]]([{0: "a"}]).flatten()
+    s = stream[Mapping[int, str]]([{0: "a"}]).flatten()
+    s = stream[KeysView[int]]([{0: "a"}.keys()]).flatten()
+    s = stream[ValuesView[int]]([{"a": 0}.values()]).flatten()
+    s = stream[MutableSet[int]]([{0}]).flatten()
+    s = stream[AbstractSet[int]]([{0}]).flatten()
+    s = stream[MutableSequence[int]]([[0]]).flatten()
+    s = stream([UserIterable()]).flatten()
+    s = stream([UserAsyncIterable()]).flatten()
     s = stream((range(1), range(1))).flatten()  # noqa: F841
+    items: stream[Tuple[int, str]] = stream([{0: "a"}.items()]).flatten()
+    items = stream[ItemsView[int, str]]([{0: "a"}.items()]).flatten()  # noqa: F841
 
 
 @pytest.mark.parametrize(
