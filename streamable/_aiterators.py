@@ -675,7 +675,7 @@ class _BaseObserveAsyncIterator(_BaseOperationAsyncIterator[T, T]):
         self._errors_observed = 0
         self._activated = False
         self._active = False
-        self._start_point: datetime.datetime
+        self._start_point: float
         self._do_base_exception: Optional[BaseException] = None
 
     @property
@@ -685,17 +685,13 @@ class _BaseObserveAsyncIterator(_BaseOperationAsyncIterator[T, T]):
     def _observation(self) -> Observation:
         return Observation(
             subject=self.subject,
-            elapsed=self._time_point() - self._start_point,
+            elapsed=datetime.timedelta(seconds=time.perf_counter() - self._start_point),
             errors=self._errors,
             elements=self._elements,
         )
 
-    @staticmethod
-    def _time_point() -> datetime.datetime:
-        return datetime.datetime.fromtimestamp(time.perf_counter())
-
     async def _activate(self) -> None:
-        self._start_point = self._time_point()
+        self._start_point = time.perf_counter()
         self._active = True
         self._activated = True
 
