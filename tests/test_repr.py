@@ -1,5 +1,6 @@
 import datetime
-from typing import Any
+from functools import partial
+from typing import Any, Callable, Coroutine
 
 from streamable import star, stream
 from tests.tools.func import async_identity
@@ -106,11 +107,28 @@ def test_repr_throttle() -> None:
 
 
 def test_repr_star() -> None:
-    s = stream([(0, 1)]).filter(star(print))
-    assert repr(s) == "stream([(0, 1)]).filter(star(print))"
+    s = stream([(0,)]).filter(star(print))
+    assert repr(s) == "stream([(0,)]).filter(star(print))"
 
     s2 = stream([(0,)]).filter(star(async_identity))
     assert repr(s2) == "stream([(0,)]).filter(star(async_identity))"
+
+    # sync function without `.__name__`
+    s3 = stream([(0,)]).filter(star(partial(print)))
+    assert (
+        repr(s3)
+        == "stream([(0,)]).filter(star(functools.partial(<built-in function print>)))"
+    )
+    # async function without `.__name__`
+    apartial: Callable[..., Coroutine] = partial(async_identity)
+    s4 = stream([(0,)]).filter(star(apartial))
+    assert (
+        repr(s4)
+        == f"""(
+    stream([(0,)])
+    .filter(star({apartial}))
+)"""
+    )
 
 
 def test_repr_cast() -> None:
