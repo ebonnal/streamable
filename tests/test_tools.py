@@ -92,6 +92,11 @@ def test_logfmt_str_escape():
     assert logfmt_str_escape("in ts") == '"in ts"'
     assert logfmt_str_escape("in\\ts") == r'"in\\ts"'
     assert logfmt_str_escape('"ints"') == r'"\"ints\""'
+    assert logfmt_str_escape("in=ts") == '"in=ts"'
+    assert logfmt_str_escape("in\tts") == '"in ts"'
+    assert logfmt_str_escape("in\nts") == '"in ts"'
+    assert logfmt_str_escape("in\rts") == '"in ts"'
+    assert logfmt_str_escape("in\r\nts") == '"in ts"'
 
 
 def test_setup_logger_keeps_existing_handlers() -> None:

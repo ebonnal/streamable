@@ -3,9 +3,17 @@ import time
 
 
 def logfmt_str_escape(value: str) -> str:
-    escaped = value.replace("\\", "\\\\").replace('"', '\\"')
-    modified = not escaped or " " in escaped or escaped != value
-    return f'"{escaped}"' if modified else escaped
+    escaped = (
+        " ".join(value.splitlines())
+        .replace("\\", "\\\\")
+        .replace('"', '\\"')
+        .replace("\t", " ")
+    )
+    return (
+        f'"{escaped}"'
+        if not escaped or escaped != value or " " in escaped or "=" in escaped
+        else escaped
+    )
 
 
 def setup_logger() -> None:
