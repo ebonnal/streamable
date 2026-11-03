@@ -1,5 +1,4 @@
 import asyncio
-from contextlib import suppress
 from typing import (
     AsyncIterable,
     AsyncIterator,
@@ -14,6 +13,7 @@ from typing import (
     runtime_checkable,
 )
 
+from streamable._tools._async import safe_get_event_loop
 from streamable._tools._thread import is_owned_thread
 
 T = TypeVar("T")
@@ -57,8 +57,7 @@ class AsyncToSyncIterator(Iterator[T], Closable):
     @property
     def _loop(self) -> asyncio.AbstractEventLoop:
         if self.__loop is None:
-            with suppress(RuntimeError):
-                self.__loop = asyncio.get_event_loop()
+            self.__loop = safe_get_event_loop()
             if not self.__loop or self.__loop.is_closed():
                 self.__loop = asyncio.new_event_loop()
                 if is_owned_thread():
