@@ -69,13 +69,14 @@ def test_aiter_source(itype: IterableType) -> None:
     assert alist_or_list(stream(aiterator()), itype) == elements
 
 
-def test_source_function() -> None:
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_source_function(itype: IterableType) -> None:
     it = ints.__iter__()
 
     def src() -> int:
         return next(it)
 
-    assert list(stream(src)) == list(INTEGERS)
+    assert alist_or_list(stream(src), itype) == list(INTEGERS)
 
 
 @pytest.mark.asyncio

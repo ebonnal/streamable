@@ -97,7 +97,10 @@ class _FnAsyncIterator(AsyncIterator[T]):
         self.fn = fn
 
     async def __anext__(self) -> T:
-        return self.fn()
+        try:
+            return self.fn()
+        except StopIteration as e:
+            raise StopAsyncIteration from e
 
 
 def fn_to_aiter(fn: Callable[[], T]) -> AsyncIterator[T]:
