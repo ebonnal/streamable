@@ -132,6 +132,8 @@ Only `concurrency` upstream elements are in-flight for processing.
 
 Preserve upstream order unless you set `as_completed=True`.
 
+[TODO: improve] If concurrent `.map` directly follows a [`.buffer`](#-buffer), when it has room to launch a new call it will first check if an upstream item is available n the buffer, and if not it will not block waiting for it but yield any already available result instead.
+
 
 #### via threads
 
