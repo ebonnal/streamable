@@ -925,7 +925,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
     @overload
     def take(
-        self, until: Union[Callable[[T], object], AsyncFunction[T, object]]
+        self, *, until: Union[Callable[[T], object], AsyncFunction[T, object]]
     ) -> "stream[T]": ...
 
     def take(
