@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from inspect import iscoroutinefunction
 from threading import Thread
@@ -11,7 +12,7 @@ from streamable import star, stream
 from streamable._tools._func import sidify
 from streamable._tools._iter import AsyncToSyncIterator, GuardedAsyncIterator
 from streamable._tools._logging import logfmt_str_escape, setup_logger
-from tests.tools.func import async_identity, identity
+from tests.tools.func import async_identity, identity, throw
 from tests.tools.iter import async_iter
 from tests.tools.source import INTEGERS
 
@@ -159,3 +160,37 @@ async def test_async_to_sync_iterator_within_running_loop() -> None:
     ):
         list(stream(INTEGERS).map(async_identity))
     non_running_loop.close()
+
+
+def test_async_to_sync_iterator_cancels_anext_on_keyboard_interrupt() -> None:
+    cancelled: bool = False
+
+    async def cancel_during_sleep(_: object) -> None:
+        nonlocal cancelled
+        asyncio.get_running_loop().call_soon(lambda: throw(KeyboardInterrupt()))
+        try:
+            await asyncio.sleep(1)
+        except asyncio.CancelledError:
+            # long cancellation
+            await asyncio.sleep(0.1)
+            cancelled = True
+            raise
+
+    def interrupted_next() -> AsyncToSyncIterator[int]:
+        it = iter(stream([0]).do(cancel_during_sleep))
+        assert isinstance(it, AsyncToSyncIterator)
+        with pytest.raises(KeyboardInterrupt):
+            next(it)
+        return it
+
+    with ThreadPoolExecutor(1) as executor:
+        # work within a fresh thread with no event loop already set
+        it = executor.submit(interrupted_next).result()
+    # the pending `__anext__` task got cancelled
+    assert cancelled
+    # the iterator got closed
+    assert it._closure_requested
+    # and its private loop too
+    assert it._loop.is_closed()
+    with pytest.raises(StopIteration):
+        next(it)

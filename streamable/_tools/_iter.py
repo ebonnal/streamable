@@ -78,15 +78,26 @@ class AsyncToSyncIterator(Iterator[T], Closable):
     def __next__(self) -> T:
         if self._closure_requested:
             raise StopIteration
-        try:
-            if not self._loop.is_running():
-                return self._loop.run_until_complete(self.upstream.__anext__())
+        if self._loop.is_running():
             raise RuntimeError(
                 "event loop already running: do an async iteration instead"
             )
+        anext_task = asyncio.ensure_future(self.upstream.__anext__(), loop=self._loop)
+        try:
+            return self._loop.run_until_complete(anext_task)
         except StopAsyncIteration:
             self.close()
             raise StopIteration
+        except Exception:
+            raise
+        except BaseException:
+            if not anext_task.done():
+                anext_task.cancel()
+                self._loop.run_until_complete(
+                    asyncio.gather(anext_task, return_exceptions=True)
+                )
+            self.close()
+            raise
 
 
 class _FnIterator(Iterator[T]):
