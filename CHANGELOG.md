@@ -17,7 +17,7 @@
     - `.observe(..., every=timedelta(...))`
   - When the iteration is complete, all the child tasks are done.
   - When the iterator is destroyed before it is exhausted, the pending child tasks terminate at a subsequent cycle of the event loop.
-  - Use the `.aclose` method to eagerly terminate any pending child tasks:
+  - Use the `.aclose` method to eagerly terminate any pending child tasks (cancelled if possible):
 
   ```python
   from contextlib import aclosing

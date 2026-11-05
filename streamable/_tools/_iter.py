@@ -72,8 +72,7 @@ class AsyncToSyncIterator(Iterator[T], Closable):
                     self._loop.close()
 
     def __del__(self) -> None:
-        if self._owned_loop:
-            self._loop.close()
+        self.close()
 
     def __next__(self) -> T:
         if self._closure_requested:

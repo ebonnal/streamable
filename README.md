@@ -559,7 +559,7 @@ When the iteration is complete, all the child tasks are done.
 
 When the iterator is destroyed before it is exhausted, the pending child tasks terminate at a subsequent cycle of the event loop.
 
-`stream.__aiter__` returns an async iterator with an `.aclose` method to eagerly terminate any pending child tasks:
+`stream.__aiter__` returns an async iterator with an `.aclose` method to eagerly terminate any pending child tasks (cancelled if possible):
 
 ```python
 from contextlib import aclosing

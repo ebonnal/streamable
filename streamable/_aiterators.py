@@ -38,8 +38,8 @@ from streamable._tools._afuture import (
 )
 from streamable._tools._async import AsyncFunction, anext, wait_for
 from streamable._tools._context import (
-    ExecutorAsyncContextManager,
     NoopAsyncContextManager,
+    SyncToAsyncContextManager,
     aclosing,
 )
 from streamable._tools._error import ExceptionContainer
@@ -123,20 +123,7 @@ class _RaisingAsyncIterator(
         if not self._closure_requested:
             self._closure_requested = True
             async with aclosing(self.upstream_upstream):
-                async with aclosing(self.upstream):
-                    error_from_context: Optional[BaseException] = sys.exc_info()[1]
-                    if error_from_context and not isinstance(
-                        error_from_context, (Exception, GeneratorExit)
-                    ):
-                        # a BaseException (e.g. CancelledError) is being handled somewhere up the await chain
-                        cancellation = asyncio.CancelledError()
-                        try:
-                            await self.upstream.athrow(cancellation)
-                        except asyncio.CancelledError as e:
-                            if e is not cancellation:
-                                raise
-                        finally:
-                            del cancellation
+                await self.upstream.aclose()
 
 
 async def puller_task(
@@ -202,12 +189,8 @@ class _BufferAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]]):
                     break
                 limit.release()
                 yield to_yield.pop()
-        except GeneratorExit:
-            raise
-        except BaseException:
-            task.cancel()
-            raise
         finally:
+            task.cancel()
             stopped.set()
             limit.release()
             try:
@@ -485,12 +468,8 @@ class _GroupByWithinAsyncIterable(
                     to_raise = [ExceptionContainer(e)]
                 # yield outside the except block so the frame's exception state is cleared
                 yield to_raise.pop()
-        except GeneratorExit:
-            raise
-        except BaseException:
-            task.cancel()
-            raise
         finally:
+            task.cancel()
             stopped.set()
             limit.release()
             try:
@@ -943,14 +922,9 @@ class _BaseConcurrentMapAsyncIterable(
                         future_results.add(future)
                         del future
                     yield await future_results.__anext__()
-            except GeneratorExit:
+            finally:
                 if self._CANCEL_ON_CLOSE:
                     future_results.cancel()
-                raise
-            except BaseException:
-                future_results.cancel()
-                raise
-            finally:
                 await future_results.gather()
                 future_results.clear()
 
@@ -1035,7 +1009,7 @@ class _ExecutorConcurrentMapAsyncIterable(
         if self._executor:
             # avoid closing client's executor
             return NoopAsyncContextManager(self._executor)
-        return ExecutorAsyncContextManager(
+        return SyncToAsyncContextManager(
             ThreadPoolExecutor(max_workers=self.concurrency)
         )
 
@@ -1087,13 +1061,6 @@ class _ConcurrentFlattenAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]
                 Future[T],
             ]
         ] = deque()
-
-        async def gather_futures():
-            await asyncio.gather(
-                *(fut for _, fut in iterator_and_future_pairs),
-                return_exceptions=True,
-            )
-
         to_yield: Deque[Union[T, ExceptionContainer]] = deque(maxlen=1)
         iterator_to_queue: Union[None, Iterator[T], AsyncIterator[T]] = None
         try:
@@ -1151,27 +1118,20 @@ class _ConcurrentFlattenAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]
                     yield to_yield.pop()
                 if not iterator_and_future_pairs:
                     break
-            if executor:
-                executor.shutdown()
-        except GeneratorExit:
-            await gather_futures()
-            if executor:
-                executor.shutdown()
-            raise
-        except BaseException:
-            for _, future in iterator_and_future_pairs:
-                future.cancel()
-            await gather_futures()
-            raise
         finally:
-            if executor:
-                executor.shutdown(wait=False)
-            closable_iterators: List[AsyncClosable] = [
-                cast(AsyncClosable, iterator)
-                for iterator, _ in iterator_and_future_pairs
-                if isinstance(iterator, AsyncClosable)
-            ]
+            closable_iterators: List[AsyncClosable] = []
+            for iterator, future in iterator_and_future_pairs:
+                if isinstance(future, asyncio.Task):
+                    future.cancel()
+                if isinstance(iterator, AsyncClosable):
+                    closable_iterators.append(iterator)
+            await asyncio.gather(
+                *(fut for _, fut in iterator_and_future_pairs),
+                return_exceptions=True,
+            )
             iterator_and_future_pairs.clear()
+            if executor:
+                executor.shutdown()
             await asyncio.gather(
                 *(it.aclose() for it in closable_iterators),
                 return_exceptions=True,
