@@ -8,12 +8,19 @@ R = TypeVar("R")
 AsyncFunction = Callable[[T], Coroutine[object, object, R]]
 
 
-def safe_get_event_loop() -> Optional[asyncio.AbstractEventLoop]:
-    if (3, 12) <= sys.version_info < (3, 14):  # pragma: no cover
+def get_event_loop_if_set() -> Optional[asyncio.AbstractEventLoop]:
+    try:
+        return asyncio.get_running_loop()
+    except RuntimeError:
+        pass
+    if sys.version_info < (3, 14):  # pragma: no cover
         # check policy's `_local._loop` first to avoid
-        # `asyncio.get_event_loop`'s warning on 3.12/3.13 when no loop is set
-        local = getattr(asyncio.get_event_loop_policy(), "_local", None)
-        if local and not getattr(local, "_loop", None):
+        # - `asyncio.get_event_loop`'s warning when no loop is set on 3.12/3.13
+        # - `get_event_loop` setting a new loop when none is set on 3.8-3.11
+        # - `get_event_loop`'s warning when a loop is already set on 3.8-3.11
+        try:
+            return asyncio.get_event_loop_policy()._local._loop  # type: ignore
+        except AttributeError:
             return None
     try:
         return asyncio.get_event_loop()

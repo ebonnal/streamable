@@ -69,7 +69,19 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
     Operations accept both sync and async functions.
 
-    A sync iteration over a stream involving async functions runs an async iteration under the hood, using the current event loop (or setting a new one if needed).
+    ``stream`` supports both types of iteration: sync and async (e.g. ``for`` and ``async for``).
+
+    Operations adapt their behavior to the type of iteration:
+
+    - ``.throttle`` sleeps via ``time.sleep`` during sync iteration and via ``asyncio.sleep`` during async iteration.
+
+    - ``.buffer``'s background task is a ``threading.Thread`` during sync iteration and an ``asyncio.Task`` during async iteration.
+
+    - concurrent ``.map`` of a sync function uses ``loop.run_in_executor`` during async iteration to avoid blocking the event loop.
+
+    - ...
+
+    A sync iteration over a ``stream`` involving async functions or an ``AsyncIterable`` source runs as an async iteration under the hood, using the current event loop if one is set.
 
     Args:
         source (``Iterable[T] | AsyncIterable[T] | Callable[[], T] | Callable[[], Coroutine[object, object, T]]``):

@@ -13,8 +13,7 @@ from typing import (
     runtime_checkable,
 )
 
-from streamable._tools._async import safe_get_event_loop
-from streamable._tools._thread import is_owned_thread
+from streamable._tools._async import get_event_loop_if_set
 
 T = TypeVar("T")
 U = TypeVar("U")
@@ -57,13 +56,10 @@ class AsyncToSyncIterator(Iterator[T], Closable):
     @property
     def _loop(self) -> asyncio.AbstractEventLoop:
         if self.__loop is None:
-            self.__loop = safe_get_event_loop()
+            self.__loop = get_event_loop_if_set()
             if not self.__loop or self.__loop.is_closed():
                 self.__loop = asyncio.new_event_loop()
-                if is_owned_thread():
-                    self._owned_loop = True
-                else:
-                    asyncio.set_event_loop(self.__loop)
+                self._owned_loop = True
         return self.__loop
 
     def close(self) -> None:
@@ -74,6 +70,10 @@ class AsyncToSyncIterator(Iterator[T], Closable):
             finally:
                 if self._owned_loop:
                     self._loop.close()
+
+    def __del__(self) -> None:
+        if self._owned_loop:
+            self._loop.close()
 
     def __next__(self) -> T:
         if self._closure_requested:

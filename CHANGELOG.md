@@ -43,6 +43,9 @@
 
 - `.flatten`: handle inner `AsyncIterable`s during sync iterations too.
 
+- a sync iteration over a `stream` involving async functions or an `AsyncIterable` source no longer sets the current event loop.
+
+
 ## [2.0.0]
 
 `stream` lowercase is now preferred over `Stream`.
