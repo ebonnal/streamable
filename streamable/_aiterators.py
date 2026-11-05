@@ -50,7 +50,6 @@ from streamable._tools._iter import (
 )
 from streamable._tools._observation import Observation
 from streamable._tools._sentinel import STOP_ITERATION
-from streamable._tools._thread import init_thread_local
 from streamable._tools._validation import validate_iterable
 
 T = TypeVar("T")
@@ -1037,9 +1036,7 @@ class _ExecutorConcurrentMapAsyncIterable(
             # avoid closing client's executor
             return NoopAsyncContextManager(self._executor)
         return ExecutorAsyncContextManager(
-            ThreadPoolExecutor(
-                max_workers=self.concurrency, initializer=init_thread_local
-            )
+            ThreadPoolExecutor(max_workers=self.concurrency)
         )
 
 
@@ -1140,9 +1137,7 @@ class _ConcurrentFlattenAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]
                         )
                     else:
                         if not executor:
-                            executor = ThreadPoolExecutor(
-                                self.concurrency, initializer=init_thread_local
-                            )
+                            executor = ThreadPoolExecutor(self.concurrency)
                         future = asyncio.get_running_loop().run_in_executor(
                             executor,
                             # sentinel: an asyncio future can't hold a `StopIteration`

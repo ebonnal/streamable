@@ -1,7 +1,9 @@
+import asyncio
 import logging
 from functools import partial
 from inspect import iscoroutinefunction
-from typing import Any, Callable, List
+from threading import Thread
+from typing import Any, Callable, List, Optional, cast
 
 import pytest
 
@@ -123,3 +125,37 @@ def test_async_to_sync_iterator_already_closed(n_pulls: int) -> None:
     it.close()
     with pytest.raises(StopIteration):
         next(it)
+
+
+@pytest.mark.parametrize("loop_already_set", [True, False])
+def test_async_to_sync_iterator_closes_its_loop_when_abandoned(
+    loop_already_set: bool,
+) -> None:
+    loop: Optional[asyncio.AbstractEventLoop] = None
+
+    def next_and_abandon() -> None:
+        nonlocal loop
+        if loop_already_set:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        it = cast(AsyncToSyncIterator, iter(stream(INTEGERS).map(async_identity)))
+        next(it)
+        loop = it._loop
+
+    thread = Thread(target=next_and_abandon)
+    thread.start()
+    thread.join()
+    assert isinstance(loop, asyncio.AbstractEventLoop)
+    assert loop.is_closed() is not loop_already_set
+    loop.close()
+
+
+@pytest.mark.asyncio
+async def test_async_to_sync_iterator_within_running_loop() -> None:
+    non_running_loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(non_running_loop)
+    with pytest.raises(
+        RuntimeError, match="event loop already running: do an async iteration instead"
+    ):
+        list(stream(INTEGERS).map(async_identity))
+    non_running_loop.close()
