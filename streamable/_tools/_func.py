@@ -65,6 +65,6 @@ def asyncify(func: None) -> None: ...
 def asyncify(
     func: Union[None, Callable[[T], R], AsyncFunction[T, R]],
 ) -> Optional[AsyncFunction[T, R]]:
-    if not func or iscoroutinefunction(func):
+    if func is None or iscoroutinefunction(func):
         return cast(Optional[AsyncFunction[T, R]], func)
     return partial(_async_call, cast(Callable[[T], R], func))
