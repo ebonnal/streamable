@@ -1,11 +1,12 @@
+import asyncio
 import sys
-from typing import Any, Callable, List
+from typing import Any, AsyncIterator, Callable, List
 
 import pytest
 
 from streamable import stream
 from streamable._tools._func import asyncify
-from tests.tools.func import identity
+from tests.tools.func import async_slow_identity, identity
 from tests.tools.iter import (
     ITERABLE_TYPES,
     IterableType,
@@ -84,3 +85,21 @@ def test_take_additional_nexts(itype: IterableType, taking_stream: stream[int]) 
         anext_or_next(it, itype)
     with pytest.raises(stopiteration_type(itype)):
         anext_or_next(it, itype)
+
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_take_again(itype: IterableType) -> None:
+    src = iter(range(10))
+    s = stream(src).take(2)
+    assert alist_or_list(s, itype) == [0, 1]
+    assert alist_or_list(s, itype) == [2, 3]
+
+@pytest.mark.asyncio
+async def test_take_again_with_buffer() -> None:
+    async def src() -> AsyncIterator[int]:
+        for i in range(10):
+            await asyncio.sleep(0.01)
+            yield i
+    s = stream(src()).buffer(2).take(2)
+    assert [i async for i in s] == [0, 1]
+    # src's pending pull was cancelled by `.take`'s stop (`.aclose`)
+    assert [i async for i in s] == []
