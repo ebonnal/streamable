@@ -2,6 +2,14 @@ name: coverage
 
 on:
   push:
+    branches:
+      - main
+      - dev
+    paths:
+      - 'streamable/**'
+      - 'tests/**'
+      - '.github/workflows/coverage.yml'
+  pull_request:
     paths:
       - 'streamable/**'
       - 'tests/**'

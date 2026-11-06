@@ -2,6 +2,14 @@ name: testing
 
 on:
   push:
+    branches:
+      - main
+      - dev
+    paths:
+      - 'streamable/**'
+      - 'tests/**'
+      - '.github/workflows/test.yml'
+  pull_request:
     paths:
       - 'streamable/**'
       - 'tests/**'

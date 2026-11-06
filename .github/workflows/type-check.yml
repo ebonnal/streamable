@@ -2,6 +2,14 @@ name: typing
 
 on:
   push:
+    branches:
+      - main
+      - dev
+    paths:
+      - 'streamable/**'
+      - 'tests/**'
+      - '.github/workflows/type-check.yml'
+  pull_request:
     paths:
       - 'streamable/**'
       - 'tests/**'

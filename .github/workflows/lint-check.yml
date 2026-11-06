@@ -2,6 +2,14 @@ name: formatting
 
 on:
   push:
+    branches:
+      - main
+      - dev
+    paths:
+      - 'streamable/**'
+      - 'tests/**'
+      - '.github/workflows/lint-check.yml'
+  pull_request:
     paths:
       - 'streamable/**'
       - 'tests/**'
