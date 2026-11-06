@@ -263,12 +263,12 @@ class CatchAsyncIterator(_BaseOperationAsyncIterator[T, Union[T, U]]):
             except StopAsyncIteration:
                 raise
             except self.errors as e:
-                if not self.where or await self.where(e):
+                if self.where is None or await self.where(e):
                     if self.stop:
                         self._stopped = True
-                    if self.do:
+                    if self.do is not None:
                         await self.do(e)
-                    if self.replace:
+                    if self.replace is not None:
                         return await self.replace(e)
                     continue
                 raise
@@ -1111,7 +1111,7 @@ class _ConcurrentFlattenAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]
 
                 # queue tasks up to buffersize
                 while len(iterator_and_future_pairs) < self.concurrency:
-                    if not iterator_to_queue:
+                    if iterator_to_queue is None:
                         try:
                             try:
                                 iterable = await self.upstream.__anext__()
