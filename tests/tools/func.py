@@ -1,8 +1,10 @@
 import asyncio
 import random
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import (
+    TYPE_CHECKING,
     Any,
     Awaitable,
     Callable,
@@ -21,6 +23,11 @@ import pytest
 from streamable._tools._async import AsyncFunction
 from tests.tools.error import TestError
 from tests.tools.source import N
+
+if TYPE_CHECKING:
+    from typing import ParamSpec
+
+    P = ParamSpec("P")
 
 T = TypeVar("T")
 R = TypeVar("R")
@@ -221,3 +228,10 @@ async def audit_awaitable(
         duration=duration,
         leftover_tasks=leftover_tasks,
     )
+
+
+def execute_in_thread(
+    func: "Callable[P, T]", *args: "P.args", **kwargs: "P.kwargs"
+) -> T:
+    with ThreadPoolExecutor(1) as executor:
+        return executor.submit(func, *args, **kwargs).result()

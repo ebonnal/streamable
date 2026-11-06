@@ -16,7 +16,7 @@ R = TypeVar("R")
 AsyncFunction = Callable[[T], Coroutine[object, object, R]]
 
 
-def get_event_loop_if_set() -> Optional[asyncio.AbstractEventLoop]:
+def safe_get_event_loop() -> Optional[asyncio.AbstractEventLoop]:
     try:
         return asyncio.get_running_loop()
     except RuntimeError:

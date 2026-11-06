@@ -13,7 +13,7 @@ from typing import (
     runtime_checkable,
 )
 
-from streamable._tools._async import get_event_loop_if_set
+from streamable._tools._async import safe_get_event_loop
 
 T = TypeVar("T")
 U = TypeVar("U")
@@ -56,7 +56,7 @@ class AsyncToSyncIterator(Iterator[T], Closable):
     @property
     def _loop(self) -> asyncio.AbstractEventLoop:
         if self.__loop is None:
-            self.__loop = get_event_loop_if_set()
+            self.__loop = safe_get_event_loop()
             if not self.__loop or self.__loop.is_closed():
                 self.__loop = asyncio.new_event_loop()
                 self._owned_loop = True
@@ -72,8 +72,18 @@ class AsyncToSyncIterator(Iterator[T], Closable):
                     self._loop.close()
 
     def __del__(self) -> None:
-        if self._owned_loop:
-            self._loop.close()
+        loop = self.__loop
+        if self._closure_requested or not loop or loop.is_closed():
+            return
+        if loop.is_running():
+            # non-owned `self.__loop` is running (in this or another thread), schedule the aclose
+            loop.call_soon_threadsafe(asyncio.ensure_future, self.upstream.aclose())
+        elif not asyncio._get_running_loop():
+            # no running loop in this thread, and `self.__loop` not running: can use `self._loop.run_until_complete`
+            self.close()
+        elif self._owned_loop:
+            # `self.__loop` is owned and another loop is running in this thread
+            loop.close()
 
     def __next__(self) -> T:
         if self._closure_requested:

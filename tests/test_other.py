@@ -2,7 +2,6 @@ import asyncio
 import copy
 import queue
 import sys
-import threading
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from typing import (
@@ -22,6 +21,7 @@ from tests.tools.func import (
     SLOW_IDENTITY_DURATION,
     async_throw_if_falsy_func,
     audit_awaitable,
+    execute_in_thread,
     identity,
     noarg_asyncify,
     nothing,
@@ -350,9 +350,7 @@ def test_sync_iteration_shares_the_runner(in_thread: bool) -> None:
             addition_result.extend(s + s)
 
     if in_thread:
-        thread = threading.Thread(target=add_streams_within_runner_context)
-        thread.start()
-        thread.join()
+        execute_in_thread(add_streams_within_runner_context)
     else:
         add_streams_within_runner_context()
     assert addition_result == [0, 0]
