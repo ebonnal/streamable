@@ -73,11 +73,11 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
     Operations adapt their behavior to the type of iteration:
 
-    - ``.throttle`` sleeps via ``time.sleep`` during sync iteration and via ``asyncio.sleep`` during async iteration.
+    - ``.throttle`` sleeps via ``time.sleep`` during sync iteration and via ``asyncio.sleep`` during async iteration
 
-    - ``.buffer``'s background task is a ``threading.Thread`` during sync iteration and an ``asyncio.Task`` during async iteration.
+    - ``.buffer``'s background task is a ``threading.Thread`` during sync iteration and an ``asyncio.Task`` during async iteration
 
-    - concurrent ``.map`` of a sync function uses ``loop.run_in_executor`` during async iteration to avoid blocking the event loop.
+    - concurrent ``.map`` of a sync function uses ``asyncio.wrap_future`` during async iteration to avoid blocking the event loop
 
     - ...
 
@@ -180,11 +180,11 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         When the iterator is destroyed before it is exhausted, the pending child tasks terminate at a subsequent cycle of the event loop.
 
-        Use the ``.aclose`` method to eagerly terminate any pending child tasks (see examples below).
+        Use the ``.aclose`` method to cancel and terminate any pending child tasks.
 
         Errors raised by child tasks during termination are not propagated.
 
-        If an async source is already provided as an ``AsyncIterator``, it is considered owned by the client and ``.aclose`` will not propagate to it (the same applies to inner async iterables processed by ``.flatten``).
+        If an async source is already provided as an ``AsyncIterator``, it is considered owned by the client and ``.aclose`` will not propagate to it (the same applies to inner async iterables processed by ``.flatten``), but an in-flight pull will get cancelled.
 
         Returns:
             ``streamable.ClosableAsyncIterator[T]``: Closable async iterator over this stream's elements.
