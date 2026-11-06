@@ -101,11 +101,11 @@ Operations accept both sync and async functions.
 
 Operations adapt their behavior to the type of iteration:
 
-- `.throttle` sleeps via `time.sleep` during sync iteration and via `asyncio.sleep` during async iteration.
+- `.throttle` sleeps via `time.sleep` during sync iteration and via `asyncio.sleep` during async iteration
 
-- `.buffer`'s background task is a `threading.Thread` during sync iteration and an `asyncio.Task` during async iteration.
+- `.buffer`'s background task is a `threading.Thread` during sync iteration and an `asyncio.Task` during async iteration
 
-- concurrent `.map` of a sync function uses `loop.run_in_executor` during async iteration to avoid blocking the event loop.
+- concurrent `.map` of a sync function uses `asyncio.wrap_future` during async iteration to avoid blocking the event loop
 
 - ...
 
@@ -559,7 +559,7 @@ When the iteration is complete, all the child tasks are done.
 
 When the iterator is destroyed before it is exhausted, the pending child tasks terminate at a subsequent cycle of the event loop.
 
-`stream.__aiter__` returns an async iterator with an `.aclose` method to eagerly terminate any pending child tasks:
+`stream.__aiter__` returns an async iterator with an `.aclose` method to cancel and terminate any pending child tasks:
 
 ```python
 from contextlib import aclosing

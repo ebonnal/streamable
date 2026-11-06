@@ -1,6 +1,14 @@
 import asyncio
 import sys
-from typing import AsyncIterator, Awaitable, Callable, Coroutine, Optional, TypeVar
+from contextlib import suppress
+from typing import (
+    AsyncIterator,
+    Awaitable,
+    Callable,
+    Coroutine,
+    Optional,
+    TypeVar,
+)
 
 T = TypeVar("T")
 R = TypeVar("R")
@@ -58,3 +66,16 @@ else:  # pragma: no cover
             if task.cancelled():
                 raise asyncio.TimeoutError
         return task.result()
+
+
+async def resisting_cancellation(future: Awaitable[T]) -> T:
+    future = asyncio.ensure_future(future)
+    try:
+        return await asyncio.shield(future)
+    except asyncio.CancelledError:
+        while not future.done():
+            with suppress(asyncio.CancelledError):
+                await asyncio.wait((future,))
+        raise
+    finally:
+        del future
