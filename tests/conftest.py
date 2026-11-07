@@ -1,10 +1,28 @@
+import asyncio
 import json
+import os
+from enum import Enum
 from http import HTTPStatus
 from typing import Any, Dict, Generator, List
 
 import httpx
 import pytest
 import respx
+
+
+class TestEventLoop(Enum):
+    UVLOOP = "uvloop"
+    ASYNCIO = "asyncio"
+
+    @classmethod
+    def current(cls) -> "TestEventLoop":
+        return cls(os.environ.get("STREAMABLE_TEST_LOOP", "asyncio"))
+
+
+if TestEventLoop.current() is TestEventLoop.UVLOOP:
+    import uvloop
+
+    asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 
 @pytest.fixture(autouse=True)

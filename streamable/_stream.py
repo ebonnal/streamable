@@ -69,7 +69,19 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
     Operations accept both sync and async functions.
 
-    A sync iteration over a stream involving async functions runs an async iteration under the hood, using the current event loop (or setting a new one if needed).
+    ``stream`` supports both types of iteration: sync and async (e.g. ``for`` and ``async for``).
+
+    Operations adapt their behavior to the type of iteration:
+
+    - ``.throttle`` sleeps via ``time.sleep`` during sync iteration and via ``asyncio.sleep`` during async iteration
+
+    - ``.buffer``'s background task is a ``threading.Thread`` during sync iteration and an ``asyncio.Task`` during async iteration
+
+    - concurrent ``.map`` of a sync function uses ``asyncio.wrap_future`` during async iteration to avoid blocking the event loop
+
+    - ...
+
+    A sync iteration over a ``stream`` involving async functions or an ``AsyncIterable`` source runs as an async iteration under the hood, using the current event loop if one is set.
 
     Args:
         source (``Iterable[T] | AsyncIterable[T] | Callable[[], T] | Callable[[], Coroutine[object, object, T]]``):
@@ -168,11 +180,11 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         When the iterator is destroyed before it is exhausted, the pending child tasks terminate at a subsequent cycle of the event loop.
 
-        Use the ``.aclose`` method to eagerly terminate any pending child tasks (see examples below).
+        Use the ``.aclose`` method to cancel and terminate any pending child tasks.
 
         Errors raised by child tasks during termination are not propagated.
 
-        If an async source is already provided as an ``AsyncIterator``, it is considered owned by the client and ``.aclose`` will not propagate to it (the same applies to inner async iterables processed by ``.flatten``).
+        If an async source is already provided as an ``AsyncIterator``, it is considered owned by the client and ``.aclose`` will not propagate to it (the same applies to inner async iterables processed by ``.flatten``), but an in-flight pull will get cancelled.
 
         Returns:
             ``streamable.ClosableAsyncIterator[T]``: Closable async iterator over this stream's elements.
@@ -925,7 +937,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
     @overload
     def take(
-        self, until: Union[Callable[[T], object], AsyncFunction[T, object]]
+        self, *, until: Union[Callable[[T], object], AsyncFunction[T, object]]
     ) -> "stream[T]": ...
 
     def take(

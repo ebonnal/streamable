@@ -14,7 +14,6 @@ from typing import (
 )
 
 from streamable._tools._async import safe_get_event_loop
-from streamable._tools._thread import is_owned_thread
 
 T = TypeVar("T")
 U = TypeVar("U")
@@ -60,10 +59,7 @@ class AsyncToSyncIterator(Iterator[T], Closable):
             self.__loop = safe_get_event_loop()
             if not self.__loop or self.__loop.is_closed():
                 self.__loop = asyncio.new_event_loop()
-                if is_owned_thread():
-                    self._owned_loop = True
-                else:
-                    asyncio.set_event_loop(self.__loop)
+                self._owned_loop = True
         return self.__loop
 
     def close(self) -> None:
@@ -75,18 +71,43 @@ class AsyncToSyncIterator(Iterator[T], Closable):
                 if self._owned_loop:
                     self._loop.close()
 
+    def __del__(self) -> None:
+        loop = self.__loop
+        if self._closure_requested or not loop or loop.is_closed():
+            return
+        if loop.is_running():
+            # non-owned `self.__loop` is running (in this or another thread), schedule the aclose
+            loop.call_soon_threadsafe(asyncio.ensure_future, self.upstream.aclose())
+        elif not asyncio._get_running_loop():
+            # no running loop in this thread, and `self.__loop` not running: can use `self._loop.run_until_complete`
+            self.close()
+        elif self._owned_loop:
+            # `self.__loop` is owned and another loop is running in this thread
+            loop.close()
+
     def __next__(self) -> T:
         if self._closure_requested:
             raise StopIteration
-        try:
-            if not self._loop.is_running():
-                return self._loop.run_until_complete(self.upstream.__anext__())
+        if self._loop.is_running():
             raise RuntimeError(
                 "event loop already running: do an async iteration instead"
             )
+        anext_task = asyncio.ensure_future(self.upstream.__anext__(), loop=self._loop)
+        try:
+            return self._loop.run_until_complete(anext_task)
         except StopAsyncIteration:
             self.close()
             raise StopIteration
+        except Exception:
+            raise
+        except BaseException:
+            if not anext_task.done():
+                anext_task.cancel()
+                self._loop.run_until_complete(
+                    asyncio.gather(anext_task, return_exceptions=True)
+                )
+            self.close()
+            raise
 
 
 class _FnIterator(Iterator[T]):

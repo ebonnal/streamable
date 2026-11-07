@@ -4,8 +4,8 @@ import sys
 import time
 import weakref
 from abc import ABC, abstractmethod
-from asyncio.futures import Future
 from collections import defaultdict, deque
+from concurrent import futures
 from concurrent.futures import Executor, ThreadPoolExecutor
 from contextlib import suppress
 from typing import (
@@ -15,7 +15,6 @@ from typing import (
     AsyncIterator,
     Awaitable,
     Callable,
-    ClassVar,
     Deque,
     Dict,
     Generic,
@@ -36,10 +35,15 @@ from streamable._tools._afuture import (
     FIFOFutureResults,
     FutureResults,
 )
-from streamable._tools._async import AsyncFunction, anext, wait_for
+from streamable._tools._async import (
+    AsyncFunction,
+    anext,
+    resisting_cancellation,
+    wait_for,
+)
 from streamable._tools._context import (
-    ExecutorAsyncContextManager,
     NoopAsyncContextManager,
+    SyncToAsyncContextManager,
     aclosing,
 )
 from streamable._tools._error import ExceptionContainer
@@ -50,7 +54,6 @@ from streamable._tools._iter import (
 )
 from streamable._tools._observation import Observation
 from streamable._tools._sentinel import STOP_ITERATION
-from streamable._tools._thread import init_thread_local
 from streamable._tools._validation import validate_iterable
 
 T = TypeVar("T")
@@ -124,20 +127,7 @@ class _RaisingAsyncIterator(
         if not self._closure_requested:
             self._closure_requested = True
             async with aclosing(self.upstream_upstream):
-                async with aclosing(self.upstream):
-                    error_from_context: Optional[BaseException] = sys.exc_info()[1]
-                    if error_from_context and not isinstance(
-                        error_from_context, (Exception, GeneratorExit)
-                    ):
-                        # a BaseException (e.g. CancelledError) is being handled somewhere up the await chain
-                        cancellation = asyncio.CancelledError()
-                        try:
-                            await self.upstream.athrow(cancellation)
-                        except asyncio.CancelledError as e:
-                            if e is not cancellation:
-                                raise
-                        finally:
-                            del cancellation
+                await self.upstream.aclose()
 
 
 async def puller_task(
@@ -203,12 +193,8 @@ class _BufferAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]]):
                     break
                 limit.release()
                 yield to_yield.pop()
-        except GeneratorExit:
-            raise
-        except BaseException:
-            task.cancel()
-            raise
         finally:
+            task.cancel()
             stopped.set()
             limit.release()
             try:
@@ -264,12 +250,12 @@ class CatchAsyncIterator(_BaseOperationAsyncIterator[T, Union[T, U]]):
             except StopAsyncIteration:
                 raise
             except self.errors as e:
-                if not self.where or await self.where(e):
+                if self.where is None or await self.where(e):
                     if self.stop:
                         self._stopped = True
-                    if self.do:
+                    if self.do is not None:
                         await self.do(e)
-                    if self.replace:
+                    if self.replace is not None:
                         return await self.replace(e)
                     continue
                 raise
@@ -486,12 +472,8 @@ class _GroupByWithinAsyncIterable(
                     to_raise = [ExceptionContainer(e)]
                 # yield outside the except block so the frame's exception state is cleared
                 yield to_raise.pop()
-        except GeneratorExit:
-            raise
-        except BaseException:
-            task.cancel()
-            raise
         finally:
+            task.cancel()
             stopped.set()
             limit.release()
             try:
@@ -890,8 +872,6 @@ class _BaseConcurrentMapAsyncIterable(
 ):
     __slots__ = ("upstream", "concurrency", "as_completed")
 
-    _CANCEL_ON_CLOSE: ClassVar[bool]
-
     def __init__(
         self,
         upstream: ClosableAsyncIterator[T],
@@ -903,7 +883,9 @@ class _BaseConcurrentMapAsyncIterable(
         self.as_completed = as_completed
 
     @abstractmethod
-    def _launch_task(self, elem: T, context: C) -> "Future[U]": ...
+    def _launch_task(
+        self, elem: T, context: C
+    ) -> "Union[asyncio.Future[U], futures.Future[U]]": ...
 
     @abstractmethod
     def _task_context(self) -> AsyncContextManager[C]: ...
@@ -911,7 +893,7 @@ class _BaseConcurrentMapAsyncIterable(
     async def _next_future(
         self,
         context: C,
-    ) -> Optional["Future[U]"]:
+    ) -> Optional["Union[asyncio.Future[U], futures.Future[U]]"]:
         try:
             elem = await self.upstream.__anext__()
         except StopAsyncIteration:
@@ -944,24 +926,20 @@ class _BaseConcurrentMapAsyncIterable(
                         future_results.add(future)
                         del future
                     yield await future_results.__anext__()
-            except GeneratorExit:
-                if self._CANCEL_ON_CLOSE:
-                    future_results.cancel()
-                raise
-            except BaseException:
-                future_results.cancel()
-                raise
             finally:
-                await future_results.gather()
-                future_results.clear()
+
+                async def finalize() -> None:
+                    future_results.cancel()
+                    await future_results.gather()
+                    future_results.clear()
+
+                await resisting_cancellation(finalize())
 
 
 class _AsyncConcurrentMapAsyncIterable(
     _BaseConcurrentMapAsyncIterable[T, U, asyncio.Semaphore]
 ):
     __slots__ = ("into",)
-
-    _CANCEL_ON_CLOSE: ClassVar[bool] = True
 
     def __init__(
         self,
@@ -977,7 +955,7 @@ class _AsyncConcurrentMapAsyncIterable(
         async with semaphore:
             return await self.into(elem)
 
-    def _launch_task(self, elem: T, context: asyncio.Semaphore) -> "Future[U]":
+    def _launch_task(self, elem: T, context: asyncio.Semaphore) -> "asyncio.Future[U]":
         return asyncio.create_task(self._semaphored(elem, semaphore=context))
 
     def _task_context(self) -> AsyncContextManager[asyncio.Semaphore]:
@@ -1010,8 +988,6 @@ class _ExecutorConcurrentMapAsyncIterable(
 ):
     __slots__ = ("into", "_executor")
 
-    _CANCEL_ON_CLOSE: ClassVar[bool] = False
-
     def __init__(
         self,
         upstream: ClosableAsyncIterator[T],
@@ -1029,17 +1005,15 @@ class _ExecutorConcurrentMapAsyncIterable(
                 upstream, getattr(self._executor, "_max_workers"), as_completed
             )
 
-    def _launch_task(self, elem: T, context: Executor) -> "Future[U]":
-        return asyncio.get_running_loop().run_in_executor(context, self.into, elem)
+    def _launch_task(self, elem: T, context: Executor) -> "futures.Future[U]":
+        return context.submit(self.into, elem)
 
     def _task_context(self) -> AsyncContextManager[Executor]:
         if self._executor:
             # avoid closing client's executor
             return NoopAsyncContextManager(self._executor)
-        return ExecutorAsyncContextManager(
-            ThreadPoolExecutor(
-                max_workers=self.concurrency, initializer=init_thread_local
-            )
+        return SyncToAsyncContextManager(
+            ThreadPoolExecutor(max_workers=self.concurrency)
         )
 
 
@@ -1087,16 +1061,9 @@ class _ConcurrentFlattenAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]
         iterator_and_future_pairs: Deque[
             Tuple[
                 Union[None, Iterator[T], AsyncIterator[T]],
-                Future[T],
+                Union[asyncio.Future[T], futures.Future[T]],
             ]
         ] = deque()
-
-        async def gather_futures():
-            await asyncio.gather(
-                *(fut for _, fut in iterator_and_future_pairs),
-                return_exceptions=True,
-            )
-
         to_yield: Deque[Union[T, ExceptionContainer]] = deque(maxlen=1)
         iterator_to_queue: Union[None, Iterator[T], AsyncIterator[T]] = None
         try:
@@ -1114,7 +1081,7 @@ class _ConcurrentFlattenAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]
 
                 # queue tasks up to buffersize
                 while len(iterator_and_future_pairs) < self.concurrency:
-                    if not iterator_to_queue:
+                    if iterator_to_queue is None:
                         try:
                             try:
                                 iterable = await self.upstream.__anext__()
@@ -1133,18 +1100,15 @@ class _ConcurrentFlattenAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]
                                 (iterator_to_queue, FailedFuture(e))
                             )
                             continue
-                    future: Future[T]
+                    future: Union[asyncio.Future[T], futures.Future[T]]
                     if isinstance(iterator_to_queue, AsyncIterator):
                         future = asyncio.create_task(
                             anext(iterator_to_queue, STOP_ITERATION)
                         )
                     else:
                         if not executor:
-                            executor = ThreadPoolExecutor(
-                                self.concurrency, initializer=init_thread_local
-                            )
-                        future = asyncio.get_running_loop().run_in_executor(
-                            executor,
+                            executor = ThreadPoolExecutor(self.concurrency)
+                        future = executor.submit(
                             # sentinel: an asyncio future can't hold a `StopIteration`
                             next,
                             iterator_to_queue,
@@ -1156,31 +1120,31 @@ class _ConcurrentFlattenAsyncIterable(AsyncIterable[Union[T, ExceptionContainer]
                     yield to_yield.pop()
                 if not iterator_and_future_pairs:
                     break
-            if executor:
-                executor.shutdown()
-        except GeneratorExit:
-            await gather_futures()
-            if executor:
-                executor.shutdown()
-            raise
-        except BaseException:
-            for _, future in iterator_and_future_pairs:
-                future.cancel()
-            await gather_futures()
-            raise
         finally:
-            if executor:
-                executor.shutdown(wait=False)
-            closable_iterators: List[AsyncClosable] = [
-                cast(AsyncClosable, iterator)
-                for iterator, _ in iterator_and_future_pairs
-                if isinstance(iterator, AsyncClosable)
-            ]
-            iterator_and_future_pairs.clear()
-            await asyncio.gather(
-                *(it.aclose() for it in closable_iterators),
-                return_exceptions=True,
-            )
+
+            async def finalize() -> None:
+                closable_iterators: List[AsyncClosable] = []
+                cancelled_futures: List[
+                    "Union[asyncio.Future[T], futures.Future[T]]"
+                ] = []
+                for iterator, future in iterator_and_future_pairs:
+                    future.cancel()
+                    cancelled_futures.append(future)
+                    if isinstance(iterator, AsyncClosable):
+                        closable_iterators.append(iterator)
+                await asyncio.gather(
+                    *map(asyncio.wrap_future, cancelled_futures),
+                    return_exceptions=True,
+                )
+                iterator_and_future_pairs.clear()
+                if executor:
+                    executor.shutdown()
+                await asyncio.gather(
+                    *(it.aclose() for it in closable_iterators),
+                    return_exceptions=True,
+                )
+
+            await resisting_cancellation(finalize())
 
 
 class ConcurrentFlattenAsyncIterator(_RaisingAsyncIterator[T]):

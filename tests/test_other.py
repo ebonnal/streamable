@@ -1,7 +1,7 @@
 import asyncio
 import copy
 import queue
-import threading
+import sys
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from typing import (
@@ -21,6 +21,7 @@ from tests.tools.func import (
     SLOW_IDENTITY_DURATION,
     async_throw_if_falsy_func,
     audit_awaitable,
+    execute_in_thread,
     identity,
     noarg_asyncify,
     nothing,
@@ -324,23 +325,17 @@ def test_loop_lifecycle() -> None:
     # getting the iterator does not set the loop
     assert get_current_loop() is None
     assert next(it) == 0
-    # the loop is set by the first next
-    assert get_current_loop() is not None
-    get_current_loop().close()
-    with pytest.raises(RuntimeError, match="loop is closed"):
-        next(it)
-    it = iter(s)
-    assert get_current_loop().is_closed()
-    assert next(it) == 0
-    # next on new iterator sets a new non-closed loop
-    assert not get_current_loop().is_closed()
-    assert list(it) == [0]
-    # stopiteration does not close/unset the loop
-    assert not get_current_loop().is_closed()
+    # the loop is not set by the first next
+    assert get_current_loop() is None
 
 
+@pytest.mark.xfail(
+    sys.version_info < (3, 11),
+    reason="asyncio.Runner added in version 3.11.",
+    strict=True,
+)
 @pytest.mark.parametrize("in_thread", [False, True])
-def test_sync_iteration_shares_the_thread_loop(in_thread: bool) -> None:
+def test_sync_iteration_shares_the_runner(in_thread: bool) -> None:
     loops: List[asyncio.AbstractEventLoop] = []
 
     async def record_loop(x: int) -> int:
@@ -348,14 +343,17 @@ def test_sync_iteration_shares_the_thread_loop(in_thread: bool) -> None:
         return x
 
     s = stream([0]).map(record_loop)
-    result: List[int] = []
+    addition_result: List[int] = []
+
+    def add_streams_within_runner_context() -> None:
+        with asyncio.Runner():
+            addition_result.extend(s + s)
+
     if in_thread:
-        thread = threading.Thread(target=lambda: result.extend(s + s))
-        thread.start()
-        thread.join()
+        execute_in_thread(add_streams_within_runner_context)
     else:
-        result.extend(s + s)
-    assert result == [0, 0]
+        add_streams_within_runner_context()
+    assert addition_result == [0, 0]
     assert loops[0] is loops[1]
 
 
