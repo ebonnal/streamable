@@ -1,12 +1,27 @@
 import asyncio
 from concurrent import futures
-from typing import Awaitable, NamedTuple, TypeVar, Union
+from dataclasses import dataclass
+from typing import Awaitable, TypeVar, Union
 
 T = TypeVar("T")
 
 
-class ExceptionContainer(NamedTuple):
+@dataclass
+class ExceptionContainer:
     exception: Exception
+
+    class ClearedException(Exception):
+        pass
+
+    @staticmethod
+    def raise_if_instance(obj: Union[T, "ExceptionContainer"]) -> T:
+        if isinstance(obj, ExceptionContainer):
+            try:
+                raise obj.exception
+            finally:
+                obj.exception = ExceptionContainer.ClearedException()
+                del obj
+        return obj
 
     @classmethod
     async def aresult(

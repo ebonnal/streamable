@@ -1,4 +1,3 @@
-import builtins
 import datetime
 from concurrent.futures import Executor
 from operator import itemgetter
@@ -17,6 +16,7 @@ from typing import (
 )
 
 from streamable import _iterators
+from streamable._tools._iter import ClosableIterator
 from streamable._tools._observation import Observation
 
 T = TypeVar("T")
@@ -25,21 +25,21 @@ Exc = TypeVar("Exc", bound=Exception)
 
 
 def buffer(
-    upstream: Iterator[T],
+    upstream: ClosableIterator[T],
     up_to: Optional[int] = None,
-) -> Iterator[T]:
+) -> ClosableIterator[T]:
     return _iterators.BufferIterator(upstream, up_to)
 
 
 def catch(
-    upstream: Iterator[T],
+    upstream: ClosableIterator[T],
     errors: Union[Type[Exc], Tuple[Type[Exc], ...]],
     *,
     where: Optional[Callable[[Exc], object]] = None,
     replace: Optional[Callable[[Exc], U]] = None,
     do: Optional[Callable[[Exc], object]] = None,
     stop: bool = False,
-) -> Iterator[Union[T, U]]:
+) -> ClosableIterator[Union[T, U]]:
     return _iterators.CatchIterator(
         upstream,
         errors,
@@ -52,16 +52,17 @@ def catch(
 
 def filter(
     where: Callable[[T], object],
-    upstream: Iterator[T],
-) -> Iterator[T]:
-    return builtins.filter(where, upstream)
+    upstream: ClosableIterator[T],
+) -> ClosableIterator[T]:
+    # TODO relace
+    return _iterators.FilterIterator(where, upstream)
 
 
 def flatten(
-    upstream: Iterator[Union[Iterable[T], AsyncIterable[T]]],
+    upstream: ClosableIterator[Union[Iterable[T], AsyncIterable[T]]],
     *,
     concurrency: int = 1,
-) -> Iterator[T]:
+) -> ClosableIterator[T]:
     if concurrency == 1:
         return _iterators.FlattenIterator(upstream)
     return _iterators.ConcurrentFlattenIterator(
@@ -71,7 +72,7 @@ def flatten(
 
 
 def group(
-    upstream: Iterator[T],
+    upstream: ClosableIterator[T],
     up_to: Optional[int] = None,
     *,
     within: Optional[datetime.timedelta] = None,
@@ -84,7 +85,7 @@ def group(
             _iterators.GroupByIterator(upstream, by=by, up_to=up_to)
         )
     if by is None:
-        return builtins.map(
+        return _iterators.MapIterator(
             itemgetter(1),
             _iterators.GroupByWithinIterator(
                 upstream, by=lambda _: None, up_to=up_to, within=within
@@ -95,13 +96,13 @@ def group(
 
 def map(
     into: Callable[[T], U],
-    upstream: Iterator[T],
+    upstream: ClosableIterator[T],
     *,
     concurrency: Union[int, Executor] = 1,
     as_completed: bool = False,
-) -> Iterator[U]:
+) -> ClosableIterator[U]:
     if concurrency == 1:
-        return builtins.map(into, upstream)
+        return _iterators.MapIterator(into, upstream)
     else:
         return _iterators.ConcurrentMapIterator(
             upstream,
@@ -112,11 +113,11 @@ def map(
 
 
 def observe(
-    upstream: Iterator[T],
+    upstream: ClosableIterator[T],
     subject: str,
     every: Union[None, int, datetime.timedelta],
     do: Callable[[Observation], object],
-) -> Iterator[T]:
+) -> ClosableIterator[T]:
     if every is None:
         return _iterators.PowerObserveIterator(upstream, subject, do)
     elif isinstance(every, int):
@@ -125,27 +126,27 @@ def observe(
 
 
 def skip(
-    upstream: Iterator[T],
+    upstream: ClosableIterator[T],
     until: Union[int, Callable[[T], object]],
-) -> Iterator[T]:
+) -> ClosableIterator[T]:
     if isinstance(until, int):
         return _iterators.CountSkipIterator(upstream, until)
     return _iterators.PredicateSkipIterator(upstream, until)
 
 
 def take(
-    upstream: Iterator[T],
+    upstream: ClosableIterator[T],
     until: Union[int, Callable[[T], object]],
-) -> Iterator[T]:
+) -> ClosableIterator[T]:
     if isinstance(until, int):
         return _iterators.CountTakeIterator(upstream, until)
     return _iterators.PredicateTakeIterator(upstream, until)
 
 
 def throttle(
-    upstream: Iterator[T],
+    upstream: ClosableIterator[T],
     count: int,
     *,
     per: datetime.timedelta,
-) -> Iterator[T]:
+) -> ClosableIterator[T]:
     return _iterators.ThrottleIterator(upstream, count, per)

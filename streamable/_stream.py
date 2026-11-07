@@ -1,6 +1,7 @@
 import datetime
 import logging
 from concurrent.futures import Executor
+from contextlib import closing
 from typing import (
     TYPE_CHECKING,
     AsyncIterable,
@@ -10,7 +11,6 @@ from typing import (
     Generator,
     Generic,
     Iterable,
-    Iterator,
     List,
     Optional,
     Tuple,
@@ -26,6 +26,7 @@ from streamable._tools._context import aclosing
 from streamable._tools._iter import (
     AsyncToSyncIterator,
     ClosableAsyncIterator,
+    ClosableIterator,
 )
 from streamable._tools._logging import setup_logger
 from streamable._tools._observation import Observation
@@ -160,7 +161,54 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         """
         return self._source
 
-    def __iter__(self) -> Iterator[T]:
+    def __iter__(self) -> ClosableIterator[T]:
+        """
+        Return an ``Iterator`` with a ``.close`` method.
+
+        Note that if the ``stream`` involves async functions or an ``AsyncIterable`` source, the returned iterator will run an async iteration under the hood (via ``stream.__aiter__``), using the current event loop if one is set.
+
+        During a sync iteration, these operations spawn child threads:
+
+        - ``.map``/``.do``/``.flatten`` with ``concurrency > 1``
+        - ``.buffer``
+        - ``.group(..., within=timedelta(...))``
+        - ``.observe(..., every=timedelta(...))``
+
+        When the iteration is complete, all the child threads are done.
+
+        When the iterator is destroyed before it is exhausted, the pending child threads are terminated (queued work is cancelled if possible).
+
+        Use the ``.close`` method to cancel and terminate any pending child threads.
+
+        Errors raised by child threads during termination are not propagated.
+
+        If a source is already provided as an ``Iterator``, it is considered owned by the client and ``.close`` will not propagate to it (the same applies to inner iterables processed by ``.flatten``).
+
+        Returns:
+            ``streamable.ClosableIterator[T]``: Closable iterator over this stream's elements.
+
+        Example::
+
+            from contextlib import closing
+
+            s = stream(range(10)).do(time.sleep, concurrency=4)
+            with closing(iter(s)) as it:
+                assert next(it) == 0
+                assert next(it) == 1
+                # 4 pending tasks, for elements 2, 3, 4, 5
+            # these 4 tasks are done/cancelled
+
+            # equivalent to:
+            s = stream(range(10)).do(time.sleep, concurrency=4)
+            it = iter(s)
+            try:
+                assert next(it) == 0
+                assert next(it) == 1
+                # 4 pending tasks, for elements 2, 3, 4, 5
+            finally:
+                it.close()
+                # these 4 tasks are done/cancelled
+        """
         if self.accept(InvolvesAsyncVisitor()):
             return AsyncToSyncIterator(self.__aiter__())
         return self.accept(IteratorVisitor[T]())
@@ -178,13 +226,13 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         When the iteration is complete, all the child tasks are done.
 
-        When the iterator is destroyed before it is exhausted, the pending child tasks terminate at a subsequent cycle of the event loop.
+        When the iterator is destroyed before it is exhausted, the pending child tasks are canceled and terminated at a subsequent cycle of the event loop.
 
         Use the ``.aclose`` method to cancel and terminate any pending child tasks.
 
         Errors raised by child tasks during termination are not propagated.
 
-        If an async source is already provided as an ``AsyncIterator``, it is considered owned by the client and ``.aclose`` will not propagate to it (the same applies to inner async iterables processed by ``.flatten``), but an in-flight pull will get cancelled.
+        If a source is already provided as an ``Iterator``/``AsyncIterator``, it is considered owned by the client and ``.aclose`` will not propagate to it (the same applies to inner async iterables processed by ``.flatten``), but an in-flight pull will get cancelled.
 
         Returns:
             ``streamable.ClosableAsyncIterator[T]``: Closable async iterator over this stream's elements.
@@ -198,9 +246,9 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
                 assert await anext(it) == 0
                 assert await anext(it) == 1
                 # 4 pending tasks, for elements 2, 3, 4, 5
-            # these 4 tasks are cancelled
+            # these 4 tasks are done/cancelled
 
-            # `aclosing` appears in Python 3.10. For prior versions, use `.aclose` in a `finally` block:
+            # equivalent to:
             s = stream(range(10)).do(asyncio.sleep, concurrency=4)
             it = aiter(s)
             try:
@@ -209,7 +257,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
                 # 4 pending tasks, for elements 2, 3, 4, 5
             finally:
                 await it.aclose()
-                # these 4 tasks are cancelled
+                # these 4 tasks are done/cancelled
         """
         return self.accept(AsyncIteratorVisitor[T]())
 
@@ -245,14 +293,9 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             pipeline()
             assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
         """
-        iterator = iter(self)
-        try:
+        with closing(self.__iter__()) as iterator:
             for _ in iterator:
                 pass
-        except Exception:
-            if isinstance(iterator, AsyncToSyncIterator):
-                iterator.close()
-            raise
         return self
 
     def __await__(self) -> Generator[None, None, "stream[T]"]:
@@ -271,8 +314,8 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         """
 
         async def consume():
-            async with aclosing(self.__aiter__()) as self_iterator:
-                async for _ in self_iterator:
+            async with aclosing(self.__aiter__()) as iterator:
+                async for _ in iterator:
                     pass
 
         yield from (consume().__await__())

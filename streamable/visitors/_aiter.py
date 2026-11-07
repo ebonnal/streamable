@@ -3,6 +3,7 @@ from typing import (
     TYPE_CHECKING,
     AsyncIterable,
     Iterable,
+    Iterator,
     TypeVar,
     Union,
     cast,
@@ -13,6 +14,7 @@ from streamable._tools._func import sidify
 from streamable._tools._iter import (
     ClosableAsyncIterator,
     GuardedAsyncIterator,
+    SyncToAsyncIterable,
     SyncToAsyncIterator,
     afn_to_aiter,
     fn_to_aiter,
@@ -130,7 +132,9 @@ class AsyncIteratorVisitor(Visitor[ClosableAsyncIterator[T]]):
         if isinstance(s.source, AsyncIterable):
             return GuardedAsyncIterator(s.source)
         if isinstance(s.source, Iterable):
-            return GuardedAsyncIterator(SyncToAsyncIterator(s.source.__iter__()))
+            if isinstance(s.source, Iterator):
+                return GuardedAsyncIterator(SyncToAsyncIterator(s.source.__iter__()))
+            return GuardedAsyncIterator(SyncToAsyncIterable(s.source))
         if callable(s.source):
             if iscoroutinefunction(s.source):
                 return GuardedAsyncIterator(afn_to_aiter(s.source))

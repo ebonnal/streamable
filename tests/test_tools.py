@@ -198,12 +198,13 @@ def test_async_to_sync_iterator_cancels_anext_on_keyboard_interrupt() -> None:
     it = execute_in_thread(interrupted_next)
     # the pending `__anext__` task got cancelled
     assert cancelled
-    # the iterator got closed
-    assert it._closure_requested
-    # and its private loop too
-    assert it._loop.is_closed()
     with pytest.raises(StopIteration):
         next(it)
+    with pytest.raises(StopIteration):
+        next(it)
+    loop = it._loop
+    del it
+    assert loop.is_closed()
 
 
 def next_and_del(src: AsyncIterable) -> asyncio.AbstractEventLoop:
