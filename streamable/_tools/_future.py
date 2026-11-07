@@ -1,4 +1,4 @@
-from concurrent.futures import Future
+from concurrent.futures import Future, wait
 from queue import Queue
 from threading import Lock
 from typing import (
@@ -6,10 +6,7 @@ from typing import (
     Iterator,
     Sized,
     TypeVar,
-    Union,
 )
-
-from streamable._tools._error import ExceptionContainer
 
 T = TypeVar("T")
 
@@ -22,7 +19,7 @@ class FailedFuture(Future):
         self.set_exception(exception)
 
 
-class FutureResults(Iterator[Union[T, ExceptionContainer]], Sized):
+class FutureResults(Iterator[T], Sized):
     """
     Iterator over added futures' results. Supports adding new futures after iteration started.
     """
@@ -42,6 +39,9 @@ class FutureResults(Iterator[Union[T, ExceptionContainer]], Sized):
         for future in self._futures:
             future.cancel()
 
+    def gather(self) -> None:
+        wait(self._futures)
+
     def clear(self) -> None:
         self._futures.clear()
 
@@ -53,10 +53,11 @@ class FIFOFutureResults(FutureResults[T]):
 
     __slots__ = ()
 
-    def __next__(self) -> Union[T, ExceptionContainer]:
+    def __next__(self) -> T:
         future = next(iter(self._futures))
+        wait((future,))
         try:
-            return ExceptionContainer.result(future)
+            return future.result()
         finally:
             self._futures.pop(future, None)
             del future
@@ -91,10 +92,10 @@ class FDFOFutureResults(FutureResults[T]):
         super().add(future)
         future.add_done_callback(self._done_callback)
 
-    def __next__(self) -> Union[T, ExceptionContainer]:
+    def __next__(self) -> T:
         done_future = self._done_futures.get()
         try:
-            return ExceptionContainer.result(done_future)
+            return done_future.result()
         finally:
             self._futures.pop(done_future, None)
             del done_future

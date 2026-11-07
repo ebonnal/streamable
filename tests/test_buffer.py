@@ -1,3 +1,4 @@
+import asyncio
 import sys
 from typing import Any, Callable, List
 
@@ -13,6 +14,7 @@ from tests.tools.iter import (
     anext_or_next,
     stopiteration_type,
 )
+from tests.tools.monitor import MonitoredIntIterator
 from tests.tools.source import INTEGERS, ints
 
 
@@ -89,3 +91,19 @@ def test_buffer_with_exceptions(
 def test_buffer_chain_of_background_task(itype: IterableType) -> None:
     s = stream(INTEGERS).buffer(2).buffer(2)
     assert alist_or_list(s, itype) == list(INTEGERS)
+
+
+@pytest.mark.asyncio
+async def test_buffer_task_cancel() -> None:
+    it = stream(MonitoredIntIterator()).buffer(1).__aiter__()
+    await it.__anext__()
+    await asyncio.sleep(0)  # the puller's next pull is in flight
+    background_tasks = asyncio.all_tasks() - {asyncio.current_task()}
+    assert len(background_tasks) == 2
+    # cancelled all at once then awaited, like `asyncio.run`'s shutdown
+    for task in background_tasks:
+        task.cancel()
+    # should not hang
+    await asyncio.wait_for(
+        asyncio.gather(*background_tasks, return_exceptions=True), timeout=1
+    )

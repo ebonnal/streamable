@@ -93,7 +93,7 @@ A `stream` can be iterated several times if its source allows it.
 
 Operations return a new `stream`.
 
-Operations allow iteration to resume after an `Exception`.
+Operations allow iteration to resume after an exception.
 
 Operations accept both sync and async functions.
 
@@ -110,6 +110,8 @@ Operations adapt their behavior to the type of iteration:
 - ...
 
 A sync iteration over a `stream` involving async functions or an `AsyncIterable` source runs as an async iteration under the hood, using the current event loop if one is set.
+
+The iterators returned by `stream.__iter__`/`stream.__aiter__` expose a [`.close`/`.aclose`](#structured-concurrency) method to eagerly terminate the tasks/threads they may spawn during iteration (structured concurrency).
 
 ## ▼ `.map`
 
@@ -176,7 +178,7 @@ with asyncio.Runner() as runner:
     runner.run(http_client.aclose())
 ```
 
-Check [`.aclose`](#aclose-structured-concurrency) for *structured concurrency*.
+Check [`.close`/`.aclose`](#structured-concurrency) for *structured concurrency*.
 
 #### via processes
 
@@ -546,9 +548,9 @@ enumerated_pokes: stream[str] = (
 assert list(enumerated_pokes) == ['#1 bulbasaur', '#2 ivysaur', '#3 venusaur', '#4 charmander', '#5 charmeleon', '#6 charizard', '#7 squirtle', '#8 wartortle', '#9 blastoise']
 ```
 
-## `.aclose` (structured concurrency)
+## structured concurrency
 
-During an async iteration, these operations spawn child tasks:
+During an iteration, these operations spawn child tasks (async or threads):
 
 - `.map`/`.do`/`.flatten` with `concurrency > 1`
 - `.buffer`
@@ -557,9 +559,38 @@ During an async iteration, these operations spawn child tasks:
 
 When the iteration is complete, all the child tasks are done.
 
-When the iterator is destroyed before it is exhausted, the pending child tasks terminate at a subsequent cycle of the event loop.
+When the iterator is destroyed before it is exhausted, the pending child tasks are terminated (queued work is cancelled if possible).
 
-`stream.__aiter__` returns an async iterator with an `.aclose` method to cancel and terminate any pending child tasks:
+`stream.__iter__`/`stream.__aiter__` returns an `Iterator`/`AsyncIterator` with a retriable `.close`/`.aclose` method to eagerly terminate any pending child tasks.
+
+### `.close`
+
+```python
+from contextlib import closing
+
+s = stream(range(10)).do(time.sleep, concurrency=4)
+with closing(iter(s)) as it:
+    assert next(it) == 0
+    assert next(it) == 1
+    # 4 pending tasks, for elements 2, 3, 4, 5
+# these 4 tasks are cancelled/done
+```
+
+equivalent to:
+
+```python
+s = stream(range(10)).do(time.sleep, concurrency=4)
+it = iter(s)
+try:
+    assert next(it) == 0
+    assert next(it) == 1
+    # 4 pending tasks, for elements 2, 3, 4, 5
+finally:
+    it.close()
+    # these 4 tasks are cancelled/done
+```
+
+### `.aclose`
 
 ```python
 from contextlib import aclosing
@@ -569,10 +600,10 @@ async with aclosing(aiter(s)) as it:
     assert await anext(it) == 0
     assert await anext(it) == 1
     # 4 pending tasks, for elements 2, 3, 4, 5
-# these 4 tasks are cancelled
+# these 4 tasks are cancelled/done
 ```
 
-`aclosing` appears in Python 3.10. For prior versions, use `.aclose` in a `finally` block:
+equivalent to:
 
 ```python
 s = stream(range(10)).do(asyncio.sleep, concurrency=4)
@@ -583,7 +614,7 @@ try:
     # 4 pending tasks, for elements 2, 3, 4, 5
 finally:
     await it.aclose()
-    # these 4 tasks are cancelled
+    # these 4 tasks are cancelled/done
 ```
 
 ## distinct
@@ -609,15 +640,7 @@ assert list(unique_ints) == [0, 1]
 
 There is zero overhead during iteration compared to `builtins.map` and `builtins.filter`:
 
-```python
-odd_int_chars = stream(range(N)).filter(lambda n: n % 2).map(str)
-```
-
-`iter(odd_int_chars)` visits the operation lineage and returns exactly:
-
-```python
-map(str, filter(lambda n: n % 2, range(N)))
-```
+Iterating over `stream(range(N)).filter(lambda n: n % 2).map(str)` has the exact same performance as iterating over `map(str, filter(lambda n: n % 2, range(N)))`.
 
 Throughput of each operation compared to `builtins.map`:
 

@@ -4,21 +4,27 @@
 
 ## [2.1.0]
 
-- `.buffer`: `up_to` now defaults to `None` for unbounded buffer.
+- `.buffer`: `up_to` now defaults to `None` for unbounded buffer: `stream(...).buffer()`
+
+- `.flatten`: handle inner `AsyncIterable`s during sync iterations too.
+
+- `.flatten`: accepts client-provided executor as `concurrency: int | ThreadPoolExecutor`.
+
+- a sync iteration over a `stream` involving async functions or an `AsyncIterable` source no longer sets the current event loop.
+
+- `.__iter__` now returns a `streamable.ClosableIterator` exposing a `.close()` method
   ```python
-  nolimit_buffered_stream = stream(...).buffer()
+  from contextlib import closing
+
+  s = stream(range(10)).do(time.sleep, concurrency=4)
+  with closing(iter(s)) as it:
+      assert next(it) == 0
+      assert next(it) == 1
+      # 4 pending tasks, for elements 2, 3, 4, 5
+  # these 4 tasks are done/cancelled
   ```
 
-- `.__aiter__` now returns a `ClosableAsyncIterator` exposing an `.aclose()` method:
-  - During an async iteration, these operations spawn child tasks:
-    - `.map`/`.do`/`.flatten` with `concurrency > 1`
-    - `.buffer`
-    - `.group(..., within=timedelta(...))`
-    - `.observe(..., every=timedelta(...))`
-  - When the iteration is complete, all the child tasks are done.
-  - When the iterator is destroyed before it is exhausted, the pending child tasks terminate at a subsequent cycle of the event loop.
-  - Use the `.aclose` method to cancel and terminate any pending child tasks:
-
+- `.__aiter__` now returns a `streamable.ClosableAsyncIterator` exposing an `.aclose()` method
   ```python
   from contextlib import aclosing
 
@@ -27,25 +33,10 @@
       assert await anext(it) == 0
       assert await anext(it) == 1
       # 4 pending tasks, for elements 2, 3, 4, 5
-  # these 4 tasks are cancelled
-
-  # `aclosing` appears in Python 3.10. For prior versions, use `.aclose` in a `finally` block:
-  s = stream(range(10)).do(asyncio.sleep, concurrency=4)
-  it = aiter(s)
-  try:
-      assert await anext(it) == 0
-      assert await anext(it) == 1
-      # 4 pending tasks, for elements 2, 3, 4, 5
-  finally:
-      await it.aclose()
-      # these 4 tasks are cancelled
+  # these 4 tasks are done/cancelled
   ```
-  - If an async source is already provided as an ``AsyncIterator``, it is considered owned by the client and ``.aclose`` will not propagate to it (the same applies to inner async iterables processed by ``.flatten``), but an in-flight pull will get cancelled.
 
-- `.flatten`: handle inner `AsyncIterable`s during sync iterations too.
-
-- a sync iteration over a `stream` involving async functions or an `AsyncIterable` source no longer sets the current event loop.
-
+- all operations can resume after an upstream `BaseException` (generator-based operations used to only resist to `Exception`s)
 
 ## [2.0.0]
 

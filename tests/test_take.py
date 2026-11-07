@@ -1,6 +1,5 @@
-import asyncio
 import sys
-from typing import Any, AsyncIterator, Callable, List
+from typing import Any, Callable, Iterable, List
 
 import pytest
 
@@ -88,21 +87,13 @@ def test_take_additional_nexts(itype: IterableType, taking_stream: stream[int]) 
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_take_again(itype: IterableType) -> None:
+@pytest.mark.parametrize(
+    "get_stream", [lambda src: stream(src), lambda src: stream(src).buffer(2)]
+)
+def test_take_again(
+    itype: IterableType, get_stream: Callable[[Iterable], stream[int]]
+) -> None:
     src = iter(range(10))
-    s = stream(src).take(2)
+    s = get_stream(src).take(2)
     assert alist_or_list(s, itype) == [0, 1]
     assert alist_or_list(s, itype) == [2, 3]
-
-
-@pytest.mark.asyncio
-async def test_take_again_with_buffer() -> None:
-    async def src() -> AsyncIterator[int]:
-        for i in range(10):
-            await asyncio.sleep(0.01)
-            yield i
-
-    s = stream(src()).buffer(2).take(2)
-    assert [i async for i in s] == [0, 1]
-    # src's pending pull was cancelled by `.take`'s stop (`.aclose`)
-    assert [i async for i in s] == []
