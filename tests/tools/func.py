@@ -21,8 +21,6 @@ from typing import (
 import pytest
 
 from streamable._tools._async import AsyncFunction
-from tests.tools.error import TestError
-from tests.tools.source import N
 
 if TYPE_CHECKING:
     from typing import ParamSpec
@@ -75,17 +73,6 @@ def throw_func(exc: Type[BaseException]) -> Callable[[T], T]:
 def async_throw_func(exc: Type[BaseException]) -> AsyncFunction[T, T]:
     async def f(_: T) -> T:
         raise exc
-
-    return f
-
-
-def throw_for_odd_func(exc) -> Callable[[int], int]:
-    return lambda i: throw(exc) if i % 2 == 1 else i
-
-
-def async_throw_for_odd_func(exc) -> AsyncFunction[int, int]:
-    async def f(i):
-        return throw(exc) if i % 2 == 1 else i
 
     return f
 
@@ -181,10 +168,6 @@ def range_raising_at_exhaustion(
     raise exception
 
 
-def src_raising_at_exhaustion() -> Iterator[int]:
-    return range_raising_at_exhaustion(0, N, 1, TestError())
-
-
 def noarg_asyncify(fn: Callable[[], T]) -> Callable[[], Coroutine[Any, Any, T]]:
     async def wrap() -> T:
         return fn()
@@ -213,7 +196,7 @@ async def audit_awaitable(
     leftover_tasks = 0
     baseline = set(asyncio.all_tasks())
     start = time.perf_counter()
-    if assert_raises is not None:
+    if assert_raises:
         with pytest.raises(assert_raises) as raised:
             await awaitable
         result = raised.value

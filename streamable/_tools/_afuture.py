@@ -1,14 +1,14 @@
 import asyncio
 from concurrent import futures
+from contextlib import suppress
 from typing import (
     AsyncIterator,
     Dict,
+    Iterable,
     Sized,
     TypeVar,
     Union,
 )
-
-from streamable._tools._error import ExceptionContainer
 
 T = TypeVar("T")
 
@@ -21,7 +21,30 @@ class FailedFuture(asyncio.Future):
         self.set_exception(exception)
 
 
-class FutureResults(AsyncIterator[Union[T, ExceptionContainer]], Sized):
+def safe_wrap_future(
+    future: "Union[asyncio.Future[T], futures.Future[T]]",
+) -> "asyncio.Future[T]":
+    wrapped = asyncio.wrap_future(future)
+    if wrapped is not future:
+        # prevent "Future exception was never retrieved" warnings
+        wrapped.add_done_callback(
+            lambda f: f.exception() if not f.cancelled() else None
+        )
+    return wrapped
+
+
+def cancel_threadsafe(
+    futures_: "Iterable[Union[asyncio.Future[T], futures.Future[T]]]",
+) -> None:
+    for future in futures_:
+        if isinstance(future, futures.Future):
+            future.cancel()
+        elif not future.done():
+            with suppress(RuntimeError):
+                future.get_loop().call_soon_threadsafe(future.cancel)
+
+
+class FutureResults(AsyncIterator[T], Sized):
     """
     Iterator over added futures' results. Supports adding new futures after iteration started.
     """
@@ -41,11 +64,12 @@ class FutureResults(AsyncIterator[Union[T, ExceptionContainer]], Sized):
         for future in self._futures:
             future.cancel()
 
+    def cancel_threadsafe(self) -> None:
+        cancel_threadsafe(self._futures)
+
     async def gather(self) -> None:
-        await asyncio.gather(
-            *map(asyncio.wrap_future, self._futures),
-            return_exceptions=True,
-        )
+        if self._futures:
+            await asyncio.wait(tuple(map(safe_wrap_future, self._futures)))
 
     def clear(self) -> None:
         self._futures.clear()
@@ -58,13 +82,13 @@ class FIFOFutureResults(FutureResults[T]):
 
     __slots__ = ()
 
-    async def __anext__(self) -> Union[T, ExceptionContainer]:
+    async def __anext__(self) -> T:
         future = next(iter(self._futures))
+        await asyncio.wait((safe_wrap_future(future),))
         try:
-            return await ExceptionContainer.aresult(future)
+            return future.result()
         finally:
-            if future.done():
-                self._futures.pop(future, None)
+            self._futures.pop(future, None)
             del future
 
 
@@ -84,8 +108,9 @@ class FDFOFutureResults(FutureResults[T]):
     def clear(self) -> None:
         super().clear()
         self._cleared = True
-        while not self._done_futures.empty():
-            self._done_futures.get_nowait()
+        if self._done_futures:
+            while not self._done_futures.empty():
+                self._done_futures.get_nowait()
 
     def _done_callback(
         self, future: "Union[asyncio.Future[T], futures.Future[T]]"
@@ -103,10 +128,10 @@ class FDFOFutureResults(FutureResults[T]):
         else:
             future.add_done_callback(self._done_callback)
 
-    async def __anext__(self) -> Union[T, ExceptionContainer]:
+    async def __anext__(self) -> T:
         done_future = await self._done_futures.get()
         try:
-            return ExceptionContainer.result(done_future)
+            return done_future.result()
         finally:
             self._futures.pop(done_future, None)
             del done_future

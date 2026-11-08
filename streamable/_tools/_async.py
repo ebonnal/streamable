@@ -1,6 +1,5 @@
 import asyncio
 import sys
-from contextlib import suppress
 from typing import (
     AsyncIterator,
     Awaitable,
@@ -68,14 +67,8 @@ else:  # pragma: no cover
         return task.result()
 
 
-async def resisting_cancellation(future: Awaitable[T]) -> T:
-    future = asyncio.ensure_future(future)
-    try:
-        return await asyncio.shield(future)
-    except asyncio.CancelledError:
-        while not future.done():
-            with suppress(asyncio.CancelledError):
-                await asyncio.wait((future,))
-        raise
-    finally:
-        del future
+async def semaphored(
+    into: AsyncFunction[T, R], elem: T, semaphore: asyncio.Semaphore
+) -> R:
+    async with semaphore:
+        return await into(elem)

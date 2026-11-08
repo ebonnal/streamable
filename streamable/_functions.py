@@ -1,5 +1,5 @@
 import datetime
-from concurrent.futures import Executor
+from concurrent.futures import Executor, ThreadPoolExecutor
 from operator import itemgetter
 from typing import (
     AsyncIterable,
@@ -61,7 +61,7 @@ def filter(
 def flatten(
     upstream: ClosableIterator[Union[Iterable[T], AsyncIterable[T]]],
     *,
-    concurrency: Union[int, Executor] = 1,
+    concurrency: Union[int, ThreadPoolExecutor] = 1,
 ) -> ClosableIterator[T]:
     if concurrency == 1:
         return _iterators.FlattenIterator(upstream)

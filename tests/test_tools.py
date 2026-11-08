@@ -21,10 +21,10 @@ from streamable._tools._iter import AsyncToSyncIterator, GuardedAsyncIterator
 from streamable._tools._logging import logfmt_str_escape, setup_logger
 from tests.tools.error import TestError, collecting_unraisables
 from tests.tools.func import async_identity, execute_in_thread, identity, throw
-from tests.tools.iter import async_iter
+from tests.tools.iter import AsyncOnlyIterable, async_iter
 from tests.tools.monitor import (
-    CloseFailingMonitoredIntAsyncIterable,
-    MonitoredIntAsyncIterable,
+    CloseFailingMonitoredIntIterable,
+    MonitoredIntIterable,
 )
 from tests.tools.source import INTEGERS
 
@@ -202,9 +202,26 @@ def test_async_to_sync_iterator_cancels_anext_on_keyboard_interrupt() -> None:
         next(it)
     with pytest.raises(StopIteration):
         next(it)
-    loop = it._loop
-    del it
-    assert loop.is_closed()
+    it.close()
+    assert it._loop.is_closed()
+
+
+def test_async_to_sync_iterator_with_private_loop_after_exhaustion() -> None:
+    def exhaust() -> None:
+        s = stream(INTEGERS).map(async_identity)
+        # `s()` closes its iterator once exhausted
+        s()
+        it = cast(AsyncToSyncIterator, iter(s))
+        assert list(it) == list(INTEGERS)
+        # exhaustion does not close the private loop: pulling again or closing still works
+        assert not it._loop.is_closed()
+        with pytest.raises(StopIteration):
+            next(it)
+        it.close()
+        assert it._loop.is_closed()
+
+    # in a thread without event loop: the iterators use a private loop
+    execute_in_thread(exhaust)
 
 
 def next_and_del(src: AsyncIterable) -> asyncio.AbstractEventLoop:
@@ -289,39 +306,39 @@ def next_and_del_with_not_owned_loop_while_another_runs(
 @pytest.mark.parametrize(
     "src_type, scenario, owned_src_is_closed, loop_is_closed, unraisables_exc_types",
     [
-        (MonitoredIntAsyncIterable, next_and_del, True, True, []),
-        (MonitoredIntAsyncIterable, next_and_del_within_another_loop, False, True, []),
+        (MonitoredIntIterable, next_and_del, True, True, []),
+        (MonitoredIntIterable, next_and_del_within_another_loop, False, True, []),
         (
-            MonitoredIntAsyncIterable,
+            MonitoredIntIterable,
             partial(next_and_close_loop_and_del, pull=True),
             False,
             True,
             [],
         ),
         (
-            MonitoredIntAsyncIterable,
+            MonitoredIntIterable,
             partial(next_and_close_loop_and_del, pull=False),
             False,
             True,
             [],
         ),
-        (CloseFailingMonitoredIntAsyncIterable, next_and_del, True, True, [TestError]),
+        (CloseFailingMonitoredIntIterable, next_and_del, True, True, [TestError]),
         (
-            MonitoredIntAsyncIterable,
+            MonitoredIntIterable,
             partial(next_and_del_while_its_not_owned_loop_runs, within_thread=True),
             True,
             False,
             [],
         ),
         (
-            MonitoredIntAsyncIterable,
+            MonitoredIntIterable,
             partial(next_and_del_while_its_not_owned_loop_runs, within_thread=False),
             True,
             False,
             [],
         ),
         (
-            MonitoredIntAsyncIterable,
+            MonitoredIntIterable,
             next_and_del_with_not_owned_loop_while_another_runs,
             False,
             False,
@@ -330,15 +347,16 @@ def next_and_del_with_not_owned_loop_while_another_runs(
     ],
 )
 def test_async_to_sync_iterator_del(
-    src_type: "Type[MonitoredIntAsyncIterable]",
-    scenario: Callable[[MonitoredIntAsyncIterable], asyncio.AbstractEventLoop],
+    src_type: "Type[MonitoredIntIterable]",
+    scenario: Callable[[AsyncIterable[int]], asyncio.AbstractEventLoop],
     owned_src_is_closed: bool,
     loop_is_closed: bool,
     unraisables_exc_types: List["Type[BaseException]"],
 ) -> None:
     src = src_type()
     with collecting_unraisables() as unraisables:
-        loop = execute_in_thread(scenario, src)
+        # async-only: the sync iteration must go through an `AsyncToSyncIterator`
+        loop = execute_in_thread(scenario, AsyncOnlyIterable(src))
     assert src.iterators[0].closed is owned_src_is_closed
     assert loop.is_closed() is loop_is_closed
     assert [

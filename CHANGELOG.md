@@ -8,6 +8,8 @@
 
 - `.flatten`: handle inner `AsyncIterable`s during sync iterations too.
 
+- `.flatten`: accepts client-provided executor as `concurrency: int | ThreadPoolExecutor`.
+
 - a sync iteration over a `stream` involving async functions or an `AsyncIterable` source no longer sets the current event loop.
 
 - `.__iter__` now returns a `streamable.ClosableIterator` exposing a `.close()` method
@@ -34,6 +36,7 @@
   # these 4 tasks are done/cancelled
   ```
 
+- all operations can resume after an upstream `BaseException` (generator-based operations used to only resist to `Exception`s)
 
 ## [2.0.0]
 

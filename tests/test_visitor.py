@@ -17,9 +17,9 @@ from streamable._stream import (
     ThrottleStream,
     stream,
 )
-from streamable._tools._iter import SyncAsyncIterable
 from streamable.visitors import Visitor
 from streamable.visitors._involves_async import InvolvesAsyncVisitor
+from tests.tools.iter import SyncAsyncIterable
 
 
 def test_visitor() -> None:

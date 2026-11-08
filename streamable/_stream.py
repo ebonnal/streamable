@@ -1,6 +1,6 @@
 import datetime
 import logging
-from concurrent.futures import Executor
+from concurrent.futures import Executor, ThreadPoolExecutor
 from contextlib import closing
 from typing import (
     TYPE_CHECKING,
@@ -66,7 +66,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
     Operations return a new `stream`.
 
-    Operations allow iteration to resume after an ``Exception``.
+    Operations allow iteration to resume after an exception.
 
     Operations accept both sync and async functions.
 
@@ -651,17 +651,17 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
     def flatten(
         self: "stream[Union[Iterable[U], AsyncIterable[U]]]",
         *,
-        concurrency: Union[int, Executor] = 1,
+        concurrency: Union[int, ThreadPoolExecutor] = 1,
     ) -> "stream[U]":
         """
         Explode upstream elements, assumed to be ``Iterable`` or ``AsyncIterable``.
 
         Args:
-            concurrency (``int | Executor``, optional): Concurrency control:
+            concurrency (``int | ThreadPoolExecutor``, optional): Concurrency control:
 
               ‣ ``1`` (default): Flatten each upstream iterable before moving on to the next one.
               ‣ ``int > 1``: Flatten ``concurrency`` upstream iterables at a time in a round-robin fashion (via threads or async tasks).
-              ‣ ``Executor``: Uses the provided executor (e.g., a ``ProcessPoolExecutor``), the concurrency is the number of workers.
+              ‣ ``ThreadPoolExecutor``: Uses the provided executor, the concurrency is the number of workers.
 
         Returns:
             ``stream[U]``: Stream of all elements from upstream iterables.
@@ -1158,7 +1158,7 @@ class FlattenStream(DownStream[Union[Iterable[U], AsyncIterable[U]], U]):
     def __init__(
         self,
         upstream: stream[Union[Iterable[U], AsyncIterable[U]]],
-        concurrency: Union[int, Executor],
+        concurrency: Union[int, ThreadPoolExecutor],
     ) -> None:
         super().__init__(upstream)
         self._concurrency = concurrency

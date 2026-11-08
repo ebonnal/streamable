@@ -1,6 +1,5 @@
 import datetime
 import queue
-import sys
 import time
 import weakref
 from abc import abstractmethod
@@ -77,81 +76,96 @@ class _BaseOperationIterator(ClosableIterator[U], Generic[T, U]):
             self.close()
 
 
-def puller_task(
-    iterator: Iterator[T],
-    elems: "queue.Queue[Union[T, ExceptionContainer]]",
-    limit: Semaphore,
-    stop: Event,
-    done: Event,
-) -> None:
-    try:
-        limit.acquire()
-        while not stop.is_set():
+class _Puller(Generic[T]):
+    __slots__ = ("_iterator", "elems", "_semaphore", "_pulling_thread", "_stop")
+
+    def __init__(
+        self,
+        iterator: Iterator[T],
+        ahead_pulls: Optional[int],
+    ) -> None:
+        self._iterator = iterator
+        self.elems: "queue.Queue[Union[T, ExceptionContainer]]" = queue.Queue()
+        self._semaphore = None if ahead_pulls is None else Semaphore(ahead_pulls)
+        self._pulling_thread: Optional[Thread] = None
+        self._stop: bool = False
+
+    def allow_to_pull(self) -> None:
+        if self._semaphore:
+            self._semaphore.release()
+
+    def _ask_to_pull(self) -> None:
+        if self._semaphore:
+            self._semaphore.acquire()
+
+    def _pulling(self) -> None:
+        self._ask_to_pull()
+        while not self._stop:
             try:
-                elems.put_nowait(iterator.__next__())
+                self.elems.put_nowait(self._iterator.__next__())
             except StopIteration:
-                elems.put_nowait(STOP_ITERATION)
+                self.elems.put_nowait(STOP_ITERATION)
                 break
             except BaseException as e:
-                elems.put_nowait(ExceptionContainer(e))
-            limit.acquire()
-    finally:
-        done.set()
+                self.elems.put_nowait(ExceptionContainer(e))
+            self._ask_to_pull()
+
+    def start(self) -> None:
+        if self._pulling_thread is None:
+            self._pulling_thread = Thread(target=self._pulling, daemon=True)
+        # also starts a thread whose start was interrupted
+        if not self._pulling_thread.ident:
+            self._pulling_thread.start()
+
+    def stop(self) -> None:
+        # a thread can't be cancelled: wake it up, it stops before its next pull
+        self._stop = True
+        self.allow_to_pull()
+        self._clear()
+
+    def wait(self) -> None:
+        if self._pulling_thread and self._pulling_thread.ident:
+            self._pulling_thread.join()
+        self._clear()
+
+    def _clear(self) -> None:
+        with self.elems.mutex:
+            self.elems.queue.clear()
 
 
 class _PullerBasedIterator(_BaseOperationIterator[T, U]):
-    __slots__ = (
-        "_pulled",
-        "_limit",
-        "_stopped",
-        "_puller",
-        "_stop_puller",
-        "_puller_done",
-    )
+    __slots__ = ("_ahead_pulls", "_stopped", "_puller")
 
     def __init__(
         self,
         upstream: ClosableIterator[T],
-        ahead_pulls: int,
+        ahead_pulls: Optional[int],
     ) -> None:
         super().__init__(upstream)
-        self._pulled: "queue.Queue[Union[T, ExceptionContainer]]" = queue.Queue()
-        self._limit = Semaphore(ahead_pulls)
-        self._stopped: bool = False
-        self._puller: Optional[Thread] = None
-        self._stop_puller = Event()
-        self._puller_done = Event()
+        self._ahead_pulls = ahead_pulls
+        self._puller: Optional[_Puller[T]] = None
+        self._stopped = False
 
-    def _start_puller(self) -> None:
-        if not self._puller:
-            self._puller = Thread(
-                target=puller_task,
-                args=(
-                    self.upstream,
-                    self._pulled,
-                    self._limit,
-                    self._stop_puller,
-                    self._puller_done,
-                ),
-                daemon=True,
-            )
-        if not self._puller.ident:
-            self._puller.start()
+    @property
+    def _lazy_puller(self) -> _Puller[T]:
+        if self._puller is None:
+            self._puller = _Puller(self.upstream, self._ahead_pulls)
+        self._puller.start()
+        return self._puller
 
     def _terminate(self) -> None:
         self._stopped = True
-        self._stop_puller.set()
-        self._limit.release()
-        if self._puller and self._puller.ident:
-            self._puller_done.wait()
+        if self._puller:
+            self._puller.stop()
+            self._puller.wait()
 
     def close(self) -> None:
         with closing(cast(Closable, super())):
             self._terminate()
 
     def __del__(self) -> None:
-        self._stop_puller.set()
-        self._limit.release()
+        if self._puller:
+            self._puller.stop()
 
 
 ##########
@@ -167,16 +181,16 @@ class BufferIterator(_PullerBasedIterator[T, T]):
         upstream: ClosableIterator[T],
         up_to: Optional[int],
     ) -> None:
-        super().__init__(upstream, up_to or sys.maxsize)
+        super().__init__(upstream, up_to)
 
     def __next__(self) -> T:
         if self._stopped:
             raise StopIteration
-        self._start_puller()
+        puller = self._lazy_puller
         try:
-            elem = [self._pulled.get()]
+            elem = [puller.elems.get()]
         finally:
-            self._limit.release()
+            puller.allow_to_pull()
         if elem[-1] is STOP_ITERATION:
             self._terminate()
             raise StopIteration
@@ -354,7 +368,7 @@ class GroupByWithinIterator(_PullerBasedIterator[T, Tuple[U, List[T]]]):
         "within_seconds",
         "_groups",
         "_to_raise",
-        "_release_needed",
+        "_should_allow_to_pull",
     )
 
     def __init__(
@@ -372,7 +386,7 @@ class GroupByWithinIterator(_PullerBasedIterator[T, Tuple[U, List[T]]]):
             lambda: (time.perf_counter(), [])
         )
         self._to_raise: Optional[Exception] = None
-        self._release_needed: bool = True
+        self._should_allow_to_pull: bool = True
 
     @staticmethod
     def _oldest_group(groups: Dict[U, Tuple[float, List[T]]]) -> Tuple[U, List[T]]:
@@ -396,21 +410,21 @@ class GroupByWithinIterator(_PullerBasedIterator[T, Tuple[U, List[T]]]):
                 self._to_raise = None
         if self._stopped:
             raise StopIteration
-        self._start_puller()
+        puller = self._lazy_puller
         while True:
             try:
-                if self._release_needed:
-                    self._limit.release()
-                    self._release_needed = False
+                if self._should_allow_to_pull:
+                    puller.allow_to_pull()
+                    self._should_allow_to_pull = False
                 try:
-                    elem = self._pulled.get(timeout=self._timeout(self._groups))
+                    elem = puller.elems.get(timeout=self._timeout(self._groups))
                 except queue.Empty:
                     return self._oldest_group(self._groups)
                 except BaseException:
-                    self._release_needed = True
+                    self._should_allow_to_pull = True
                     raise
                 else:
-                    self._release_needed = True
+                    self._should_allow_to_pull = True
                 elem = ExceptionContainer.raise_if_instance(elem)
                 if elem is STOP_ITERATION:
                     self._terminate()
@@ -740,7 +754,7 @@ class EveryIntervalObserveIterator(_BaseObserveIterator[T]):
         self = weak_self()
         while self and not stopped.is_set():
             self._observe()
-            if self._do_base_exception:
+            if self._do_base_exception is not None:
                 break
             self = None
             stopped.wait(timeout=every_seconds)
@@ -822,7 +836,7 @@ class ThrottleIterator(_BaseOperationIterator[T, T]):
 ##########################
 
 
-class _ExecutorBackedIterator(_BaseOperationIterator[T, U]):
+class _ConcurrentIterator(_BaseOperationIterator[T, U]):
     __slots__ = (
         "concurrency",
         "_executor",
@@ -846,8 +860,8 @@ class _ExecutorBackedIterator(_BaseOperationIterator[T, U]):
             self._executor_owned = True
         else:
             self._executor = concurrency
-            self.concurrency = getattr(self._executor, "_max_workers")
             self._executor_owned = False
+            self.concurrency = getattr(self._executor, "_max_workers")
 
     @property
     def _lazy_executor(self) -> Executor:
@@ -855,12 +869,13 @@ class _ExecutorBackedIterator(_BaseOperationIterator[T, U]):
             self._executor = ThreadPoolExecutor(max_workers=self.concurrency)
         return self._executor
 
-    def _shutdown_executor(self) -> None:
+    def _shutdown_executor(self, wait: bool = True) -> None:
         if self._executor and self._executor_owned:
-            self._executor.shutdown()
+            self._executor.shutdown(wait=wait)
 
     @abstractmethod
     def _terminate(self) -> None: ...
+
     @abstractmethod
     def _cancel(self) -> None: ...
 
@@ -870,9 +885,10 @@ class _ExecutorBackedIterator(_BaseOperationIterator[T, U]):
 
     def __del__(self) -> None:
         self._cancel()
+        self._shutdown_executor(wait=False)
 
 
-class ConcurrentMapIterator(_ExecutorBackedIterator[T, U]):
+class ConcurrentMapIterator(_ConcurrentIterator[T, U]):
     __slots__ = ("into", "as_completed", "_future_results")
 
     def __init__(
@@ -911,7 +927,7 @@ class ConcurrentMapIterator(_ExecutorBackedIterator[T, U]):
         if not self._future_results:
             self._terminate()
             return self.__next__()
-        return ExceptionContainer.raise_if_instance(self._future_results.__next__())
+        return self._future_results.__next__()
 
     def _terminate(self) -> None:
         self._stopped = True
@@ -922,17 +938,18 @@ class ConcurrentMapIterator(_ExecutorBackedIterator[T, U]):
 
     def _cancel(self) -> None:
         self._future_results.cancel()
+        self._future_results.clear()
 
 
 class ConcurrentFlattenIterator(
-    _ExecutorBackedIterator[Union[Iterable[T], AsyncIterable[T]], T]
+    _ConcurrentIterator[Union[Iterable[T], AsyncIterable[T]], T]
 ):
     __slots__ = ("_iterators_and_futures",)
 
     def __init__(
         self,
         upstream: ClosableIterator[Union[Iterable[T], AsyncIterable[T]]],
-        concurrency: Union[int, Executor],
+        concurrency: Union[int, ThreadPoolExecutor],
     ) -> None:
         self._iterators_and_futures: Deque[
             Tuple[Optional[ClosableIterator[T]], "Future[T]"]
@@ -982,6 +999,7 @@ class ConcurrentFlattenIterator(
                     continue
                 return elem
             finally:
+                del future
                 if iterator is not None:
                     self._iterators_and_futures.append(
                         (iterator, self._launch_future_from_iter(iterator))
@@ -990,16 +1008,12 @@ class ConcurrentFlattenIterator(
     def _terminate(self) -> None:
         self._stopped = True
         if self._iterators_and_futures:
-            iterators: Tuple[Optional[Closable], ...]
-            futures: Tuple["Future[T]", ...]
-            iterators, futures = zip(*self._iterators_and_futures)
             self._cancel()
-            self._iterators_and_futures.clear()
-            wait(futures)
-            del futures
-            for iterator in iterators:
+            wait([future for _, future in self._iterators_and_futures])
+            for iterator, _ in self._iterators_and_futures:
                 if iterator is not None:
                     iterator.close()
+        self._iterators_and_futures.clear()
         self._shutdown_executor()
 
     def _cancel(self) -> None:

@@ -334,9 +334,9 @@ async def test_observe_task_cancelled_on_del() -> None:
     async def anext_then_del(it: AsyncIterator) -> None:
         await it.__anext__()
         del it
-        # let the event loop run the cancellation
-        await asyncio.sleep(0)
-        await asyncio.sleep(0)
+        # let a few event loop iterations for the cancellation to propagate
+        for _ in range(4):
+            await asyncio.sleep(0)
 
     audit = await audit_awaitable(anext_then_del(s.__aiter__()))
     assert audit.leftover_tasks == 0
