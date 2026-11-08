@@ -8,9 +8,9 @@ T = TypeVar("T")
 
 @dataclass
 class ExceptionContainer:
-    exception: Exception
+    exception: BaseException
 
-    class ClearedException(Exception):
+    class ClearedException(BaseException):
         pass
 
     @staticmethod
@@ -31,7 +31,7 @@ class ExceptionContainer:
             if isinstance(future, futures.Future):
                 return await asyncio.wrap_future(future)
             return await future
-        except Exception as e:
+        except BaseException as e:
             return cls(e)
         finally:
             del future
@@ -42,7 +42,7 @@ class ExceptionContainer:
     ) -> Union[T, "ExceptionContainer"]:
         try:
             return future.result()
-        except Exception as e:
+        except BaseException as e:
             return cls(e)
         finally:
             del future

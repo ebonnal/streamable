@@ -1,4 +1,4 @@
-from concurrent.futures import Future
+from concurrent.futures import Future, wait
 from queue import Queue
 from threading import Lock
 from typing import (
@@ -42,6 +42,9 @@ class FutureResults(Iterator[Union[T, ExceptionContainer]], Sized):
         for future in self._futures:
             future.cancel()
 
+    def gather(self) -> None:
+        wait(self._futures)
+
     def clear(self) -> None:
         self._futures.clear()
 
@@ -55,6 +58,7 @@ class FIFOFutureResults(FutureResults[T]):
 
     def __next__(self) -> Union[T, ExceptionContainer]:
         future = next(iter(self._futures))
+        wait((future,))
         try:
             return ExceptionContainer.result(future)
         finally:

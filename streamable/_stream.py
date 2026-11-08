@@ -178,7 +178,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         When the iterator is destroyed before it is exhausted, the pending child threads are terminated (queued work is cancelled if possible).
 
-        Use the ``.close`` method to cancel and terminate any pending child threads.
+        Use the ``.close`` method to eagerly terminate any pending child threads.
 
         Errors raised by child threads during termination are not propagated.
 
@@ -228,7 +228,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         When the iterator is destroyed before it is exhausted, the pending child tasks are canceled and terminated at a subsequent cycle of the event loop.
 
-        Use the ``.aclose`` method to cancel and terminate any pending child tasks.
+        Use the ``.aclose`` method to eagerly terminate any pending child tasks.
 
         Errors raised by child tasks during termination are not propagated.
 
@@ -651,16 +651,17 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
     def flatten(
         self: "stream[Union[Iterable[U], AsyncIterable[U]]]",
         *,
-        concurrency: int = 1,
+        concurrency: Union[int, Executor] = 1,
     ) -> "stream[U]":
         """
         Explode upstream elements, assumed to be ``Iterable`` or ``AsyncIterable``.
 
         Args:
-            concurrency (``int``, optional): Concurrency control:
+            concurrency (``int | Executor``, optional): Concurrency control:
 
               ‣ ``1`` (default): Flatten each upstream iterable before moving on to the next one.
               ‣ ``int > 1``: Flatten ``concurrency`` upstream iterables at a time in a round-robin fashion (via threads or async tasks).
+              ‣ ``Executor``: Uses the provided executor (e.g., a ``ProcessPoolExecutor``), the concurrency is the number of workers.
 
         Returns:
             ``stream[U]``: Stream of all elements from upstream iterables.
@@ -673,7 +674,8 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             chars: stream[str] = stream(["hel", "lo", "!"]).flatten(concurrency=2)
             assert list(chars) == ["h", "l", "e", "o", "l", "!"]
         """
-        validate_int(concurrency, gte=1, name="concurrency")
+        if isinstance(concurrency, int):
+            validate_int(concurrency, gte=1, name="concurrency")
         return FlattenStream(self, concurrency)
 
     @overload
@@ -1156,7 +1158,7 @@ class FlattenStream(DownStream[Union[Iterable[U], AsyncIterable[U]], U]):
     def __init__(
         self,
         upstream: stream[Union[Iterable[U], AsyncIterable[U]]],
-        concurrency: int,
+        concurrency: Union[int, Executor],
     ) -> None:
         super().__init__(upstream)
         self._concurrency = concurrency

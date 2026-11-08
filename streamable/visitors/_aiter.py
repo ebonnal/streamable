@@ -79,7 +79,7 @@ class AsyncIteratorVisitor(Visitor[ClosableAsyncIterator[T]]):
             s.upstream.accept(
                 cast(AsyncIteratorVisitor[Union[Iterable[T], AsyncIterable[T]]], self)
             ),
-            concurrency=s._concurrency,
+            concurrency=cast(int, s._concurrency),
         )
 
     def visit_group_stream(self, s: "GroupStream[T]") -> ClosableAsyncIterator[T]:

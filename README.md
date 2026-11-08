@@ -561,7 +561,7 @@ When the iteration is complete, all the child tasks are done.
 
 When the iterator is destroyed before it is exhausted, the pending child tasks are terminated (queued work is cancelled if possible).
 
-`stream.__iter__`/`stream.__aiter__` returns an `Iterator`/`AsyncIterator` with a `.close`/`.aclose` method to cancel and terminate any pending child tasks.
+`stream.__iter__`/`stream.__aiter__` returns an `Iterator`/`AsyncIterator` with a `.close`/`.aclose` method to eagerly terminate any pending child tasks.
 
 ### `.close`
 

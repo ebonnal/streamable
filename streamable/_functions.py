@@ -61,7 +61,7 @@ def filter(
 def flatten(
     upstream: ClosableIterator[Union[Iterable[T], AsyncIterable[T]]],
     *,
-    concurrency: int = 1,
+    concurrency: Union[int, Executor] = 1,
 ) -> ClosableIterator[T]:
     if concurrency == 1:
         return _iterators.FlattenIterator(upstream)
