@@ -771,8 +771,6 @@ class EveryIntervalObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
         self = weak_self()
         while self and not stopped.is_set():
             await self._observe()
-            if self._do_base_exception is not None:
-                break
             self = None
             with suppress(asyncio.TimeoutError):
                 await wait_for(stopped.wait(), timeout=every_seconds)

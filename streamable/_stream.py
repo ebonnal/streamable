@@ -905,7 +905,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         If an ``Exception`` is raised by ``do``, it is silently swallowed.
 
-        If a ``BaseException`` is raised by ``do``, it is raised and interrupts the iteration.
+        If a ``BaseException`` is raised by ``do``, it is raised.
 
         Args:
             subject (``str``, optional): Description of elements being observed.

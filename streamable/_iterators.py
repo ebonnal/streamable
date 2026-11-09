@@ -754,8 +754,6 @@ class EveryIntervalObserveIterator(_BaseObserveIterator[T]):
         self = weak_self()
         while self and not stopped.is_set():
             self._observe()
-            if self._do_base_exception is not None:
-                break
             self = None
             stopped.wait(timeout=every_seconds)
             self = weak_self()
