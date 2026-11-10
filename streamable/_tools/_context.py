@@ -10,6 +10,8 @@ else:  # pragma: no cover
     from streamable._tools._iter import AsyncClosable
 
     class aclosing(AsyncContextManager):
+        __slots__ = ("thing",)
+
         def __init__(self, thing: AsyncClosable):
             self.thing = thing
 

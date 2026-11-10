@@ -21,10 +21,10 @@ from tests.tools.func import (
     SLOW_IDENTITY_DURATION,
     async_throw_if_falsy_func,
     audit_awaitable,
-    execute_in_thread,
     identity,
     noarg_asyncify,
     nothing,
+    run_in_thread,
     slow_identity,
     throw_func,
     throw_if_falsy_func,
@@ -350,7 +350,7 @@ def test_sync_iteration_shares_the_runner(in_thread: bool) -> None:
             addition_result.extend(s + s)
 
     if in_thread:
-        execute_in_thread(add_streams_within_runner_context)
+        run_in_thread(add_streams_within_runner_context)
     else:
         add_streams_within_runner_context()
     assert addition_result == [0, 0]

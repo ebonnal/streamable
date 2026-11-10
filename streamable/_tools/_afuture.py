@@ -5,6 +5,7 @@ from typing import (
     AsyncIterator,
     Dict,
     Iterable,
+    Optional,
     Sized,
     TypeVar,
     Union,
@@ -44,6 +45,35 @@ def cancel_threadsafe(
                 future.get_loop().call_soon_threadsafe(future.cancel)
 
 
+async def lazy_wait(
+    fs: Union[
+        Union[asyncio.Future, futures.Future, None],
+        Iterable[Union[asyncio.Future, futures.Future, None]],
+    ],
+    timeout: "Optional[float]" = None,
+    cancel: bool = False,
+) -> bool:
+    """Returns True if all done"""
+    if fs is None:
+        return True
+    if isinstance(fs, (asyncio.Future, futures.Future)):
+        fs = (fs,)
+    else:
+        fs = tuple(fs)
+    if cancel:
+        for future in fs:
+            if future is not None and not future.done():
+                future.cancel()
+    futures_to_wait = [
+        safe_wrap_future(future)
+        for future in fs
+        if future is not None and not future.done()
+    ]
+    if futures_to_wait:
+        return not (await asyncio.wait(futures_to_wait, timeout=timeout))[1]
+    return True
+
+
 class FutureResults(AsyncIterator[T], Sized):
     """
     Iterator over added futures' results. Supports adding new futures after iteration started.
@@ -68,8 +98,7 @@ class FutureResults(AsyncIterator[T], Sized):
         cancel_threadsafe(self._futures)
 
     async def gather(self) -> None:
-        if self._futures:
-            await asyncio.wait(tuple(map(safe_wrap_future, self._futures)))
+        await lazy_wait(self._futures)
 
     def clear(self) -> None:
         self._futures.clear()
@@ -84,7 +113,8 @@ class FIFOFutureResults(FutureResults[T]):
 
     async def __anext__(self) -> T:
         future = next(iter(self._futures))
-        await asyncio.wait((safe_wrap_future(future),))
+        if not future.done():
+            await lazy_wait(future)
         try:
             return future.result()
         finally:
@@ -108,9 +138,8 @@ class FDFOFutureResults(FutureResults[T]):
     def clear(self) -> None:
         super().clear()
         self._cleared = True
-        if self._done_futures:
-            while not self._done_futures.empty():
-                self._done_futures.get_nowait()
+        while not self._done_futures.empty():
+            self._done_futures.get_nowait()
 
     def _done_callback(
         self, future: "Union[asyncio.Future[T], futures.Future[T]]"

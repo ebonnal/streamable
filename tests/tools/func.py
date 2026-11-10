@@ -213,8 +213,6 @@ async def audit_awaitable(
     )
 
 
-def execute_in_thread(
-    func: "Callable[P, T]", *args: "P.args", **kwargs: "P.kwargs"
-) -> T:
+def run_in_thread(func: "Callable[P, T]", *args: "P.args", **kwargs: "P.kwargs") -> T:
     with ThreadPoolExecutor(1) as executor:
         return executor.submit(func, *args, **kwargs).result()

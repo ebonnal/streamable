@@ -30,9 +30,9 @@ from streamable._tools._afuture import (
     FIFOFutureResults,
     FutureResults,
     cancel_threadsafe,
-    safe_wrap_future,
+    lazy_wait,
 )
-from streamable._tools._async import AsyncFunction, anext, semaphored, wait_for
+from streamable._tools._async import AsyncFunction, anext, semaphored
 from streamable._tools._error import ExceptionContainer
 from streamable._tools._iter import (
     AsyncClosable,
@@ -55,34 +55,45 @@ class _BaseOperationAsyncIterator(ClosableAsyncIterator[U], Generic[T, U]):
     Provides `.aclose` of owned upstream, and unwraps upstream if it's a `GuardedAsyncIterator`.
     """
 
-    __slots__ = ("upstream", "_closure_requested", "_upstream_owned")
+    __slots__ = (
+        "upstream",
+        "_closed",
+        "_upstream_owned_closable",
+        "_closure_attempted",
+    )
 
     def __init__(self, upstream: ClosableAsyncIterator[T]) -> None:
         self.upstream: AsyncIterator[T]
         if isinstance(upstream, GuardedAsyncIterator):
             self.upstream = upstream._upstream_iterator
-            self._upstream_owned = upstream._owned
+            self._upstream_owned_closable = upstream._owned_closable
         else:
             self.upstream = upstream
-            self._upstream_owned = True
-        self._closure_requested = False
+            self._upstream_owned_closable = isinstance(upstream, AsyncClosable)
+        self._closed = False
+        self._closure_attempted = False
+
+    async def _safe_aclose_upstream(self) -> None:
+        if self._upstream_owned_closable:
+            await cast(AsyncClosable, self.upstream).aclose()
 
     async def aclose(self) -> None:
-        if not self._closure_requested:
-            self._closure_requested = True
-            if self._upstream_owned and isinstance(self.upstream, AsyncClosable):
-                await self.upstream.aclose()
+        if not self._closed:
+            await self._safe_aclose_upstream()
+            self._closed = True
 
-    async def _aclose_and_stop(self) -> None:
+    async def _attempt_aclose_and_stop(self) -> None:
         try:
             raise StopAsyncIteration
         finally:
-            await self.aclose()
+            if not self._closure_attempted:
+                self._closure_attempted = True
+                await self.aclose()
 
 
 class _Puller(Generic[T]):
     __slots__ = (
-        "_iterator",
+        "_upstream",
         "elems",
         "_semaphore",
         "_pulling_task",
@@ -92,20 +103,20 @@ class _Puller(Generic[T]):
 
     def __init__(
         self,
-        iterator: AsyncIterator[T],
+        upstream: AsyncIterator[T],
         ahead_pulls: Optional[int],
     ) -> None:
-        self._iterator = iterator
+        self._upstream = upstream
         self.elems: "asyncio.Queue[Union[T, ExceptionContainer]]" = asyncio.Queue()
         self._semaphore = (
             None if ahead_pulls is None else asyncio.Semaphore(ahead_pulls)
         )
-        self._pulling_task: Optional[asyncio.Task[None]] = None
-        self._stopper_task: Optional[asyncio.Task[None]] = None
         self._stopped = False
+        self._stopper_task = asyncio.create_task(self._stopper())
+        self._pulling_task = asyncio.create_task(self._pulling())
 
     def allow_to_pull(self) -> None:
-        if self._semaphore is not None:
+        if self._semaphore:
             self._semaphore.release()
 
     async def _ask_to_pull(self) -> None:
@@ -115,21 +126,19 @@ class _Puller(Generic[T]):
         else:
             await self._semaphore.acquire()
 
-    async def _stopper(self):
+    async def _stopper(self) -> None:
         try:
             await asyncio.sleep(float("inf"))
         except asyncio.CancelledError:
             self._stopped = True
-            if self._pulling_task is not None:
-                self._pulling_task.cancel()
-                self.allow_to_pull()
-                await asyncio.gather(self._pulling_task, return_exceptions=True)
+            self.allow_to_pull()
+            await lazy_wait(self._pulling_task, cancel=True)
 
     async def _pulling(self) -> None:
         await self._ask_to_pull()
         while not self._stopped:
             try:
-                self.elems.put_nowait(await self._iterator.__anext__())
+                self.elems.put_nowait(await self._upstream.__anext__())
             except StopAsyncIteration:
                 self.stop()
                 self.elems.put_nowait(STOP_ITERATION)
@@ -139,30 +148,26 @@ class _Puller(Generic[T]):
                     self.elems.put_nowait(ExceptionContainer(e))
             await self._ask_to_pull()
 
-    def start(self) -> None:
-        self._stopper_task = asyncio.create_task(self._stopper())
-        self._pulling_task = asyncio.create_task(self._pulling())
-
-    def stop(self):
+    def stop(self) -> None:
         if not self._stopped:
             self._stopped = True
-            if self._stopper_task:
-                self._stopper_task.cancel()
-        self._clear()
+            self._stopper_task.cancel()
 
-    def stop_threadsafe(self):
-        if self._stopper_task:
-            with suppress(RuntimeError):
-                self._stopper_task.get_loop().call_soon_threadsafe(
-                    self._stopper_task.cancel
-                )
+    def stop_threadsafe(self) -> None:
+        with suppress(RuntimeError):
+            self._stopper_task.get_loop().call_soon_threadsafe(
+                self._stopper_task.cancel
+            )
 
     async def wait(self) -> None:
-        if self._stopper_task:
-            await asyncio.wait((self._stopper_task,))
-        self._clear()
+        await lazy_wait(
+            (
+                self._stopper_task,
+                self._pulling_task,
+            )
+        )
 
-    def _clear(self) -> None:
+    def clear(self) -> None:
         while not self.elems.empty():
             self.elems.get_nowait()
 
@@ -187,7 +192,6 @@ class _PullerBasedAsyncIterator(_BaseOperationAsyncIterator[T, U]):
                 self.upstream,
                 self._ahead_pulls,
             )
-            self._puller.start()
         return self._puller
 
     async def _terminate(self) -> None:
@@ -195,14 +199,19 @@ class _PullerBasedAsyncIterator(_BaseOperationAsyncIterator[T, U]):
         if self._puller:
             self._puller.stop()
             await self._puller.wait()
+            self._puller.clear()
+            self._puller.elems.put_nowait(STOP_ITERATION)
 
     async def aclose(self) -> None:
-        await self._terminate()
-        await super().aclose()
+        if not self._closed:
+            await self._terminate()
+            await self._safe_aclose_upstream()
+            self._closed = True
 
     def __del__(self) -> None:
         if self._puller:
             self._puller.stop_threadsafe()
+            self._puller.clear()
 
 
 ##########
@@ -260,7 +269,7 @@ class CatchAsyncIterator(_BaseOperationAsyncIterator[T, Union[T, U]]):
     async def __anext__(self) -> Union[T, U]:
         while True:
             if self._stopped:
-                await self._aclose_and_stop()
+                await self._attempt_aclose_and_stop()
             try:
                 return await self.upstream.__anext__()
             except StopAsyncIteration:
@@ -313,11 +322,13 @@ class FlattenAsyncIterator(
                     )
 
     async def aclose(self) -> None:
-        if isinstance(self._iterator, AsyncClosable) and self._iterator_owned:
-            self._iterator_owned = False
-            with suppress(Exception):
-                await self._iterator.aclose()
-        await super().aclose()
+        if not self._closed:
+            if isinstance(self._iterator, AsyncClosable) and self._iterator_owned:
+                self._iterator_owned = False
+                with suppress(Exception):
+                    await self._iterator.aclose()
+            await self._safe_aclose_upstream()
+            self._closed = True
 
 
 #########
@@ -423,7 +434,6 @@ class GroupByWithinAsyncIterator(_PullerBasedAsyncIterator[T, Tuple[U, List[T]]]
             lambda: (time.perf_counter(), [])
         )
         self._to_raise: Optional[Exception] = None
-        # pending `.get` of the next pulled elem, kept across timeouts and cancellations
         self._get_elem: "Optional[asyncio.Task[Union[T, ExceptionContainer]]]" = None
 
     @staticmethod
@@ -450,13 +460,13 @@ class GroupByWithinAsyncIterator(_PullerBasedAsyncIterator[T, Tuple[U, List[T]]]
             raise StopAsyncIteration
         while True:
             try:
+                timeout = self._timeout(self._groups)
+                if timeout == 0 and self._groups:
+                    return self._oldest_group(self._groups)
                 if self._get_elem is None:
                     self._lazy_puller.allow_to_pull()
                     self._get_elem = asyncio.create_task(self._lazy_puller.elems.get())
-                done, _ = await asyncio.wait(
-                    (self._get_elem,), timeout=self._timeout(self._groups)
-                )
-                if not done:
+                if not (await lazy_wait(self._get_elem, timeout=timeout)):
                     return self._oldest_group(self._groups)
                 elem = self._get_elem.result()
                 self._get_elem = None
@@ -478,8 +488,7 @@ class GroupByWithinAsyncIterator(_PullerBasedAsyncIterator[T, Tuple[U, List[T]]]
 
     async def _terminate(self) -> None:
         if self._get_elem is not None:
-            self._get_elem.cancel()
-            await asyncio.wait((self._get_elem,))
+            await lazy_wait(self._get_elem, cancel=True)
             self._get_elem = None
         await super()._terminate()
 
@@ -542,7 +551,7 @@ class CountTakeAsyncIterator(_BaseOperationAsyncIterator[T, T]):
 
     async def __anext__(self) -> T:
         if self._remaining_to_take <= 0:
-            await self._aclose_and_stop()
+            await self._attempt_aclose_and_stop()
         elem = await self.upstream.__anext__()
         self._remaining_to_take -= 1
         return elem
@@ -560,7 +569,7 @@ class PredicateTakeAsyncIterator(_BaseOperationAsyncIterator[T, T]):
 
     async def __anext__(self) -> T:
         if self._satisfied:
-            await self._aclose_and_stop()
+            await self._attempt_aclose_and_stop()
         elem = await self.upstream.__anext__()
         if await self.until(elem):
             self._satisfied = True
@@ -669,6 +678,8 @@ class _BaseObserveAsyncIterator(_BaseOperationAsyncIterator[T, T]):
             await self.do(self._observation())
         except Exception:
             pass
+        except asyncio.CancelledError:
+            raise
         except BaseException as e:
             self._do_base_exception = e
 
@@ -698,7 +709,7 @@ class _BaseObserveAsyncIterator(_BaseOperationAsyncIterator[T, T]):
                 not self._emissions or self._emissions > self._emissions_observed
             ):
                 await self._observe()
-            self._stopped.set()
+            await self._terminate()
             raise
         except Exception:
             self._errors += 1
@@ -708,6 +719,9 @@ class _BaseObserveAsyncIterator(_BaseOperationAsyncIterator[T, T]):
             raise
         finally:
             self._reraise_do_base_exception()
+
+    async def _terminate(self) -> None:
+        self._stopped.set()
 
 
 class PowerObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
@@ -768,17 +782,25 @@ class EveryIntervalObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
         every_seconds: float,
         stopped: asyncio.Event,
     ) -> None:
-        self = weak_self()
-        while self and not stopped.is_set():
-            await self._observe()
-            self = None
-            with suppress(asyncio.TimeoutError):
-                await wait_for(stopped.wait(), timeout=every_seconds)
+        await_stop = asyncio.create_task(stopped.wait())
+        try:
             self = weak_self()
+            while self and not stopped.is_set():
+                await self._observe()
+                self = None
+                await lazy_wait(await_stop, timeout=every_seconds)
+                self = weak_self()
+        except GeneratorExit:
+            raise
+        except BaseException:
+            await lazy_wait(await_stop, cancel=True)
+            raise
+        else:
+            await lazy_wait(await_stop, cancel=True)
 
     def _activate(self) -> None:
         super()._activate()
-        if self._closure_requested:
+        if self._closed:
             self._stopped.set()
             return
         self._task = asyncio.create_task(
@@ -793,11 +815,15 @@ class EveryIntervalObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
         return cast(int, float("inf"))
 
     async def aclose(self) -> None:
-        if self._activated:
-            self._stopped.set()
-            if self._task is not None:
-                await asyncio.wait((self._task,))
-        await super().aclose()
+        if not self._closed:
+            if self._activated:
+                await self._terminate()
+            await self._safe_aclose_upstream()
+            self._closed = True
+
+    async def _terminate(self) -> None:
+        await super()._terminate()
+        await lazy_wait(self._task)
 
     def __del__(self) -> None:
         if self._task is not None:
@@ -895,14 +921,16 @@ class _ConcurrentAsyncIterator(_BaseOperationAsyncIterator[T, U]):
     async def _terminate(self) -> None: ...
 
     @abstractmethod
-    def _cancel(self) -> None: ...
+    def _cancel_threadsafe(self) -> None: ...
 
     async def aclose(self) -> None:
-        await self._terminate()
-        await super().aclose()
+        if not self._closed:
+            await self._terminate()
+            await self._safe_aclose_upstream()
+            self._closed = True
 
     def __del__(self) -> None:
-        self._cancel()
+        self._cancel_threadsafe()
         self._shutdown_executor(wait=False)
 
 
@@ -967,7 +995,7 @@ class _ConcurrentMapAsyncIterator(_ConcurrentAsyncIterator[T, U]):
             self._future_results.clear()
         self._shutdown_executor()
 
-    def _cancel(self) -> None:
+    def _cancel_threadsafe(self) -> None:
         if self._future_results:
             self._future_results.cancel_threadsafe()
             self._future_results.clear()
@@ -1075,7 +1103,7 @@ class ConcurrentFlattenAsyncIterator(
                 await self._terminate()
                 continue
             iterator, future = self._iterators_and_futures[0]
-            await asyncio.wait((safe_wrap_future(future),))
+            await lazy_wait(future)
             self._iterators_and_futures.popleft()
             try:
                 elem = future.result()
@@ -1092,18 +1120,14 @@ class ConcurrentFlattenAsyncIterator(
 
     async def _terminate(self) -> None:
         self._stopped = True
-        if self._iterators_and_futures:
-            self._cancel()
-            await asyncio.wait(
-                [safe_wrap_future(future) for _, future in self._iterators_and_futures]
-            )
-            for iterator, _ in self._iterators_and_futures:
-                if isinstance(iterator, GuardedAsyncIterator):
-                    await iterator.aclose()
-                elif iterator is not None:
-                    iterator.close()
+        await lazy_wait((fut for _, fut in self._iterators_and_futures), cancel=True)
+        for iterator, _ in self._iterators_and_futures:
+            if isinstance(iterator, GuardedAsyncIterator):
+                await iterator.aclose()
+            elif iterator is not None:
+                iterator.close()
         self._iterators_and_futures.clear()
         self._shutdown_executor()
 
-    def _cancel(self) -> None:
+    def _cancel_threadsafe(self) -> None:
         cancel_threadsafe(future for _, future in self._iterators_and_futures)

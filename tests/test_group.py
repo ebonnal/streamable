@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import queue
+import random
 import time
 from datetime import timedelta
 from typing import Any, Callable, Iterable, List, Optional, Type
@@ -334,3 +335,35 @@ def test_group_within_chain_of_background_task(itype: IterableType) -> None:
         .flatten()
     )
     assert alist_or_list(s, itype) == list(INTEGERS)
+
+
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_group_within_with_never_suspending_source(itype: IterableType) -> None:
+    s = (
+        stream(range(10))
+        .map(slow_identity)
+        .group(within=timedelta(seconds=2.95 * SLOW_IDENTITY_DURATION))
+    )
+    groups = alist_or_list(s, itype)
+    assert len(groups) > 1
+    assert [elem for group in groups for elem in group] == list(range(10))
+
+
+@pytest.mark.asyncio
+async def test_group_within_loses_nothing_under_timeout_retries() -> None:
+    src = range(3000)
+    s = stream(src).group(5, within=timedelta(seconds=1))
+    it = s.__aiter__()
+    elems: List[int] = []
+    rand = random.Random(0)
+    while True:
+        try:
+            # no element should be lost if timeout lands after queue.get succeeds but before the elem is persisted into current group
+            elems.extend(
+                await asyncio.wait_for(it.__anext__(), timeout=rand.uniform(0, 0.0002))
+            )
+        except asyncio.TimeoutError:
+            continue
+        except StopAsyncIteration:
+            break
+    assert elems == list(src)

@@ -408,8 +408,9 @@ def test_owned_source_closed_once_on_upstream_stop(itype: IterableType) -> None:
         anext_or_next(it, itype)
     with pytest.raises(stopiteration_type(itype)):
         anext_or_next(it, itype)
-    aclose_or_close(cast(ClosableIterator[int], it), itype)
-    assert [iterator.n_closes for iterator in failing_iterable.iterators] == [1]
+    with pytest.raises(TestError):
+        aclose_or_close(cast(ClosableIterator[int], it), itype)
+    assert [iterator.n_closes for iterator in failing_iterable.iterators] == [2]
 
 
 @pytest.mark.parametrize(
@@ -790,4 +791,16 @@ async def test_close_executor_backed_map_is_interruptible() -> None:
     # a later close waits for the in-flight calls and joins the threads
     await it.aclose()
     assert sorted(monitored_identity.completed) == sorted(monitored_identity.started)
+    assert_no_new_threads(threads)
+
+
+@pytest.mark.parametrize("get_stream", THREAD_BACKED_STREAM_GETTERS)
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_executor_backed_releases_threads_on_exhaustion(
+    get_stream: Callable[[MonitoredIdentity[int]], "stream[int]"],
+    itype: IterableType,
+) -> None:
+    threads = set(threading.enumerate())
+    it = aiter_or_iter(get_stream(MonitoredIdentity[int](n_fast=0)), itype)
+    alist_or_list(it, itype)
     assert_no_new_threads(threads)

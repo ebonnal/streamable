@@ -20,7 +20,7 @@ from streamable._tools._func import sidify
 from streamable._tools._iter import AsyncToSyncIterator, GuardedAsyncIterator
 from streamable._tools._logging import logfmt_str_escape, setup_logger
 from tests.tools.error import TestError, collecting_unraisables
-from tests.tools.func import async_identity, execute_in_thread, identity, throw
+from tests.tools.func import async_identity, identity, run_in_thread, throw
 from tests.tools.iter import AsyncOnlyIterable, async_iter
 from tests.tools.monitor import (
     CloseFailingMonitoredIntIterable,
@@ -155,9 +155,9 @@ def test_async_to_sync_iterator_closes_its_loop_when_abandoned(
             asyncio.set_event_loop(loop)
         it = cast(AsyncToSyncIterator, iter(stream(INTEGERS).map(async_identity)))
         next(it)
-        loop = it._loop
+        loop = it._lazy_loop
 
-    execute_in_thread(next_and_abandon)
+    run_in_thread(next_and_abandon)
     assert isinstance(loop, asyncio.AbstractEventLoop)
     assert loop.is_closed() is not loop_already_set
     loop.close()
@@ -195,7 +195,7 @@ def test_async_to_sync_iterator_cancels_anext_on_keyboard_interrupt() -> None:
             next(it)
         return it
 
-    it = execute_in_thread(interrupted_next)
+    it = run_in_thread(interrupted_next)
     # the pending `__anext__` task got cancelled
     assert cancelled
     with pytest.raises(StopIteration):
@@ -203,7 +203,7 @@ def test_async_to_sync_iterator_cancels_anext_on_keyboard_interrupt() -> None:
     with pytest.raises(StopIteration):
         next(it)
     it.close()
-    assert it._loop.is_closed()
+    assert it._lazy_loop.is_closed()
 
 
 def test_async_to_sync_iterator_with_private_loop_after_exhaustion() -> None:
@@ -213,21 +213,20 @@ def test_async_to_sync_iterator_with_private_loop_after_exhaustion() -> None:
         s()
         it = cast(AsyncToSyncIterator, iter(s))
         assert list(it) == list(INTEGERS)
-        # exhaustion does not close the private loop: pulling again or closing still works
-        assert not it._loop.is_closed()
+        # exhaustion closes the private loop
+        assert it._lazy_loop.is_closed()
         with pytest.raises(StopIteration):
             next(it)
         it.close()
-        assert it._loop.is_closed()
 
     # in a thread without event loop: the iterators use a private loop
-    execute_in_thread(exhaust)
+    run_in_thread(exhaust)
 
 
 def next_and_del(src: AsyncIterable) -> asyncio.AbstractEventLoop:
     it = cast(AsyncToSyncIterator, iter(stream(src)))
     next(it)
-    loop = it._loop
+    loop = it._lazy_loop
     del it
     return loop
 
@@ -237,7 +236,7 @@ def next_and_del_within_another_loop(
 ) -> asyncio.AbstractEventLoop:
     its = [cast(AsyncToSyncIterator, iter(stream(src)))]
     next(its[0])
-    loop = its[0]._loop
+    loop = its[0]._lazy_loop
 
     async def drop() -> None:
         its.clear()
@@ -275,7 +274,7 @@ def next_and_del_while_its_not_owned_loop_runs(
             del it
 
         if within_thread:
-            execute_in_thread(drop)
+            run_in_thread(drop)
         else:
             drop()
         await asyncio.sleep(0)
@@ -356,7 +355,7 @@ def test_async_to_sync_iterator_del(
     src = src_type()
     with collecting_unraisables() as unraisables:
         # async-only: the sync iteration must go through an `AsyncToSyncIterator`
-        loop = execute_in_thread(scenario, AsyncOnlyIterable(src))
+        loop = run_in_thread(scenario, AsyncOnlyIterable(src))
     assert src.iterators[0].closed is owned_src_is_closed
     assert loop.is_closed() is loop_is_closed
     assert [

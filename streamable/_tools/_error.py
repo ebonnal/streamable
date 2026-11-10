@@ -6,9 +6,11 @@ T = TypeVar("T")
 
 @dataclass
 class ExceptionContainer:
+    __slots__ = ("exception",)
     exception: BaseException
 
     class ClearedException(BaseException):
+        __slots__ = ()
         pass
 
     @staticmethod

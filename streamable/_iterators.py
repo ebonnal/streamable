@@ -5,7 +5,7 @@ import weakref
 from abc import abstractmethod
 from collections import defaultdict, deque
 from concurrent.futures import Executor, Future, ThreadPoolExecutor, wait
-from contextlib import closing, suppress
+from contextlib import suppress
 from threading import Event, Semaphore, Thread
 from typing import (
     AsyncIterable,
@@ -52,43 +52,67 @@ class _BaseOperationIterator(ClosableIterator[U], Generic[T, U]):
     Provides `.close` of owned upstream, and unwraps upstream if it's a `GuardedIterator`.
     """
 
-    __slots__ = ("upstream", "_closure_requested", "_upstream_owned")
+    __slots__ = (
+        "upstream",
+        "_closed",
+        "_upstream_owned_closable",
+        "_closure_attempted",
+    )
 
     def __init__(self, upstream: ClosableIterator[T]) -> None:
         if isinstance(upstream, GuardedIterator):
             self.upstream = upstream._upstream_iterator
-            self._upstream_owned = upstream._owned
+            self._upstream_owned_closable = upstream._owned_closable
         else:
             self.upstream = upstream
-            self._upstream_owned = True
-        self._closure_requested = False
+            self._upstream_owned_closable = isinstance(upstream, Closable)
+        self._closed = False
+        self._closure_attempted = False
+
+    def _safe_close_upstream(self) -> None:
+        if self._upstream_owned_closable:
+            cast(Closable, self.upstream).close()
 
     def close(self) -> None:
-        if not self._closure_requested:
-            self._closure_requested = True
-            if self._upstream_owned and isinstance(self.upstream, Closable):
-                self.upstream.close()
+        if not self._closed:
+            self._safe_close_upstream()
+            self._closed = True
 
-    def _close_and_stop(self) -> None:
+    def _attempt_close_and_stop(self) -> None:
         try:
             raise StopIteration
         finally:
-            self.close()
+            if not self._closure_attempted:
+                self._closure_attempted = True
+                self.close()
 
 
 class _Puller(Generic[T]):
-    __slots__ = ("_iterator", "elems", "_semaphore", "_pulling_thread", "_stop")
+    __slots__ = (
+        "_upstream",
+        "elems",
+        "_semaphore",
+        "_pulling_thread",
+        "_stopped",
+    )
 
     def __init__(
         self,
-        iterator: Iterator[T],
+        upstream: Iterator[T],
         ahead_pulls: Optional[int],
     ) -> None:
-        self._iterator = iterator
+        self._upstream = upstream
         self.elems: "queue.Queue[Union[T, ExceptionContainer]]" = queue.Queue()
         self._semaphore = None if ahead_pulls is None else Semaphore(ahead_pulls)
-        self._pulling_thread: Optional[Thread] = None
-        self._stop: bool = False
+        self._stopped: bool = False
+        self._pulling_thread = Thread(target=self._pulling, daemon=True)
+
+    @property
+    def started(self) -> bool:
+        return self._pulling_thread.ident is not None
+
+    def start(self) -> None:
+        self._pulling_thread.start()
 
     def allow_to_pull(self) -> None:
         if self._semaphore:
@@ -100,9 +124,9 @@ class _Puller(Generic[T]):
 
     def _pulling(self) -> None:
         self._ask_to_pull()
-        while not self._stop:
+        while not self._stopped:
             try:
-                self.elems.put_nowait(self._iterator.__next__())
+                self.elems.put_nowait(self._upstream.__next__())
             except StopIteration:
                 self.elems.put_nowait(STOP_ITERATION)
                 break
@@ -110,25 +134,15 @@ class _Puller(Generic[T]):
                 self.elems.put_nowait(ExceptionContainer(e))
             self._ask_to_pull()
 
-    def start(self) -> None:
-        if self._pulling_thread is None:
-            self._pulling_thread = Thread(target=self._pulling, daemon=True)
-        # also starts a thread whose start was interrupted
-        if not self._pulling_thread.ident:
-            self._pulling_thread.start()
-
     def stop(self) -> None:
-        # a thread can't be cancelled: wake it up, it stops before its next pull
-        self._stop = True
+        self._stopped = True
         self.allow_to_pull()
-        self._clear()
 
     def wait(self) -> None:
-        if self._pulling_thread and self._pulling_thread.ident:
+        with suppress(RuntimeError):
             self._pulling_thread.join()
-        self._clear()
 
-    def _clear(self) -> None:
+    def clear(self) -> None:
         with self.elems.mutex:
             self.elems.queue.clear()
 
@@ -150,7 +164,8 @@ class _PullerBasedIterator(_BaseOperationIterator[T, U]):
     def _lazy_puller(self) -> _Puller[T]:
         if self._puller is None:
             self._puller = _Puller(self.upstream, self._ahead_pulls)
-        self._puller.start()
+        if not self._puller.started:
+            self._puller.start()
         return self._puller
 
     def _terminate(self) -> None:
@@ -158,14 +173,19 @@ class _PullerBasedIterator(_BaseOperationIterator[T, U]):
         if self._puller:
             self._puller.stop()
             self._puller.wait()
+            self._puller.clear()
+            self._puller.elems.put_nowait(STOP_ITERATION)
 
     def close(self) -> None:
-        with closing(cast(Closable, super())):
+        if not self._closed:
             self._terminate()
+            self._safe_close_upstream()
+            self._closed = True
 
     def __del__(self) -> None:
         if self._puller:
             self._puller.stop()
+            self._puller.clear()
 
 
 ##########
@@ -225,7 +245,7 @@ class CatchIterator(_BaseOperationIterator[T, Union[T, U]]):
     def __next__(self) -> Union[T, U]:
         while True:
             if self._stopped:
-                self._close_and_stop()
+                self._attempt_close_and_stop()
             try:
                 return self.upstream.__next__()
             except StopIteration:
@@ -276,11 +296,13 @@ class FlattenIterator(_BaseOperationIterator[Union[Iterable[T], AsyncIterable[T]
                     )
 
     def close(self) -> None:
-        with closing(cast(Closable, super())):
+        if not self._closed:
             if isinstance(self._iterator, Closable) and self._iterator_owned:
                 self._iterator_owned = False
                 with suppress(Exception):
                     self._iterator.close()
+            self._safe_close_upstream()
+            self._closed = True
 
 
 #########
@@ -413,11 +435,14 @@ class GroupByWithinIterator(_PullerBasedIterator[T, Tuple[U, List[T]]]):
         puller = self._lazy_puller
         while True:
             try:
+                timeout = self._timeout(self._groups)
+                if timeout == 0 and self._groups:
+                    return self._oldest_group(self._groups)
                 if self._should_allow_to_pull:
                     puller.allow_to_pull()
                     self._should_allow_to_pull = False
                 try:
-                    elem = puller.elems.get(timeout=self._timeout(self._groups))
+                    elem = puller.elems.get(timeout=timeout)
                 except queue.Empty:
                     return self._oldest_group(self._groups)
                 except BaseException:
@@ -495,7 +520,7 @@ class CountTakeIterator(_BaseOperationIterator[T, T]):
 
     def __next__(self) -> T:
         if self._remaining_to_take <= 0:
-            self._close_and_stop()
+            self._attempt_close_and_stop()
         elem = self.upstream.__next__()
         self._remaining_to_take -= 1
         return elem
@@ -513,7 +538,7 @@ class PredicateTakeIterator(_BaseOperationIterator[T, T]):
 
     def __next__(self) -> T:
         if self._satisfied:
-            self._close_and_stop()
+            self._attempt_close_and_stop()
         elem = self.upstream.__next__()
         if self.until(elem):
             self._satisfied = True
@@ -527,32 +552,28 @@ class PredicateTakeIterator(_BaseOperationIterator[T, T]):
 
 
 class MapIterator(map, ClosableIterator[U], Generic[T, U]):
-    __slots__ = ("upstream", "_upstream_owned", "_closure_requested", "into")
+    __slots__ = ("upstream", "_upstream_owned_closable", "_closed", "into")
     upstream: Iterator[T]
-    _closure_requested: bool
-    _upstream_owned: bool
+    _closed: bool
+    _upstream_owned_closable: bool
     into: Callable[[T], U]
 
     def __new__(cls, into: Callable[[T], U], upstream: Iterator[T]) -> "MapIterator":
-        upstream_owned = True
+        upstream_owned_closable = isinstance(upstream, Closable)
         if isinstance(upstream, GuardedIterator):
-            upstream_owned = upstream._owned
+            upstream_owned_closable = upstream._owned_closable
             upstream = upstream._upstream_iterator
         self = super().__new__(cls, into, upstream)
         self.upstream = upstream
-        self._upstream_owned = upstream_owned
-        self._closure_requested = False
+        self._upstream_owned_closable = upstream_owned_closable
+        self._closed = False
         self.into = into
         return self
 
     def close(self) -> None:
-        if (
-            not self._closure_requested
-            and self._upstream_owned
-            and isinstance(self.upstream, Closable)
-        ):
-            self._closure_requested = True
-            self.upstream.close()
+        if not self._closed and self._upstream_owned_closable:
+            cast(Closable, self.upstream).close()
+            self._closed = True
 
 
 ##########
@@ -561,34 +582,30 @@ class MapIterator(map, ClosableIterator[U], Generic[T, U]):
 
 
 class FilterIterator(filter, ClosableIterator[T]):
-    __slots__ = ("upstream", "_upstream_owned", "_closure_requested", "where")
+    __slots__ = ("upstream", "_upstream_owned_closable", "_closed", "where")
     upstream: Iterator[T]
-    _closure_requested: bool
-    _upstream_owned: bool
+    _closed: bool
+    _upstream_owned_closable: bool
     where: Callable[[T], object]
 
     def __new__(
         cls, where: Callable[[T], object], upstream: Iterator[T]
     ) -> "FilterIterator":
-        upstream_owned = True
+        upstream_owned_closable = isinstance(upstream, Closable)
         if isinstance(upstream, GuardedIterator):
-            upstream_owned = upstream._owned
+            upstream_owned_closable = upstream._owned_closable
             upstream = upstream._upstream_iterator
         self = super().__new__(cls, where, upstream)
         self.upstream = upstream
-        self._upstream_owned = upstream_owned
-        self._closure_requested = False
+        self._upstream_owned_closable = upstream_owned_closable
+        self._closed = False
         self.where = where
         return self
 
     def close(self) -> None:
-        if (
-            not self._closure_requested
-            and self._upstream_owned
-            and isinstance(self.upstream, Closable)
-        ):
-            self._closure_requested = True
-            self.upstream.close()
+        if not self._closed and self._upstream_owned_closable:
+            cast(Closable, self.upstream).close()
+            self._closed = True
 
 
 ###########
@@ -626,7 +643,7 @@ class _BaseObserveIterator(_BaseOperationIterator[T, T]):
         self._elements_observed = 0
         self._errors_observed = 0
         self._activated = False
-        self._start_point: float
+        self._start_point: float = 0
         self._do_base_exception: Optional[BaseException] = None
         self._stopped = Event()
 
@@ -635,6 +652,7 @@ class _BaseObserveIterator(_BaseOperationIterator[T, T]):
         return self._elements + self._errors
 
     def _observation(self) -> Observation:
+        self._start_point = self._start_point or time.perf_counter()
         return Observation(
             subject=self.subject,
             elapsed=datetime.timedelta(seconds=time.perf_counter() - self._start_point),
@@ -760,7 +778,6 @@ class EveryIntervalObserveIterator(_BaseObserveIterator[T]):
         thread_is_done.set()
 
     def _activate(self) -> None:
-        super()._activate()
         Thread(
             target=self._observer,
             args=(
@@ -771,15 +788,18 @@ class EveryIntervalObserveIterator(_BaseObserveIterator[T]):
             ),
             daemon=True,
         ).start()
+        super()._activate()
 
     def _threshold(self, observed: int) -> int:
         return cast(int, float("inf"))
 
     def close(self) -> None:
-        with closing(cast(Closable, super())):
+        if not self._closed:
             self._stopped.set()
             if self._activated:
                 self._thread_is_done.wait()
+            self._safe_close_upstream()
+            self._closed = True
 
     def __del__(self) -> None:
         self._stopped.set()
@@ -878,8 +898,10 @@ class _ConcurrentIterator(_BaseOperationIterator[T, U]):
     def _cancel(self) -> None: ...
 
     def close(self) -> None:
-        with closing(cast(Closable, super())):
+        if not self._closed:
             self._terminate()
+            self._safe_close_upstream()
+            self._closed = True
 
     def __del__(self) -> None:
         self._cancel()
