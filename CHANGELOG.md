@@ -17,7 +17,7 @@
     - `.observe(..., every=timedelta(...))`
   - When the iteration is complete, all the child tasks are done.
   - When the iterator is destroyed before it is exhausted, the pending child tasks terminate at a subsequent cycle of the event loop.
-  - Use the `.aclose` method to eagerly terminate any pending child tasks:
+  - Use the `.aclose` method to cancel and terminate any pending child tasks:
 
   ```python
   from contextlib import aclosing
@@ -40,8 +40,12 @@
       await it.aclose()
       # these 4 tasks are cancelled
   ```
+  - If an async source is already provided as an ``AsyncIterator``, it is considered owned by the client and ``.aclose`` will not propagate to it (the same applies to inner async iterables processed by ``.flatten``), but an in-flight pull will get cancelled.
 
 - `.flatten`: handle inner `AsyncIterable`s during sync iterations too.
+
+- a sync iteration over a `stream` involving async functions or an `AsyncIterable` source no longer sets the current event loop.
+
 
 ## [2.0.0]
 

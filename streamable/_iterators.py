@@ -40,7 +40,6 @@ from streamable._tools._iter import (
 )
 from streamable._tools._observation import Observation
 from streamable._tools._sentinel import STOP_ITERATION
-from streamable._tools._thread import init_thread_local
 from streamable._tools._validation import validate_iterable
 
 T = TypeVar("T")
@@ -186,12 +185,12 @@ class CatchIterator(Iterator[Union[T, U]]):
             except StopIteration:
                 raise
             except self.errors as e:
-                if not self.where or self.where(e):
+                if self.where is None or self.where(e):
                     if self.stop:
                         self._stopped = True
-                    if self.do:
+                    if self.do is not None:
                         self.do(e)
-                    if self.replace:
+                    if self.replace is not None:
                         return self.replace(e)
                     continue
                 raise
@@ -742,9 +741,7 @@ class _ConcurrentMapIterable(
         if self._executor:
             # avoid closing client's executor
             return NoopContextManager(self._executor)
-        return ThreadPoolExecutor(
-            max_workers=self.concurrency, initializer=init_thread_local
-        )
+        return ThreadPoolExecutor(max_workers=self.concurrency)
 
     def _next_future(self, context: Executor) -> Optional["Future[U]"]:
         try:
@@ -829,9 +826,7 @@ class _ConcurrentFlattenIterable(Iterable[Union[T, ExceptionContainer]]):
         iterator_to_queue: Optional[Iterator[T]] = None
 
         try:
-            with ThreadPoolExecutor(
-                max_workers=self.concurrency, initializer=init_thread_local
-            ) as executor:
+            with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
                 # wait, queue, yield (FIFO)
                 while True:
                     if iterator_and_future_pairs:
@@ -846,7 +841,7 @@ class _ConcurrentFlattenIterable(Iterable[Union[T, ExceptionContainer]]):
 
                     # queue tasks up to buffersize
                     while len(iterator_and_future_pairs) < self.concurrency:
-                        if not iterator_to_queue:
+                        if iterator_to_queue is None:
                             try:
                                 try:
                                     iterable = self.upstream.__next__()

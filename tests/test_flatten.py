@@ -202,7 +202,7 @@ def test_flatten_concurrently_many_inner_streams_involving_async(
 
 
 @pytest.mark.asyncio
-async def test_sync_iteration_in_running_loop_raises() -> None:
+async def test_flatten_async_inner_iter_during_sync_iteration_in_running_loop() -> None:
     with pytest.raises(
         RuntimeError, match="event loop already running: do an async iteration instead"
     ):

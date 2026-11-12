@@ -1,7 +1,6 @@
 import sys
 from concurrent.futures import Executor
-from types import TracebackType
-from typing import AsyncContextManager, ContextManager, Optional, Type, TypeVar
+from typing import AsyncContextManager, ContextManager, TypeVar
 
 T = TypeVar("T")
 E = TypeVar("E", bound=Executor)
@@ -49,21 +48,14 @@ class NoopAsyncContextManager(AsyncContextManager[T]):
         pass
 
 
-class ExecutorAsyncContextManager(AsyncContextManager[E]):
-    __slots__ = ("executor",)
+class SyncToAsyncContextManager(AsyncContextManager[T]):
+    __slots__ = ("context_manager",)
 
-    def __init__(self, executor: E):
-        self.executor = executor
+    def __init__(self, context_manager: ContextManager[T]):
+        self.context_manager = context_manager
 
-    async def __aenter__(self) -> E:
-        return self.executor
+    async def __aenter__(self) -> T:
+        return self.context_manager.__enter__()
 
-    async def __aexit__(
-        self,
-        exc_type: Optional[Type[BaseException]],
-        exc: Optional[BaseException],
-        exc_tb: Optional[TracebackType],
-    ) -> None:
-        self.executor.shutdown(
-            wait=not exc or isinstance(exc, (Exception, GeneratorExit))
-        )
+    async def __aexit__(self, *exc_info) -> None:
+        self.context_manager.__exit__(*exc_info)
