@@ -33,10 +33,10 @@ from streamable._tools._future import (
 )
 from streamable._tools._iter import (
     AsyncToSyncIterator,
-    Closable,
     ClosableIterator,
     GuardedAsyncIterator,
     GuardedIterator,
+    safe_close_fn,
 )
 from streamable._tools._observation import Observation
 from streamable._tools._sentinel import STOP_ITERATION
@@ -55,23 +55,19 @@ class _BaseOperationIterator(ClosableIterator[U], Generic[T, U]):
     __slots__ = (
         "upstream",
         "_closed",
-        "_upstream_owned_closable",
+        "_safe_close_upstream",
         "_closure_attempted",
     )
 
     def __init__(self, upstream: ClosableIterator[T]) -> None:
         if isinstance(upstream, GuardedIterator):
-            self.upstream = upstream._upstream_iterator
-            self._upstream_owned_closable = upstream._owned_closable
+            self.upstream = upstream.iterator
+            self._safe_close_upstream = upstream.safe_close_iterator
         else:
             self.upstream = upstream
-            self._upstream_owned_closable = isinstance(upstream, Closable)
+            self._safe_close_upstream = safe_close_fn(upstream)
         self._closed = False
         self._closure_attempted = False
-
-    def _safe_close_upstream(self) -> None:
-        if self._upstream_owned_closable:
-            cast(Closable, self.upstream).close()
 
     def close(self) -> None:
         if not self._closed:
@@ -208,13 +204,18 @@ class BufferIterator(_PullerBasedIterator[T, T]):
             raise StopIteration
         puller = self._lazy_puller
         try:
-            elem = [puller.elems.get()]
+            elem = puller.elems.get()
         finally:
+            # always allow next pull, avoiding hang on next `__next__`
+            # if interrupted `.get` dropped the pending element
             puller.allow_to_pull()
-        if elem[-1] is STOP_ITERATION:
+        if elem is STOP_ITERATION:
             self._terminate()
             raise StopIteration
-        return ExceptionContainer.raise_if_instance(elem.pop())
+        try:
+            return ExceptionContainer.raise_if_instance(elem)
+        finally:
+            del elem
 
 
 #########
@@ -275,32 +276,33 @@ class FlattenIterator(_BaseOperationIterator[Union[Iterable[T], AsyncIterable[T]
         upstream: ClosableIterator[Union[Iterable[T], AsyncIterable[T]]],
     ) -> None:
         super().__init__(upstream)
-        self._iterator: Iterator[T] = ().__iter__()
+        self._iterator: Optional[Iterator[T]] = None
         self._iterator_owned: bool = False
 
     def __next__(self) -> T:
         while True:
             try:
-                return self._iterator.__next__()
+                return (self._iterator or iter(())).__next__()
             except StopIteration:
+                self._iterator = None
                 iterable = self.upstream.__next__()
                 validate_iterable(iterable)
                 if hasattr(type(iterable), "__iter__"):
-                    self._iterator = iterable.__iter__()  # type: ignore
                     self._iterator_owned = not hasattr(type(iterable), "__next__")
+                    self._iterator = iterable.__iter__()  # type: ignore
                 else:
-                    iterator = cast(AsyncIterable[T], iterable).__aiter__()
                     self._iterator_owned = True
+                    iterator = cast(AsyncIterable[T], iterable).__aiter__()
                     self._iterator = AsyncToSyncIterator(
                         iterator, owned=not hasattr(type(iterable), "__anext__")
                     )
 
     def close(self) -> None:
         if not self._closed:
-            if isinstance(self._iterator, Closable) and self._iterator_owned:
+            if self._iterator_owned:
                 self._iterator_owned = False
                 with suppress(Exception):
-                    self._iterator.close()
+                    safe_close_fn(self._iterator)()
             self._safe_close_upstream()
             self._closed = True
 
@@ -435,22 +437,19 @@ class GroupByWithinIterator(_PullerBasedIterator[T, Tuple[U, List[T]]]):
         puller = self._lazy_puller
         while True:
             try:
-                timeout = self._timeout(self._groups)
-                if timeout == 0 and self._groups:
-                    return self._oldest_group(self._groups)
                 if self._should_allow_to_pull:
                     puller.allow_to_pull()
                     self._should_allow_to_pull = False
                 try:
-                    elem = puller.elems.get(timeout=timeout)
+                    elem = puller.elems.get(timeout=self._timeout(self._groups))
+                    self._should_allow_to_pull = True
                 except queue.Empty:
                     return self._oldest_group(self._groups)
+                try:
+                    elem = ExceptionContainer.raise_if_instance(elem)
                 except BaseException:
-                    self._should_allow_to_pull = True
+                    del elem
                     raise
-                else:
-                    self._should_allow_to_pull = True
-                elem = ExceptionContainer.raise_if_instance(elem)
                 if elem is STOP_ITERATION:
                     self._terminate()
                     raise StopIteration
@@ -473,7 +472,7 @@ class GroupByWithinIterator(_PullerBasedIterator[T, Tuple[U, List[T]]]):
 
 
 class CountSkipIterator(_BaseOperationIterator[T, T]):
-    __slots__ = "_remaining_to_skip"
+    __slots__ = ("_remaining_to_skip",)
 
     def __init__(self, upstream: ClosableIterator[T], count: int) -> None:
         super().__init__(upstream)
@@ -512,7 +511,7 @@ class PredicateSkipIterator(_BaseOperationIterator[T, T]):
 
 
 class CountTakeIterator(_BaseOperationIterator[T, T]):
-    __slots__ = "_remaining_to_take"
+    __slots__ = ("_remaining_to_take",)
 
     def __init__(self, upstream: ClosableIterator[T], count: int) -> None:
         super().__init__(upstream)
@@ -552,27 +551,28 @@ class PredicateTakeIterator(_BaseOperationIterator[T, T]):
 
 
 class MapIterator(map, ClosableIterator[U], Generic[T, U]):
-    __slots__ = ("upstream", "_upstream_owned_closable", "_closed", "into")
+    __slots__ = ("upstream", "_safe_close_upstream", "_closed", "into")
     upstream: Iterator[T]
     _closed: bool
-    _upstream_owned_closable: bool
+    _safe_close_upstream: Callable[[], None]
     into: Callable[[T], U]
 
     def __new__(cls, into: Callable[[T], U], upstream: Iterator[T]) -> "MapIterator":
-        upstream_owned_closable = isinstance(upstream, Closable)
         if isinstance(upstream, GuardedIterator):
-            upstream_owned_closable = upstream._owned_closable
-            upstream = upstream._upstream_iterator
+            safe_close_upstream = upstream.safe_close_iterator
+            upstream = upstream.iterator
+        else:
+            safe_close_upstream = safe_close_fn(upstream)
         self = super().__new__(cls, into, upstream)
         self.upstream = upstream
-        self._upstream_owned_closable = upstream_owned_closable
+        self._safe_close_upstream = safe_close_upstream
         self._closed = False
         self.into = into
         return self
 
     def close(self) -> None:
-        if not self._closed and self._upstream_owned_closable:
-            cast(Closable, self.upstream).close()
+        if not self._closed:
+            self._safe_close_upstream()
             self._closed = True
 
 
@@ -582,29 +582,30 @@ class MapIterator(map, ClosableIterator[U], Generic[T, U]):
 
 
 class FilterIterator(filter, ClosableIterator[T]):
-    __slots__ = ("upstream", "_upstream_owned_closable", "_closed", "where")
+    __slots__ = ("upstream", "_safe_close_upstream", "_closed", "where")
     upstream: Iterator[T]
     _closed: bool
-    _upstream_owned_closable: bool
+    _safe_close_upstream: Callable[[], None]
     where: Callable[[T], object]
 
     def __new__(
         cls, where: Callable[[T], object], upstream: Iterator[T]
     ) -> "FilterIterator":
-        upstream_owned_closable = isinstance(upstream, Closable)
         if isinstance(upstream, GuardedIterator):
-            upstream_owned_closable = upstream._owned_closable
-            upstream = upstream._upstream_iterator
+            safe_close_upstream = upstream.safe_close_iterator
+            upstream = upstream.iterator
+        else:
+            safe_close_upstream = safe_close_fn(upstream)
         self = super().__new__(cls, where, upstream)
         self.upstream = upstream
-        self._upstream_owned_closable = upstream_owned_closable
+        self._safe_close_upstream = safe_close_upstream
         self._closed = False
         self.where = where
         return self
 
     def close(self) -> None:
-        if not self._closed and self._upstream_owned_closable:
-            cast(Closable, self.upstream).close()
+        if not self._closed:
+            self._safe_close_upstream()
             self._closed = True
 
 

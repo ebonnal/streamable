@@ -36,8 +36,8 @@ from tests.tools.iter import (
     aiter_or_iter,
     alist_or_list,
     anext_or_next,
-    async_iter,
     stopiteration_type,
+    to_aiter,
 )
 from tests.tools.source import INTEGERS, N, ints
 
@@ -145,7 +145,7 @@ def test_add(itype: IterableType) -> None:
         map(str, INTEGERS)
     )
 
-    assert alist_or_list(ints + async_iter(INTEGERS), itype) == list(INTEGERS) * 2
+    assert alist_or_list(ints + to_aiter(INTEGERS), itype) == list(INTEGERS) * 2
 
 
 def test_call() -> None:

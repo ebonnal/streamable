@@ -54,7 +54,6 @@ def filter(
     where: Callable[[T], object],
     upstream: ClosableIterator[T],
 ) -> ClosableIterator[T]:
-    # TODO relace
     return _iterators.FilterIterator(where, upstream)
 
 

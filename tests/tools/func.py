@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     P = ParamSpec("P")
 
 T = TypeVar("T")
-R = TypeVar("R")
+U = TypeVar("U")
 
 
 def nothing(_: object) -> None:
@@ -140,9 +140,9 @@ async def async_inverse_sleep(seconds: float) -> float:
 
 
 def randomly_slowed(
-    func: Callable[[T], R], min_sleep: float = 0.001, max_sleep: float = 0.01
-) -> Callable[[T], R]:
-    def wrap(x: T) -> R:
+    func: Callable[[T], U], min_sleep: float = 0.001, max_sleep: float = 0.01
+) -> Callable[[T], U]:
+    def wrap(x: T) -> U:
         time.sleep(min_sleep + random.random() * (max_sleep - min_sleep))
         return func(x)
 
@@ -150,11 +150,11 @@ def randomly_slowed(
 
 
 def async_randomly_slowed(
-    async_func: AsyncFunction[T, R],
+    async_func: AsyncFunction[T, U],
     min_sleep: float = 0.001,
     max_sleep: float = 0.01,
-) -> AsyncFunction[T, R]:
-    async def wrap(x: T) -> R:
+) -> AsyncFunction[T, U]:
+    async def wrap(x: T) -> U:
         await asyncio.sleep(min_sleep + random.random() * (max_sleep - min_sleep))
         return await async_func(x)
 

@@ -33,11 +33,14 @@ from tests.tools.func import (
 from tests.tools.iter import (
     ITERABLE_TYPES,
     IterableType,
+    aclose_or_close,
     aiter_or_iter,
     alist_or_list,
     anext_or_next,
+    asleep_or_sleep,
     stopiteration_type,
 )
+from tests.tools.monitor import MonitoredIntIterable
 from tests.tools.source import ints
 
 
@@ -358,3 +361,33 @@ async def test_observe_task_ends_on_its_own_if_not_cancelled_on_del(
 
     audit = await audit_awaitable(anext_then_del_then_sleep(s.__aiter__()))
     assert audit.leftover_tasks == 0
+
+
+@pytest.mark.asyncio
+async def test_observe_cancellation_landing_during_do_is_surfaced() -> None:
+    async def just_sleep(err) -> None:
+        await asyncio.sleep(0.1)
+
+    s = stream(range(8)).observe(do=just_sleep)
+    it = s.__aiter__()
+    pull = asyncio.ensure_future(it.__anext__())
+    await asyncio.sleep(0.01)
+    pull.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await pull
+
+
+@pytest.mark.parametrize("itype", ["sync", "async"])
+def test_observe_closed_before_activation(itype: IterableType) -> None:
+    observations: List[Observation] = []
+    src = MonitoredIntIterable()
+    every = datetime.timedelta(milliseconds=10)
+    s = stream(src).observe("ints", every=every, do=observations.append)
+    it = aiter_or_iter(s, itype)
+    aclose_or_close(it, itype)
+    asleep_or_sleep(10 * every.total_seconds(), itype)
+    assert len(observations) == 0
+    assert anext_or_next(it, itype) == 0
+    asleep_or_sleep(10 * every.total_seconds(), itype)
+    assert len(observations) == 0
+    assert src.iterators[0].closed

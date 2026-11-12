@@ -84,6 +84,8 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
     A sync iteration over a ``stream`` involving async functions or an ``AsyncIterable`` source runs as an async iteration under the hood, using the current event loop if one is set.
 
+    The iterators returned by ``stream.__iter__``/``stream.__aiter__`` expose a ``.close``/``.aclose`` method to eagerly terminate the tasks/threads they may spawn during iteration (structured concurrency).
+
     Args:
         source (``Iterable[T] | AsyncIterable[T] | Callable[[], T] | Callable[[], Coroutine[object, object, T]]``):
 
@@ -178,7 +180,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         When the iterator is destroyed before it is exhausted, the pending child threads are terminated (queued work is cancelled if possible).
 
-        Use the ``.close`` method to eagerly terminate any pending child threads.
+        Use the retriable ``.close`` method to eagerly terminate any pending child threads.
 
         Errors raised by child threads during termination are not propagated.
 
@@ -228,7 +230,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         When the iterator is destroyed before it is exhausted, the pending child tasks are canceled and terminated at a subsequent cycle of the event loop.
 
-        Use the ``.aclose`` method to eagerly terminate any pending child tasks.
+        Use the retriable ``.aclose`` method to eagerly terminate any pending child tasks.
 
         Errors raised by child tasks during termination are not propagated.
 

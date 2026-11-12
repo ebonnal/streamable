@@ -9,9 +9,9 @@ from typing import (
 )
 
 T = TypeVar("T")
-R = TypeVar("R")
+U = TypeVar("U")
 
-AsyncFunction = Callable[[T], Coroutine[object, object, R]]
+AsyncFunction = Callable[[T], Coroutine[object, object, U]]
 
 
 def safe_get_event_loop() -> Optional[asyncio.AbstractEventLoop]:
@@ -43,7 +43,7 @@ async def anext(aiterator: AsyncIterator[T], default: T) -> T:
 
 
 async def semaphored(
-    into: AsyncFunction[T, R], elem: T, semaphore: asyncio.Semaphore
-) -> R:
+    into: AsyncFunction[T, U], elem: T, semaphore: asyncio.Semaphore
+) -> U:
     async with semaphore:
         return await into(elem)

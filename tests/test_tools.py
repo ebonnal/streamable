@@ -21,10 +21,10 @@ from streamable._tools._iter import AsyncToSyncIterator, GuardedAsyncIterator
 from streamable._tools._logging import logfmt_str_escape, setup_logger
 from tests.tools.error import TestError, collecting_unraisables
 from tests.tools.func import async_identity, identity, run_in_thread, throw
-from tests.tools.iter import AsyncOnlyIterable, async_iter
+from tests.tools.iter import to_aiter
 from tests.tools.monitor import (
-    CloseFailingMonitoredIntIterable,
-    MonitoredIntIterable,
+    CloseFailingMonitoredIntAsyncIterable,
+    MonitoredIntAsyncIterable,
 )
 from tests.tools.source import INTEGERS
 
@@ -126,14 +126,29 @@ def test_setup_logger_keeps_existing_handlers() -> None:
     assert logger.handlers == pre_setup_handlers
 
 
-########
-# iter #
-########
+######################
+# sync to async iter #
+######################
+
+
+@pytest.mark.asyncio
+async def test_sync_to_async_iterator_close_propagation_to_source() -> None:
+    src = MonitoredIntAsyncIterable()
+    s = stream(src)
+    aiterator = s.__aiter__()
+    assert await aiterator.__anext__() == 0
+    await aiterator.aclose()
+    assert src.iterators[0].closed
+
+
+######################
+# async to sync iter #
+######################
 
 
 @pytest.mark.parametrize("n_pulls", [1, 2])
 def test_async_to_sync_iterator_already_closed(n_pulls: int) -> None:
-    it = AsyncToSyncIterator(GuardedAsyncIterator(async_iter([0])))
+    it = AsyncToSyncIterator(GuardedAsyncIterator(to_aiter([0])))
     for _ in range(n_pulls):
         next(it, None)
     it.close()
@@ -305,39 +320,39 @@ def next_and_del_with_not_owned_loop_while_another_runs(
 @pytest.mark.parametrize(
     "src_type, scenario, owned_src_is_closed, loop_is_closed, unraisables_exc_types",
     [
-        (MonitoredIntIterable, next_and_del, True, True, []),
-        (MonitoredIntIterable, next_and_del_within_another_loop, False, True, []),
+        (MonitoredIntAsyncIterable, next_and_del, True, True, []),
+        (MonitoredIntAsyncIterable, next_and_del_within_another_loop, False, True, []),
         (
-            MonitoredIntIterable,
+            MonitoredIntAsyncIterable,
             partial(next_and_close_loop_and_del, pull=True),
             False,
             True,
             [],
         ),
         (
-            MonitoredIntIterable,
+            MonitoredIntAsyncIterable,
             partial(next_and_close_loop_and_del, pull=False),
             False,
             True,
             [],
         ),
-        (CloseFailingMonitoredIntIterable, next_and_del, True, True, [TestError]),
+        (CloseFailingMonitoredIntAsyncIterable, next_and_del, True, True, [TestError]),
         (
-            MonitoredIntIterable,
+            MonitoredIntAsyncIterable,
             partial(next_and_del_while_its_not_owned_loop_runs, within_thread=True),
             True,
             False,
             [],
         ),
         (
-            MonitoredIntIterable,
+            MonitoredIntAsyncIterable,
             partial(next_and_del_while_its_not_owned_loop_runs, within_thread=False),
             True,
             False,
             [],
         ),
         (
-            MonitoredIntIterable,
+            MonitoredIntAsyncIterable,
             next_and_del_with_not_owned_loop_while_another_runs,
             False,
             False,
@@ -346,7 +361,7 @@ def next_and_del_with_not_owned_loop_while_another_runs(
     ],
 )
 def test_async_to_sync_iterator_del(
-    src_type: "Type[MonitoredIntIterable]",
+    src_type: "Type[MonitoredIntAsyncIterable]",
     scenario: Callable[[AsyncIterable[int]], asyncio.AbstractEventLoop],
     owned_src_is_closed: bool,
     loop_is_closed: bool,
@@ -354,11 +369,71 @@ def test_async_to_sync_iterator_del(
 ) -> None:
     src = src_type()
     with collecting_unraisables() as unraisables:
-        # async-only: the sync iteration must go through an `AsyncToSyncIterator`
-        loop = run_in_thread(scenario, AsyncOnlyIterable(src))
+        loop = run_in_thread(scenario, src)
     assert src.iterators[0].closed is owned_src_is_closed
     assert loop.is_closed() is loop_is_closed
     assert [
         type(unraisable.exc_value) for unraisable in unraisables
     ] == unraisables_exc_types
     loop.close()
+
+
+def test_async_to_sync_iterator_close_from_its_loop() -> None:
+    def close_from_its_loop() -> None:
+        s = stream(range(10)).map(async_identity)
+        iterator = s.__iter__()
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        assert iterator.__next__() == 0
+
+        async def sync_close() -> None:
+            iterator.close()
+
+        loop.run_until_complete(sync_close())
+
+    with pytest.raises(RuntimeError, match="event loop already running: cannot close"):
+        run_in_thread(close_from_its_loop)
+
+
+async def twice_interrupted_zero(elem: int) -> None:
+    if elem == 0:
+        await twice_interrupted(elem)
+
+
+async def twice_interrupted(elem: int) -> None:
+    loop = asyncio.get_running_loop()
+    loop.call_soon(lambda: throw(KeyboardInterrupt()))
+    try:
+        await asyncio.sleep(1)
+    except asyncio.CancelledError:
+        # second interruption, while the cancellation is being honored
+        loop.call_soon(lambda: throw(KeyboardInterrupt))
+        await asyncio.sleep(0.05)
+        raise
+
+
+def test_async_to_sync_iterator_twice_interrupted_and_closed() -> None:
+    def interrupt_twice_and_close() -> None:
+        it = iter(stream([0, 1]).do(twice_interrupted))
+        assert isinstance(it, AsyncToSyncIterator)
+        with pytest.raises(KeyboardInterrupt):
+            next(it)
+        assert it._pending_pull is not None and not it._pending_pull.done()
+        it.close()
+        assert it._lazy_loop.is_closed()
+
+    run_in_thread(interrupt_twice_and_close)
+
+
+def test_async_to_sync_iterator_twice_interrupted_next() -> None:
+    def interrupt_twice_and_next() -> None:
+        it = iter(stream([0, 1, 2]).do(twice_interrupted_zero))
+        assert isinstance(it, AsyncToSyncIterator)
+        with pytest.raises(KeyboardInterrupt):
+            next(it)
+        assert it._pending_pull is not None and not it._pending_pull.done()
+        with pytest.raises(asyncio.CancelledError):
+            next(it)
+        assert next(it) == 1
+
+    run_in_thread(interrupt_twice_and_next)

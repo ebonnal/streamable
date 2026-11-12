@@ -1,17 +1,10 @@
-from dataclasses import dataclass
-from typing import TypeVar, Union
+from typing import NamedTuple, TypeVar, Union
 
 T = TypeVar("T")
 
 
-@dataclass
-class ExceptionContainer:
-    __slots__ = ("exception",)
+class ExceptionContainer(NamedTuple):
     exception: BaseException
-
-    class ClearedException(BaseException):
-        __slots__ = ()
-        pass
 
     @staticmethod
     def raise_if_instance(obj: Union[T, "ExceptionContainer"]) -> T:
@@ -19,6 +12,5 @@ class ExceptionContainer:
             try:
                 raise obj.exception
             finally:
-                obj.exception = ExceptionContainer.ClearedException()
                 del obj
         return obj

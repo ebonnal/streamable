@@ -100,7 +100,7 @@ async def test_buffer_task_cancel() -> None:
     await asyncio.sleep(0)  # the puller's next pull is in flight
     background_tasks = asyncio.all_tasks() - {asyncio.current_task()}
     assert len(background_tasks) == 2
-    # cancelled from outside all at once, then awaited together, as `asyncio.run`'s shutdown does
+    # cancelled all at once then awaited, like `asyncio.run`'s shutdown
     for task in background_tasks:
         task.cancel()
     # should not hang

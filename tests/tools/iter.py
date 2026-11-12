@@ -1,6 +1,9 @@
+import asyncio
+import time
 from typing import (
     AsyncIterable,
     AsyncIterator,
+    Callable,
     Iterable,
     Iterator,
     List,
@@ -12,17 +15,30 @@ from typing import (
     cast,
 )
 
+from streamable._stream import stream
+from streamable._tools._async import AsyncFunction
 from streamable._tools._iter import (
+    AsyncClosable,
+    Closable,
     ClosableAsyncIterator,
     ClosableIterator,
-    SyncToAsyncIterator,
 )
+from tests.tools.func import async_identity, identity
 from tests.tools.loop import TEST_LOOP
 
 IterableType = Literal["sync", "async"]
 ITERABLE_TYPES: Tuple[IterableType, ...] = ("sync", "async")
 
 T = TypeVar("T")
+
+
+def aidentity_or_identity(
+    itype: IterableType,
+) -> Union[Callable[[T], T], AsyncFunction[T, T]]:
+    assert itype in ITERABLE_TYPES
+    if itype == "async":
+        return async_identity
+    return identity
 
 
 async def _aiter_to_list(aiterable: AsyncIterable[T]) -> List[T]:
@@ -48,12 +64,12 @@ async def acount(iterator: AsyncIterable) -> int:
 
 
 def aiter_or_iter(
-    iterable: Union[Iterable[T], AsyncIterable[T]], itype: IterableType
-) -> Union[Iterator[T], AsyncIterator[T]]:
+    s: stream[T], itype: IterableType
+) -> Union[ClosableIterator[T], ClosableAsyncIterator[T]]:
     assert itype in ITERABLE_TYPES
     if itype == "async":
-        return cast(AsyncIterator[T], iterable).__aiter__()
-    return cast(Iterator[T], iterable).__iter__()
+        return s.__aiter__()
+    return s.__iter__()
 
 
 def anext_or_next(it: Union[Iterator[T], AsyncIterator[T]], itype: IterableType) -> T:
@@ -63,14 +79,20 @@ def anext_or_next(it: Union[Iterator[T], AsyncIterator[T]], itype: IterableType)
     return next(cast(Iterator[T], it))
 
 
-def aclose_or_close(
-    it: Union[ClosableIterator[T], ClosableAsyncIterator[T]], itype: IterableType
-) -> None:
+def aclose_or_close(obj: Union[Closable, AsyncClosable], itype: IterableType) -> None:
     assert itype in ITERABLE_TYPES
     if itype == "async":
-        TEST_LOOP.run_until_complete(cast(ClosableAsyncIterator[T], it).aclose())
+        TEST_LOOP.run_until_complete(cast(AsyncClosable, obj).aclose())
     else:
-        cast(ClosableIterator[T], it).close()
+        cast(Closable, obj).close()
+
+
+def asleep_or_sleep(seconds: float, itype: IterableType) -> None:
+    assert itype in ITERABLE_TYPES
+    if itype == "async":
+        TEST_LOOP.run_until_complete(asyncio.sleep(seconds))
+    else:
+        time.sleep(seconds)
 
 
 def alist_or_list(
@@ -82,32 +104,37 @@ def alist_or_list(
     return list(cast(Iterable[T], iterable))
 
 
-class SyncAsyncIterable(Iterable[T], AsyncIterable[T]):
-    """Both sync and async iterable."""
+class SyncToAsyncIterator(AsyncIterator[T]):
+    __slots__ = ("upstream",)
+
+    def __init__(self, upstream: Iterator[T]):
+        self.upstream = upstream
+
+    async def __anext__(self) -> T:
+        try:
+            return self.upstream.__next__()
+        except StopIteration as e:
+            raise StopAsyncIteration from e
 
 
-class SyncToBiIterable(SyncAsyncIterable[T]):
-    def __init__(self, iterable: Iterable[T]):
-        self.iterable = iterable
-
-    def __iter__(self) -> Iterator[T]:
-        return self.iterable.__iter__()
-
-    def __aiter__(self) -> AsyncIterator[T]:
-        return SyncToAsyncIterator(self.iterable.__iter__())
-
-
-class AsyncOnlyIterable(AsyncIterable[T]):
-    """Exposes only the `__aiter__` of an iterable that may also be sync."""
-
-    def __init__(self, iterable: AsyncIterable[T]):
-        self.iterable = iterable
+class SyncToAsyncIterable(AsyncIterable[T]):
+    def __init__(self, iterable: Iterable[T]) -> None:
+        self._iterable = iterable
 
     def __aiter__(self) -> AsyncIterator[T]:
-        return self.iterable.__aiter__()
+        return SyncToAsyncIterator(self._iterable.__iter__())
 
 
-def async_iter(iterable: Union[Iterable[T], AsyncIterable[T]]) -> AsyncIterator[T]:
+def aiterable_or_iterable(
+    iterable: Iterable[T], itype: IterableType
+) -> Union[Iterable[T], AsyncIterable[T]]:
+    assert itype in ITERABLE_TYPES
+    if itype == "async":
+        return SyncToAsyncIterable(iterable)
+    return iterable
+
+
+def to_aiter(iterable: Union[Iterable[T], AsyncIterable[T]]) -> AsyncIterator[T]:
     if isinstance(iterable, AsyncIterable):
         return iterable.__aiter__()
     return SyncToAsyncIterator(iterable.__iter__())

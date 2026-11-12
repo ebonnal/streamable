@@ -15,20 +15,20 @@ if TYPE_CHECKING:  # pragma: no cover
 
     Ts = TypeVarTuple("Ts")
 
-R = TypeVar("R")
+U = TypeVar("U")
 
 
 def func_name(func: Callable[..., Any]) -> str:
     return getattr(func, "__name__", repr(func))
 
 
-class _Star(Generic[R]):
+class _Star(Generic[U]):
     __slots__ = ("func",)
 
-    def __init__(self, func: Callable[..., R]) -> None:
+    def __init__(self, func: Callable[..., U]) -> None:
         self.func = func
 
-    def __call__(self, args: Tuple[object, ...]) -> R:
+    def __call__(self, args: Tuple[object, ...]) -> U:
         return self.func(*args)
 
     def __repr__(self) -> str:
@@ -37,12 +37,12 @@ class _Star(Generic[R]):
 
 @overload
 def star(
-    func: "Callable[[Unpack[Ts]], Coroutine[object, object, R]]",
-) -> "Callable[[Tuple[Unpack[Ts]]], Coroutine[object, object, R]]": ...
+    func: "Callable[[Unpack[Ts]], Coroutine[object, object, U]]",
+) -> "Callable[[Tuple[Unpack[Ts]]], Coroutine[object, object, U]]": ...
 
 
 @overload
-def star(func: "Callable[[Unpack[Ts]], R]") -> "Callable[[Tuple[Unpack[Ts]]], R]": ...
+def star(func: "Callable[[Unpack[Ts]], U]") -> "Callable[[Tuple[Unpack[Ts]]], U]": ...
 
 
 def star(func: "Callable[[Unpack[Ts]], Any]") -> "Callable[[Tuple[Unpack[Ts]]], Any]":

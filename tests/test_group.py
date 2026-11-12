@@ -4,11 +4,13 @@ import queue
 import random
 import time
 from datetime import timedelta
+from functools import partial
 from typing import Any, Callable, Iterable, List, Optional, Type
 
 import pytest
 
 from streamable import stream
+from streamable._iterators import _PullerBasedIterator
 from streamable._tools._func import asyncify
 from tests.tools.func import (
     SLOW_IDENTITY_DURATION,
@@ -367,3 +369,24 @@ async def test_group_within_loses_nothing_under_timeout_retries() -> None:
         except StopAsyncIteration:
             break
     assert elems == list(src)
+
+
+def test_group_within_resumes_after_interrupted_get() -> None:
+    src = iter(range(10))
+    it = iter(stream(src).group(2, by=type, within=timedelta(hours=1)))
+    assert isinstance(it, _PullerBasedIterator)
+    assert next(it) == (int, [0, 1])
+    pulled_elems = it._lazy_puller.elems
+
+    def interrupted_first_get(*args, **kwargs):
+        pulled_elems.get = partial(queue.Queue.get, pulled_elems)
+        raise KeyboardInterrupt
+
+    pulled_elems.get = interrupted_first_get  # type: ignore
+    with pytest.raises(KeyboardInterrupt):
+        next(it)
+    assert next(it) == (int, [2, 3])
+    time.sleep(0.1)
+    pulled_ahead = next(src) > 4
+    assert not pulled_ahead
+    it.close()

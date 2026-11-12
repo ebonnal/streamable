@@ -111,7 +111,7 @@ Operations adapt their behavior to the type of iteration:
 
 A sync iteration over a `stream` involving async functions or an `AsyncIterable` source runs as an async iteration under the hood, using the current event loop if one is set.
 
-The iterators returned by `stream.__iter__`/`stream.__aiter__` expose a [`.close`/`.aclose`](#structured-concurrency) method to manage the tasks/threads they may spawn during iteration (structured concurrency).
+The iterators returned by `stream.__iter__`/`stream.__aiter__` expose a [`.close`/`.aclose`](#structured-concurrency) method to eagerly terminate the tasks/threads they may spawn during iteration (structured concurrency).
 
 ## ▼ `.map`
 
@@ -561,7 +561,7 @@ When the iteration is complete, all the child tasks are done.
 
 When the iterator is destroyed before it is exhausted, the pending child tasks are terminated (queued work is cancelled if possible).
 
-`stream.__iter__`/`stream.__aiter__` returns an `Iterator`/`AsyncIterator` with a `.close`/`.aclose` method to eagerly terminate any pending child tasks.
+`stream.__iter__`/`stream.__aiter__` returns an `Iterator`/`AsyncIterator` with a retriable `.close`/`.aclose` method to eagerly terminate any pending child tasks.
 
 ### `.close`
 

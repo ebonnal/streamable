@@ -14,8 +14,8 @@ from streamable._tools._func import sidify
 from streamable._tools._iter import (
     ClosableAsyncIterator,
     GuardedAsyncIterator,
-    SyncToAsyncIterable,
-    SyncToAsyncIterator,
+    SyncToClosableAsyncIterable,
+    SyncToClosableAsyncIterator,
     afn_to_aiter,
     fn_to_aiter,
 )
@@ -133,8 +133,10 @@ class AsyncIteratorVisitor(Visitor[ClosableAsyncIterator[T]]):
             return GuardedAsyncIterator(s.source)
         if isinstance(s.source, Iterable):
             if isinstance(s.source, Iterator):
-                return GuardedAsyncIterator(SyncToAsyncIterator(s.source.__iter__()))
-            return GuardedAsyncIterator(SyncToAsyncIterable(s.source))
+                return GuardedAsyncIterator(
+                    SyncToClosableAsyncIterator(s.source.__iter__())
+                )
+            return GuardedAsyncIterator(SyncToClosableAsyncIterable(s.source))
         if callable(s.source):
             if iscoroutinefunction(s.source):
                 return GuardedAsyncIterator(afn_to_aiter(s.source))

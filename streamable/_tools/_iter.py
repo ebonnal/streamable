@@ -1,6 +1,7 @@
 import asyncio
 import itertools
 from typing import (
+    Any,
     AsyncIterable,
     AsyncIterator,
     Awaitable,
@@ -11,11 +12,12 @@ from typing import (
     Optional,
     Protocol,
     TypeVar,
-    cast,
     runtime_checkable,
 )
 
+from streamable._tools._afuture import ensure_done
 from streamable._tools._async import safe_get_event_loop
+from streamable._tools._func import anoop, noop
 
 T = TypeVar("T")
 U = TypeVar("U")
@@ -47,7 +49,7 @@ class AsyncToSyncIterator(Iterator[T], Closable):
         "_upstream_owned",
         "_closed",
         "_stopped",
-        "_anext_task",
+        "_pending_pull",
     )
 
     def __init__(self, upstream: "AsyncIterator[T]", owned: bool = True):
@@ -57,7 +59,7 @@ class AsyncToSyncIterator(Iterator[T], Closable):
         self.__loop: Optional[asyncio.AbstractEventLoop] = None
         self._closed = False
         self._stopped = False
-        self._anext_task: Optional["asyncio.Task[T]"] = None
+        self._pending_pull: Optional["asyncio.Task[T]"] = None
 
     @property
     def _lazy_loop(self) -> asyncio.AbstractEventLoop:
@@ -69,17 +71,12 @@ class AsyncToSyncIterator(Iterator[T], Closable):
         return self.__loop
 
     async def _safe_aclose_upstream(self) -> None:
-        if self._anext_task is not None and not self._anext_task.done():
-            if isinstance(
-                (await asyncio.gather(self._anext_task, return_exceptions=True))[0],
-                StopAsyncIteration,
-            ):
-                self._stopped = True
         if (
             not self._stopped
             and self._upstream_owned
             and isinstance(self.upstream, AsyncClosable)
         ):
+            await ensure_done(self._pending_pull)
             await self.upstream.aclose()
 
     def _safe_close_loop(self) -> None:
@@ -113,14 +110,14 @@ class AsyncToSyncIterator(Iterator[T], Closable):
             # `self.__loop` is owned and another loop is running in this thread
             self._safe_close_loop()
 
-    def _get_anext_task(self) -> "asyncio.Task[T]":
+    def _next_pull(self) -> "asyncio.Task[T]":
         return asyncio.ensure_future(self.upstream.__anext__(), loop=self._lazy_loop)
 
-    def _cancel_anext_task(self) -> None:
-        if self._anext_task is not None and not self._anext_task.done():
-            self._anext_task.cancel()
+    def _cancel_and_wait_pending_pull(self) -> None:
+        if self._pending_pull is not None and not self._pending_pull.done():
+            self._pending_pull.cancel()
             self._lazy_loop.run_until_complete(
-                asyncio.gather(self._anext_task, return_exceptions=True)
+                asyncio.gather(self._pending_pull, return_exceptions=True)
             )
 
     def __next__(self) -> T:
@@ -130,10 +127,10 @@ class AsyncToSyncIterator(Iterator[T], Closable):
             raise RuntimeError(
                 "event loop already running: do an async iteration instead"
             )
-        if self._anext_task is None:
-            self._anext_task = self._get_anext_task()
+        if self._pending_pull is None:
+            self._pending_pull = self._next_pull()
         try:
-            return self._lazy_loop.run_until_complete(self._anext_task)
+            return self._lazy_loop.run_until_complete(self._pending_pull)
         except StopAsyncIteration:
             self._stopped = True
             self._safe_close_loop()
@@ -141,11 +138,11 @@ class AsyncToSyncIterator(Iterator[T], Closable):
         except Exception:
             raise
         except BaseException:
-            self._cancel_anext_task()
+            self._cancel_and_wait_pending_pull()
             raise
         finally:
-            if self._anext_task.done():
-                self._anext_task = None
+            if self._pending_pull.done():
+                self._pending_pull = None
 
 
 class _FnIterator(Iterator[T]):
@@ -210,7 +207,7 @@ class ClosableAsyncIterator(AsyncClosable, Protocol[C]):
     def __anext__(self) -> Awaitable[C]: ...
 
 
-class SyncToAsyncIterator(ClosableAsyncIterator[T]):
+class SyncToClosableAsyncIterator(ClosableAsyncIterator[T]):
     __slots__ = ("upstream", "_upstream_owned")
 
     def __init__(self, upstream: Iterator[T], owned: bool = True):
@@ -224,18 +221,18 @@ class SyncToAsyncIterator(ClosableAsyncIterator[T]):
             raise StopAsyncIteration from e
 
     async def aclose(self) -> None:
-        if self._upstream_owned and isinstance(self.upstream, Closable):
-            self.upstream.close()
+        if self._upstream_owned:
+            safe_close_fn(self.upstream)()
 
 
-class SyncToAsyncIterable(AsyncIterable[T]):
+class SyncToClosableAsyncIterable(AsyncIterable[T]):
     __slots__ = ("upstream",)
 
     def __init__(self, upstream: Iterable[T]):
         self.upstream = upstream
 
-    def __aiter__(self) -> AsyncIterator[T]:
-        return SyncToAsyncIterator(iter(self.upstream))
+    def __aiter__(self) -> ClosableAsyncIterator[T]:
+        return SyncToClosableAsyncIterator(iter(self.upstream))
 
 
 class GuardedAsyncIterator(ClosableAsyncIterator[T]):
@@ -246,69 +243,91 @@ class GuardedAsyncIterator(ClosableAsyncIterator[T]):
 
     __slots__ = (
         "silent_close",
-        "_upstream_iterator",
-        "_owned_closable",
+        "iterator",
+        "safe_aclose_iterator",
         "_closed",
     )
 
-    def __init__(
-        self, upstream_iterable: AsyncIterable[T], silent_close: bool = False
-    ) -> None:
+    def __init__(self, iterable: AsyncIterable[T], silent_close: bool = False) -> None:
         self.silent_close = silent_close
-        self._upstream_iterator = upstream_iterable.__aiter__()
-        self._owned_closable = not isinstance(
-            upstream_iterable, AsyncIterator
-        ) and isinstance(self._upstream_iterator, AsyncClosable)
+        self.iterator = iterable.__aiter__()
+        self.safe_aclose_iterator = (
+            anoop
+            if isinstance(iterable, AsyncIterator)
+            else safe_aclose_fn(self.iterator)
+        )
         self._closed = False
 
     def __anext__(self) -> Awaitable[T]:
-        return self._upstream_iterator.__anext__()
+        return self.iterator.__anext__()
 
     async def aclose(self) -> None:
         if not self._closed:
-            if self._owned_closable:
-                try:
-                    await cast(AsyncClosable, self._upstream_iterator).aclose()
-                except Exception:
-                    if not self.silent_close:
-                        raise
+            try:
+                await self.safe_aclose_iterator()
+            except Exception:
+                if not self.silent_close:
+                    raise
             self._closed = True
 
 
 class GuardedIterator(itertools.chain, ClosableIterator[T]):
     __slots__ = (
         "silent_close",
-        "_upstream_iterator",
-        "_owned_closable",
+        "iterator",
+        "safe_close_iterator",
         "_closed",
     )
 
-    _upstream_iterator: Iterator[T]
-    _owned_closable: bool
+    iterator: Iterator[T]
+    safe_close_iterator: Callable[[], None]
 
     def __new__(
-        cls, upstream_iterable: Iterable[T], silent_close: bool = False
+        cls, iterable: Iterable[T], silent_close: bool = False
     ) -> "GuardedIterator[T]":
-        upstream_iterator = upstream_iterable.__iter__()
-        self = super().__new__(cls, upstream_iterator)
-        self._upstream_iterator = upstream_iterator
-        self._owned_closable = not isinstance(
-            upstream_iterable, Iterator
-        ) and isinstance(upstream_iterator, Closable)
+        iterator = iterable.__iter__()
+        self = super().__new__(cls, iterator)
+        self.iterator = iterator
+        self.safe_close_iterator = (
+            noop if isinstance(iterable, Iterator) else safe_close_fn(self.iterator)
+        )
         return self
 
-    def __init__(
-        self, upstream_iterable: Iterable[T], silent_close: bool = False
-    ) -> None:
+    def __init__(self, iterable: Iterable[T], silent_close: bool = False) -> None:
         self.silent_close = silent_close
         self._closed = False
 
     def close(self) -> None:
         if not self._closed:
-            if self._owned_closable:
-                try:
-                    cast(Closable, self._upstream_iterator).close()
-                except Exception:
-                    if not self.silent_close:
-                        raise
+            try:
+                self.safe_close_iterator()
+            except Exception:
+                if not self.silent_close:
+                    raise
             self._closed = True
+
+
+def safe_close_fn(obj: object) -> Callable[[], None]:
+    def wrap() -> None:
+        if isinstance(obj, Closable):
+            obj.close()
+
+    return wrap
+
+
+def safe_aclose_fn(obj: object) -> Callable[[], Coroutine[None, None, None]]:
+    async def wrap() -> None:
+        if isinstance(obj, AsyncClosable):
+            await obj.aclose()
+
+    return wrap
+
+
+class _EmptyAsyncIterator(AsyncIterator[Any]):
+    __slots__ = ()
+
+    async def __anext__(self) -> Any:
+        raise StopAsyncIteration
+
+
+empty_aiter: AsyncIterator[Any] = _EmptyAsyncIterator()

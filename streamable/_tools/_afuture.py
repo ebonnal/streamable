@@ -35,17 +35,26 @@ def safe_wrap_future(
 
 
 def cancel_threadsafe(
-    futures_: "Iterable[Union[asyncio.Future[T], futures.Future[T]]]",
+    fs: Union[
+        Union[asyncio.Future, futures.Future, None],
+        Iterable[Union[asyncio.Future, futures.Future, None]],
+    ],
 ) -> None:
-    for future in futures_:
+    if fs is None:
+        return
+    if isinstance(fs, (asyncio.Future, futures.Future)):
+        fs = (fs,)
+    else:
+        fs = tuple(fs)
+    for future in fs:
         if isinstance(future, futures.Future):
             future.cancel()
-        elif not future.done():
+        elif future is not None and not future.done():
             with suppress(RuntimeError):
                 future.get_loop().call_soon_threadsafe(future.cancel)
 
 
-async def lazy_wait(
+async def ensure_done(
     fs: Union[
         Union[asyncio.Future, futures.Future, None],
         Iterable[Union[asyncio.Future, futures.Future, None]],
@@ -53,7 +62,7 @@ async def lazy_wait(
     timeout: "Optional[float]" = None,
     cancel: bool = False,
 ) -> bool:
-    """Returns True if all done"""
+    """Returns True if all futures completed within the timeout."""
     if fs is None:
         return True
     if isinstance(fs, (asyncio.Future, futures.Future)):
@@ -70,7 +79,10 @@ async def lazy_wait(
         if future is not None and not future.done()
     ]
     if futures_to_wait:
-        return not (await asyncio.wait(futures_to_wait, timeout=timeout))[1]
+        if timeout == 0:
+            return False
+        still_pending = (await asyncio.wait(futures_to_wait, timeout=timeout))[1]
+        return not still_pending
     return True
 
 
@@ -98,7 +110,7 @@ class FutureResults(AsyncIterator[T], Sized):
         cancel_threadsafe(self._futures)
 
     async def gather(self) -> None:
-        await lazy_wait(self._futures)
+        await ensure_done(self._futures)
 
     def clear(self) -> None:
         self._futures.clear()
@@ -113,8 +125,7 @@ class FIFOFutureResults(FutureResults[T]):
 
     async def __anext__(self) -> T:
         future = next(iter(self._futures))
-        if not future.done():
-            await lazy_wait(future)
+        await ensure_done(future)
         try:
             return future.result()
         finally:

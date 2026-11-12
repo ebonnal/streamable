@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import (
     Any,
+    AsyncIterable,
     Awaitable,
     Callable,
     Iterable,
@@ -20,10 +21,15 @@ from typing import (
 
 import pytest
 
-from streamable import ClosableAsyncIterator, ClosableIterator, star, stream
+from streamable import (
+    ClosableAsyncIterator,
+    ClosableIterator,
+    Observation,
+    star,
+    stream,
+)
 from tests.tools.error import TestError
 from tests.tools.func import (
-    async_identity,
     async_throw_func,
     audit_awaitable,
     identity,
@@ -35,6 +41,7 @@ from tests.tools.iter import (
     IterableType,
     aclose_or_close,
     aiter_or_iter,
+    aiterable_or_iterable,
     alist_or_list,
     anext_or_next,
     stopiteration_type,
@@ -42,21 +49,21 @@ from tests.tools.iter import (
 from tests.tools.loop import TEST_LOOP, assert_only_current_task_is_alive
 from tests.tools.monitor import (
     SLOW,
-    CloseFailingMonitoredIntIterable,
     MonitoredIdentity,
     MonitoredIntIterable,
     MonitoredIntIterator,
+    SlowToCancelMonitoredIntAsyncIterator,
+    create_close_failing_monitored_int_iterable,
+    create_monitored_int_iterable,
+    create_monitored_int_iterator,
 )
 
 T = TypeVar("T")
 
 
-def chain(src: Iterable[int], itype: IterableType) -> "stream[int]":
+def chain(src: Union[Iterable[int], AsyncIterable[int]]) -> "stream[int]":
     """Every operator flavor, downstream of a `.buffer` pulling `src` ahead."""
     # a sync iteration involving no coroutine function goes through the sync operators
-    concurrent_identity: Callable[[Any], Any] = (
-        async_identity if itype == "async" else identity
-    )
     return (
         stream(src)
         .buffer()
@@ -74,8 +81,8 @@ def chain(src: Iterable[int], itype: IterableType) -> "stream[int]":
         .group(1, by=identity, within=timedelta(hours=1))
         .map(star(lambda _, group: group))
         .flatten()
-        .map(concurrent_identity, concurrency=2)
-        .map(concurrent_identity, concurrency=2, as_completed=True)
+        .map(identity, concurrency=2)
+        .map(identity, concurrency=2, as_completed=True)
         .map(identity, concurrency=2)
         .map(identity, concurrency=2, as_completed=True)
         .observe(do=nothing)
@@ -340,7 +347,7 @@ async def test_timeouts_do_not_end_the_iteration(
 
 @pytest.mark.parametrize("itype, termination", ITYPES_X_TERMINATIONS)
 def test_map_termination(itype: IterableType, termination: Termination) -> None:
-    src = MonitoredIntIterator()
+    src = create_monitored_int_iterator(itype)
     pull_then_terminate_with_no_leak(
         stream(src).map(identity), n_pulls=1, termination=termination, itype=itype
     )
@@ -351,14 +358,14 @@ def test_map_termination(itype: IterableType, termination: Termination) -> None:
 @pytest.mark.parametrize("itype, termination", ITYPES_X_TERMINATIONS)
 def test_source_termination(itype: IterableType, termination: Termination) -> None:
     # the source iterator is closed if the stream created it
-    iterable = MonitoredIntIterable()
+    iterable = create_monitored_int_iterable(itype)
     pull_then_terminate_with_no_leak(
         stream(iterable), n_pulls=1, termination=termination, itype=itype
     )
     assert [iterator.closed for iterator in iterable.iterators] == [True]
 
     # but not if it was provided by the client
-    iterator = MonitoredIntIterator()
+    iterator = create_monitored_int_iterator(itype)
     pull_then_terminate_with_no_leak(
         stream(iterator), n_pulls=1, termination=termination, itype=itype
     )
@@ -377,7 +384,9 @@ def await_or_call(s: "stream[Any]", itype: IterableType) -> None:
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_owned_source_close_error_is_raised(itype: IterableType) -> None:
-    it = aiter_or_iter(stream(CloseFailingMonitoredIntIterable()), itype)
+    it = aiter_or_iter(
+        stream(create_close_failing_monitored_int_iterable(itype)), itype
+    )
     assert anext_or_next(it, itype) == 0
 
     # the TestError is raised on close
@@ -386,13 +395,15 @@ def test_owned_source_close_error_is_raised(itype: IterableType) -> None:
 
     # the TestError is raised on stop
     with pytest.raises(TestError):
-        await_or_call(stream(CloseFailingMonitoredIntIterable()).take(1), itype)
+        await_or_call(
+            stream(create_close_failing_monitored_int_iterable(itype)).take(1), itype
+        )
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_owned_source_closed_once_on_upstream_stop(itype: IterableType) -> None:
     # a stop right above the source is propagated by every operator above it, but the source is closed once
-    iterable = MonitoredIntIterable()
+    iterable = create_monitored_int_iterable(itype)
     s = stream(iterable).take(1).map(identity).filter(lambda _: True).do(nothing)
     it = aiter_or_iter(s, itype)
     assert alist_or_list(it, itype) == [0]
@@ -400,7 +411,7 @@ def test_owned_source_closed_once_on_upstream_stop(itype: IterableType) -> None:
     assert [iterator.n_closes for iterator in iterable.iterators] == [1]
 
     # a failing close is not retried: its error is raised once, then the iteration stops
-    failing_iterable = CloseFailingMonitoredIntIterable()
+    failing_iterable = create_close_failing_monitored_int_iterable(itype)
     s = stream(failing_iterable).take(1).map(identity).filter(lambda _: True)
     it = aiter_or_iter(s, itype)
     assert anext_or_next(it, itype) == 0
@@ -428,7 +439,7 @@ def test_await_or_call_closes_owned_source_on_error(
     itype: IterableType,
     operate: Callable[["stream[int]"], "stream[int]"],
 ) -> None:
-    iterable = MonitoredIntIterable()
+    iterable = create_monitored_int_iterable(itype)
     with pytest.raises(TestError):
         await_or_call(operate(stream(iterable)), itype)
     assert not asyncio.all_tasks(TEST_LOOP)
@@ -473,7 +484,7 @@ def test_map_termination_with_concurrency(
 
 @pytest.mark.parametrize("itype, termination", ITYPES_X_TERMINATIONS)
 def test_buffer_cancel(itype: IterableType, termination: Termination) -> None:
-    src = MonitoredIntIterator()
+    src = create_monitored_int_iterator(itype)
     pull_then_terminate_with_no_leak(
         stream(src).buffer(1), n_pulls=1, termination=termination, itype=itype
     )
@@ -486,7 +497,7 @@ def test_buffer_cancel(itype: IterableType, termination: Termination) -> None:
 
 @pytest.mark.parametrize("itype, termination", ITYPES_X_TERMINATIONS)
 def test_group_cancel(itype: IterableType, termination: Termination) -> None:
-    src = MonitoredIntIterator()
+    src = create_monitored_int_iterator(itype)
     pull_then_terminate_with_no_leak(
         stream(src).group(within=timedelta(seconds=SLOW / 5)),
         n_pulls=1,
@@ -500,11 +511,24 @@ def test_group_cancel(itype: IterableType, termination: Termination) -> None:
         assert src.cancelled == [1]
 
 
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+@pytest.mark.parametrize("concurrency", [1, 2])
+def test_flatten_with_non_closable_owned_inner_iters(
+    itype: IterableType,
+    concurrency: int,
+) -> None:
+    src = [aiterable_or_iterable([0, 1], itype)]
+    s = stream(src).flatten(concurrency=concurrency)
+    it = aiter_or_iter(s, itype)
+    assert anext_or_next(it, itype) == 0
+    aclose_or_close(it, itype)
+
+
 @pytest.mark.parametrize("itype, termination", ITYPES_X_TERMINATIONS)
 def test_flatten_provided_inner_iter_cancel(
     itype: IterableType, termination: Termination
 ) -> None:
-    a, b, c = MonitoredIntIterator(), MonitoredIntIterator(), MonitoredIntIterator()
+    a, b, c = [create_monitored_int_iterator(itype) for _ in range(3)]
     s = stream([a, b, c]).flatten(concurrency=2)
     pull_then_terminate_with_no_leak(s, n_pulls=2, termination=termination, itype=itype)
     # the in-flight pulls are cancelled (async) or awaited (sync), the inner iterators are not closed
@@ -522,7 +546,7 @@ def test_flatten_owned_inner_iter_close_error_is_silent(
     itype: IterableType, concurrency: int
 ) -> None:
     # the owned inner iters closure is done in best effort, errors are silenced
-    iterable = CloseFailingMonitoredIntIterable()
+    iterable = create_close_failing_monitored_int_iterable(itype)
     # on close:
     s = stream([iterable]).flatten(concurrency=concurrency)
     it = aiter_or_iter(s, itype)
@@ -543,7 +567,7 @@ def test_flatten_owned_inner_iter_close_error_is_silent(
 def test_flatten_owned_inner_iter_cancel(
     itype: IterableType, termination: Termination, concurrency: int
 ) -> None:
-    src = MonitoredIntIterator()
+    src = create_monitored_int_iterator(itype)
     s = stream([stream(src).buffer(1)]).flatten(concurrency=concurrency)
     pull_then_terminate_with_no_leak(s, n_pulls=1, termination=termination, itype=itype)
     # closing the owned inner stream iter cancels (async) or awaits (sync) its in-flight pull,
@@ -560,7 +584,7 @@ def test_flatten_owned_inner_iter_cancel(
 async def test_flatten_cancel_as_owned_inner_pull_completes() -> None:
     consumer: asyncio.Task
 
-    src = MonitoredIntIterable()
+    src = create_monitored_int_iterable("async")
     self_cancelling = (
         stream(src)
         # Triggers a cancellation of `await s` landing just after the pull completed:
@@ -581,20 +605,47 @@ async def test_flatten_cancel_as_owned_inner_pull_completes() -> None:
 @pytest.mark.parametrize(
     "concurrency, src_getters",
     [
-        (1, [MonitoredIntIterable]),
-        (1, [MonitoredIntIterator]),
-        (2, [MonitoredIntIterable, MonitoredIntIterator, MonitoredIntIterable]),
-        (3, [MonitoredIntIterable, MonitoredIntIterator, MonitoredIntIterable]),
-        (3, [lambda: [0], MonitoredIntIterable, MonitoredIntIterator]),
+        (
+            1,
+            [lambda itype: create_monitored_int_iterable(itype)],
+        ),
+        (
+            1,
+            [lambda itype: create_monitored_int_iterator(itype)],
+        ),
+        (
+            2,
+            [
+                lambda itype: create_monitored_int_iterable(itype),
+                lambda itype: create_monitored_int_iterator(itype),
+                lambda itype: create_monitored_int_iterable(itype),
+            ],
+        ),
+        (
+            3,
+            [
+                lambda itype: create_monitored_int_iterable(itype),
+                lambda itype: create_monitored_int_iterator(itype),
+                lambda itype: create_monitored_int_iterable(itype),
+            ],
+        ),
+        (
+            3,
+            [
+                lambda itype: [0],
+                lambda itype: create_monitored_int_iterable(itype),
+                lambda itype: create_monitored_int_iterator(itype),
+            ],
+        ),
     ],
 )
 def test_flatten_both_owned_and_provided_inner_iters(
     itype: IterableType,
     termination: Termination,
     concurrency: int,
-    src_getters: List[Callable[[], Iterable[int]]],
+    src_getters: List[Callable[[IterableType], Iterable[int]]],
 ) -> None:
-    src = [get_src() for get_src in src_getters]
+    src = [get_src(itype) for get_src in src_getters]
     s = stream(src).flatten(concurrency=concurrency)
     pull_then_terminate_with_no_leak(s, n_pulls=2, termination=termination, itype=itype)
     # in-flight owned iterators are closed
@@ -615,7 +666,7 @@ def test_flatten_both_owned_and_provided_inner_iters(
 @pytest.mark.parametrize("itype, termination", ITYPES_X_TERMINATIONS)
 def test_add_close(itype: IterableType, termination: Termination) -> None:
     pull_then_terminate_with_no_leak(
-        stream(MonitoredIntIterator()).buffer(1) + [9],
+        stream(create_monitored_int_iterator(itype)).buffer(1) + [9],
         n_pulls=1,
         termination=termination,
         itype=itype,
@@ -626,8 +677,8 @@ def test_add_close(itype: IterableType, termination: Termination) -> None:
 def test_observe_termination_has_no_leak(
     itype: IterableType, termination: Termination
 ) -> None:
-    monitored_identity = MonitoredIdentity[Any](n_fast=0)
-    s = stream(MonitoredIntIterator()).observe(
+    monitored_identity = MonitoredIdentity[Observation](n_fast=0)
+    s = stream(create_monitored_int_iterator(itype)).observe(
         every=timedelta(seconds=SLOW),
         do=monitored_identity.func(itype),
     )
@@ -638,9 +689,9 @@ def test_observe_termination_has_no_leak(
 
 @pytest.mark.parametrize("itype, termination", ITYPES_X_TERMINATIONS)
 def test_chain_cancellation(itype: IterableType, termination: Termination) -> None:
-    src = MonitoredIntIterator(n_fast=20)
+    src = create_monitored_int_iterator(itype, n_fast=20)
     pull_then_terminate_with_no_leak(
-        chain(src, itype), n_pulls=1, termination=termination, itype=itype
+        chain(src), n_pulls=1, termination=termination, itype=itype
     )
     # the termination reaches the in-flight pull through every operator
     assert_nothing_in_flight(src)
@@ -654,9 +705,9 @@ def test_chain_cancellation(itype: IterableType, termination: Termination) -> No
 def test_chain_with_owned_source_termination(
     itype: IterableType, termination: Termination, n_pulls: int
 ) -> None:
-    iterable = MonitoredIntIterable(n_fast=20)
+    iterable = create_monitored_int_iterable(itype, n_fast=20)
     pull_then_terminate_with_no_leak(
-        chain(iterable, itype), n_pulls=n_pulls, termination=termination, itype=itype
+        chain(iterable), n_pulls=n_pulls, termination=termination, itype=itype
     )
     # the closure reaches the source through every operator, even the ones not started yet,
     # and closes it once its in-flight pull is done
@@ -668,15 +719,7 @@ def test_chain_with_owned_source_termination(
 
 @pytest.mark.asyncio
 async def test_cancel_during_cancel() -> None:
-    class SlowToCancel(MonitoredIntIterator):
-        async def __anext__(self) -> int:
-            try:
-                return await super().__anext__()
-            except asyncio.CancelledError:
-                await asyncio.sleep(1)
-                raise
-
-    src = SlowToCancel()
+    src = SlowToCancelMonitoredIntAsyncIterator()
     closing = asyncio.ensure_future(
         apull_then_terminate_with_no_leak(
             stream(src).buffer(1), n_pulls=1, termination=CLOSE
@@ -776,7 +819,7 @@ async def test_close_executor_backed_map_is_interruptible() -> None:
     monitored_identity = MonitoredIdentity[int]()
     threads = set(threading.enumerate())
     it = (
-        stream(MonitoredIntIterable())
+        stream(create_monitored_int_iterable("sync"))
         .map(monitored_identity.sync_func, concurrency=2)
         .__aiter__()
     )
