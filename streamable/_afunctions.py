@@ -1,5 +1,5 @@
 import datetime
-from concurrent.futures import Executor
+from concurrent.futures import Executor, ThreadPoolExecutor
 from inspect import iscoroutinefunction
 from operator import itemgetter
 from typing import (
@@ -62,7 +62,7 @@ def filter(
 def flatten(
     upstream: ClosableAsyncIterator[Union[Iterable[T], AsyncIterable[T]]],
     *,
-    concurrency: int = 1,
+    concurrency: Union[int, ThreadPoolExecutor] = 1,
 ) -> ClosableAsyncIterator[T]:
     if concurrency == 1:
         return _aiterators.FlattenAsyncIterator(upstream)
@@ -113,7 +113,7 @@ def map(
         return _aiterators.AsyncConcurrentMapAsyncIterator(
             upstream,
             into,
-            concurrency=cast(int, concurrency),
+            concurrency=concurrency,
             as_completed=as_completed,
         )
     else:

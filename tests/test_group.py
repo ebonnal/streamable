@@ -1,13 +1,16 @@
 import asyncio
 import datetime
 import queue
+import random
 import time
 from datetime import timedelta
+from functools import partial
 from typing import Any, Callable, Iterable, List, Optional, Type
 
 import pytest
 
 from streamable import stream
+from streamable._iterators import _PullerBasedIterator
 from streamable._tools._func import asyncify
 from tests.tools.func import (
     SLOW_IDENTITY_DURATION,
@@ -334,3 +337,56 @@ def test_group_within_chain_of_background_task(itype: IterableType) -> None:
         .flatten()
     )
     assert alist_or_list(s, itype) == list(INTEGERS)
+
+
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_group_within_with_never_suspending_source(itype: IterableType) -> None:
+    s = (
+        stream(range(10))
+        .map(slow_identity)
+        .group(within=timedelta(seconds=2.95 * SLOW_IDENTITY_DURATION))
+    )
+    groups = alist_or_list(s, itype)
+    assert len(groups) > 1
+    assert [elem for group in groups for elem in group] == list(range(10))
+
+
+@pytest.mark.asyncio
+async def test_group_within_loses_nothing_under_timeout_retries() -> None:
+    src = range(3000)
+    s = stream(src).group(5, within=timedelta(seconds=1))
+    it = s.__aiter__()
+    elems: List[int] = []
+    rand = random.Random(0)
+    while True:
+        try:
+            # no element should be lost if timeout lands after queue.get succeeds but before the elem is persisted into current group
+            elems.extend(
+                await asyncio.wait_for(it.__anext__(), timeout=rand.uniform(0, 0.0002))
+            )
+        except asyncio.TimeoutError:
+            continue
+        except StopAsyncIteration:
+            break
+    assert elems == list(src)
+
+
+def test_group_within_resumes_after_interrupted_get() -> None:
+    src = iter(range(10))
+    it = iter(stream(src).group(2, by=type, within=timedelta(hours=1)))
+    assert isinstance(it, _PullerBasedIterator)
+    assert next(it) == (int, [0, 1])
+    pulled_elems = it._lazy_puller.elems
+
+    def interrupted_first_get(*args, **kwargs):
+        pulled_elems.get = partial(queue.Queue.get, pulled_elems)
+        raise KeyboardInterrupt
+
+    pulled_elems.get = interrupted_first_get  # type: ignore
+    with pytest.raises(KeyboardInterrupt):
+        next(it)
+    assert next(it) == (int, [2, 3])
+    time.sleep(0.1)
+    pulled_ahead = next(src) > 4
+    assert not pulled_ahead
+    it.close()

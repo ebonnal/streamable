@@ -21,6 +21,8 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class InvolvesAsyncVisitor(Visitor[bool]):
+    __slots__ = ()
+
     def visit_buffer_stream(self, s: "BufferStream") -> bool:
         return s.upstream.accept(self)
 

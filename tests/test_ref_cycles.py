@@ -15,8 +15,7 @@ from typing import (
 
 import pytest
 
-from streamable import stream
-from streamable._tools._iter import ClosableAsyncIterator
+from streamable import stream, stream_aiterator
 from tests.tools.error import TestBaseError, TestError
 from tests.tools.func import (
     SLOW_IDENTITY_DURATION,
@@ -158,7 +157,7 @@ def test_ref_cycles_with_in_flight_errors(
         # wait for the 3 errors to happen and be in-flight
         TEST_LOOP.run_until_complete(asyncio.sleep(SLOW_IDENTITY_DURATION * 5))
         if itype == "async":
-            TEST_LOOP.run_until_complete(cast(ClosableAsyncIterator[int], it).aclose())
+            TEST_LOOP.run_until_complete(cast(stream_aiterator[int], it).aclose())
         del it
         # the in-flight errors have been garbage collected (ref count)
         assert not any(isinstance(obj, ValueError) for obj in gc.get_objects())
@@ -191,7 +190,7 @@ def test_ref_cycles_with_errors_left_queued_by_pullers(
         # error stored within the generator, never yielded out
         if itype == "async":
             TEST_LOOP.run_until_complete(asyncio.sleep(0.1))
-            TEST_LOOP.run_until_complete(cast(ClosableAsyncIterator[int], it).aclose())
+            TEST_LOOP.run_until_complete(cast(stream_aiterator[int], it).aclose())
         else:
             time.sleep(0.1)
         del it
