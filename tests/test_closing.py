@@ -351,7 +351,11 @@ def test_map_termination(itype: IterableType, termination: Termination) -> None:
         stream(src).map(identity), n_pulls=1, termination=termination, itype=itype
     )
     # nothing is in flight but the pull of a cancelled `anext`, the source is not closed
-    assert (src.completed, src.cancelled, src.closed) == ([0], src.started[1:], False)
+    assert (src.completed, src.cancelled, src.close_attempted) == (
+        [0],
+        src.started[1:],
+        False,
+    )
 
 
 @pytest.mark.parametrize("itype, termination", ITYPES_X_TERMINATIONS)
@@ -361,14 +365,14 @@ def test_source_termination(itype: IterableType, termination: Termination) -> No
     pull_then_terminate_with_no_leak(
         stream(iterable), n_pulls=1, termination=termination, itype=itype
     )
-    assert [iterator.closed for iterator in iterable.iterators] == [True]
+    assert [iterator.close_attempted for iterator in iterable.iterators] == [True]
 
     # but not if it was provided by the client
     iterator = create_monitored_int_iterator(itype)
     pull_then_terminate_with_no_leak(
         stream(iterator), n_pulls=1, termination=termination, itype=itype
     )
-    assert not iterator.closed
+    assert not iterator.close_attempted
 
 
 def await_or_call(s: "stream[Any]", itype: IterableType) -> None:
@@ -407,7 +411,7 @@ def test_owned_source_closed_once_on_upstream_stop(itype: IterableType) -> None:
     it = aiter_or_iter(s, itype)
     assert alist_or_list(it, itype) == [0]
     aclose_or_close(it, itype)
-    assert [iterator.n_closes for iterator in iterable.iterators] == [1]
+    assert [iterator.n_close_attempts for iterator in iterable.iterators] == [1]
 
     # a failing close is not retried: its error is raised once, then the iteration stops
     failing_iterable = create_close_failing_monitored_int_iterable(itype)
@@ -418,10 +422,10 @@ def test_owned_source_closed_once_on_upstream_stop(itype: IterableType) -> None:
         anext_or_next(it, itype)
     with pytest.raises(stopiteration_type(itype)):
         anext_or_next(it, itype)
-    assert [iterator.n_closes for iterator in failing_iterable.iterators] == [1]
+    assert [iterator.n_close_attempts for iterator in failing_iterable.iterators] == [1]
     with pytest.raises(TestError):
         aclose_or_close(it, itype)
-    assert [iterator.n_closes for iterator in failing_iterable.iterators] == [2]
+    assert [iterator.n_close_attempts for iterator in failing_iterable.iterators] == [2]
 
 
 @pytest.mark.parametrize(
@@ -443,7 +447,7 @@ def test_await_or_call_closes_owned_source_on_error(
     with pytest.raises(TestError):
         await_or_call(operate(stream(iterable)), itype)
     assert not asyncio.all_tasks(TEST_LOOP)
-    assert [iterator.n_closes for iterator in iterable.iterators] == [1]
+    assert [iterator.n_close_attempts for iterator in iterable.iterators] == [1]
 
 
 @pytest.mark.asyncio
@@ -490,7 +494,7 @@ def test_buffer_cancel(itype: IterableType, termination: Termination) -> None:
     )
     # the in-flight pull is cancelled (async) or awaited (sync), the source is not closed
     assert_nothing_in_flight(src)
-    assert (src.started, src.closed) == ([0, 1], False)
+    assert (src.started, src.close_attempted) == ([0, 1], False)
     if itype == "async":
         assert src.cancelled == [1]
 
@@ -506,7 +510,7 @@ def test_group_cancel(itype: IterableType, termination: Termination) -> None:
     )
     # the in-flight pull is cancelled (async) or awaited (sync), the source is not closed
     assert_nothing_in_flight(src)
-    assert (src.started, src.closed) == ([0, 1], False)
+    assert (src.started, src.close_attempted) == ([0, 1], False)
     if itype == "async":
         assert src.cancelled == [1]
 
@@ -534,7 +538,7 @@ def test_flatten_provided_inner_iter_cancel(
     # the in-flight pulls are cancelled (async) or awaited (sync), the inner iterators are not closed
     for src in (a, b):
         assert_nothing_in_flight(src)
-        assert (src.started, src.closed) == ([0, 1], False)
+        assert (src.started, src.close_attempted) == ([0, 1], False)
         if itype == "async":
             assert src.cancelled == [1]
     assert c.started == []
@@ -546,7 +550,6 @@ def test_flatten_owned_inner_iter_failed_close_retry(
     itype: IterableType, concurrency: int
 ) -> None:
     iterable = create_close_failing_monitored_int_iterable(itype, n_close_failures=2)
-    # on close:
     s = stream([iterable]).flatten(concurrency=concurrency)
     it = aiter_or_iter(s, itype)
     assert anext_or_next(it, itype) == 0
@@ -555,7 +558,7 @@ def test_flatten_owned_inner_iter_failed_close_retry(
     with pytest.raises(TestError):
         aclose_or_close(it, itype)
     aclose_or_close(it, itype)
-    assert iterable.iterators[-1].closed is False
+    assert iterable.iterators[-1].close_attempted
 
 
 @pytest.mark.parametrize("itype, termination", ITYPES_X_TERMINATIONS)
@@ -569,7 +572,7 @@ def test_flatten_owned_inner_iter_cancel(
     # closing the owned inner stream iter cancels (async) or awaits (sync) its in-flight pull,
     # the provided `src` is not closed
     assert_nothing_in_flight(src)
-    assert not src.closed
+    assert not src.close_attempted
     if itype == "async":
         assert (src.started, src.cancelled) == ([0, 1], [1])
     # a sync concurrent flatten awaits its in-flight `next` on the inner stream iter,
@@ -594,7 +597,7 @@ async def test_flatten_cancel_as_owned_inner_pull_completes() -> None:
     with pytest.raises(asyncio.CancelledError):
         await consumer
     assert_only_current_task_is_alive()
-    assert [iterator.closed for iterator in src.iterators] == [True]
+    assert [iterator.close_attempted for iterator in src.iterators] == [True]
 
 
 @pytest.mark.parametrize("itype, termination", ITYPES_X_TERMINATIONS)
@@ -646,14 +649,14 @@ def test_flatten_both_owned_and_provided_inner_iters(
     pull_then_terminate_with_no_leak(s, n_pulls=2, termination=termination, itype=itype)
     # in-flight owned iterators are closed
     assert all(
-        iterator.closed
+        iterator.close_attempted
         for iterable in src[:concurrency]
         if isinstance(iterable, MonitoredIntIterable)
         for iterator in iterable.iterators
     )
     # in-flight client-provided iterators are not
     assert not any(
-        iterable.closed
+        iterable.close_attempted
         for iterable in src[:concurrency]
         if isinstance(iterable, MonitoredIntIterator)
     )
@@ -691,7 +694,7 @@ def test_chain_cancellation(itype: IterableType, termination: Termination) -> No
     )
     # the termination reaches the in-flight pull through every operator
     assert_nothing_in_flight(src)
-    assert not src.closed
+    assert not src.close_attempted
     if itype == "async":
         assert len(src.cancelled) == 1
 
@@ -708,7 +711,7 @@ def test_chain_with_owned_source_termination(
     # the closure reaches the source through every operator, even the ones not started yet,
     # and closes it once its in-flight pull is done
     assert [
-        (iterator.n_closes, iterator.n_pulls_in_flight_at_close)
+        (iterator.n_close_attempts, iterator.n_pulls_in_flight_at_close)
         for iterator in iterable.iterators
     ] == [(1, 0)]
 

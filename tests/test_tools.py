@@ -167,7 +167,7 @@ async def test_sync_to_async_iterator_close_propagation_to_source() -> None:
     aiterator = s.__aiter__()
     assert await aiterator.__anext__() == 0
     await aiterator.aclose()
-    assert src.iterators[0].closed
+    assert src.iterators[0].close_attempted
 
 
 ######################
@@ -399,7 +399,7 @@ def test_async_to_sync_iterator_del(
     src = src_type()
     with collecting_unraisables() as unraisables:
         loop = run_in_thread(scenario, src)
-    assert src.iterators[0].closed is owned_src_is_closed
+    assert src.iterators[0].close_attempted is owned_src_is_closed
     assert loop.is_closed() is loop_is_closed
     assert [
         type(unraisable.exc_value) for unraisable in unraisables

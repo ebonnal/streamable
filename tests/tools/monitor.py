@@ -58,7 +58,7 @@ class MonitoredIdentity(Generic[T]):
 
 
 class _BaseMonitoredIntIterator(MonitoredIdentity[int]):
-    n_closes = 0
+    n_close_attempts = 0
     n_pulls_in_flight_at_close = 0
 
     def __init__(self, n_fast: int = 1, n_yields: int = sys.maxsize) -> None:
@@ -66,8 +66,8 @@ class _BaseMonitoredIntIterator(MonitoredIdentity[int]):
         self.n_yields = n_yields
 
     @property
-    def closed(self) -> bool:
-        return self.n_closes > 0
+    def close_attempted(self) -> bool:
+        return self.n_close_attempts > 0
 
     def __next__(self) -> int:
         if len(self.started) >= self.n_yields:
@@ -79,17 +79,17 @@ class _BaseMonitoredIntIterator(MonitoredIdentity[int]):
             raise StopAsyncIteration
         return await self.async_func(len(self.started))
 
-    def _record_close(self) -> None:
-        self.n_closes += 1
+    def _record_close_attempt(self) -> None:
+        self.n_close_attempts += 1
         self.n_pulls_in_flight_at_close = (
             len(self.started) - len(self.completed) - len(self.cancelled)
         )
 
     def close(self) -> None:
-        self._record_close()
+        self._record_close_attempt()
 
     async def aclose(self) -> None:
-        self._record_close()
+        self._record_close_attempt()
 
 
 class MonitoredIntIterator(_BaseMonitoredIntIterator, stream_iterator[int]):
@@ -99,7 +99,7 @@ class MonitoredIntIterator(_BaseMonitoredIntIterator, stream_iterator[int]):
         return self.sync_func(len(self.started))
 
     def close(self) -> None:
-        self._record_close()
+        self._record_close_attempt()
 
 
 class MonitoredIntAsyncIterator(_BaseMonitoredIntIterator, stream_aiterator[int]):
@@ -109,7 +109,7 @@ class MonitoredIntAsyncIterator(_BaseMonitoredIntIterator, stream_aiterator[int]
         return await self.async_func(len(self.started))
 
     async def aclose(self) -> None:
-        self._record_close()
+        self._record_close_attempt()
 
 
 def create_monitored_int_iterator(
@@ -168,7 +168,7 @@ class _BaseCloseFailingMonitoredIntIterator(_BaseMonitoredIntIterator):
     def _close(self) -> None:
         if self.n_close_failures > 0:
             self.n_close_failures -= 1
-            self._record_close()
+            self._record_close_attempt()
             raise TestError()
 
 

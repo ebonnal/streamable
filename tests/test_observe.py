@@ -390,4 +390,4 @@ def test_observe_closed_before_activation(itype: IterableType) -> None:
     assert anext_or_next(it, itype) == 0
     asleep_or_sleep(10 * every.total_seconds(), itype)
     assert len(observations) == 0
-    assert src.iterators[0].closed
+    assert src.iterators[0].close_attempted
