@@ -69,7 +69,27 @@ A `stream[T]` is `Iterable[T]` and `AsyncIterable[T]`:
 
 ---
 
-# 📖 operations ([docs](https://streamable.readthedocs.io/en/latest/api.html))
+# core principles
+
+***minimal***: A `stream` exposes operations to manipulate its elements, but its source and consumption are not its responsibility. It's meant to be combined with dedicated libraries like `pyarrow`, `psycopg2`, `dlt` ([ETL example](#eg-etl-via-dlt)), etc.
+
+***resilient***: A `stream`'s iteration can resume after an exception has traveled through it.
+
+***match builtins***: Iteration over `stream(source).filter(pred).map(into)` introduces zero overhead vs `builtins`-based `map(into, filter(pred, source))`.
+
+***sync/async***:
+
+- Operations accept both sync and async functions.
+
+- A `stream` supports both sync and async iteration (e.g. `for` and `async for`), operations adapt their behavior.
+
+- A sync iteration over a `stream` involving async functions or an `AsyncIterable` source runs as an async iteration under the hood, using the current event loop if one is set.
+
+***structured concurrency***: The iterators returned by `stream.__iter__`/`stream.__aiter__` expose a [`.close`/`.aclose`](#structured-concurrency) method to eagerly terminate the tasks/threads they may spawn during iteration.
+
+---
+
+# operations ([docs](https://streamable.readthedocs.io/en/latest/api.html))
 
 - mapping
     - [`.map`](#-map)
@@ -86,32 +106,6 @@ A `stream[T]` is `Iterable[T]` and `AsyncIterable[T]`:
     - [`.throttle`](#-throttle)
     - [`.buffer`](#-buffer)
     - [`.observe`](#-observe)
-
-A `stream` exposes operations to manipulate its elements, but its consumption and the I/O are not its responsibility. It's meant to be combined with dedicated libraries like `pyarrow`, `psycopg2`, `dlt` ([ETL example](#eg-etl-via-dlt)) ...
-
-A `stream` can be iterated several times if its source allows it.
-
-Operations return a new `stream`.
-
-Operations allow iteration to resume after an exception.
-
-Operations accept both sync and async functions.
-
-`stream` supports both types of iteration: sync and async (e.g. `for` and `async for`).
-
-Operations adapt their behavior to the type of iteration:
-
-- `.throttle` sleeps via `time.sleep` during sync iteration and via `asyncio.sleep` during async iteration
-
-- `.buffer`'s background task is a `threading.Thread` during sync iteration and an `asyncio.Task` during async iteration
-
-- concurrent `.map` of a sync function uses `asyncio.wrap_future` during async iteration to avoid blocking the event loop
-
-- ...
-
-A sync iteration over a `stream` involving async functions or an `AsyncIterable` source runs as an async iteration under the hood, using the current event loop if one is set.
-
-The iterators returned by `stream.__iter__`/`stream.__aiter__` expose a [`.close`/`.aclose`](#structured-concurrency) method to eagerly terminate the tasks/threads they may spawn during iteration (structured concurrency).
 
 ## ▼ `.map`
 
@@ -548,6 +542,25 @@ enumerated_pokes: stream[str] = (
 assert list(enumerated_pokes) == ['#1 bulbasaur', '#2 ivysaur', '#3 venusaur', '#4 charmander', '#5 charmeleon', '#6 charizard', '#7 squirtle', '#8 wartortle', '#9 blastoise']
 ```
 
+## distinct
+
+To collect distinct elements you can `set(a_stream)`.
+
+To deduplicate in the middle of the stream, `.filter` new values and `.do` add them into a `set` (or a fancier cache):
+
+```python
+seen: set[str] = set()
+
+unique_ints: stream[int] = (
+    stream("001000111")
+    .filter(lambda _: _ not in seen)
+    .do(seen.add)
+    .map(int)
+)
+
+assert list(unique_ints) == [0, 1]
+```
+
 ## structured concurrency
 
 During an iteration, these operations spawn child tasks (async or threads):
@@ -616,31 +629,6 @@ finally:
     await it.aclose()
     # these 4 tasks are cancelled/done
 ```
-
-## distinct
-
-To collect distinct elements you can `set(a_stream)`.
-
-To deduplicate in the middle of the stream, `.filter` new values and `.do` add them into a `set` (or a fancier cache):
-
-```python
-seen: set[str] = set()
-
-unique_ints: stream[int] = (
-    stream("001000111")
-    .filter(lambda _: _ not in seen)
-    .do(seen.add)
-    .map(int)
-)
-
-assert list(unique_ints) == [0, 1]
-```
-
-## performance
-
-There is zero overhead during iteration compared to `builtins.map` and `builtins.filter`:
-
-Iterating over `stream(range(N)).filter(lambda n: n % 2).map(str)` has the exact same performance as iterating over `map(str, filter(lambda n: n % 2, range(N)))`.
 
 ## e.g. ETL via [`dlt`](https://github.com/dlt-hub/dlt)
 
