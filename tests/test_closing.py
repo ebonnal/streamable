@@ -540,26 +540,22 @@ def test_flatten_provided_inner_iter_cancel(
     assert c.started == []
 
 
-@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+@pytest.mark.parametrize("itype", reversed(ITERABLE_TYPES))
 @pytest.mark.parametrize("concurrency", [1, 2])
-def test_flatten_owned_inner_iter_close_error_is_silent(
+def test_flatten_owned_inner_iter_failed_close_retry(
     itype: IterableType, concurrency: int
 ) -> None:
-    # the owned inner iters closure is done in best effort, errors are silenced
-    iterable = create_close_failing_monitored_int_iterable(itype)
+    iterable = create_close_failing_monitored_int_iterable(itype, n_close_failures=2)
     # on close:
     s = stream([iterable]).flatten(concurrency=concurrency)
     it = aiter_or_iter(s, itype)
     assert anext_or_next(it, itype) == 0
-    aclose_or_close(cast(ClosableIterator[int], it), itype)
-    assert iterable.iterators[-1].closed is True
-
-    # on stop:
-    it = aiter_or_iter(s.take(1), itype)
-    assert anext_or_next(it, itype) == 0
-    with pytest.raises(stopiteration_type(itype)):
-        anext_or_next(it, itype)
-    assert iterable.iterators[-1].closed is True
+    with pytest.raises(TestError):
+        aclose_or_close(it, itype)
+    with pytest.raises(TestError):
+        aclose_or_close(it, itype)
+    aclose_or_close(it, itype)
+    assert iterable.iterators[-1].closed is False
 
 
 @pytest.mark.parametrize("itype, termination", ITYPES_X_TERMINATIONS)

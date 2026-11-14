@@ -158,51 +158,88 @@ def create_monitored_int_iterable(
     return MonitoredIntAsyncIterable(n_fast=n_fast, n_yields=n_yields)
 
 
-class CloseFailingMonitoredIntIterator(MonitoredIntIterator):
+class _BaseCloseFailingMonitoredIntIterator(_BaseMonitoredIntIterator):
+    def __init__(
+        self, n_yields: int = sys.maxsize, n_close_failures: int = sys.maxsize
+    ) -> None:
+        super().__init__(n_yields=n_yields)
+        self.n_close_failures = n_close_failures
+
+    def _close(self) -> None:
+        if self.n_close_failures > 0:
+            self.n_close_failures -= 1
+            raise TestError()
+
+
+class CloseFailingMonitoredIntIterator(
+    _BaseCloseFailingMonitoredIntIterator, MonitoredIntIterator
+):
     def close(self) -> None:
-        super().close()
-        raise TestError()
+        self._close()
 
 
-class CloseFailingMonitoredIntAsyncIterator(MonitoredIntAsyncIterator):
+class CloseFailingMonitoredIntAsyncIterator(
+    _BaseCloseFailingMonitoredIntIterator, MonitoredIntAsyncIterator
+):
     async def aclose(self) -> None:
-        await super().aclose()
-        raise TestError()
+        self._close()
 
 
 def create_close_failing_monitored_int_iterator(
-    itype: IterableType, n_yields: int = sys.maxsize
+    itype: IterableType,
+    n_yields: int = sys.maxsize,
+    n_close_failures: int = sys.maxsize,
 ) -> Union[CloseFailingMonitoredIntIterator, CloseFailingMonitoredIntAsyncIterator]:
     if itype == "sync":
-        return CloseFailingMonitoredIntIterator(n_yields=n_yields)
-    return CloseFailingMonitoredIntAsyncIterator(n_yields=n_yields)
+        return CloseFailingMonitoredIntIterator(
+            n_yields=n_yields, n_close_failures=n_close_failures
+        )
+    return CloseFailingMonitoredIntAsyncIterator(
+        n_yields=n_yields, n_close_failures=n_close_failures
+    )
 
 
 class CloseFailingMonitoredIntIterable(Iterable[int]):
-    def __init__(self, n_yields: int = sys.maxsize) -> None:
+    def __init__(
+        self, n_yields: int = sys.maxsize, n_close_failures: int = sys.maxsize
+    ) -> None:
         self.n_yields = n_yields
+        self.n_close_failures = n_close_failures
         self.iterators: List[CloseFailingMonitoredIntIterator] = []
 
     def __iter__(self) -> CloseFailingMonitoredIntIterator:
-        iterator = CloseFailingMonitoredIntIterator(n_yields=self.n_yields)
+        iterator = CloseFailingMonitoredIntIterator(
+            n_yields=self.n_yields, n_close_failures=self.n_close_failures
+        )
         self.iterators.append(iterator)
         return iterator
 
 
 class CloseFailingMonitoredIntAsyncIterable(AsyncIterable[int]):
-    def __init__(self, n_yields: int = sys.maxsize) -> None:
+    def __init__(
+        self, n_yields: int = sys.maxsize, n_close_failures: int = sys.maxsize
+    ) -> None:
         self.n_yields = n_yields
+        self.n_close_failures = n_close_failures
         self.iterators: List[CloseFailingMonitoredIntAsyncIterator] = []
 
     def __aiter__(self) -> CloseFailingMonitoredIntAsyncIterator:
-        iterator = CloseFailingMonitoredIntAsyncIterator(n_yields=self.n_yields)
+        iterator = CloseFailingMonitoredIntAsyncIterator(
+            n_yields=self.n_yields, n_close_failures=self.n_close_failures
+        )
         self.iterators.append(iterator)
         return iterator
 
 
 def create_close_failing_monitored_int_iterable(
-    itype: IterableType, n_yields: int = sys.maxsize
+    itype: IterableType,
+    n_yields: int = sys.maxsize,
+    n_close_failures: int = sys.maxsize,
 ) -> Union[CloseFailingMonitoredIntIterable, CloseFailingMonitoredIntAsyncIterable]:
     if itype == "sync":
-        return CloseFailingMonitoredIntIterable(n_yields=n_yields)
-    return CloseFailingMonitoredIntAsyncIterable(n_yields=n_yields)
+        return CloseFailingMonitoredIntIterable(
+            n_yields=n_yields, n_close_failures=n_close_failures
+        )
+    return CloseFailingMonitoredIntAsyncIterable(
+        n_yields=n_yields, n_close_failures=n_close_failures
+    )

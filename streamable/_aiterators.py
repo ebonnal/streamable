@@ -325,9 +325,7 @@ class FlattenAsyncIterator(
     async def aclose(self) -> None:
         if not self._closed:
             if self._iterator_owned:
-                self._iterator_owned = False
-                with suppress(Exception):
-                    await safe_aclose_fn(self._iterator)()
+                await safe_aclose_fn(self._iterator)()
             await self._safe_aclose_upstream()
             self._closed = True
 
@@ -1082,9 +1080,9 @@ class ConcurrentFlattenAsyncIterator(
             return (None, FailedFuture(e))
         validate_iterable(iterable)
         iterator: Union[GuardedAsyncIterator[T], GuardedIterator[T]] = (
-            GuardedAsyncIterator(iterable, silent_close=True)
+            GuardedAsyncIterator(iterable)
             if isinstance(iterable, AsyncIterable)
-            else GuardedIterator(iterable, silent_close=True)
+            else GuardedIterator(iterable)
         )
         return (iterator, self._launch_future_from_iter(iterator))
 

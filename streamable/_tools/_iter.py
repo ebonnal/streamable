@@ -238,18 +238,15 @@ class SyncToClosableAsyncIterable(AsyncIterable[T]):
 class GuardedAsyncIterator(ClosableAsyncIterator[T]):
     """
     Wraps an `AsyncIterator` with an `.aclose` that calls upstream's `.aclose` only if owned (i.e. if upstream iterator has been created by this wrapper).
-    If `silent_close`, an `Exception` raised by upstream's `.aclose` is suppressed.
     """
 
     __slots__ = (
-        "silent_close",
         "iterator",
         "safe_aclose_iterator",
         "_closed",
     )
 
-    def __init__(self, iterable: AsyncIterable[T], silent_close: bool = False) -> None:
-        self.silent_close = silent_close
+    def __init__(self, iterable: AsyncIterable[T]) -> None:
         self.iterator = iterable.__aiter__()
         self.safe_aclose_iterator = (
             anoop
@@ -263,17 +260,12 @@ class GuardedAsyncIterator(ClosableAsyncIterator[T]):
 
     async def aclose(self) -> None:
         if not self._closed:
-            try:
-                await self.safe_aclose_iterator()
-            except Exception:
-                if not self.silent_close:
-                    raise
+            await self.safe_aclose_iterator()
             self._closed = True
 
 
 class GuardedIterator(itertools.chain, ClosableIterator[T]):
     __slots__ = (
-        "silent_close",
         "iterator",
         "safe_close_iterator",
         "_closed",
@@ -281,29 +273,21 @@ class GuardedIterator(itertools.chain, ClosableIterator[T]):
 
     iterator: Iterator[T]
     safe_close_iterator: Callable[[], None]
+    _closed: bool
 
-    def __new__(
-        cls, iterable: Iterable[T], silent_close: bool = False
-    ) -> "GuardedIterator[T]":
+    def __new__(cls, iterable: Iterable[T]) -> "GuardedIterator[T]":
         iterator = iterable.__iter__()
         self = super().__new__(cls, iterator)
         self.iterator = iterator
         self.safe_close_iterator = (
             noop if isinstance(iterable, Iterator) else safe_close_fn(self.iterator)
         )
-        return self
-
-    def __init__(self, iterable: Iterable[T], silent_close: bool = False) -> None:
-        self.silent_close = silent_close
         self._closed = False
+        return self
 
     def close(self) -> None:
         if not self._closed:
-            try:
-                self.safe_close_iterator()
-            except Exception:
-                if not self.silent_close:
-                    raise
+            self.safe_close_iterator()
             self._closed = True
 
 
