@@ -208,11 +208,10 @@ class ClosableAsyncIterator(AsyncClosable, Protocol[C]):
 
 
 class SyncToClosableAsyncIterator(ClosableAsyncIterator[T]):
-    __slots__ = ("upstream", "_upstream_owned")
+    __slots__ = "upstream"
 
-    def __init__(self, upstream: Iterator[T], owned: bool = True):
+    def __init__(self, upstream: Iterator[T]):
         self.upstream = upstream
-        self._upstream_owned = owned
 
     async def __anext__(self) -> T:
         try:
@@ -221,8 +220,7 @@ class SyncToClosableAsyncIterator(ClosableAsyncIterator[T]):
             raise StopAsyncIteration from e
 
     async def aclose(self) -> None:
-        if self._upstream_owned:
-            safe_close_fn(self.upstream)()
+        safe_close_fn(self.upstream)()
 
 
 class SyncToClosableAsyncIterable(AsyncIterable[T]):

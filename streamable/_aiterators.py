@@ -316,11 +316,9 @@ class FlattenAsyncIterator(
                     self._iterator_owned = not hasattr(type(iterable), "__anext__")
                     self._iterator = cast(AsyncIterable[T], iterable).__aiter__()
                 else:
-                    self._iterator_owned = True
+                    self._iterator_owned = not hasattr(type(iterable), "__next__")
                     iterator = cast(Iterable[T], iterable).__iter__()
-                    self._iterator = SyncToClosableAsyncIterator(
-                        iterator, owned=not hasattr(type(iterable), "__next__")
-                    )
+                    self._iterator = SyncToClosableAsyncIterator(iterator)
 
     async def aclose(self) -> None:
         if not self._closed:
