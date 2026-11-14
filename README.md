@@ -642,31 +642,6 @@ There is zero overhead during iteration compared to `builtins.map` and `builtins
 
 Iterating over `stream(range(N)).filter(lambda n: n % 2).map(str)` has the exact same performance as iterating over `map(str, filter(lambda n: n % 2, range(N)))`.
 
-Throughput of each operation compared to `builtins.map`:
-
-|operation|x times slower than `map(lambda _: _, range(N))`|
-|--|--|
-|`stream(range(N)).map(lambda _: _)`|1.00x (same throughput)|
-|`stream(range(N)).filter(lambda _: _)`|1.05x|
-|`stream(range(100) for _ in range(N // 100)).flatten()`|1.7x|
-|`stream(range(N)).do(lambda _: _)`|1.8x|
-|`stream(range(N)).skip(N)`|1.9x|
-|`stream(range(N)).catch(ValueError)`|2.0x|
-|`stream(range(N)).group(5)`|2.4x|
-|`stream(range(N)).take(N)`|2.9x|
-|`stream(range(N)).observe('ints', do=bool)`|4.1x|
-|`stream(range(N)).observe('ints', do=bool, every=N)`|4.5x|
-|`stream(range(N)).observe('ints', do=bool, every=timedelta(...))`|5.5x|
-|`stream(range(N)).throttle(N, per=timedelta(...))`|5.8x|
-|`stream(range(N)).group(by=bool, up_to=5)`|7.1x|
-|`stream(range(N)).buffer(N)`|50x|
-|`stream(range(N)).map(lambda _: _, concurrency=2)`|310x|
-|`stream(range(N)).map(lambda _: _, concurrency=2, as_completed=True)`|335x|
-|`stream(range(N)).group(within=timedelta(...))`|340x|
-|`stream(range(100) for _ in range(N // 100)).flatten(concurrency=2)`|370x|
-
-(source: `pytest -s tests/benchmark.py`)
-
 ## e.g. ETL via [`dlt`](https://github.com/dlt-hub/dlt)
 
 A `stream` is an expressive way to declare a `dlt.resource`:
