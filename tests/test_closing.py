@@ -1,6 +1,7 @@
 import asyncio
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import (
@@ -526,6 +527,26 @@ def test_flatten_with_non_closable_owned_inner_iters(
     it = aiter_or_iter(s, itype)
     assert anext_or_next(it, itype) == 0
     aclose_or_close(it, itype)
+
+
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+@pytest.mark.parametrize("shutdown_before_close", [False, True])
+def test_flatten_async_concurrent_with_sync_closable_owned_inner_iters(
+    itype: IterableType,
+    shutdown_before_close: bool,
+) -> None:
+    executor = ThreadPoolExecutor(2)
+    inner = create_monitored_int_iterable("sync")
+    src = [inner]
+    s = stream(src).flatten(concurrency=executor)
+    it = aiter_or_iter(s, itype)
+    assert anext_or_next(it, itype) == 0
+    if shutdown_before_close:
+        executor.shutdown()
+    # sync owned inner iter's closure happens properly
+    # whether or not the executor has been shut down
+    aclose_or_close(it, itype)
+    assert [it.close_attempted for it in inner.iterators] == [True]
 
 
 @pytest.mark.parametrize("itype, termination", ITYPES_X_TERMINATIONS)

@@ -10,13 +10,6 @@ Observation.__module__ = __name__
 stream_aiterator.__module__ = __name__
 stream_iterator.__module__ = __name__
 
-__all__ = [
-    "stream",
-    "stream_aiterator",
-    "stream_iterator",
-    "star",
-    "Observation",
-    "Stream",
-]
+__all__ = ["stream", "stream_aiterator", "stream_iterator", "star", "Observation"]
 
 __version__ = "2.1.0rc3"

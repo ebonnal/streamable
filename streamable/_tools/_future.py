@@ -1,14 +1,34 @@
+from concurrent import futures
 from concurrent.futures import Future, wait
 from queue import Queue
 from threading import Lock
 from typing import (
     Dict,
+    Iterable,
     Iterator,
     Sized,
     TypeVar,
+    Union,
 )
 
 T = TypeVar("T")
+
+
+def ensure_done(
+    fs: Union[Future, Iterable[Future]],
+    cancel: bool = False,
+) -> None:
+    if isinstance(fs, Future):
+        fs = (fs,)
+    else:
+        fs = tuple(fs)
+    if cancel:
+        for future in fs:
+            if not future.done():
+                future.cancel()
+    futures_to_wait = [future for future in fs if not future.done()]
+    if futures_to_wait:
+        futures.wait(futures_to_wait)
 
 
 class FailedFuture(Future):

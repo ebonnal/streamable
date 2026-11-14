@@ -65,7 +65,7 @@ class AsyncToSyncIterator(Iterator[T], Closable):
     def _lazy_loop(self) -> asyncio.AbstractEventLoop:
         if self.__loop is None:
             self.__loop = safe_get_event_loop()
-            if not self.__loop or self.__loop.is_closed():
+            if self.__loop is None or self.__loop.is_closed():
                 self.__loop = asyncio.new_event_loop()
                 self._loop_owned = True
         return self.__loop
@@ -104,7 +104,7 @@ class AsyncToSyncIterator(Iterator[T], Closable):
                 asyncio.ensure_future, self._safe_aclose_upstream()
             )
         elif not asyncio._get_running_loop():
-            # no running loop in this thread, and `self.__loop` not running: can use `self._loop.run_until_complete`
+            # no running loop in this thread, and `self.__loop` not running: can use `self.__loop.run_until_complete`
             self.close()
         elif self._loop_owned:
             # `self.__loop` is owned and another loop is running in this thread
@@ -208,7 +208,7 @@ class ClosableAsyncIterator(AsyncClosable, Protocol[C]):
 
 
 class SyncToClosableAsyncIterator(ClosableAsyncIterator[T]):
-    __slots__ = "upstream"
+    __slots__ = ("upstream",)
 
     def __init__(self, upstream: Iterator[T]):
         self.upstream = upstream
@@ -303,6 +303,16 @@ def safe_aclose_fn(obj: object) -> Callable[[], Coroutine[None, None, None]]:
             await obj.aclose()
 
     return wrap
+
+
+class _EmptyIterator(Iterator[Any]):
+    __slots__ = ()
+
+    def __next__(self) -> Any:
+        raise StopIteration
+
+
+empty_iter: Iterator[Any] = _EmptyIterator()
 
 
 class _EmptyAsyncIterator(AsyncIterator[Any]):

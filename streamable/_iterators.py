@@ -4,7 +4,7 @@ import time
 import weakref
 from abc import abstractmethod
 from collections import defaultdict, deque
-from concurrent.futures import Executor, Future, ThreadPoolExecutor, wait
+from concurrent.futures import Executor, Future, ThreadPoolExecutor
 from contextlib import suppress
 from threading import Event, Semaphore, Thread
 from typing import (
@@ -30,12 +30,14 @@ from streamable._tools._future import (
     FDFOFutureResults,
     FIFOFutureResults,
     FutureResults,
+    ensure_done,
 )
 from streamable._tools._iter import (
     AsyncToSyncIterator,
     ClosableIterator,
     GuardedAsyncIterator,
     GuardedIterator,
+    empty_iter,
     safe_close_fn,
 )
 from streamable._tools._observation import Observation
@@ -276,15 +278,15 @@ class FlattenIterator(_BaseOperationIterator[Union[Iterable[T], AsyncIterable[T]
         upstream: ClosableIterator[Union[Iterable[T], AsyncIterable[T]]],
     ) -> None:
         super().__init__(upstream)
-        self._iterator: Optional[Iterator[T]] = None
+        self._iterator: Iterator[T] = empty_iter
         self._iterator_owned: bool = False
 
     def __next__(self) -> T:
         while True:
             try:
-                return (self._iterator or iter(())).__next__()
+                return self._iterator.__next__()
             except StopIteration:
-                self._iterator = None
+                self._iterator = empty_iter
                 iterable = self.upstream.__next__()
                 validate_iterable(iterable)
                 if hasattr(type(iterable), "__iter__"):
@@ -873,8 +875,8 @@ class _ConcurrentIterator(_BaseOperationIterator[T, U]):
         self._stopped: bool = False
         self._executor_owned: bool
         if isinstance(concurrency, int):
-            self.concurrency = concurrency
             self._executor_owned = True
+            self.concurrency = concurrency
         else:
             self._executor = concurrency
             self._executor_owned = False
@@ -886,7 +888,7 @@ class _ConcurrentIterator(_BaseOperationIterator[T, U]):
             self._executor = ThreadPoolExecutor(max_workers=self.concurrency)
         return self._executor
 
-    def _shutdown_executor(self, wait: bool = True) -> None:
+    def _safe_shutdown_executor(self, wait: bool = True) -> None:
         if self._executor and self._executor_owned:
             self._executor.shutdown(wait=wait)
 
@@ -904,7 +906,7 @@ class _ConcurrentIterator(_BaseOperationIterator[T, U]):
 
     def __del__(self) -> None:
         self._cancel()
-        self._shutdown_executor(wait=False)
+        self._safe_shutdown_executor(wait=False)
 
 
 class ConcurrentMapIterator(_ConcurrentIterator[T, U]):
@@ -953,7 +955,7 @@ class ConcurrentMapIterator(_ConcurrentIterator[T, U]):
         self._future_results.cancel()
         self._future_results.gather()
         self._future_results.clear()
-        self._shutdown_executor()
+        self._safe_shutdown_executor()
 
     def _cancel(self) -> None:
         self._future_results.cancel()
@@ -975,10 +977,10 @@ class ConcurrentFlattenIterator(
         ] = deque()
         super().__init__(upstream, concurrency)
 
-    def _launch_future_from_iter(self, iterator: ClosableIterator[T]) -> "Future[T]":
+    def _launch_task_from_iter(self, iterator: ClosableIterator[T]) -> "Future[T]":
         return self._lazy_executor.submit(next, iterator, STOP_ITERATION)
 
-    def _launch_future_from_next_iter(
+    def _launch_task_from_next_iter(
         self,
     ) -> Optional[Tuple[Optional[ClosableIterator[T]], "Future[T]"]]:
         try:
@@ -993,14 +995,14 @@ class ConcurrentFlattenIterator(
             if isinstance(iterable, Iterable)
             else AsyncToSyncIterator(GuardedAsyncIterator(iterable))
         )
-        return (iterator, self._launch_future_from_iter(iterator))
+        return (iterator, self._launch_task_from_iter(iterator))
 
     def __next__(self) -> T:
         while True:
             if self._stopped:
                 raise StopIteration
             while len(self._iterators_and_futures) < self.concurrency:
-                iterator_and_future = self._launch_future_from_next_iter()
+                iterator_and_future = self._launch_task_from_next_iter()
                 if iterator_and_future is None:
                     # no more tasks to queue
                     break
@@ -1009,7 +1011,7 @@ class ConcurrentFlattenIterator(
                 self._terminate()
                 continue
             iterator, future = self._iterators_and_futures[0]
-            wait((future,))
+            ensure_done(future)
             self._iterators_and_futures.popleft()
             try:
                 elem = future.result()
@@ -1021,19 +1023,17 @@ class ConcurrentFlattenIterator(
                 del future
                 if iterator is not None:
                     self._iterators_and_futures.append(
-                        (iterator, self._launch_future_from_iter(iterator))
+                        (iterator, self._launch_task_from_iter(iterator))
                     )
 
     def _terminate(self) -> None:
         self._stopped = True
-        if self._iterators_and_futures:
-            self._cancel()
-            wait([future for _, future in self._iterators_and_futures])
-            for iterator, _ in self._iterators_and_futures:
-                if iterator is not None:
-                    iterator.close()
+        ensure_done((future for _, future in self._iterators_and_futures), cancel=True)
+        for iterator, _ in self._iterators_and_futures:
+            if iterator is not None:
+                iterator.close()
         self._iterators_and_futures.clear()
-        self._shutdown_executor()
+        self._safe_shutdown_executor()
 
     def _cancel(self) -> None:
         for _, future in self._iterators_and_futures:

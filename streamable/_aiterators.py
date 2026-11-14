@@ -31,6 +31,7 @@ from streamable._tools._afuture import (
     FutureResults,
     cancel_threadsafe,
     ensure_done,
+    safe_wrap_future,
 )
 from streamable._tools._async import AsyncFunction, anext, semaphored
 from streamable._tools._error import ExceptionContainer
@@ -301,15 +302,15 @@ class FlattenAsyncIterator(
         upstream: ClosableAsyncIterator[Union[Iterable[T], AsyncIterable[T]]],
     ) -> None:
         super().__init__(upstream)
-        self._iterator: Optional[AsyncIterator[T]] = None
+        self._iterator: AsyncIterator[T] = empty_aiter
         self._iterator_owned: bool = False
 
     async def __anext__(self) -> T:
         while True:
             try:
-                return await (self._iterator or empty_aiter).__anext__()
+                return await self._iterator.__anext__()
             except StopAsyncIteration:
-                self._iterator = None
+                self._iterator = empty_aiter
                 iterable = await self.upstream.__anext__()
                 validate_iterable(iterable)
                 if hasattr(type(iterable), "__aiter__"):
@@ -895,8 +896,8 @@ class _ConcurrentAsyncIterator(_BaseOperationAsyncIterator[T, U]):
         self._stopped: bool = False
         self._executor_owned: bool
         if isinstance(concurrency, int):
-            self.concurrency = concurrency
             self._executor_owned = True
+            self.concurrency = concurrency
         else:
             self._executor = concurrency
             self._executor_owned = False
@@ -908,7 +909,7 @@ class _ConcurrentAsyncIterator(_BaseOperationAsyncIterator[T, U]):
             self._executor = ThreadPoolExecutor(max_workers=self.concurrency)
         return self._executor
 
-    def _shutdown_executor(self, wait: bool = True) -> None:
+    def _safe_shutdown_executor(self, wait: bool = True) -> None:
         if self._executor and self._executor_owned:
             self._executor.shutdown(wait=wait)
 
@@ -926,7 +927,7 @@ class _ConcurrentAsyncIterator(_BaseOperationAsyncIterator[T, U]):
 
     def __del__(self) -> None:
         self._cancel_threadsafe()
-        self._shutdown_executor(wait=False)
+        self._safe_shutdown_executor(wait=False)
 
 
 class _ConcurrentMapAsyncIterator(_ConcurrentAsyncIterator[T, U]):
@@ -951,7 +952,7 @@ class _ConcurrentMapAsyncIterator(_ConcurrentAsyncIterator[T, U]):
         return self._future_results
 
     @abstractmethod
-    def _launch_future(
+    def _launch_task(
         self, elem: T
     ) -> "Union[asyncio.Future[U], futures.Future[U]]": ...
 
@@ -964,7 +965,7 @@ class _ConcurrentMapAsyncIterator(_ConcurrentAsyncIterator[T, U]):
             return None
         except Exception as e:
             return FailedFuture(e)
-        return self._launch_future(elem)
+        return self._launch_task(elem)
 
     async def __anext__(self) -> U:
         if self._stopped:
@@ -988,7 +989,7 @@ class _ConcurrentMapAsyncIterator(_ConcurrentAsyncIterator[T, U]):
             self._future_results.cancel()
             await self._future_results.gather()
             self._future_results.clear()
-        self._shutdown_executor()
+        self._safe_shutdown_executor()
 
     def _cancel_threadsafe(self) -> None:
         if self._future_results:
@@ -1016,7 +1017,7 @@ class AsyncConcurrentMapAsyncIterator(_ConcurrentMapAsyncIterator[T, U]):
             self._semaphore = asyncio.Semaphore(self.concurrency)
         return self._semaphore
 
-    def _launch_future(self, elem: T) -> "asyncio.Future[U]":
+    def _launch_task(self, elem: T) -> "asyncio.Future[U]":
         return asyncio.create_task(semaphored(self.into, elem, self._lazy_semaphore))
 
 
@@ -1033,7 +1034,7 @@ class ExecutorConcurrentMapAsyncIterator(_ConcurrentMapAsyncIterator[T, U]):
         self.into = into
         super().__init__(upstream, concurrency, as_completed)
 
-    def _launch_future(self, elem: T) -> "futures.Future[U]":
+    def _launch_task(self, elem: T) -> "futures.Future[U]":
         return self._lazy_executor.submit(self.into, elem)
 
 
@@ -1055,14 +1056,14 @@ class ConcurrentFlattenAsyncIterator(
         ] = deque()
         super().__init__(upstream, concurrency)
 
-    def _launch_future_from_iter(
+    def _launch_task_from_iter(
         self, iterator: Union[GuardedAsyncIterator[T], GuardedIterator[T]]
     ) -> "Union[asyncio.Future[T], futures.Future[T]]":
         if isinstance(iterator, GuardedAsyncIterator):
             return asyncio.create_task(anext(iterator, STOP_ITERATION))
         return self._lazy_executor.submit(next, iterator, STOP_ITERATION)
 
-    async def _launch_future_from_next_iter(
+    async def _launch_task_from_next_iter(
         self,
     ) -> Optional[
         Tuple[
@@ -1082,14 +1083,14 @@ class ConcurrentFlattenAsyncIterator(
             if isinstance(iterable, AsyncIterable)
             else GuardedIterator(iterable)
         )
-        return (iterator, self._launch_future_from_iter(iterator))
+        return (iterator, self._launch_task_from_iter(iterator))
 
     async def __anext__(self) -> T:
         while True:
             if self._stopped:
                 raise StopAsyncIteration
             while len(self._iterators_and_futures) < self.concurrency:
-                iterator_and_future = await self._launch_future_from_next_iter()
+                iterator_and_future = await self._launch_task_from_next_iter()
                 if iterator_and_future is None:
                     # no more tasks to queue
                     break
@@ -1110,7 +1111,7 @@ class ConcurrentFlattenAsyncIterator(
                 del future
                 if iterator is not None:
                     self._iterators_and_futures.append(
-                        (iterator, self._launch_future_from_iter(iterator))
+                        (iterator, self._launch_task_from_iter(iterator))
                     )
 
     async def _terminate(self) -> None:
@@ -1120,9 +1121,12 @@ class ConcurrentFlattenAsyncIterator(
             if isinstance(iterator, GuardedAsyncIterator):
                 await iterator.aclose()
             elif iterator is not None:
-                iterator.close()
+                if self._executor is None or getattr(self._executor, "_shutdown", True):
+                    iterator.close()
+                else:
+                    await safe_wrap_future(self._lazy_executor.submit(iterator.close))
         self._iterators_and_futures.clear()
-        self._shutdown_executor()
+        self._safe_shutdown_executor()
 
     def _cancel_threadsafe(self) -> None:
         cancel_threadsafe(future for _, future in self._iterators_and_futures)

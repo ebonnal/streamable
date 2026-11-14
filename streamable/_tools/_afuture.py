@@ -14,14 +14,6 @@ from typing import (
 T = TypeVar("T")
 
 
-class FailedFuture(asyncio.Future):
-    __slots__ = ()
-
-    def __init__(self, exception: Exception):
-        super().__init__()
-        self.set_exception(exception)
-
-
 def safe_wrap_future(
     future: "Union[asyncio.Future[T], futures.Future[T]]",
 ) -> "asyncio.Future[T]":
@@ -84,6 +76,14 @@ async def ensure_done(
         still_pending = (await asyncio.wait(futures_to_wait, timeout=timeout))[1]
         return not still_pending
     return True
+
+
+class FailedFuture(asyncio.Future):
+    __slots__ = ()
+
+    def __init__(self, exception: Exception):
+        super().__init__()
+        self.set_exception(exception)
 
 
 class FutureResults(AsyncIterator[T], Sized):

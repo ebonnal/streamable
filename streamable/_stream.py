@@ -65,6 +65,7 @@ class stream_aiterator(ClosableAsyncIterator[T], Protocol[T]):
     def aclose(self) -> Awaitable[None]:
         """
         Eagerly terminate any pending child tasks spawned by these operations:
+
         - ``.map``/``.do``/``.flatten`` with ``concurrency > 1``
         - ``.buffer``
         - ``.group(..., within=timedelta(...))``
@@ -74,10 +75,10 @@ class stream_aiterator(ClosableAsyncIterator[T], Protocol[T]):
 
         If a source is already provided as an ``Iterator``/``AsyncIterator``, it is considered owned by the client and ``.aclose`` will not propagate to it (the same applies to inner async iterables processed by ``.flatten``), but an in-flight pull will get cancelled.
 
-        What happens without explicitly use of ``.aclose``:
+        What happens without explicit use of ``.aclose``:
 
         - When the iteration is complete: all the child tasks are done.
-        - When the iterator is destroyed mid-iteration: the pending child tasks are canceled and terminated at a subsequent cycle of the event loop.
+        - When the iterator is destroyed mid-iteration: the pending child tasks are cancelled and terminated at a subsequent cycle of the event loop.
 
         Example::
 
@@ -121,7 +122,7 @@ class stream_iterator(ClosableIterator[T], Protocol[T]):
 
         If a source is already provided as an ``Iterator``, it is considered owned by the client and ``.close`` will not propagate to it (the same applies to inner iterables processed by ``.flatten``).
 
-        What happens without explicitly use of ``.close``:
+        What happens without explicit use of ``.close``:
 
         - When the iteration is complete: all the child threads are done.
         - When the iterator is destroyed mid-iteration: the pending child threads are terminated (queued work is cancelled if possible).
@@ -134,8 +135,8 @@ class stream_iterator(ClosableIterator[T], Protocol[T]):
             with closing(iter(s)) as it:
                 assert next(it) == 0
                 assert next(it) == 1
-                # 4 pending tasks, for elements 2, 3, 4, 5
-            # these 4 tasks are done/cancelled
+                # 4 worker threads processing elements 2, 3, 4, 5
+            # work done/cancelled and worker threads terminated
 
             # equivalent to:
             s = stream(range(10)).do(time.sleep, concurrency=4)
@@ -143,10 +144,10 @@ class stream_iterator(ClosableIterator[T], Protocol[T]):
             try:
                 assert next(it) == 0
                 assert next(it) == 1
-                # 4 pending tasks, for elements 2, 3, 4, 5
+                # 4 worker threads processing elements 2, 3, 4, 5
             finally:
                 it.close()
-                # these 4 tasks are done/cancelled
+                # work done/cancelled and worker threads terminated
         """
         ...
 
@@ -292,8 +293,8 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             with closing(iter(s)) as it:
                 assert next(it) == 0
                 assert next(it) == 1
-                # 4 pending tasks, for elements 2, 3, 4, 5
-            # these 4 tasks are done/cancelled
+                # 4 worker threads processing elements 2, 3, 4, 5
+            # work done/cancelled and worker threads terminated
 
             # equivalent to:
             s = stream(range(10)).do(time.sleep, concurrency=4)
@@ -301,10 +302,10 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             try:
                 assert next(it) == 0
                 assert next(it) == 1
-                # 4 pending tasks, for elements 2, 3, 4, 5
+                # 4 worker threads processing elements 2, 3, 4, 5
             finally:
                 it.close()
-                # these 4 tasks are done/cancelled
+                # work done/cancelled and worker threads terminated
         """
         if self.accept(InvolvesAsyncVisitor()):
             return AsyncToSyncIterator(self.__aiter__())
@@ -323,7 +324,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         When the iteration is complete, all the child tasks are done.
 
-        When the iterator is destroyed before it is exhausted, the pending child tasks are canceled and terminated at a subsequent cycle of the event loop.
+        When the iterator is destroyed before it is exhausted, the pending child tasks are cancelled and terminated at a subsequent cycle of the event loop.
 
         Use the retriable ``.aclose`` method to eagerly terminate any pending child tasks.
 
