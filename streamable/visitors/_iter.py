@@ -3,7 +3,6 @@ from typing import (
     AsyncIterable,
     Callable,
     Iterable,
-    Iterator,
     TypeVar,
     Union,
     cast,
@@ -11,7 +10,7 @@ from typing import (
 
 from streamable import _functions
 from streamable._tools._func import sidify
-from streamable._tools._iter import fn_to_iter
+from streamable._tools._iter import ClosableIterator, GuardedIterator, fn_to_iter
 from streamable.visitors import Visitor
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -34,16 +33,18 @@ T = TypeVar("T")
 U = TypeVar("U")
 
 
-class IteratorVisitor(Visitor[Iterator[T]]):
+class IteratorVisitor(Visitor[ClosableIterator[T]]):
     __slots__ = ()
 
-    def visit_buffer_stream(self, s: "BufferStream[T]") -> Iterator[T]:
+    def visit_buffer_stream(self, s: "BufferStream[T]") -> ClosableIterator[T]:
         return _functions.buffer(
             s.upstream.accept(self),
             s._up_to,
         )
 
-    def visit_catch_stream(self, s: "CatchStream[T, U]") -> Iterator[Union[T, U]]:
+    def visit_catch_stream(
+        self, s: "CatchStream[T, U]"
+    ) -> ClosableIterator[Union[T, U]]:
         return _functions.catch(
             s.upstream.accept(self),
             s._errors,
@@ -53,7 +54,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
             stop=s._stop,
         )
 
-    def visit_do_stream(self, s: "DoStream[T]") -> Iterator[T]:
+    def visit_do_stream(self, s: "DoStream[T]") -> ClosableIterator[T]:
         return _functions.map(
             sidify(s._effect),
             s.upstream.accept(self),
@@ -61,13 +62,13 @@ class IteratorVisitor(Visitor[Iterator[T]]):
             as_completed=s._as_completed,
         )
 
-    def visit_filter_stream(self, s: "FilterStream[T]") -> Iterator[T]:
+    def visit_filter_stream(self, s: "FilterStream[T]") -> ClosableIterator[T]:
         return _functions.filter(
             s._where,
             s.upstream.accept(self),
         )
 
-    def visit_flatten_stream(self, s: "FlattenStream[T]") -> Iterator[T]:
+    def visit_flatten_stream(self, s: "FlattenStream[T]") -> ClosableIterator[T]:
         return _functions.flatten(
             s.upstream.accept(
                 cast(IteratorVisitor[Union[Iterable[T], AsyncIterable[T]]], self)
@@ -75,9 +76,9 @@ class IteratorVisitor(Visitor[Iterator[T]]):
             concurrency=s._concurrency,
         )
 
-    def visit_group_stream(self, s: "GroupStream[T]") -> Iterator[T]:
+    def visit_group_stream(self, s: "GroupStream[T]") -> ClosableIterator[T]:
         return cast(
-            Iterator[T],
+            ClosableIterator[T],
             _functions.group(
                 s.upstream.accept(self),
                 s._up_to,
@@ -86,7 +87,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
             ),
         )
 
-    def visit_map_stream(self, s: "MapStream[U, T]") -> Iterator[T]:
+    def visit_map_stream(self, s: "MapStream[U, T]") -> ClosableIterator[T]:
         return _functions.map(
             cast(Callable[[U], T], s._into),
             s.upstream.accept(cast(IteratorVisitor[U], self)),
@@ -94,7 +95,7 @@ class IteratorVisitor(Visitor[Iterator[T]]):
             as_completed=s._as_completed,
         )
 
-    def visit_observe_stream(self, s: "ObserveStream[T]") -> Iterator[T]:
+    def visit_observe_stream(self, s: "ObserveStream[T]") -> ClosableIterator[T]:
         return _functions.observe(
             s.upstream.accept(self),
             s._subject,
@@ -102,30 +103,30 @@ class IteratorVisitor(Visitor[Iterator[T]]):
             s._do,
         )
 
-    def visit_skip_stream(self, s: "SkipStream[T]") -> Iterator[T]:
+    def visit_skip_stream(self, s: "SkipStream[T]") -> ClosableIterator[T]:
         return _functions.skip(
             s.upstream.accept(self),
             until=s._until,
         )
 
-    def visit_take_stream(self, s: "TakeStream[T]") -> Iterator[T]:
+    def visit_take_stream(self, s: "TakeStream[T]") -> ClosableIterator[T]:
         return _functions.take(
             s.upstream.accept(self),
             until=s._until,
         )
 
-    def visit_throttle_stream(self, s: "ThrottleStream[T]") -> Iterator[T]:
+    def visit_throttle_stream(self, s: "ThrottleStream[T]") -> ClosableIterator[T]:
         return _functions.throttle(
             s.upstream.accept(self),
             s._up_to,
             per=s._per,
         )
 
-    def visit_stream(self, s: "stream[T]") -> Iterator[T]:
+    def visit_stream(self, s: "stream[T]") -> ClosableIterator[T]:
         if isinstance(s.source, Iterable):
-            return s.source.__iter__()
+            return GuardedIterator(s.source)
         if callable(s.source):
-            return fn_to_iter(s.source)
+            return GuardedIterator(fn_to_iter(s.source))
         raise TypeError(
             f"`source` must be Iterable or AsyncIterable or Callable but got: {s.source}"
         )

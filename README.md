@@ -69,7 +69,27 @@ A `stream[T]` is `Iterable[T]` and `AsyncIterable[T]`:
 
 ---
 
-# 📖 operations ([docs](https://streamable.readthedocs.io/en/latest/api.html))
+# core principles
+
+***minimal***: A `stream` exposes operations to manipulate its elements, but its source and consumption are not its responsibility. It's meant to be combined with dedicated libraries like `pyarrow`, `psycopg2`, `dlt` ([ETL example](#eg-etl-via-dlt)), etc.
+
+***resilient***: A `stream`'s iteration can resume after an exception has traveled through it.
+
+***match builtins***: Iteration over `stream(source).filter(pred).map(into)` introduces zero overhead vs `builtins`-based `map(into, filter(pred, source))`.
+
+***sync/async***:
+
+- Operations accept both sync and async functions.
+
+- A `stream` supports both sync and async iteration (e.g. `for` and `async for`), operations adapt their behavior.
+
+- A sync iteration over a `stream` involving async functions or an `AsyncIterable` source runs as an async iteration under the hood, using the current event loop if one is set.
+
+***structured concurrency***: The iterators returned by `stream.__iter__`/`stream.__aiter__` expose a [`.close`/`.aclose`](#structured-concurrency) method to eagerly terminate the tasks/threads they may spawn during iteration.
+
+---
+
+# operations ([docs](https://streamable.readthedocs.io/en/latest/api.html))
 
 - mapping
     - [`.map`](#-map)
@@ -86,30 +106,6 @@ A `stream[T]` is `Iterable[T]` and `AsyncIterable[T]`:
     - [`.throttle`](#-throttle)
     - [`.buffer`](#-buffer)
     - [`.observe`](#-observe)
-
-A `stream` exposes operations to manipulate its elements, but its consumption and the I/O are not its responsibility. It's meant to be combined with dedicated libraries like `pyarrow`, `psycopg2`, `dlt` ([ETL example](#eg-etl-via-dlt)) ...
-
-A `stream` can be iterated several times if its source allows it.
-
-Operations return a new `stream`.
-
-Operations allow iteration to resume after an `Exception`.
-
-Operations accept both sync and async functions.
-
-`stream` supports both types of iteration: sync and async (e.g. `for` and `async for`).
-
-Operations adapt their behavior to the type of iteration:
-
-- `.throttle` sleeps via `time.sleep` during sync iteration and via `asyncio.sleep` during async iteration
-
-- `.buffer`'s background task is a `threading.Thread` during sync iteration and an `asyncio.Task` during async iteration
-
-- concurrent `.map` of a sync function uses `asyncio.wrap_future` during async iteration to avoid blocking the event loop
-
-- ...
-
-A sync iteration over a `stream` involving async functions or an `AsyncIterable` source runs as an async iteration under the hood, using the current event loop if one is set.
 
 ## ▼ `.map`
 
@@ -176,7 +172,7 @@ with asyncio.Runner() as runner:
     runner.run(http_client.aclose())
 ```
 
-Check [`.aclose`](#aclose-structured-concurrency) for *structured concurrency*.
+Check [`.close`/`.aclose`](#structured-concurrency) for *structured concurrency*.
 
 #### via processes
 
@@ -546,46 +542,6 @@ enumerated_pokes: stream[str] = (
 assert list(enumerated_pokes) == ['#1 bulbasaur', '#2 ivysaur', '#3 venusaur', '#4 charmander', '#5 charmeleon', '#6 charizard', '#7 squirtle', '#8 wartortle', '#9 blastoise']
 ```
 
-## `.aclose` (structured concurrency)
-
-During an async iteration, these operations spawn child tasks:
-
-- `.map`/`.do`/`.flatten` with `concurrency > 1`
-- `.buffer`
-- `.group(..., within=timedelta(...))`
-- `.observe(..., every=timedelta(...))`
-
-When the iteration is complete, all the child tasks are done.
-
-When the iterator is destroyed before it is exhausted, the pending child tasks terminate at a subsequent cycle of the event loop.
-
-`stream.__aiter__` returns an async iterator with an `.aclose` method to cancel and terminate any pending child tasks:
-
-```python
-from contextlib import aclosing
-
-s = stream(range(10)).do(asyncio.sleep, concurrency=4)
-async with aclosing(aiter(s)) as it:
-    assert await anext(it) == 0
-    assert await anext(it) == 1
-    # 4 pending tasks, for elements 2, 3, 4, 5
-# these 4 tasks are cancelled
-```
-
-`aclosing` appears in Python 3.10. For prior versions, use `.aclose` in a `finally` block:
-
-```python
-s = stream(range(10)).do(asyncio.sleep, concurrency=4)
-it = aiter(s)
-try:
-    assert await anext(it) == 0
-    assert await anext(it) == 1
-    # 4 pending tasks, for elements 2, 3, 4, 5
-finally:
-    await it.aclose()
-    # these 4 tasks are cancelled
-```
-
 ## distinct
 
 To collect distinct elements you can `set(a_stream)`.
@@ -605,44 +561,74 @@ unique_ints: stream[int] = (
 assert list(unique_ints) == [0, 1]
 ```
 
-## performance
+## structured concurrency
 
-There is zero overhead during iteration compared to `builtins.map` and `builtins.filter`:
+During an iteration, these operations spawn child tasks (async or threads):
+
+- `.map`/`.do`/`.flatten` with `concurrency > 1`
+- `.buffer`
+- `.group(..., within=timedelta(...))`
+- `.observe(..., every=timedelta(...))`
+
+When the iteration is complete, all the child tasks are done.
+
+When the iterator is destroyed before it is exhausted, the pending child tasks are terminated (queued work is cancelled if possible).
+
+`stream.__iter__`/`stream.__aiter__` returns an `Iterator`/`AsyncIterator` with a retriable `.close`/`.aclose` method to eagerly terminate any pending child tasks.
+
+### `.close`
 
 ```python
-odd_int_chars = stream(range(N)).filter(lambda n: n % 2).map(str)
+from contextlib import closing
+
+s = stream(range(10)).do(time.sleep, concurrency=4)
+with closing(iter(s)) as it:
+    assert next(it) == 0
+    assert next(it) == 1
+    # 4 pending tasks, for elements 2, 3, 4, 5
+# these 4 tasks are cancelled/done
 ```
 
-`iter(odd_int_chars)` visits the operation lineage and returns exactly:
+equivalent to:
 
 ```python
-map(str, filter(lambda n: n % 2, range(N)))
+s = stream(range(10)).do(time.sleep, concurrency=4)
+it: stream_iterator[int] = iter(s)
+try:
+    assert next(it) == 0
+    assert next(it) == 1
+    # 4 pending tasks, for elements 2, 3, 4, 5
+finally:
+    it.close()
+    # these 4 tasks are cancelled/done
 ```
 
-Throughput of each operation compared to `builtins.map`:
+### `.aclose`
 
-|operation|x times slower than `map(lambda _: _, range(N))`|
-|--|--|
-|`stream(range(N)).map(lambda _: _)`|1.00x (same throughput)|
-|`stream(range(N)).filter(lambda _: _)`|1.05x|
-|`stream(range(100) for _ in range(N // 100)).flatten()`|1.7x|
-|`stream(range(N)).do(lambda _: _)`|1.8x|
-|`stream(range(N)).skip(N)`|1.9x|
-|`stream(range(N)).catch(ValueError)`|2.0x|
-|`stream(range(N)).group(5)`|2.4x|
-|`stream(range(N)).take(N)`|2.9x|
-|`stream(range(N)).observe('ints', do=bool)`|4.1x|
-|`stream(range(N)).observe('ints', do=bool, every=N)`|4.5x|
-|`stream(range(N)).observe('ints', do=bool, every=timedelta(...))`|5.5x|
-|`stream(range(N)).throttle(N, per=timedelta(...))`|5.8x|
-|`stream(range(N)).group(by=bool, up_to=5)`|7.1x|
-|`stream(range(N)).buffer(N)`|50x|
-|`stream(range(N)).map(lambda _: _, concurrency=2)`|310x|
-|`stream(range(N)).map(lambda _: _, concurrency=2, as_completed=True)`|335x|
-|`stream(range(N)).group(within=timedelta(...))`|340x|
-|`stream(range(100) for _ in range(N // 100)).flatten(concurrency=2)`|370x|
+```python
+from contextlib import aclosing
 
-(source: `pytest -s tests/benchmark.py`)
+s = stream(range(10)).do(asyncio.sleep, concurrency=4)
+async with aclosing(aiter(s)) as it:
+    assert await anext(it) == 0
+    assert await anext(it) == 1
+    # 4 pending tasks, for elements 2, 3, 4, 5
+# these 4 tasks are cancelled/done
+```
+
+equivalent to:
+
+```python
+s = stream(range(10)).do(asyncio.sleep, concurrency=4)
+it: stream_aiterator[int] = aiter(s)
+try:
+    assert await anext(it) == 0
+    assert await anext(it) == 1
+    # 4 pending tasks, for elements 2, 3, 4, 5
+finally:
+    await it.aclose()
+    # these 4 tasks are cancelled/done
+```
 
 ## e.g. ETL via [`dlt`](https://github.com/dlt-hub/dlt)
 
