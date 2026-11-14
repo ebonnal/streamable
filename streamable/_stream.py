@@ -13,12 +13,14 @@ from typing import (
     Iterable,
     List,
     Optional,
+    Protocol,
     Tuple,
     Type,
     TypeVar,
     Union,
     cast,
     overload,
+    runtime_checkable,
 )
 
 from streamable._tools._async import AsyncFunction
@@ -54,6 +56,99 @@ U = TypeVar("U")
 
 V = TypeVar("V")
 Exc = TypeVar("Exc", bound=Exception)
+
+
+@runtime_checkable
+class stream_aiterator(ClosableAsyncIterator[T], Protocol[T]):
+    __slots__ = ()
+
+    def aclose(self) -> Awaitable[None]:
+        """
+        Eagerly terminate any pending child tasks spawned by these operations:
+        - ``.map``/``.do``/``.flatten`` with ``concurrency > 1``
+        - ``.buffer``
+        - ``.group(..., within=timedelta(...))``
+        - ``.observe(..., every=timedelta(...))``
+
+        Errors raised by child tasks during termination are not propagated.
+
+        If a source is already provided as an ``Iterator``/``AsyncIterator``, it is considered owned by the client and ``.aclose`` will not propagate to it (the same applies to inner async iterables processed by ``.flatten``), but an in-flight pull will get cancelled.
+
+        What happens without explicitly use of ``.aclose``:
+
+        - When the iteration is complete: all the child tasks are done.
+        - When the iterator is destroyed mid-iteration: the pending child tasks are canceled and terminated at a subsequent cycle of the event loop.
+
+        Example::
+
+            from contextlib import aclosing
+
+            s = stream(range(10)).do(asyncio.sleep, concurrency=4)
+            async with aclosing(aiter(s)) as it:
+                assert await anext(it) == 0
+                assert await anext(it) == 1
+                # 4 pending tasks, for elements 2, 3, 4, 5
+            # these 4 tasks are done/cancelled
+
+            # equivalent to:
+            s = stream(range(10)).do(asyncio.sleep, concurrency=4)
+            it: stream_aiterator[int] = aiter(s)
+            try:
+                assert await anext(it) == 0
+                assert await anext(it) == 1
+                # 4 pending tasks, for elements 2, 3, 4, 5
+            finally:
+                await it.aclose()
+                # these 4 tasks are done/cancelled
+        """
+        ...
+
+
+@runtime_checkable
+class stream_iterator(ClosableIterator[T], Protocol[T]):
+    __slots__ = ()
+
+    def close(self) -> None:
+        """
+        Eagerly terminate any pending child threads spawned by these operations:
+
+        - ``.map``/``.do``/``.flatten`` with ``concurrency > 1``
+        - ``.buffer``
+        - ``.group(..., within=timedelta(...))``
+        - ``.observe(..., every=timedelta(...))``
+
+        Errors raised by child threads during termination are not propagated.
+
+        If a source is already provided as an ``Iterator``, it is considered owned by the client and ``.close`` will not propagate to it (the same applies to inner iterables processed by ``.flatten``).
+
+        What happens without explicitly use of ``.close``:
+
+        - When the iteration is complete: all the child threads are done.
+        - When the iterator is destroyed mid-iteration: the pending child threads are terminated (queued work is cancelled if possible).
+
+        Example::
+
+            from contextlib import closing
+
+            s = stream(range(10)).do(time.sleep, concurrency=4)
+            with closing(iter(s)) as it:
+                assert next(it) == 0
+                assert next(it) == 1
+                # 4 pending tasks, for elements 2, 3, 4, 5
+            # these 4 tasks are done/cancelled
+
+            # equivalent to:
+            s = stream(range(10)).do(time.sleep, concurrency=4)
+            it: stream_iterator[int] = iter(s)
+            try:
+                assert next(it) == 0
+                assert next(it) == 1
+                # 4 pending tasks, for elements 2, 3, 4, 5
+            finally:
+                it.close()
+                # these 4 tasks are done/cancelled
+        """
+        ...
 
 
 class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
@@ -163,9 +258,9 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         """
         return self._source
 
-    def __iter__(self) -> ClosableIterator[T]:
+    def __iter__(self) -> stream_iterator[T]:
         """
-        Return an ``Iterator`` with a ``.close`` method.
+        Return a ``streamable.stream_iterator`` (``Iterator`` with a ``.close`` method) over this stream.
 
         Note that if the ``stream`` involves async functions or an ``AsyncIterable`` source, the returned iterator will run an async iteration under the hood (via ``stream.__aiter__``), using the current event loop if one is set.
 
@@ -187,7 +282,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         If a source is already provided as an ``Iterator``, it is considered owned by the client and ``.close`` will not propagate to it (the same applies to inner iterables processed by ``.flatten``).
 
         Returns:
-            ``streamable.ClosableIterator[T]``: Closable iterator over this stream's elements.
+            ``streamable.stream_iterator[T]``: Closable iterator over this stream's elements.
 
         Example::
 
@@ -202,7 +297,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
             # equivalent to:
             s = stream(range(10)).do(time.sleep, concurrency=4)
-            it = iter(s)
+            it: stream_iterator[int] = iter(s)
             try:
                 assert next(it) == 0
                 assert next(it) == 1
@@ -215,9 +310,9 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             return AsyncToSyncIterator(self.__aiter__())
         return self.accept(IteratorVisitor[T]())
 
-    def __aiter__(self) -> ClosableAsyncIterator[T]:
+    def __aiter__(self) -> stream_aiterator[T]:
         """
-        Return an ``AsyncIterator`` with an ``.aclose`` method.
+        Return a ``streamable.stream_aiterator`` (``AsyncIterator`` with an ``.aclose`` method) over this stream.
 
         During an async iteration, these operations spawn child tasks:
 
@@ -237,7 +332,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         If a source is already provided as an ``Iterator``/``AsyncIterator``, it is considered owned by the client and ``.aclose`` will not propagate to it (the same applies to inner async iterables processed by ``.flatten``), but an in-flight pull will get cancelled.
 
         Returns:
-            ``streamable.ClosableAsyncIterator[T]``: Closable async iterator over this stream's elements.
+            ``streamable.stream_aiterator[T]``: Closable async iterator over this stream's elements.
 
         Example::
 
@@ -252,7 +347,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
             # equivalent to:
             s = stream(range(10)).do(asyncio.sleep, concurrency=4)
-            it = aiter(s)
+            it: stream_aiterator[int] = aiter(s)
             try:
                 assert await anext(it) == 0
                 assert await anext(it) == 1

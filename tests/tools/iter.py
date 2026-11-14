@@ -15,14 +15,9 @@ from typing import (
     cast,
 )
 
-from streamable._stream import stream
+from streamable import stream, stream_aiterator, stream_iterator
 from streamable._tools._async import AsyncFunction
-from streamable._tools._iter import (
-    AsyncClosable,
-    Closable,
-    ClosableAsyncIterator,
-    ClosableIterator,
-)
+from streamable._tools._iter import AsyncClosable, Closable
 from tests.tools.func import async_identity, identity
 from tests.tools.loop import TEST_LOOP
 
@@ -65,7 +60,7 @@ async def acount(iterator: AsyncIterable) -> int:
 
 def aiter_or_iter(
     s: stream[T], itype: IterableType
-) -> Union[ClosableIterator[T], ClosableAsyncIterator[T]]:
+) -> Union[stream_iterator[T], stream_aiterator[T]]:
     assert itype in ITERABLE_TYPES
     if itype == "async":
         return s.__aiter__()

@@ -12,7 +12,7 @@
 
 - a sync iteration over a `stream` involving async functions or an `AsyncIterable` source no longer sets the current event loop.
 
-- `.__iter__` now returns a `streamable.ClosableIterator` exposing a `.close()` method
+- `.__iter__` now returns a `streamable.stream_iterator` exposing a `.close()` method
   ```python
   from contextlib import closing
 
@@ -24,7 +24,7 @@
   # these 4 tasks are done/cancelled
   ```
 
-- `.__aiter__` now returns a `streamable.ClosableAsyncIterator` exposing an `.aclose()` method
+- `.__aiter__` now returns a `streamable.stream_aiterator` exposing an `.aclose()` method
   ```python
   from contextlib import aclosing
 

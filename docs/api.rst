@@ -13,5 +13,5 @@ API Reference
 .. autoclass:: streamable.Observation
    :special-members: __str__
 
-.. autoclass:: streamable.ClosableAsyncIterator
-.. autoclass:: streamable.ClosableIterator
+.. autoclass:: streamable.stream_aiterator
+.. autoclass:: streamable.stream_iterator

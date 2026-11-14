@@ -12,7 +12,7 @@ from typing import (
     Union,
 )
 
-from streamable._tools._iter import ClosableAsyncIterator, ClosableIterator
+from streamable import stream_aiterator, stream_iterator
 from tests.tools.error import TestError
 from tests.tools.iter import IterableType
 
@@ -92,7 +92,7 @@ class _BaseMonitoredIntIterator(MonitoredIdentity[int]):
         self._record_close()
 
 
-class MonitoredIntIterator(_BaseMonitoredIntIterator, ClosableIterator[int]):
+class MonitoredIntIterator(_BaseMonitoredIntIterator, stream_iterator[int]):
     def __next__(self) -> int:
         if len(self.started) >= self.n_yields:
             raise StopIteration
@@ -102,7 +102,7 @@ class MonitoredIntIterator(_BaseMonitoredIntIterator, ClosableIterator[int]):
         self._record_close()
 
 
-class MonitoredIntAsyncIterator(_BaseMonitoredIntIterator, ClosableAsyncIterator[int]):
+class MonitoredIntAsyncIterator(_BaseMonitoredIntIterator, stream_aiterator[int]):
     async def __anext__(self) -> int:
         if len(self.started) >= self.n_yields:
             raise StopAsyncIteration

@@ -16,17 +16,16 @@ from typing import (
     Tuple,
     TypeVar,
     Union,
-    cast,
 )
 
 import pytest
 
 from streamable import (
-    ClosableAsyncIterator,
-    ClosableIterator,
     Observation,
     star,
     stream,
+    stream_aiterator,
+    stream_iterator,
 )
 from tests.tools.error import TestError
 from tests.tools.func import (
@@ -101,25 +100,25 @@ def chain(src: Union[Iterable[int], AsyncIterable[int]]) -> "stream[int]":
 ################
 
 
-async def _aexpect_stop_on_next(it: ClosableAsyncIterator[Any]) -> None:
+async def _aexpect_stop_on_next(it: stream_aiterator[Any]) -> None:
     with pytest.raises(StopAsyncIteration):
         await it.__anext__()
 
 
-def _expect_stop_on_next(it: ClosableIterator[Any]) -> None:
+def _expect_stop_on_next(it: stream_iterator[Any]) -> None:
     with pytest.raises(StopIteration):
         next(it)
 
 
-async def _aclose(it: ClosableAsyncIterator[Any]) -> None:
+async def _aclose(it: stream_aiterator[Any]) -> None:
     await it.aclose()
 
 
-def _close(it: ClosableIterator[Any]) -> None:
+def _close(it: stream_iterator[Any]) -> None:
     it.close()
 
 
-async def _anext_until_timeout_then_close(it: ClosableAsyncIterator[Any]) -> None:
+async def _anext_until_timeout_then_close(it: stream_aiterator[Any]) -> None:
     # a timeout does not end the iteration, the close does
     with pytest.raises(asyncio.TimeoutError):
         while True:
@@ -130,9 +129,9 @@ async def _anext_until_timeout_then_close(it: ClosableAsyncIterator[Any]) -> Non
 @dataclass(frozen=True)
 class Termination:
     name: str
-    aterminate: Callable[[ClosableAsyncIterator[Any]], Awaitable[None]]
+    aterminate: Callable[[stream_aiterator[Any]], Awaitable[None]]
     # `None` if the termination has no sync equivalent
-    terminate: Optional[Callable[[ClosableIterator[Any]], None]]
+    terminate: Optional[Callable[[stream_iterator[Any]], None]]
     # whether the stream must be stopped by a `.take` right after the pulls
     stops: bool = False
 
@@ -185,8 +184,8 @@ def assert_no_new_threads(threads: Set[threading.Thread]) -> None:
 
 async def apull_then_terminate_with_no_leak(
     s: "stream[Any]", n_pulls: int, termination: Termination
-) -> ClosableAsyncIterator[Any]:
-    async def pull_then_terminate() -> ClosableAsyncIterator[Any]:
+) -> stream_aiterator[Any]:
+    async def pull_then_terminate() -> stream_aiterator[Any]:
         it = (s.take(n_pulls) if termination.stops else s).__aiter__()
         for _ in range(n_pulls):
             await it.__anext__()
@@ -203,7 +202,7 @@ async def apull_then_terminate_with_no_leak(
 
 def pull_then_terminate_with_no_leak(
     s: "stream[Any]", n_pulls: int, termination: Termination, itype: IterableType
-) -> Union[ClosableIterator[Any], ClosableAsyncIterator[Any]]:
+) -> Union[stream_iterator[Any], stream_aiterator[Any]]:
     """
     Pulls `n_pulls` elements then terminates the iteration, asserting that no task (async) or thread (sync) is left behind.
     """
@@ -391,7 +390,7 @@ def test_owned_source_close_error_is_raised(itype: IterableType) -> None:
 
     # the TestError is raised on close
     with pytest.raises(TestError):
-        aclose_or_close(cast(ClosableIterator[int], it), itype)
+        aclose_or_close(it, itype)
 
     # the TestError is raised on stop
     with pytest.raises(TestError):
@@ -407,7 +406,7 @@ def test_owned_source_closed_once_on_upstream_stop(itype: IterableType) -> None:
     s = stream(iterable).take(1).map(identity).filter(lambda _: True).do(nothing)
     it = aiter_or_iter(s, itype)
     assert alist_or_list(it, itype) == [0]
-    aclose_or_close(cast(ClosableIterator[int], it), itype)
+    aclose_or_close(it, itype)
     assert [iterator.n_closes for iterator in iterable.iterators] == [1]
 
     # a failing close is not retried: its error is raised once, then the iteration stops
@@ -421,7 +420,7 @@ def test_owned_source_closed_once_on_upstream_stop(itype: IterableType) -> None:
         anext_or_next(it, itype)
     assert [iterator.n_closes for iterator in failing_iterable.iterators] == [1]
     with pytest.raises(TestError):
-        aclose_or_close(cast(ClosableIterator[int], it), itype)
+        aclose_or_close(it, itype)
     assert [iterator.n_closes for iterator in failing_iterable.iterators] == [2]
 
 

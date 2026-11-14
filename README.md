@@ -580,7 +580,7 @@ equivalent to:
 
 ```python
 s = stream(range(10)).do(time.sleep, concurrency=4)
-it = iter(s)
+it: stream_iterator[int] = iter(s)
 try:
     assert next(it) == 0
     assert next(it) == 1
@@ -607,7 +607,7 @@ equivalent to:
 
 ```python
 s = stream(range(10)).do(asyncio.sleep, concurrency=4)
-it = aiter(s)
+it: stream_aiterator[int] = aiter(s)
 try:
     assert await anext(it) == 0
     assert await anext(it) == 1
