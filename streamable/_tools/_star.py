@@ -3,11 +3,10 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Coroutine,
     Generic,
     Tuple,
     TypeVar,
-    overload,
+    cast,
 )
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -35,17 +34,7 @@ class _Star(Generic[U]):
         return f"star({func_name(self.func)})"
 
 
-@overload
-def star(
-    func: "Callable[[Unpack[Ts]], Coroutine[object, object, U]]",
-) -> "Callable[[Tuple[Unpack[Ts]]], Coroutine[object, object, U]]": ...
-
-
-@overload
-def star(func: "Callable[[Unpack[Ts]], U]") -> "Callable[[Tuple[Unpack[Ts]]], U]": ...
-
-
-def star(func: "Callable[[Unpack[Ts]], Any]") -> "Callable[[Tuple[Unpack[Ts]]], Any]":
+def star(func: "Callable[[Unpack[Ts]], U]") -> "Callable[[Tuple[Unpack[Ts]]], U]":
     """
     Transform a function (sync or async) that takes several positional arguments into a function that takes a tuple.
 
@@ -61,9 +50,9 @@ def star(func: "Callable[[Unpack[Ts]], Any]") -> "Callable[[Tuple[Unpack[Ts]]], 
     """
     if iscoroutinefunction(func):
 
-        async def astared(args: "Tuple[Unpack[Ts]]") -> Any:
+        async def astarred(args: "Tuple[Unpack[Ts]]") -> Any:
             return await func(*args)
 
-        astared.__name__ = f"star({func_name(func)})"
-        return astared
+        astarred.__name__ = f"star({func_name(func)})"
+        return cast("Callable[[Tuple[Unpack[Ts]]], U]", astarred)
     return _Star(func)

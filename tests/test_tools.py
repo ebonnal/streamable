@@ -6,8 +6,10 @@ from typing import (
     Any,
     AsyncIterable,
     Callable,
+    Coroutine,
     List,
     Optional,
+    Tuple,
     Type,
     TypeVar,
     cast,
@@ -77,7 +79,11 @@ async def test_star() -> None:
     def add(a: int, b: int) -> int:
         return a + b
 
-    assert star(add)((2, 5)) == 7
+    starred: Callable[[Tuple[int, int]], int] = star(add)
+    assert starred((2, 5)) == 7
+
+    lambda_starred: Callable[[Tuple[Any, Any]], Any] = star(lambda a, b: a + b)
+    assert lambda_starred((2, 5)) == 7
 
     @star
     def decorated_add(a: int, b: int) -> int:
@@ -88,15 +94,38 @@ async def test_star() -> None:
     async def async_add(a: int, b: int) -> int:
         return a + b
 
-    assert iscoroutinefunction(star(async_add))
+    astarred: Callable[[Tuple[int, int]], Coroutine[object, object, int]] = star(
+        async_add
+    )
+    assert iscoroutinefunction(astarred)
 
-    assert (await star(async_add)((2, 5))) == 7
+    assert (await astarred((2, 5))) == 7
 
     # sync function without `.__name__`
     assert star(partial(add, 2))((5,)) == 7
 
     # async function without `.__name__`
     assert (await star(partial(async_add, 2))((5,))) == 7
+
+
+def test_starmap() -> None:
+    s: stream[List[int]] = (
+        stream(range(4)).group(2, by=type).map(star(lambda key, group: group))
+    )
+    assert list(s) == [[0, 1], [2, 3]]
+
+    def fn(key: type, group: List[int]) -> List[int]:
+        return group
+
+    s = stream(range(4)).group(2, by=type).map(star(fn))
+
+    assert list(s) == [[0, 1], [2, 3]]
+
+    async def afn(key: type, group: List[int]) -> List[int]:
+        return group
+
+    s = stream(range(4)).group(2, by=type).map(star(afn))
+    assert list(s) == [[0, 1], [2, 3]]
 
 
 ###########
