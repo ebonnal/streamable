@@ -300,9 +300,7 @@ class FlattenIterator(_BaseOperationIterator[Union[Iterable[T], AsyncIterable[T]
     def close(self) -> None:
         if not self._closed:
             if self._iterator_owned:
-                self._iterator_owned = False
-                with suppress(Exception):
-                    safe_close_fn(self._iterator)()
+                safe_close_fn(self._iterator)()
             self._safe_close_upstream()
             self._closed = True
 
@@ -991,9 +989,9 @@ class ConcurrentFlattenIterator(
             return (None, FailedFuture(e))
         validate_iterable(iterable)
         iterator: ClosableIterator[T] = (
-            GuardedIterator(iterable, silent_close=True)
+            GuardedIterator(iterable)
             if isinstance(iterable, Iterable)
-            else AsyncToSyncIterator(GuardedAsyncIterator(iterable, silent_close=True))
+            else AsyncToSyncIterator(GuardedAsyncIterator(iterable))
         )
         return (iterator, self._launch_future_from_iter(iterator))
 
