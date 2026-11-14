@@ -1,17 +1,15 @@
 import datetime
 import queue
-import sys
 import time
 import weakref
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from collections import defaultdict, deque
-from concurrent.futures import Executor, Future, ThreadPoolExecutor
+from concurrent.futures import Executor, Future, ThreadPoolExecutor, wait
 from contextlib import suppress
 from threading import Event, Semaphore, Thread
 from typing import (
     AsyncIterable,
     Callable,
-    ContextManager,
     Deque,
     Dict,
     Generic,
@@ -26,7 +24,6 @@ from typing import (
     cast,
 )
 
-from streamable._tools._context import NoopContextManager
 from streamable._tools._error import ExceptionContainer
 from streamable._tools._future import (
     FailedFuture,
@@ -36,7 +33,10 @@ from streamable._tools._future import (
 )
 from streamable._tools._iter import (
     AsyncToSyncIterator,
+    ClosableIterator,
     GuardedAsyncIterator,
+    GuardedIterator,
+    safe_close_fn,
 )
 from streamable._tools._observation import Observation
 from streamable._tools._sentinel import STOP_ITERATION
@@ -47,52 +47,141 @@ U = TypeVar("U")
 Exc = TypeVar("Exc", bound=Exception)
 
 
-class _RaisingIterator(Iterator[T]):
-    __slots__ = ("upstream",)
+class _BaseOperationIterator(ClosableIterator[U], Generic[T, U]):
+    """
+    Provides `.close` of owned upstream, and unwraps upstream if it's a `GuardedIterator`.
+    """
+
+    __slots__ = (
+        "upstream",
+        "_closed",
+        "_safe_close_upstream",
+        "_closure_attempted",
+    )
+
+    def __init__(self, upstream: ClosableIterator[T]) -> None:
+        if isinstance(upstream, GuardedIterator):
+            self.upstream = upstream.iterator
+            self._safe_close_upstream = upstream.safe_close_iterator
+        else:
+            self.upstream = upstream
+            self._safe_close_upstream = safe_close_fn(upstream)
+        self._closed = False
+        self._closure_attempted = False
+
+    def close(self) -> None:
+        if not self._closed:
+            self._safe_close_upstream()
+            self._closed = True
+
+    def _attempt_close_and_stop(self) -> None:
+        try:
+            raise StopIteration
+        finally:
+            if not self._closure_attempted:
+                self._closure_attempted = True
+                self.close()
+
+
+class _Puller(Generic[T]):
+    __slots__ = (
+        "_upstream",
+        "elems",
+        "_semaphore",
+        "_pulling_thread",
+        "_stopped",
+    )
 
     def __init__(
         self,
-        upstream: Iterator[Union[T, ExceptionContainer]],
+        upstream: Iterator[T],
+        ahead_pulls: Optional[int],
     ) -> None:
-        self.upstream = upstream
+        self._upstream = upstream
+        self.elems: "queue.Queue[Union[T, ExceptionContainer]]" = queue.Queue()
+        self._semaphore = None if ahead_pulls is None else Semaphore(ahead_pulls)
+        self._stopped: bool = False
+        self._pulling_thread = Thread(target=self._pulling, daemon=True)
 
-    def __next__(self) -> T:
-        elem = self.upstream.__next__()
-        if isinstance(elem, ExceptionContainer):
+    @property
+    def started(self) -> bool:
+        return self._pulling_thread.ident is not None
+
+    def start(self) -> None:
+        self._pulling_thread.start()
+
+    def allow_to_pull(self) -> None:
+        if self._semaphore:
+            self._semaphore.release()
+
+    def _ask_to_pull(self) -> None:
+        if self._semaphore:
+            self._semaphore.acquire()
+
+    def _pulling(self) -> None:
+        self._ask_to_pull()
+        while not self._stopped:
             try:
-                raise elem.exception
-            finally:
-                del elem
-        return elem
+                self.elems.put_nowait(self._upstream.__next__())
+            except StopIteration:
+                self.elems.put_nowait(STOP_ITERATION)
+                break
+            except BaseException as e:
+                self.elems.put_nowait(ExceptionContainer(e))
+            self._ask_to_pull()
+
+    def stop(self) -> None:
+        self._stopped = True
+        self.allow_to_pull()
+
+    def wait(self) -> None:
+        with suppress(RuntimeError):
+            self._pulling_thread.join()
+
+    def clear(self) -> None:
+        with self.elems.mutex:
+            self.elems.queue.clear()
 
 
-def puller_task(
-    iterator: Iterator[T],
-    elems: "queue.Queue[Union[T, ExceptionContainer]]",
-    limit: Semaphore,
-    stopped: Event,
-    base_exception: Deque[BaseException],
-) -> None:
-    elem: Union[T, ExceptionContainer]
-    limit.acquire()
-    while not stopped.is_set():
-        try:
-            elem = iterator.__next__()
-        except StopIteration:
-            elem = STOP_ITERATION
-            stopped.set()
-        except Exception as e:
-            elem = ExceptionContainer(e)
-        except BaseException as e:
-            base_exception.append(e)
-            elems.put_nowait(STOP_ITERATION)
-            stopped.set()
-            continue
-        try:
-            elems.put_nowait(elem)
-        finally:
-            del elem
-        limit.acquire()
+class _PullerBasedIterator(_BaseOperationIterator[T, U]):
+    __slots__ = ("_ahead_pulls", "_stopped", "_puller")
+
+    def __init__(
+        self,
+        upstream: ClosableIterator[T],
+        ahead_pulls: Optional[int],
+    ) -> None:
+        super().__init__(upstream)
+        self._ahead_pulls = ahead_pulls
+        self._puller: Optional[_Puller[T]] = None
+        self._stopped = False
+
+    @property
+    def _lazy_puller(self) -> _Puller[T]:
+        if self._puller is None:
+            self._puller = _Puller(self.upstream, self._ahead_pulls)
+        if not self._puller.started:
+            self._puller.start()
+        return self._puller
+
+    def _terminate(self) -> None:
+        self._stopped = True
+        if self._puller:
+            self._puller.stop()
+            self._puller.wait()
+            self._puller.clear()
+            self._puller.elems.put_nowait(STOP_ITERATION)
+
+    def close(self) -> None:
+        if not self._closed:
+            self._terminate()
+            self._safe_close_upstream()
+            self._closed = True
+
+    def __del__(self) -> None:
+        if self._puller:
+            self._puller.stop()
+            self._puller.clear()
 
 
 ##########
@@ -100,55 +189,33 @@ def puller_task(
 ##########
 
 
-class _BufferIterable(Iterable[Union[T, ExceptionContainer]]):
-    __slots__ = ("upstream", "up_to")
-
-    def __init__(
-        self,
-        upstream: Iterator[T],
-        up_to: Optional[int],
-    ) -> None:
-        self.upstream = upstream
-        self.up_to = up_to or sys.maxsize
-
-    def __iter__(self) -> Iterator[Union[T, ExceptionContainer]]:
-        buffer: "queue.Queue[Union[T, ExceptionContainer]]" = queue.Queue()
-        limit = Semaphore(self.up_to)
-        stopped = Event()
-        base_exception: Deque[BaseException] = deque()
-        thread = Thread(
-            target=puller_task,
-            args=(self.upstream, buffer, limit, stopped, base_exception),
-            daemon=True,
-        )
-        to_yield: Deque[Union[T, ExceptionContainer]] = deque(maxlen=1)
-        try:
-            thread.start()
-            while True:
-                to_yield.append(buffer.get())
-                if base_exception:
-                    raise base_exception.pop()
-                if to_yield[-1] is STOP_ITERATION:
-                    break
-                limit.release()
-                yield to_yield.pop()
-        finally:
-            stopped.set()
-            limit.release()
-            thread.join()
-            base_exception.clear()
-            buffer.queue.clear()
-
-
-class BufferIterator(_RaisingIterator[T]):
+class BufferIterator(_PullerBasedIterator[T, T]):
     __slots__ = ()
 
     def __init__(
         self,
-        upstream: Iterator[T],
+        upstream: ClosableIterator[T],
         up_to: Optional[int],
     ) -> None:
-        super().__init__(_BufferIterable(upstream, up_to).__iter__())
+        super().__init__(upstream, up_to)
+
+    def __next__(self) -> T:
+        if self._stopped:
+            raise StopIteration
+        puller = self._lazy_puller
+        try:
+            elem = puller.elems.get()
+        finally:
+            # always allow next pull, avoiding hang on next `__next__`
+            # if interrupted `.get` dropped the pending element
+            puller.allow_to_pull()
+        if elem is STOP_ITERATION:
+            self._terminate()
+            raise StopIteration
+        try:
+            return ExceptionContainer.raise_if_instance(elem)
+        finally:
+            del elem
 
 
 #########
@@ -156,19 +223,19 @@ class BufferIterator(_RaisingIterator[T]):
 #########
 
 
-class CatchIterator(Iterator[Union[T, U]]):
-    __slots__ = ("upstream", "errors", "where", "replace", "do", "stop", "_stopped")
+class CatchIterator(_BaseOperationIterator[T, Union[T, U]]):
+    __slots__ = ("errors", "where", "replace", "do", "stop", "_stopped")
 
     def __init__(
         self,
-        upstream: Iterator[T],
+        upstream: ClosableIterator[T],
         errors: Union[Type[Exc], Tuple[Type[Exc], ...]],
         where: Optional[Callable[[Exc], object]],
         replace: Optional[Callable[[Exc], U]],
         do: Optional[Callable[[Exc], object]],
         stop: bool,
     ) -> None:
-        self.upstream = upstream
+        super().__init__(upstream)
         self.errors = errors
         self.where = where
         self.replace = replace
@@ -179,7 +246,7 @@ class CatchIterator(Iterator[Union[T, U]]):
     def __next__(self) -> Union[T, U]:
         while True:
             if self._stopped:
-                raise StopIteration
+                self._attempt_close_and_stop()
             try:
                 return self.upstream.__next__()
             except StopIteration:
@@ -201,30 +268,41 @@ class CatchIterator(Iterator[Union[T, U]]):
 ###########
 
 
-class FlattenIterator(Iterator[T]):
-    __slots__ = ("upstream", "_current_iterator_elem")
+class FlattenIterator(_BaseOperationIterator[Union[Iterable[T], AsyncIterable[T]], T]):
+    __slots__ = ("_iterator", "_iterator_owned")
 
     def __init__(
         self,
-        upstream: Iterator[Union[Iterable[T], AsyncIterable[T]]],
+        upstream: ClosableIterator[Union[Iterable[T], AsyncIterable[T]]],
     ) -> None:
-        self.upstream = upstream
-        self._current_iterator_elem: Iterator[T] = ().__iter__()
+        super().__init__(upstream)
+        self._iterator: Optional[Iterator[T]] = None
+        self._iterator_owned: bool = False
 
     def __next__(self) -> T:
         while True:
             try:
-                return self._current_iterator_elem.__next__()
+                return (self._iterator or iter(())).__next__()
             except StopIteration:
+                self._iterator = None
                 iterable = self.upstream.__next__()
                 validate_iterable(iterable)
-                self._current_iterator_elem = (
-                    iterable.__iter__()
-                    if isinstance(iterable, Iterable)
-                    else AsyncToSyncIterator(
-                        GuardedAsyncIterator(iterable, silent_close=True)
+                if hasattr(type(iterable), "__iter__"):
+                    self._iterator_owned = not hasattr(type(iterable), "__next__")
+                    self._iterator = iterable.__iter__()  # type: ignore
+                else:
+                    self._iterator_owned = True
+                    iterator = cast(AsyncIterable[T], iterable).__aiter__()
+                    self._iterator = AsyncToSyncIterator(
+                        iterator, owned=not hasattr(type(iterable), "__anext__")
                     )
-                )
+
+    def close(self) -> None:
+        if not self._closed:
+            if self._iterator_owned:
+                safe_close_fn(self._iterator)()
+            self._safe_close_upstream()
+            self._closed = True
 
 
 #########
@@ -232,21 +310,21 @@ class FlattenIterator(Iterator[T]):
 #########
 
 
-class GroupIterator(Iterator[List[T]]):
-    __slots__ = ("upstream", "up_to", "_group", "_to_raise")
+class GroupIterator(_BaseOperationIterator[T, List[T]]):
+    __slots__ = ("up_to", "_group", "_to_raise")
 
     def __init__(
         self,
-        upstream: Iterator[T],
+        upstream: ClosableIterator[T],
         up_to: Optional[int],
     ) -> None:
-        self.upstream = upstream
+        super().__init__(upstream)
         self.up_to = up_to or cast(int, float("inf"))
         self._group: List[T] = []
         self._to_raise: Optional[Exception] = None
 
     def __next__(self) -> List[T]:
-        if self._to_raise:
+        if self._to_raise is not None:
             try:
                 raise self._to_raise
             finally:
@@ -265,23 +343,23 @@ class GroupIterator(Iterator[List[T]]):
             self._group = []
 
 
-class GroupByIterator(Iterator[Iterable[Tuple[U, List[T]]]]):
-    __slots__ = ("upstream", "up_to", "by", "_groups", "_to_raise")
+class GroupByIterator(_BaseOperationIterator[T, Iterable[Tuple[U, List[T]]]]):
+    __slots__ = ("up_to", "by", "_groups", "_to_raise")
 
     def __init__(
         self,
-        upstream: Iterator[T],
+        upstream: ClosableIterator[T],
         up_to: Optional[int],
         by: Callable[[T], U],
     ) -> None:
-        self.upstream = upstream
+        super().__init__(upstream)
         self.up_to = up_to or cast(int, float("inf"))
         self.by = by
         self._groups: Dict[U, List[T]] = defaultdict(list)
         self._to_raise: Optional[Exception] = None
 
     def __next__(self) -> Iterable[Tuple[U, List[T]]]:
-        if self._to_raise:
+        if self._to_raise is not None:
             try:
                 raise self._to_raise
             finally:
@@ -305,20 +383,32 @@ class GroupByIterator(Iterator[Iterable[Tuple[U, List[T]]]]):
                 raise
 
 
-class _GroupByWithinIterable(Iterable[Union[ExceptionContainer, Tuple[U, List[T]]]]):
-    __slots__ = ("upstream", "up_to", "by", "within_seconds")
+class GroupByWithinIterator(_PullerBasedIterator[T, Tuple[U, List[T]]]):
+    __slots__ = (
+        "up_to",
+        "by",
+        "within_seconds",
+        "_groups",
+        "_to_raise",
+        "_should_allow_to_pull",
+    )
 
     def __init__(
         self,
-        upstream: Iterator[T],
+        upstream: ClosableIterator[T],
         up_to: Optional[int],
         by: Callable[[T], U],
         within: datetime.timedelta,
     ) -> None:
-        self.upstream = upstream
+        super().__init__(upstream, 0)
         self.up_to = up_to or cast(int, float("inf"))
         self.by = by
         self.within_seconds = within.total_seconds()
+        self._groups: Dict[U, Tuple[float, List[T]]] = defaultdict(
+            lambda: (time.perf_counter(), [])
+        )
+        self._to_raise: Optional[Exception] = None
+        self._should_allow_to_pull: bool = True
 
     @staticmethod
     def _oldest_group(groups: Dict[U, Tuple[float, List[T]]]) -> Tuple[U, List[T]]:
@@ -332,79 +422,46 @@ class _GroupByWithinIterable(Iterable[Union[ExceptionContainer, Tuple[U, List[T]
             return max(0, timeout)
         return None
 
-    def __iter__(self) -> Iterator[Union[ExceptionContainer, Tuple[U, List[T]]]]:
-        next_elem: "queue.Queue[Union[T, ExceptionContainer]]" = queue.Queue()
-        limit = Semaphore(0)
-        stopped = Event()
-        base_exception: Deque[BaseException] = deque()
-        thread = Thread(
-            target=puller_task,
-            args=(self.upstream, next_elem, limit, stopped, base_exception),
-            daemon=True,
-        )
-        groups: Dict[U, Tuple[float, List[T]]] = defaultdict(
-            lambda: (time.perf_counter(), [])
-        )
-        try:
-            thread.start()
-            while True:
-                limit.release()
+    def __next__(self) -> Tuple[U, List[T]]:
+        if self._to_raise is not None:
+            if self._groups:
+                return self._oldest_group(self._groups)
+            try:
+                raise self._to_raise
+            finally:
+                self._to_raise = None
+        if self._stopped:
+            raise StopIteration
+        puller = self._lazy_puller
+        while True:
+            try:
+                if self._should_allow_to_pull:
+                    puller.allow_to_pull()
+                    self._should_allow_to_pull = False
                 try:
-                    while True:
-                        try:
-                            elem = next_elem.get(timeout=self._timeout(groups))
-                        except queue.Empty:
-                            yield self._oldest_group(groups)
-                            continue
-                        if base_exception:
-                            raise base_exception.pop()
-                        if isinstance(elem, ExceptionContainer):
-                            try:
-                                raise elem.exception
-                            finally:
-                                del elem
-                        if elem is STOP_ITERATION:
-                            while groups:
-                                yield self._oldest_group(groups)
-                            return
-                        # elem received from upstream, exit the timeout loop
-                        break
-                    # add elem to group
-                    key = self.by(elem)
-                    _, group = groups[key]
-                    group.append(elem)
-                    # yield group if full
-                    if len(group) == self.up_to:
-                        del groups[key]
-                        yield (key, group)
-                    # get the next upstream elem
-                    continue
-                except Exception as e:
-                    # upstream or `by` raised an error, yield all groups
-                    while groups:
-                        yield self._oldest_group(groups)
-                    to_raise = [ExceptionContainer(e)]
-                # yield outside the except block so the frame's exception state is cleared
-                yield to_raise.pop()
-        finally:
-            stopped.set()
-            limit.release()
-            thread.join()
-            base_exception.clear()
-            next_elem.queue.clear()
-
-
-class GroupByWithinIterator(_RaisingIterator[Tuple[U, List[T]]]):
-    __slots__ = ()
-
-    def __init__(
-        self,
-        upstream: Iterator[T],
-        up_to: Optional[int],
-        by: Callable[[T], U],
-        within: datetime.timedelta,
-    ) -> None:
-        super().__init__(iter(_GroupByWithinIterable(upstream, up_to, by, within)))
+                    elem = puller.elems.get(timeout=self._timeout(self._groups))
+                    self._should_allow_to_pull = True
+                except queue.Empty:
+                    return self._oldest_group(self._groups)
+                try:
+                    elem = ExceptionContainer.raise_if_instance(elem)
+                except BaseException:
+                    del elem
+                    raise
+                if elem is STOP_ITERATION:
+                    self._terminate()
+                    raise StopIteration
+                key = self.by(elem)
+                _, group = self._groups[key]
+                group.append(elem)
+                if len(group) == self.up_to:
+                    del self._groups[key]
+                    return (key, group)
+            except Exception as e:
+                if self._groups:
+                    self._to_raise = e
+                    return self.__next__()
+                raise
 
 
 ########
@@ -412,11 +469,11 @@ class GroupByWithinIterator(_RaisingIterator[Tuple[U, List[T]]]):
 ########
 
 
-class CountSkipIterator(Iterator[T]):
-    __slots__ = ("upstream", "_remaining_to_skip")
+class CountSkipIterator(_BaseOperationIterator[T, T]):
+    __slots__ = ("_remaining_to_skip",)
 
-    def __init__(self, upstream: Iterator[T], count: int) -> None:
-        self.upstream = upstream
+    def __init__(self, upstream: ClosableIterator[T], count: int) -> None:
+        super().__init__(upstream)
         self._remaining_to_skip = count
 
     def __next__(self) -> T:
@@ -427,11 +484,13 @@ class CountSkipIterator(Iterator[T]):
         return self.upstream.__next__()
 
 
-class PredicateSkipIterator(Iterator[T]):
-    __slots__ = ("upstream", "until", "_satisfied")
+class PredicateSkipIterator(_BaseOperationIterator[T, T]):
+    __slots__ = ("until", "_satisfied")
 
-    def __init__(self, upstream: Iterator[T], until: Callable[[T], object]) -> None:
-        self.upstream = upstream
+    def __init__(
+        self, upstream: ClosableIterator[T], until: Callable[[T], object]
+    ) -> None:
+        super().__init__(upstream)
         self.until = until
         self._satisfied = False
 
@@ -449,32 +508,34 @@ class PredicateSkipIterator(Iterator[T]):
 ############
 
 
-class CountTakeIterator(Iterator[T]):
-    __slots__ = ("upstream", "_remaining_to_take")
+class CountTakeIterator(_BaseOperationIterator[T, T]):
+    __slots__ = ("_remaining_to_take",)
 
-    def __init__(self, upstream: Iterator[T], count: int) -> None:
-        self.upstream = upstream
+    def __init__(self, upstream: ClosableIterator[T], count: int) -> None:
+        super().__init__(upstream)
         self._remaining_to_take = count
 
     def __next__(self) -> T:
         if self._remaining_to_take <= 0:
-            raise StopIteration
+            self._attempt_close_and_stop()
         elem = self.upstream.__next__()
         self._remaining_to_take -= 1
         return elem
 
 
-class PredicateTakeIterator(Iterator[T]):
-    __slots__ = ("upstream", "until", "_satisfied")
+class PredicateTakeIterator(_BaseOperationIterator[T, T]):
+    __slots__ = ("until", "_satisfied")
 
-    def __init__(self, upstream: Iterator[T], until: Callable[[T], object]) -> None:
-        self.upstream = upstream
+    def __init__(
+        self, upstream: ClosableIterator[T], until: Callable[[T], object]
+    ) -> None:
+        super().__init__(upstream)
         self.until = until
         self._satisfied = False
 
     def __next__(self) -> T:
         if self._satisfied:
-            raise StopIteration
+            self._attempt_close_and_stop()
         elem = self.upstream.__next__()
         if self.until(elem):
             self._satisfied = True
@@ -482,14 +543,77 @@ class PredicateTakeIterator(Iterator[T]):
         return elem
 
 
+#######
+# map #
+#######
+
+
+class MapIterator(map, ClosableIterator[U], Generic[T, U]):
+    __slots__ = ("upstream", "_safe_close_upstream", "_closed", "into")
+    upstream: Iterator[T]
+    _closed: bool
+    _safe_close_upstream: Callable[[], None]
+    into: Callable[[T], U]
+
+    def __new__(cls, into: Callable[[T], U], upstream: Iterator[T]) -> "MapIterator":
+        if isinstance(upstream, GuardedIterator):
+            safe_close_upstream = upstream.safe_close_iterator
+            upstream = upstream.iterator
+        else:
+            safe_close_upstream = safe_close_fn(upstream)
+        self = super().__new__(cls, into, upstream)
+        self.upstream = upstream
+        self._safe_close_upstream = safe_close_upstream
+        self._closed = False
+        self.into = into
+        return self
+
+    def close(self) -> None:
+        if not self._closed:
+            self._safe_close_upstream()
+            self._closed = True
+
+
+##########
+# filter #
+##########
+
+
+class FilterIterator(filter, ClosableIterator[T]):
+    __slots__ = ("upstream", "_safe_close_upstream", "_closed", "where")
+    upstream: Iterator[T]
+    _closed: bool
+    _safe_close_upstream: Callable[[], None]
+    where: Callable[[T], object]
+
+    def __new__(
+        cls, where: Callable[[T], object], upstream: Iterator[T]
+    ) -> "FilterIterator":
+        if isinstance(upstream, GuardedIterator):
+            safe_close_upstream = upstream.safe_close_iterator
+            upstream = upstream.iterator
+        else:
+            safe_close_upstream = safe_close_fn(upstream)
+        self = super().__new__(cls, where, upstream)
+        self.upstream = upstream
+        self._safe_close_upstream = safe_close_upstream
+        self._closed = False
+        self.where = where
+        return self
+
+    def close(self) -> None:
+        if not self._closed:
+            self._safe_close_upstream()
+            self._closed = True
+
+
 ###########
 # observe #
 ###########
 
 
-class _BaseObserveIterator(Iterator[T]):
+class _BaseObserveIterator(_BaseOperationIterator[T, T]):
     __slots__ = (
-        "upstream",
         "subject",
         "do",
         "_elements",
@@ -498,18 +622,18 @@ class _BaseObserveIterator(Iterator[T]):
         "_elements_observed",
         "_errors_observed",
         "_activated",
-        "_active",
         "_start_point",
         "_do_base_exception",
+        "_stopped",
     )
 
     def __init__(
         self,
-        upstream: Iterator[T],
+        upstream: ClosableIterator[T],
         subject: str,
         do: Callable[[Observation], object],
     ) -> None:
-        self.upstream = upstream
+        super().__init__(upstream)
         self.subject = subject
         self.do = do
         self._elements = 0
@@ -518,15 +642,16 @@ class _BaseObserveIterator(Iterator[T]):
         self._elements_observed = 0
         self._errors_observed = 0
         self._activated = False
-        self._active = False
-        self._start_point: float
+        self._start_point: float = 0
         self._do_base_exception: Optional[BaseException] = None
+        self._stopped = Event()
 
     @property
     def _emissions(self) -> int:
         return self._elements + self._errors
 
     def _observation(self) -> Observation:
+        self._start_point = self._start_point or time.perf_counter()
         return Observation(
             subject=self.subject,
             elapsed=datetime.timedelta(seconds=time.perf_counter() - self._start_point),
@@ -536,7 +661,6 @@ class _BaseObserveIterator(Iterator[T]):
 
     def _activate(self) -> None:
         self._start_point = time.perf_counter()
-        self._active = True
         self._activated = True
 
     def _observe(self) -> None:
@@ -549,8 +673,7 @@ class _BaseObserveIterator(Iterator[T]):
             self._do_base_exception = e
 
     def _reraise_do_base_exception(self) -> None:
-        if self._do_base_exception:
-            self._active = False
+        if self._do_base_exception is not None:
             try:
                 raise self._do_base_exception
             finally:
@@ -562,8 +685,6 @@ class _BaseObserveIterator(Iterator[T]):
     def __next__(self) -> T:
         if not self._activated:
             self._activate()
-        if not self._active:
-            raise StopIteration
         try:
             elem = self.upstream.__next__()
             self._elements += 1
@@ -572,10 +693,12 @@ class _BaseObserveIterator(Iterator[T]):
                 self._elements_observed = self._elements
             return elem
         except StopIteration:
-            if not self._emissions or self._emissions > self._emissions_observed:
+            if not self._stopped.is_set() and (
+                not self._emissions or self._emissions > self._emissions_observed
+            ):
                 self._observe()
-            self._active = False
-            return self.__next__()
+            self._stopped.set()
+            raise
         except Exception:
             self._errors += 1
             if self._errors >= self._threshold(self._errors_observed):
@@ -591,7 +714,7 @@ class PowerObserveIterator(_BaseObserveIterator[T]):
 
     def __init__(
         self,
-        upstream: Iterator[T],
+        upstream: ClosableIterator[T],
         subject: str,
         do: Callable[[Observation], object],
         base: int = 2,
@@ -608,7 +731,7 @@ class EveryIntObserveIterator(_BaseObserveIterator[T]):
 
     def __init__(
         self,
-        upstream: Iterator[T],
+        upstream: ClosableIterator[T],
         subject: str,
         every: int,
         do: Callable[[Observation], object],
@@ -625,42 +748,60 @@ class EveryIntObserveIterator(_BaseObserveIterator[T]):
 
 
 class EveryIntervalObserveIterator(_BaseObserveIterator[T]):
-    __slots__ = ("__weakref__", "every")
+    __slots__ = ("__weakref__", "every", "_thread_is_done")
 
     def __init__(
         self,
-        upstream: Iterator[T],
+        upstream: ClosableIterator[T],
         subject: str,
         every: datetime.timedelta,
         do: Callable[[Observation], object],
     ) -> None:
         super().__init__(upstream, subject, do)
         self.every = every
+        self._thread_is_done = Event()
 
     @staticmethod
     def _observer(
         weak_self: "weakref.ReferenceType[EveryIntervalObserveIterator[T]]",
         every_seconds: float,
+        stopped: Event,
+        thread_is_done: Event,
     ) -> None:
         self = weak_self()
-        while self and self._active:
+        while self and not stopped.is_set():
             self._observe()
-            if self._do_base_exception:
-                return
             self = None
-            time.sleep(every_seconds)
+            stopped.wait(timeout=every_seconds)
             self = weak_self()
+        thread_is_done.set()
 
     def _activate(self) -> None:
-        super()._activate()
         Thread(
             target=self._observer,
-            args=(weakref.ref(self), self.every.total_seconds()),
+            args=(
+                weakref.ref(self),
+                self.every.total_seconds(),
+                self._stopped,
+                self._thread_is_done,
+            ),
             daemon=True,
         ).start()
+        super()._activate()
 
     def _threshold(self, observed: int) -> int:
         return cast(int, float("inf"))
+
+    def close(self) -> None:
+        if not self._closed:
+            self._stopped.set()
+            if self._activated:
+                self._thread_is_done.wait()
+            self._safe_close_upstream()
+            self._closed = True
+
+    def __del__(self) -> None:
+        self._stopped.set()
 
 
 ############
@@ -668,16 +809,16 @@ class EveryIntervalObserveIterator(_BaseObserveIterator[T]):
 ############
 
 
-class ThrottleIterator(Iterator[T]):
-    __slots__ = ("upstream", "up_to", "_window_seconds", "_emission_timestamps")
+class ThrottleIterator(_BaseOperationIterator[T, T]):
+    __slots__ = ("up_to", "_window_seconds", "_emission_timestamps")
 
     def __init__(
         self,
-        upstream: Iterator[T],
+        upstream: ClosableIterator[T],
         up_to: int,
         per: datetime.timedelta,
     ) -> None:
-        self.upstream = upstream
+        super().__init__(upstream)
         self.up_to = up_to
         self._window_seconds = per.total_seconds()
         self._emission_timestamps: Deque[float] = deque()
@@ -707,189 +848,193 @@ class ThrottleIterator(Iterator[T]):
             raise
 
 
-##################
-# concurrent map #
-##################
+##########################
+# concurrent map/flatten #
+##########################
 
 
-class _ConcurrentMapIterable(
-    Generic[T, U], ABC, Iterable[Union[U, ExceptionContainer]]
-):
-    __slots__ = ("upstream", "into", "concurrency", "as_completed", "_executor")
+class _ConcurrentIterator(_BaseOperationIterator[T, U]):
+    __slots__ = (
+        "concurrency",
+        "_executor",
+        "_stopped",
+        "_executor_owned",
+    )
 
     def __init__(
         self,
-        upstream: Iterator[T],
+        upstream: ClosableIterator[T],
+        concurrency: Union[int, Executor],
+    ) -> None:
+        super().__init__(upstream)
+
+        self.concurrency: int
+        self._executor: Optional[Executor] = None
+        self._stopped: bool = False
+        self._executor_owned: bool
+        if isinstance(concurrency, int):
+            self.concurrency = concurrency
+            self._executor_owned = True
+        else:
+            self._executor = concurrency
+            self._executor_owned = False
+            self.concurrency = getattr(self._executor, "_max_workers")
+
+    @property
+    def _lazy_executor(self) -> Executor:
+        if self._executor is None:
+            self._executor = ThreadPoolExecutor(max_workers=self.concurrency)
+        return self._executor
+
+    def _shutdown_executor(self, wait: bool = True) -> None:
+        if self._executor and self._executor_owned:
+            self._executor.shutdown(wait=wait)
+
+    @abstractmethod
+    def _terminate(self) -> None: ...
+
+    @abstractmethod
+    def _cancel(self) -> None: ...
+
+    def close(self) -> None:
+        if not self._closed:
+            self._terminate()
+            self._safe_close_upstream()
+            self._closed = True
+
+    def __del__(self) -> None:
+        self._cancel()
+        self._shutdown_executor(wait=False)
+
+
+class ConcurrentMapIterator(_ConcurrentIterator[T, U]):
+    __slots__ = ("into", "as_completed", "_future_results")
+
+    def __init__(
+        self,
+        upstream: ClosableIterator[T],
         into: Callable[[T], U],
         concurrency: Union[int, Executor],
         as_completed: bool,
     ) -> None:
-        self.upstream = upstream
         self.into = into
         self.as_completed = as_completed
-        self._executor: Optional[Executor] = None
-        if isinstance(concurrency, int):
-            self.concurrency = concurrency
-        else:
-            self._executor = concurrency
-            self.concurrency = getattr(self._executor, "_max_workers")
+        self._future_results: FutureResults[U] = (
+            FDFOFutureResults() if self.as_completed else FIFOFutureResults()
+        )
+        super().__init__(upstream, concurrency)
 
-    def _launch_task(self, elem: T, context: Executor) -> "Future[U]":
-        return context.submit(self.into, elem)
-
-    def _task_context(self) -> ContextManager[Executor]:
-        if self._executor:
-            # avoid closing client's executor
-            return NoopContextManager(self._executor)
-        return ThreadPoolExecutor(max_workers=self.concurrency)
-
-    def _next_future(self, context: Executor) -> Optional["Future[U]"]:
+    def _next_future(self) -> Optional["Future[U]"]:
         try:
             elem = self.upstream.__next__()
         except StopIteration:
             return None
         except Exception as e:
             return FailedFuture(e)
-        return self._launch_task(elem, context)
+        return self._lazy_executor.submit(self.into, elem)
 
-    def __iter__(self) -> Iterator[Union[U, ExceptionContainer]]:
-        future_results: FutureResults[U] = (
-            FDFOFutureResults() if self.as_completed else FIFOFutureResults()
-        )
-        with self._task_context() as executor:
-            try:
-                # queue tasks up to buffersize
-                while len(future_results) < self.concurrency:
-                    future = self._next_future(executor)
-                    if not future:
-                        # no more tasks to queue
-                        break
-                    future_results.add(future)
-                    del future
+    def __next__(self) -> U:
+        if self._stopped:
+            raise StopIteration
+        while len(self._future_results) < self.concurrency + 1:
+            future = self._next_future()
+            if future is None:
+                # no more tasks to queue
+                break
+            self._future_results.add(future)
+            del future
+        if not self._future_results:
+            self._terminate()
+            return self.__next__()
+        return self._future_results.__next__()
 
-                # queue, wait, yield
-                while future_results:
-                    future = self._next_future(executor)
-                    if future:
-                        future_results.add(future)
-                        del future
-                    yield future_results.__next__()
-            finally:
-                future_results.cancel()
-                future_results.clear()
+    def _terminate(self) -> None:
+        self._stopped = True
+        self._future_results.cancel()
+        self._future_results.gather()
+        self._future_results.clear()
+        self._shutdown_executor()
 
-
-class ConcurrentMapIterator(_RaisingIterator[U]):
-    __slots__ = ()
-
-    def __init__(
-        self,
-        upstream: Iterator[T],
-        into: Callable[[T], U],
-        concurrency: Union[int, Executor],
-        as_completed: bool,
-    ) -> None:
-        super().__init__(
-            _ConcurrentMapIterable(
-                upstream,
-                into,
-                concurrency,
-                as_completed,
-            ).__iter__()
-        )
+    def _cancel(self) -> None:
+        self._future_results.cancel()
+        self._future_results.clear()
 
 
-######################
-# concurrent flatten #
-######################
-
-
-class _ConcurrentFlattenIterable(Iterable[Union[T, ExceptionContainer]]):
-    __slots__ = ("upstream", "concurrency")
+class ConcurrentFlattenIterator(
+    _ConcurrentIterator[Union[Iterable[T], AsyncIterable[T]], T]
+):
+    __slots__ = ("_iterators_and_futures",)
 
     def __init__(
         self,
-        upstream: Iterator[Union[Iterable[T], AsyncIterable[T]]],
-        concurrency: int,
+        upstream: ClosableIterator[Union[Iterable[T], AsyncIterable[T]]],
+        concurrency: Union[int, ThreadPoolExecutor],
     ) -> None:
-        self.upstream = upstream
-        self.concurrency = concurrency
-
-    def __iter__(self) -> Iterator[Union[T, ExceptionContainer]]:
-        iterator_and_future_pairs: Deque[
-            Tuple[
-                Optional[Iterator[T]],
-                "Future[T]",
-            ]
+        self._iterators_and_futures: Deque[
+            Tuple[Optional[ClosableIterator[T]], "Future[T]"]
         ] = deque()
-        to_yield: Deque[Union[T, ExceptionContainer]] = deque(maxlen=1)
-        iterator_to_queue: Optional[Iterator[T]] = None
+        super().__init__(upstream, concurrency)
 
-        try:
-            with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
-                # wait, queue, yield (FIFO)
-                while True:
-                    if iterator_and_future_pairs:
-                        elem = ExceptionContainer.result(
-                            iterator_and_future_pairs[0][1]
-                        )
-                        iterator = iterator_and_future_pairs.popleft()[0]
-                        if elem is not STOP_ITERATION:
-                            to_yield.append(elem)
-                            iterator_to_queue = iterator
-                        del elem
+    def _launch_future_from_iter(self, iterator: ClosableIterator[T]) -> "Future[T]":
+        return self._lazy_executor.submit(next, iterator, STOP_ITERATION)
 
-                    # queue tasks up to buffersize
-                    while len(iterator_and_future_pairs) < self.concurrency:
-                        if iterator_to_queue is None:
-                            try:
-                                try:
-                                    iterable = self.upstream.__next__()
-                                except StopIteration:
-                                    break
-                                validate_iterable(iterable)
-                                if isinstance(iterable, Iterable):
-                                    iterator_to_queue = iterable.__iter__()
-                                else:
-                                    iterator_to_queue = AsyncToSyncIterator(
-                                        GuardedAsyncIterator(
-                                            iterable, silent_close=True
-                                        )
-                                    )
-                            except Exception as e:
-                                iterator_to_queue = None
-                                iterator_and_future_pairs.append(
-                                    (iterator_to_queue, FailedFuture(e))
-                                )
-                                continue
-                        future = executor.submit(
-                            next, iterator_to_queue, STOP_ITERATION
-                        )
-                        iterator_and_future_pairs.append((iterator_to_queue, future))
-                        iterator_to_queue = None
-                    if to_yield:
-                        yield to_yield.pop()
-                    if not iterator_and_future_pairs:
-                        break
-        finally:
-            for iterator, _ in iterator_and_future_pairs:
-                if isinstance(iterator, AsyncToSyncIterator):
-                    with suppress(Exception):
-                        iterator.close()
-            iterator_and_future_pairs.clear()
-
-
-class ConcurrentFlattenIterator(_RaisingIterator[T]):
-    __slots__ = ()
-
-    def __init__(
+    def _launch_future_from_next_iter(
         self,
-        upstream: Iterator[Union[Iterable[T], AsyncIterable[T]]],
-        concurrency: int,
-    ) -> None:
-        super().__init__(
-            _ConcurrentFlattenIterable(
-                upstream,
-                concurrency,
-            ).__iter__()
+    ) -> Optional[Tuple[Optional[ClosableIterator[T]], "Future[T]"]]:
+        try:
+            iterable = self.upstream.__next__()
+        except StopIteration:
+            return None
+        except Exception as e:
+            return (None, FailedFuture(e))
+        validate_iterable(iterable)
+        iterator: ClosableIterator[T] = (
+            GuardedIterator(iterable)
+            if isinstance(iterable, Iterable)
+            else AsyncToSyncIterator(GuardedAsyncIterator(iterable))
         )
+        return (iterator, self._launch_future_from_iter(iterator))
+
+    def __next__(self) -> T:
+        while True:
+            if self._stopped:
+                raise StopIteration
+            while len(self._iterators_and_futures) < self.concurrency:
+                iterator_and_future = self._launch_future_from_next_iter()
+                if iterator_and_future is None:
+                    # no more tasks to queue
+                    break
+                self._iterators_and_futures.append(iterator_and_future)
+            if not self._iterators_and_futures:
+                self._terminate()
+                continue
+            iterator, future = self._iterators_and_futures[0]
+            wait((future,))
+            self._iterators_and_futures.popleft()
+            try:
+                elem = future.result()
+                if elem is STOP_ITERATION:
+                    iterator = None
+                    continue
+                return elem
+            finally:
+                del future
+                if iterator is not None:
+                    self._iterators_and_futures.append(
+                        (iterator, self._launch_future_from_iter(iterator))
+                    )
+
+    def _terminate(self) -> None:
+        self._stopped = True
+        if self._iterators_and_futures:
+            self._cancel()
+            wait([future for _, future in self._iterators_and_futures])
+            for iterator, _ in self._iterators_and_futures:
+                if iterator is not None:
+                    iterator.close()
+        self._iterators_and_futures.clear()
+        self._shutdown_executor()
+
+    def _cancel(self) -> None:
+        for _, future in self._iterators_and_futures:
+            future.cancel()

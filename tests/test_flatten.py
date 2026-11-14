@@ -1,4 +1,5 @@
 from collections import Counter, OrderedDict, defaultdict, deque
+from concurrent.futures import ThreadPoolExecutor
 from typing import (
     AbstractSet,
     Any,
@@ -28,10 +29,11 @@ from tests.tools.func import (
 from tests.tools.iter import (
     ITERABLE_TYPES,
     IterableType,
+    aclose_or_close,
     aiter_or_iter,
     alist_or_list,
     anext_or_next,
-    async_iter,
+    to_aiter,
 )
 
 
@@ -42,7 +44,7 @@ def test_flatten_typing() -> None:
 
     class UserAsyncIterable:
         def __aiter__(self) -> AsyncIterator[int]:
-            return async_iter([0])  # pragma: no cover
+            return to_aiter([0])  # pragma: no cover
 
     s: stream[int] = stream([[0]]).map(iter).flatten()
     s = stream([[0]]).map(list).flatten()
@@ -51,7 +53,7 @@ def test_flatten_typing() -> None:
     s = stream(([0], [0])).flatten()
     s = stream([[0]]).map(lambda _: map(identity, _)).flatten()
     s = stream([[0]]).map(lambda _: filter(identity, _)).flatten()
-    s = stream([[0]]).map(async_iter).flatten()
+    s = stream([[0]]).map(to_aiter).flatten()
     s = stream([{0: "a"}]).flatten()
     s = stream([defaultdict(str, {0: "a"})]).flatten()
     s = stream([OrderedDict({0: "a"})]).flatten()
@@ -76,7 +78,7 @@ def test_flatten_typing() -> None:
 
 @pytest.mark.parametrize(
     "itype, to_iter",
-    [("sync", identity), ("async", identity), ("async", async_iter)],
+    [("sync", identity), ("async", identity), ("async", to_aiter)],
 )
 def test_flatten_without_concurrency(
     itype: IterableType, to_iter: Callable[[Any], Any]
@@ -88,7 +90,7 @@ def test_flatten_without_concurrency(
 
 @pytest.mark.parametrize(
     "itype, to_iter",
-    [("sync", identity), ("async", identity), ("async", async_iter)],
+    [("sync", identity), ("async", identity), ("async", to_aiter)],
 )
 def test_flatten_with_concurrency(
     itype: IterableType, to_iter: Callable[[Any], Any]
@@ -127,7 +129,7 @@ def test_flatten_with_concurrency(
 @pytest.mark.parametrize("concurrency", (1, 2))
 @pytest.mark.parametrize(
     "itype, to_iter",
-    [("sync", identity), ("async", identity), ("async", async_iter)],
+    [("sync", identity), ("async", identity), ("async", to_aiter)],
 )
 def test_flatten_with_exceptions(
     concurrency: int,
@@ -154,6 +156,17 @@ def test_flatten_with_exceptions(
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_flatten_concurrent_aclose_with_upstream_errors_in_flight(
+    itype: IterableType,
+) -> None:
+    src = cast(List[List[int]], [[0, 2], [1, 3], 0, 0])
+    s = stream(src).map(iter).flatten(concurrency=3)
+    it = aiter_or_iter(s, itype)
+    assert anext_or_next(it, itype) == 0
+    aclose_or_close(it, itype)
+
+
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 @pytest.mark.parametrize("concurrency", (1, 2))
 def test_flatten_on_non_iterable(itype: IterableType, concurrency: int) -> None:
     s = stream([1, [1]]).flatten(concurrency=concurrency)  # type: ignore
@@ -168,7 +181,7 @@ def test_flatten_on_non_iterable(itype: IterableType, concurrency: int) -> None:
     "concurrency, expected", [(1, [0, 1, 0, 1]), (2, [0, 0, 1, 1])]
 )
 @pytest.mark.parametrize(
-    "to_inner", [async_iter, lambda elems: stream(elems).map(async_identity)]
+    "to_inner", [to_aiter, lambda elems: stream(elems).map(async_identity)]
 )
 def test_flatten_async_inner_iterables(
     itype: IterableType,
@@ -206,4 +219,14 @@ async def test_flatten_async_inner_iter_during_sync_iteration_in_running_loop() 
     with pytest.raises(
         RuntimeError, match="event loop already running: do an async iteration instead"
     ):
-        next(iter(stream([async_iter([0])]).flatten()))
+        next(iter(stream([to_aiter([0])]).flatten()))
+
+
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_flatten_provided_executor(itype: IterableType) -> None:
+    with ThreadPoolExecutor(2) as executor:
+        s = stream([[0, 2, 4], [1, 3, 5], [6, 7, 8]]).flatten(concurrency=executor)
+        it = aiter_or_iter(s, itype)
+        assert alist_or_list(it, itype) == list(range(9))
+        aclose_or_close(it, itype)
+        assert not executor._shutdown

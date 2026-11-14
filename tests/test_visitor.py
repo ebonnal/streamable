@@ -1,5 +1,5 @@
 import asyncio
-from typing import AsyncIterator, Iterator, cast
+from typing import AsyncIterable, AsyncIterator, Iterable, Iterator, cast
 
 import pytest
 
@@ -17,7 +17,6 @@ from streamable._stream import (
     ThrottleStream,
     stream,
 )
-from streamable._tools._iter import SyncAsyncIterable
 from streamable.visitors import Visitor
 from streamable.visitors._involves_async import InvolvesAsyncVisitor
 
@@ -57,7 +56,7 @@ def test_depth_visitor_example() -> None:
     assert depth(stream(range(10)).map(str).do(print)) == 3
 
 
-class DummySyncAsyncIterable(SyncAsyncIterable[int]):
+class DummySyncAsyncIterable(Iterable[int], AsyncIterable[int]):
     def __iter__(self) -> Iterator[int]:
         yield 0
 

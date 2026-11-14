@@ -1,9 +1,7 @@
 import asyncio
 import sys
-from contextlib import suppress
 from typing import (
     AsyncIterator,
-    Awaitable,
     Callable,
     Coroutine,
     Optional,
@@ -11,9 +9,9 @@ from typing import (
 )
 
 T = TypeVar("T")
-R = TypeVar("R")
+U = TypeVar("U")
 
-AsyncFunction = Callable[[T], Coroutine[object, object, R]]
+AsyncFunction = Callable[[T], Coroutine[object, object, U]]
 
 
 def safe_get_event_loop() -> Optional[asyncio.AbstractEventLoop]:
@@ -44,38 +42,8 @@ async def anext(aiterator: AsyncIterator[T], default: T) -> T:
         return default
 
 
-# before 3.12, `asyncio.wait_for` swallowed cancellations when the result was available.
-if sys.version_info >= (3, 12):
-    from asyncio import wait_for
-else:  # pragma: no cover
-
-    async def wait_for(awaitable: Awaitable[T], timeout: Optional[float]) -> T:
-        if timeout is None:
-            return await awaitable
-        task = asyncio.ensure_future(awaitable)
-        try:
-            if timeout > 0:
-                await asyncio.wait((task,), timeout=timeout)
-        except BaseException:
-            task.cancel()
-            await asyncio.wait((task,))
-            raise
-        if not task.done():
-            task.cancel()
-            await asyncio.wait((task,))
-            if task.cancelled():
-                raise asyncio.TimeoutError
-        return task.result()
-
-
-async def resisting_cancellation(future: Awaitable[T]) -> T:
-    future = asyncio.ensure_future(future)
-    try:
-        return await asyncio.shield(future)
-    except asyncio.CancelledError:
-        while not future.done():
-            with suppress(asyncio.CancelledError):
-                await asyncio.wait((future,))
-        raise
-    finally:
-        del future
+async def semaphored(
+    into: AsyncFunction[T, U], elem: T, semaphore: asyncio.Semaphore
+) -> U:
+    async with semaphore:
+        return await into(elem)

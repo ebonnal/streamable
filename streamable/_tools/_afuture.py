@@ -1,14 +1,15 @@
 import asyncio
 from concurrent import futures
+from contextlib import suppress
 from typing import (
     AsyncIterator,
     Dict,
+    Iterable,
+    Optional,
     Sized,
     TypeVar,
     Union,
 )
-
-from streamable._tools._error import ExceptionContainer
 
 T = TypeVar("T")
 
@@ -21,7 +22,71 @@ class FailedFuture(asyncio.Future):
         self.set_exception(exception)
 
 
-class FutureResults(AsyncIterator[Union[T, ExceptionContainer]], Sized):
+def safe_wrap_future(
+    future: "Union[asyncio.Future[T], futures.Future[T]]",
+) -> "asyncio.Future[T]":
+    wrapped = asyncio.wrap_future(future)
+    if wrapped is not future:
+        # prevent "Future exception was never retrieved" warnings
+        wrapped.add_done_callback(
+            lambda f: f.exception() if not f.cancelled() else None
+        )
+    return wrapped
+
+
+def cancel_threadsafe(
+    fs: Union[
+        Union[asyncio.Future, futures.Future, None],
+        Iterable[Union[asyncio.Future, futures.Future, None]],
+    ],
+) -> None:
+    if fs is None:
+        return
+    if isinstance(fs, (asyncio.Future, futures.Future)):
+        fs = (fs,)
+    else:
+        fs = tuple(fs)
+    for future in fs:
+        if isinstance(future, futures.Future):
+            future.cancel()
+        elif future is not None and not future.done():
+            with suppress(RuntimeError):
+                future.get_loop().call_soon_threadsafe(future.cancel)
+
+
+async def ensure_done(
+    fs: Union[
+        Union[asyncio.Future, futures.Future, None],
+        Iterable[Union[asyncio.Future, futures.Future, None]],
+    ],
+    timeout: "Optional[float]" = None,
+    cancel: bool = False,
+) -> bool:
+    """Returns True if all futures completed within the timeout."""
+    if fs is None:
+        return True
+    if isinstance(fs, (asyncio.Future, futures.Future)):
+        fs = (fs,)
+    else:
+        fs = tuple(fs)
+    if cancel:
+        for future in fs:
+            if future is not None and not future.done():
+                future.cancel()
+    futures_to_wait = [
+        safe_wrap_future(future)
+        for future in fs
+        if future is not None and not future.done()
+    ]
+    if futures_to_wait:
+        if timeout == 0:
+            return False
+        still_pending = (await asyncio.wait(futures_to_wait, timeout=timeout))[1]
+        return not still_pending
+    return True
+
+
+class FutureResults(AsyncIterator[T], Sized):
     """
     Iterator over added futures' results. Supports adding new futures after iteration started.
     """
@@ -41,11 +106,11 @@ class FutureResults(AsyncIterator[Union[T, ExceptionContainer]], Sized):
         for future in self._futures:
             future.cancel()
 
+    def cancel_threadsafe(self) -> None:
+        cancel_threadsafe(self._futures)
+
     async def gather(self) -> None:
-        await asyncio.gather(
-            *map(asyncio.wrap_future, self._futures),
-            return_exceptions=True,
-        )
+        await ensure_done(self._futures)
 
     def clear(self) -> None:
         self._futures.clear()
@@ -58,13 +123,13 @@ class FIFOFutureResults(FutureResults[T]):
 
     __slots__ = ()
 
-    async def __anext__(self) -> Union[T, ExceptionContainer]:
+    async def __anext__(self) -> T:
         future = next(iter(self._futures))
+        await ensure_done(future)
         try:
-            return await ExceptionContainer.aresult(future)
+            return future.result()
         finally:
-            if future.done():
-                self._futures.pop(future, None)
+            self._futures.pop(future, None)
             del future
 
 
@@ -103,10 +168,10 @@ class FDFOFutureResults(FutureResults[T]):
         else:
             future.add_done_callback(self._done_callback)
 
-    async def __anext__(self) -> Union[T, ExceptionContainer]:
+    async def __anext__(self) -> T:
         done_future = await self._done_futures.get()
         try:
-            return ExceptionContainer.result(done_future)
+            return done_future.result()
         finally:
             self._futures.pop(done_future, None)
             del done_future

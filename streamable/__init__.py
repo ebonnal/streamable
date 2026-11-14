@@ -1,5 +1,5 @@
 from streamable._stream import stream
-from streamable._tools._iter import ClosableAsyncIterator
+from streamable._tools._iter import ClosableAsyncIterator, ClosableIterator
 from streamable._tools._observation import Observation
 from streamable._tools._star import star
 
@@ -9,7 +9,8 @@ stream.__module__ = __name__
 star.__module__ = __name__
 Observation.__module__ = __name__
 ClosableAsyncIterator.__module__ = __name__
+ClosableIterator.__module__ = __name__
 
-__all__ = ["stream", "star", "Observation", "ClosableAsyncIterator"]
+__all__ = ["stream", "star", "Observation", "ClosableAsyncIterator", "ClosableIterator"]
 
 __version__ = "2.1.0rc3"

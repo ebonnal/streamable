@@ -13,7 +13,7 @@ from typing import (
 from streamable._tools._async import AsyncFunction
 
 T = TypeVar("T")
-R = TypeVar("R")
+U = TypeVar("U")
 
 
 def _sidified(func: Callable[[T], object], arg: T) -> T:
@@ -44,18 +44,18 @@ def sidify(
     return partial(_sidified, func)
 
 
-async def _async_call(func: Callable[[T], R], o: T) -> R:
+async def _async_call(func: Callable[[T], U], o: T) -> U:
     return func(o)
 
 
 @overload
-def asyncify(func: AsyncFunction[T, R]) -> AsyncFunction[T, R]: ...
+def asyncify(func: AsyncFunction[T, U]) -> AsyncFunction[T, U]: ...
 
 
 @overload
 def asyncify(
-    func: Union[Callable[[T], R], AsyncFunction[T, R]],
-) -> AsyncFunction[T, R]: ...
+    func: Union[Callable[[T], U], AsyncFunction[T, U]],
+) -> AsyncFunction[T, U]: ...
 
 
 @overload
@@ -63,8 +63,16 @@ def asyncify(func: None) -> None: ...
 
 
 def asyncify(
-    func: Union[None, Callable[[T], R], AsyncFunction[T, R]],
-) -> Optional[AsyncFunction[T, R]]:
+    func: Union[None, Callable[[T], U], AsyncFunction[T, U]],
+) -> Optional[AsyncFunction[T, U]]:
     if func is None or iscoroutinefunction(func):
-        return cast(Optional[AsyncFunction[T, R]], func)
-    return partial(_async_call, cast(Callable[[T], R], func))
+        return cast(Optional[AsyncFunction[T, U]], func)
+    return partial(_async_call, cast(Callable[[T], U], func))
+
+
+def noop() -> None:
+    pass
+
+
+async def anoop() -> None:
+    pass

@@ -21,8 +21,6 @@ from typing import (
 import pytest
 
 from streamable._tools._async import AsyncFunction
-from tests.tools.error import TestError
-from tests.tools.source import N
 
 if TYPE_CHECKING:
     from typing import ParamSpec
@@ -30,7 +28,7 @@ if TYPE_CHECKING:
     P = ParamSpec("P")
 
 T = TypeVar("T")
-R = TypeVar("R")
+U = TypeVar("U")
 
 
 def nothing(_: object) -> None:
@@ -75,17 +73,6 @@ def throw_func(exc: Type[BaseException]) -> Callable[[T], T]:
 def async_throw_func(exc: Type[BaseException]) -> AsyncFunction[T, T]:
     async def f(_: T) -> T:
         raise exc
-
-    return f
-
-
-def throw_for_odd_func(exc) -> Callable[[int], int]:
-    return lambda i: throw(exc) if i % 2 == 1 else i
-
-
-def async_throw_for_odd_func(exc) -> AsyncFunction[int, int]:
-    async def f(i):
-        return throw(exc) if i % 2 == 1 else i
 
     return f
 
@@ -153,9 +140,9 @@ async def async_inverse_sleep(seconds: float) -> float:
 
 
 def randomly_slowed(
-    func: Callable[[T], R], min_sleep: float = 0.001, max_sleep: float = 0.01
-) -> Callable[[T], R]:
-    def wrap(x: T) -> R:
+    func: Callable[[T], U], min_sleep: float = 0.001, max_sleep: float = 0.01
+) -> Callable[[T], U]:
+    def wrap(x: T) -> U:
         time.sleep(min_sleep + random.random() * (max_sleep - min_sleep))
         return func(x)
 
@@ -163,11 +150,11 @@ def randomly_slowed(
 
 
 def async_randomly_slowed(
-    async_func: AsyncFunction[T, R],
+    async_func: AsyncFunction[T, U],
     min_sleep: float = 0.001,
     max_sleep: float = 0.01,
-) -> AsyncFunction[T, R]:
-    async def wrap(x: T) -> R:
+) -> AsyncFunction[T, U]:
+    async def wrap(x: T) -> U:
         await asyncio.sleep(min_sleep + random.random() * (max_sleep - min_sleep))
         return await async_func(x)
 
@@ -179,10 +166,6 @@ def range_raising_at_exhaustion(
 ) -> Iterator[int]:
     yield from range(start, end, step)
     raise exception
-
-
-def src_raising_at_exhaustion() -> Iterator[int]:
-    return range_raising_at_exhaustion(0, N, 1, TestError())
 
 
 def noarg_asyncify(fn: Callable[[], T]) -> Callable[[], Coroutine[Any, Any, T]]:
@@ -213,7 +196,7 @@ async def audit_awaitable(
     leftover_tasks = 0
     baseline = set(asyncio.all_tasks())
     start = time.perf_counter()
-    if assert_raises is not None:
+    if assert_raises:
         with pytest.raises(assert_raises) as raised:
             await awaitable
         result = raised.value
@@ -230,8 +213,6 @@ async def audit_awaitable(
     )
 
 
-def execute_in_thread(
-    func: "Callable[P, T]", *args: "P.args", **kwargs: "P.kwargs"
-) -> T:
+def run_in_thread(func: "Callable[P, T]", *args: "P.args", **kwargs: "P.kwargs") -> T:
     with ThreadPoolExecutor(1) as executor:
         return executor.submit(func, *args, **kwargs).result()

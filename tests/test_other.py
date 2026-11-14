@@ -21,10 +21,10 @@ from tests.tools.func import (
     SLOW_IDENTITY_DURATION,
     async_throw_if_falsy_func,
     audit_awaitable,
-    execute_in_thread,
     identity,
     noarg_asyncify,
     nothing,
+    run_in_thread,
     slow_identity,
     throw_func,
     throw_if_falsy_func,
@@ -36,8 +36,8 @@ from tests.tools.iter import (
     aiter_or_iter,
     alist_or_list,
     anext_or_next,
-    async_iter,
     stopiteration_type,
+    to_aiter,
 )
 from tests.tools.source import INTEGERS, N, ints
 
@@ -145,7 +145,7 @@ def test_add(itype: IterableType) -> None:
         map(str, INTEGERS)
     )
 
-    assert alist_or_list(ints + async_iter(INTEGERS), itype) == list(INTEGERS) * 2
+    assert alist_or_list(ints + to_aiter(INTEGERS), itype) == list(INTEGERS) * 2
 
 
 def test_call() -> None:
@@ -350,7 +350,7 @@ def test_sync_iteration_shares_the_runner(in_thread: bool) -> None:
             addition_result.extend(s + s)
 
     if in_thread:
-        execute_in_thread(add_streams_within_runner_context)
+        run_in_thread(add_streams_within_runner_context)
     else:
         add_streams_within_runner_context()
     assert addition_result == [0, 0]
@@ -358,13 +358,13 @@ def test_sync_iteration_shares_the_runner(in_thread: bool) -> None:
 
 
 @pytest.mark.parametrize(
-    "s, expected_yields, expected_error, iteration_resumes",
+    "s, expected_yields, expected_error, expected_yields_after",
     [
         (
             stream([1, 2, 3, 0, 4]).map(throw_if_falsy_func(TestBaseError)),
             [1, 2, 3],
             TestBaseError,
-            True,
+            [4],
         ),
         (
             stream([1, 2, 3, 0, 4])
@@ -372,7 +372,7 @@ def test_sync_iteration_shares_the_runner(in_thread: bool) -> None:
             .do(nothing, concurrency=2),
             [1],
             TestBaseError,
-            False,
+            [2, 3, 4],
         ),
         # error in mapped func, FIFO
         (
@@ -381,7 +381,7 @@ def test_sync_iteration_shares_the_runner(in_thread: bool) -> None:
             ),
             [1, 2, 3],
             TestBaseError,
-            False,
+            [4],
         ),
         # error in mapped func, FDFO
         (
@@ -390,7 +390,7 @@ def test_sync_iteration_shares_the_runner(in_thread: bool) -> None:
             .do(throw_if_falsy_func(TestBaseError), concurrency=2, as_completed=True),
             [1, 2, 3],
             TestBaseError,
-            False,
+            [4],
         ),
         # asyncio.CancelledError in mapped func, FIFO
         (
@@ -402,7 +402,7 @@ def test_sync_iteration_shares_the_runner(in_thread: bool) -> None:
             ),
             [1, 2, 3],
             asyncio.CancelledError,
-            False,
+            [4],
         ),
         # asyncio.CancelledError in mapped func, FDFO
         (
@@ -415,7 +415,7 @@ def test_sync_iteration_shares_the_runner(in_thread: bool) -> None:
             ),
             [1, 2, 3],
             asyncio.CancelledError,
-            False,
+            [4],
         ),
         (
             stream([1, 2, 3, 0, 4])
@@ -424,7 +424,7 @@ def test_sync_iteration_shares_the_runner(in_thread: bool) -> None:
             .flatten(concurrency=2),
             [1, 2],
             TestBaseError,
-            False,
+            [3, 4],
         ),
         # BaseException thrown by inner iter
         (
@@ -434,7 +434,7 @@ def test_sync_iteration_shares_the_runner(in_thread: bool) -> None:
             .flatten(concurrency=2),
             [1, 2, 3],
             TestBaseError,
-            False,
+            [4],
         ),
         (
             stream([1, 2, 3, 0, 4])
@@ -443,20 +443,37 @@ def test_sync_iteration_shares_the_runner(in_thread: bool) -> None:
             .flatten(),
             [1, 2],
             TestBaseError,
-            False,
+            [3, 4],
         ),
         (
             stream([1, 2, 3, 0, 4]).map(throw_if_falsy_func(TestBaseError)).buffer(1),
             [1, 2, 3],
             TestBaseError,
-            False,
+            [4],
         ),
-        # buffered elements are droped as soon as a base exception is received from upstream
         (
             stream([1, 2, 3, 0, 4]).map(throw_if_falsy_func(TestBaseError)).buffer(10),
-            [],
+            [1, 2, 3],
             TestBaseError,
-            False,
+            [4],
+        ),
+        # asyncio.CancelledError from upstream, not the puller's stop: delivered as an error
+        (
+            stream([1, 2, 3, 0, 4])
+            .map(async_throw_if_falsy_func(asyncio.CancelledError))
+            .buffer(1),
+            [1, 2, 3],
+            asyncio.CancelledError,
+            [4],
+        ),
+        (
+            stream([1, 2, 3, 0, 4])
+            .map(async_throw_if_falsy_func(asyncio.CancelledError))
+            .group(1, within=timedelta(seconds=1))
+            .flatten(),
+            [1, 2, 3],
+            asyncio.CancelledError,
+            [4],
         ),
         (
             stream([1, 2, 3, 0, 4])
@@ -464,7 +481,7 @@ def test_sync_iteration_shares_the_runner(in_thread: bool) -> None:
             .catch(ValueError),
             [1, 2, 3],
             TestBaseError,
-            True,
+            [4],
         ),
         (
             stream([1, 2, 3, 0, 4])
@@ -473,19 +490,19 @@ def test_sync_iteration_shares_the_runner(in_thread: bool) -> None:
             .flatten(),
             [1, 2, 3],
             TestBaseError,
-            True,
+            [4],
         ),
         (
             stream([1, 2, 3, 0, 4]).map(throw_if_falsy_func(TestBaseError)).skip(0),
             [1, 2, 3],
             TestBaseError,
-            True,
+            [4],
         ),
         (
             stream([1, 2, 3, 0, 4]).map(throw_if_falsy_func(TestBaseError)).take(10),
             [1, 2, 3],
             TestBaseError,
-            True,
+            [4],
         ),
         (
             stream([1, 2, 3, 0, 4])
@@ -493,13 +510,13 @@ def test_sync_iteration_shares_the_runner(in_thread: bool) -> None:
             .throttle(1, per=timedelta(microseconds=1)),
             [1, 2, 3],
             TestBaseError,
-            True,
+            [4],
         ),
         (
             stream([1, 2, 3, 0, 4]).map(throw_if_falsy_func(TestBaseError)).observe(),
             [1, 2, 3],
             TestBaseError,
-            True,
+            [4],
         ),
         (
             stream([1, 2, 3, 0, 4]).observe(
@@ -510,7 +527,7 @@ def test_sync_iteration_shares_the_runner(in_thread: bool) -> None:
             ),
             [1, 2, 3],
             TestBaseError,
-            False,
+            [4],
         ),
         (
             stream([1, 2, 3, 0, 4])
@@ -523,7 +540,7 @@ def test_sync_iteration_shares_the_runner(in_thread: bool) -> None:
             ),
             [1, 2, 3],
             TestBaseError,
-            False,
+            [4],
         ),
     ],
 )
@@ -533,16 +550,15 @@ def test_propagation_of_base_exceptions(
     s: stream[int],
     expected_yields: List[int],
     expected_error: Type[BaseException],
-    iteration_resumes: bool,
+    expected_yields_after: List[int],
 ):
     it = aiter_or_iter(s, itype)
     for expected_yield in expected_yields:
         assert anext_or_next(it, itype) == expected_yield
     with pytest.raises(expected_error):
         anext_or_next(it, itype)
-    # after base exception, sync iteration is stopped if generators are involved, else it can resume
-    if itype == "sync" and iteration_resumes:
-        assert anext_or_next(it, itype) == 4
-    else:
-        with pytest.raises(stopiteration_type(itype)):
-            anext_or_next(it, itype)
+    # the iteration resumes after a base exception
+    for expected_yield in expected_yields_after:
+        assert anext_or_next(it, itype) == expected_yield
+    with pytest.raises(stopiteration_type(itype)):
+        anext_or_next(it, itype)
