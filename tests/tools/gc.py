@@ -4,8 +4,6 @@ from typing import Optional, Type, TypeVar
 
 T = TypeVar("T")
 
-get_referees = gc.get_referents
-
 
 @contextmanager
 def disabled_gc():
