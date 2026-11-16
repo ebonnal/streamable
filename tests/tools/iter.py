@@ -99,6 +99,13 @@ def alist_or_list(
     return list(cast(Iterable[T], iterable))
 
 
+def await_or_call(s: "stream", itype: IterableType) -> None:
+    if itype == "async":
+        TEST_LOOP.run_until_complete(s)
+    else:
+        s()
+
+
 class SyncToAsyncIterator(AsyncIterator[T]):
     __slots__ = ("upstream",)
 
