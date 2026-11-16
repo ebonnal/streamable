@@ -379,7 +379,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
     def __call__(self) -> "stream[T]":
         """
-        Iterate until exhaustion without collecting elements.
+        Iterate until exhaustion without collecting elements, propagating any exception, then close.
 
         Returns:
             ``stream[T]``: ``self``.
@@ -398,7 +398,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
     def __await__(self) -> Generator[None, None, "stream[T]"]:
         """
-        Iterate as ``AsyncIterable`` until exhaustion without collecting elements.
+        Async iterate until exhaustion without collecting elements, propagating any exception, then close.
 
         Returns:
             ``stream[T]``: ``self``.
