@@ -44,7 +44,7 @@ class ClosableIterator(Closable, Protocol[C]):
 class AsyncToSyncIterator(Iterator[T], Closable):
     __slots__ = (
         "upstream",
-        "__loop",
+        "_loop",
         "_loop_owned",
         "_upstream_owned",
         "_closed",
@@ -56,19 +56,19 @@ class AsyncToSyncIterator(Iterator[T], Closable):
         self.upstream = upstream
         self._upstream_owned = owned
         self._loop_owned = False
-        self.__loop: Optional[asyncio.AbstractEventLoop] = None
+        self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._closed = False
         self._stopped = False
         self._pending_pull: Optional["asyncio.Task[T]"] = None
 
     @property
     def _lazy_loop(self) -> asyncio.AbstractEventLoop:
-        if self.__loop is None:
-            self.__loop = safe_get_event_loop()
-            if self.__loop is None or self.__loop.is_closed():
-                self.__loop = asyncio.new_event_loop()
+        if self._loop is None:
+            self._loop = safe_get_event_loop()
+            if self._loop is None or self._loop.is_closed():
+                self._loop = asyncio.new_event_loop()
                 self._loop_owned = True
-        return self.__loop
+        return self._loop
 
     async def _safe_aclose_upstream(self) -> None:
         if (
@@ -80,34 +80,34 @@ class AsyncToSyncIterator(Iterator[T], Closable):
             await self.upstream.aclose()
 
     def _safe_close_loop(self) -> None:
-        if self.__loop is not None and not self.__loop.is_closed() and self._loop_owned:
-            self.__loop.close()
+        if self._loop is not None and not self._loop.is_closed() and self._loop_owned:
+            self._loop.close()
 
     def close(self) -> None:
         if not self._closed:
-            if self.__loop is not None and not self.__loop.is_closed():
-                if self.__loop.is_running():
+            if self._loop is not None and not self._loop.is_closed():
+                if self._loop.is_running():
                     raise RuntimeError("event loop already running: cannot close")
                 try:
-                    self.__loop.run_until_complete(self._safe_aclose_upstream())
+                    self._loop.run_until_complete(self._safe_aclose_upstream())
                 finally:
                     self._safe_close_loop()
             self._closed = True
 
     def __del__(self) -> None:
-        loop = self.__loop
+        loop = self._loop
         if self._closed or loop is None or loop.is_closed():
             return
         if loop.is_running():
-            # non-owned `self.__loop` is running (in this or another thread), schedule the aclose
+            # non-owned `self._loop` is running (in this or another thread), schedule the aclose
             loop.call_soon_threadsafe(
                 asyncio.ensure_future, self._safe_aclose_upstream()
             )
         elif not asyncio._get_running_loop():
-            # no running loop in this thread, and `self.__loop` not running: can use `self.__loop.run_until_complete`
+            # no running loop in this thread, and `self._loop` not running: can use `self._loop.run_until_complete`
             self.close()
         elif self._loop_owned:
-            # `self.__loop` is owned and another loop is running in this thread
+            # `self._loop` is owned and another loop is running in this thread
             self._safe_close_loop()
 
     def _next_pull(self) -> "asyncio.Task[T]":
