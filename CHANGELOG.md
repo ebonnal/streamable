@@ -1,16 +1,8 @@
 # Changelog
 
-`streamable` follows *MAJOR.MINOR.PATCH* semantic versioning, expect breaking changes only in *MAJOR* version bumps.
+`streamable` follows *MAJOR.MINOR.PATCH* semantic versioning, expect breaking changes only in *MAJOR* version bumps (though typing-only changes can occur in *MINOR* bumps).
 
 ## [2.1.0]
-
-- `.buffer`: `up_to` now defaults to `None` for unbounded buffer: `stream(...).buffer()`
-
-- `.flatten`: handle inner `AsyncIterable`s during sync iterations too.
-
-- `.flatten`: accepts client-provided executor as `concurrency: int | ThreadPoolExecutor`.
-
-- a sync iteration over a `stream` involving async functions or an `AsyncIterable` source no longer sets the current event loop.
 
 - `.__iter__` now returns a `streamable.stream_iterator` exposing a `.close()` method
   ```python
@@ -37,6 +29,16 @@
   ```
 
 - all operations can resume after an upstream `BaseException` (generator-based operations used to only resist to `Exception`s)
+
+- `.take`: the predicate form of `until` must now be passed as a keyword arg to pass type checks (aligning with `.skip`).
+
+- `.buffer`: `up_to` now defaults to `None` for unbounded buffer: `stream(...).buffer()`
+
+- `.flatten`: handle inner `AsyncIterable`s during sync iterations too.
+
+- `.flatten`: accepts client-provided executor as `concurrency: int | ThreadPoolExecutor`.
+
+- a sync iteration over a `stream` involving async functions or an `AsyncIterable` source no longer sets the current event loop.
 
 ## [2.0.0]
 
