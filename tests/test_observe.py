@@ -363,18 +363,27 @@ async def test_observe_task_ends_on_its_own_if_not_cancelled_on_del(
     assert audit.leftover_tasks == 0
 
 
+@pytest.mark.parametrize("every", [None, 1, datetime.timedelta(seconds=1)])
 @pytest.mark.asyncio
-async def test_observe_cancellation_landing_during_do_is_surfaced() -> None:
+async def test_observe_cancellation_landing_during_do(
+    every: Union[None, int, datetime.timedelta],
+) -> None:
     async def just_sleep(err) -> None:
         await asyncio.sleep(0.1)
 
-    s = stream(range(8)).observe(do=just_sleep)
+    s = stream(range(8)).observe(every=every, do=just_sleep)
     it = s.__aiter__()
     pull = asyncio.ensure_future(it.__anext__())
     await asyncio.sleep(0.01)
     pull.cancel()
-    with pytest.raises(asyncio.CancelledError):
+    if isinstance(every, datetime.timedelta):
+        # observation is done in the background, pull is not interrupted
         await pull
+    else:
+        # observation is done inline, cancellation is surfaced
+        with pytest.raises(asyncio.CancelledError):
+            await pull
+    await it.aclose()
 
 
 @pytest.mark.parametrize("itype", ["sync", "async"])
