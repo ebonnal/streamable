@@ -14,7 +14,7 @@ import pytest
 import respx
 from httpx import HTTPStatusError, Response
 
-from streamable import stream
+from streamable import stream, stream_aiterator, stream_iterator
 
 pokemons: stream[str] = (
     stream(range(10))
@@ -362,7 +362,7 @@ async def test_await_example() -> None:
     assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 
-def test_pipe(tmp_path: Path) -> None:
+def test_pipe_example(tmp_path: Path) -> None:
     import polars as pl
 
     pokemons.pipe(pl.DataFrame, schema=["name"]).write_csv(tmp_path / "pokemons.csv")
@@ -372,3 +372,51 @@ def test_cast_example() -> None:
     docs: stream[Any] = stream(['{"foo": "bar"}', '{"foo": "baz"}']).map(json.loads)
     dicts: stream[Dict[str, str]] = docs.cast(Dict[str, str])
     assert dicts is docs
+
+
+def test_closing_example() -> None:
+    from contextlib import closing
+
+    s = stream(range(10)).do(time.sleep, concurrency=4)
+    with closing(iter(s)) as it:
+        assert next(it) == 0
+        assert next(it) == 1
+        # 4 worker threads processing elements 2, 3, 4, 5
+    # work done/cancelled and worker threads terminated
+
+
+def test_close_example() -> None:
+    s = stream(range(10)).do(time.sleep, concurrency=4)
+    it: stream_iterator[int] = iter(s)
+    try:
+        assert next(it) == 0
+        assert next(it) == 1
+        # 4 worker threads processing elements 2, 3, 4, 5
+    finally:
+        it.close()
+        # work done/cancelled and worker threads terminated
+
+
+@pytest.mark.asyncio
+async def test_aclosing_example() -> None:
+    from streamable._tools._context import aclosing
+
+    s = stream(range(10)).do(asyncio.sleep, concurrency=4)
+    async with aclosing(s.__aiter__()) as it:
+        assert await it.__anext__() == 0
+        assert await it.__anext__() == 1
+        # 4 pending tasks, for elements 2, 3, 4, 5
+    # these 4 tasks are cancelled/done
+
+
+@pytest.mark.asyncio
+async def test_aclose_example() -> None:
+    s = stream(range(10)).do(asyncio.sleep, concurrency=4)
+    it: stream_aiterator[int] = s.__aiter__()
+    try:
+        assert await it.__anext__() == 0
+        assert await it.__anext__() == 1
+        # 4 pending tasks, for elements 2, 3, 4, 5
+    finally:
+        await it.aclose()
+        # these 4 tasks are cancelled/done
