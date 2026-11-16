@@ -20,8 +20,8 @@
   with closing(iter(s)) as it:
       assert next(it) == 0
       assert next(it) == 1
-      # 4 pending tasks, for elements 2, 3, 4, 5
-  # these 4 tasks are done/cancelled
+      # 4 worker threads processing elements 2, 3, 4, 5
+  # work done/cancelled and worker threads terminated
   ```
 
 - `.__aiter__` now returns a `streamable.stream_aiterator` exposing an `.aclose()` method

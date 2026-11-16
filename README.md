@@ -585,8 +585,8 @@ s = stream(range(10)).do(time.sleep, concurrency=4)
 with closing(iter(s)) as it:
     assert next(it) == 0
     assert next(it) == 1
-    # 4 pending tasks, for elements 2, 3, 4, 5
-# these 4 tasks are cancelled/done
+    # 4 worker threads processing elements 2, 3, 4, 5
+# work done/cancelled and worker threads terminated
 ```
 
 equivalent to:
@@ -597,10 +597,10 @@ it: stream_iterator[int] = iter(s)
 try:
     assert next(it) == 0
     assert next(it) == 1
-    # 4 pending tasks, for elements 2, 3, 4, 5
+    # 4 worker threads processing elements 2, 3, 4, 5
 finally:
     it.close()
-    # these 4 tasks are cancelled/done
+    # work done/cancelled and worker threads terminated
 ```
 
 ### `.aclose`
