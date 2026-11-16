@@ -166,9 +166,9 @@ class _BaseCloseFailingMonitoredIntIterator(_BaseMonitoredIntIterator):
         self.n_close_failures = n_close_failures
 
     def _close(self) -> None:
+        self._record_close_attempt()
         if self.n_close_failures > 0:
             self.n_close_failures -= 1
-            self._record_close_attempt()
             raise TestError()
 
 
