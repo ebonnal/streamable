@@ -18,6 +18,7 @@ from typing import (
 import pytest
 
 from streamable import star, stream
+from streamable._tools._async import safe_get_event_loop
 from streamable._tools._func import sidify
 from streamable._tools._iter import AsyncToSyncIterator, GuardedAsyncIterator
 from streamable._tools._logging import logfmt_str_escape, setup_logger
@@ -250,18 +251,40 @@ def test_async_to_sync_iterator_cancels_anext_on_keyboard_interrupt() -> None:
     assert it._lazy_loop.is_closed()
 
 
-def test_async_to_sync_iterator_with_private_loop_after_exhaustion() -> None:
+def test_async_to_sync_iterator_with_private_loop() -> None:
     def exhaust() -> None:
         s = stream(INTEGERS).map(async_identity)
-        # `s()` closes its iterator once exhausted
+        # iteration uses a private loop
         s()
-        it = cast(AsyncToSyncIterator, iter(s))
-        assert list(it) == list(INTEGERS)
+        assert safe_get_event_loop() is None
+
+        # new iteration using a fresh private loop
+        it1 = cast(AsyncToSyncIterator, iter(s))
+        assert it1._loop is None
+        assert next(it1) == 0
+        assert it1._loop is not None
+        # loop created is private
+        assert safe_get_event_loop() is None
+
+        # new iteration coexisting using a dedicated fresh private loop
+        it2 = cast(AsyncToSyncIterator, iter(s))
+        assert it2._loop is None
+        assert next(it2) == 0
+        assert it2._loop is not None
+        assert it2._loop is not it1._loop
+        assert safe_get_event_loop() is None
+
+        assert list(it2) == list(INTEGERS)[1:]
         # exhaustion closes the private loop
-        assert it._lazy_loop.is_closed()
+        assert it2._lazy_loop.is_closed()
         with pytest.raises(StopIteration):
-            next(it)
-        it.close()
+            next(it2)
+
+        assert not it1._lazy_loop.is_closed()
+        it1.close()
+        assert it1._lazy_loop.is_closed()
+        # noop
+        it2.close()
 
     # in a thread without event loop: the iterators use a private loop
     run_in_thread(exhaust)
