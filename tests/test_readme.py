@@ -319,12 +319,6 @@ def test_add_example() -> None:
     assert list(concatenated_ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 
-def test_cast_example() -> None:
-    docs: stream[Any] = stream(['{"foo": "bar"}', '{"foo": "baz"}']).map(json.loads)
-    dicts: stream[Dict[str, str]] = docs.cast(Dict[str, str])
-    assert dicts is docs
-
-
 def test_func_source() -> None:
     from queue import Empty, Queue
 
@@ -374,10 +368,7 @@ def test_pipe(tmp_path: Path) -> None:
     pokemons.pipe(pl.DataFrame, schema=["name"]).write_csv(tmp_path / "pokemons.csv")
 
 
-def test_cast() -> None:
-    _dicts: stream[Dict[str, str]] = (
-        stream(['{"foo": "bar"}', '{"foo": "baz"}'])
-        .map(json.loads)  # stream[Any]
-        .cast(Dict[str, str])  # stream[Dict[str, str]]
-    )
-    assert list(_dicts) == [{"foo": "bar"}, {"foo": "baz"}]
+def test_cast_example() -> None:
+    docs: stream[Any] = stream(['{"foo": "bar"}', '{"foo": "baz"}']).map(json.loads)
+    dicts: stream[Dict[str, str]] = docs.cast(Dict[str, str])
+    assert dicts is docs
