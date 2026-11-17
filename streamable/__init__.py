@@ -12,4 +12,4 @@ stream_iterator.__module__ = __name__
 
 __all__ = ["stream", "stream_aiterator", "stream_iterator", "star", "Observation"]
 
-__version__ = "2.1.0rc4"
+__version__ = "2.1.0rc5"
