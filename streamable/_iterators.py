@@ -4,6 +4,7 @@ import time
 import weakref
 from abc import abstractmethod
 from collections import defaultdict, deque
+from concurrent import futures
 from concurrent.futures import Executor, Future, ThreadPoolExecutor
 from contextlib import suppress
 from threading import Event, Semaphore, Thread
@@ -965,13 +966,18 @@ class ConcurrentMapIterator(_ConcurrentIterator[T, U]):
 class ConcurrentFlattenIterator(
     _ConcurrentIterator[Union[Iterable[T], AsyncIterable[T]], T]
 ):
-    __slots__ = ("_iterators_and_futures",)
+    __slots__ = (
+        "as_completed",
+        "_iterators_and_futures",
+    )
 
     def __init__(
         self,
         upstream: ClosableIterator[Union[Iterable[T], AsyncIterable[T]]],
         concurrency: Union[int, ThreadPoolExecutor],
+        as_completed: bool = False,
     ) -> None:
+        self.as_completed = as_completed
         self._iterators_and_futures: Deque[
             Tuple[Optional[ClosableIterator[T]], "Future[T]"]
         ] = deque()
@@ -1007,12 +1013,23 @@ class ConcurrentFlattenIterator(
                     # no more tasks to queue
                     break
                 self._iterators_and_futures.append(iterator_and_future)
+                del iterator_and_future
             if not self._iterators_and_futures:
                 self._terminate()
                 continue
-            iterator, future = self._iterators_and_futures[0]
-            ensure_done(future)
-            self._iterators_and_futures.popleft()
+            if self.as_completed:
+                ensure_done(
+                    (fut for _, fut in self._iterators_and_futures),
+                    return_when=futures.FIRST_COMPLETED,
+                )
+                iterator, future = next(
+                    (it, fut) for it, fut in self._iterators_and_futures if fut.done()
+                )
+                self._iterators_and_futures.remove((iterator, future))
+            else:
+                iterator, future = self._iterators_and_futures[0]
+                ensure_done(future)
+                self._iterators_and_futures.popleft()
             try:
                 elem = future.result()
                 if elem is STOP_ITERATION:

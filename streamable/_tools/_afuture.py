@@ -5,6 +5,7 @@ from typing import (
     AsyncIterator,
     Dict,
     Iterable,
+    List,
     Optional,
     Sized,
     TypeVar,
@@ -14,22 +15,41 @@ from typing import (
 T = TypeVar("T")
 
 
-def safe_wrap_future(
-    future: "Union[asyncio.Future[T], futures.Future[T]]",
-) -> "asyncio.Future[T]":
-    wrapped = asyncio.wrap_future(future)
-    if wrapped is not future:
-        # prevent "Future exception was never retrieved" warnings
-        wrapped.add_done_callback(
-            lambda f: f.exception() if not f.cancelled() else None
-        )
-    return wrapped
+class Signal(asyncio.Future):
+    def __init__(self) -> None:
+        super().__init__(loop=asyncio.get_running_loop())
+        self.futures: List[futures.Future] = []
+
+    def __call__(self, _: futures.Future) -> None:
+        with suppress(RuntimeError):
+            self.get_loop().call_soon_threadsafe(lambda: self.set_result(None))
+
+    @classmethod
+    def of(
+        cls,
+        future: Union[asyncio.Future, futures.Future],
+    ) -> "asyncio.Future[None]":
+        if asyncio.isfuture(future):
+            return future
+        signal = cls()
+        future.add_done_callback(signal)
+        signal.futures.append(future)
+        return signal
+
+    def close(self) -> None:
+        while self.futures:
+            fut = self.futures.pop()
+            with fut._condition:
+                if not fut.done():
+                    fut._done_callbacks.remove(self)  # type: ignore
 
 
 def cancel_threadsafe(
     fs: Union[
-        Union[asyncio.Future, futures.Future, None],
-        Iterable[Union[asyncio.Future, futures.Future, None]],
+        asyncio.Future,
+        futures.Future,
+        Iterable[Union[asyncio.Future, futures.Future]],
+        None,
     ],
 ) -> None:
     if fs is None:
@@ -41,7 +61,7 @@ def cancel_threadsafe(
     for future in fs:
         if isinstance(future, futures.Future):
             future.cancel()
-        elif future is not None and not future.done():
+        elif not future.done():
             with suppress(RuntimeError):
                 future.get_loop().call_soon_threadsafe(future.cancel)
 
@@ -49,10 +69,11 @@ def cancel_threadsafe(
 async def ensure_done(
     fs: Union[
         Union[asyncio.Future, futures.Future, None],
-        Iterable[Union[asyncio.Future, futures.Future, None]],
+        Iterable[Union[asyncio.Future, futures.Future]],
     ],
     timeout: "Optional[float]" = None,
     cancel: bool = False,
+    return_when: str = asyncio.ALL_COMPLETED,
 ) -> bool:
     """Returns True if all futures completed within the timeout."""
     if fs is None:
@@ -62,19 +83,27 @@ async def ensure_done(
     else:
         fs = tuple(fs)
     if cancel:
-        for future in fs:
-            if future is not None and not future.done():
-                future.cancel()
-    futures_to_wait = [
-        safe_wrap_future(future)
-        for future in fs
-        if future is not None and not future.done()
-    ]
-    if futures_to_wait:
+        for fut in fs:
+            fut.cancel()
+    all_done = all(fut.done() for fut in fs)
+    if return_when == asyncio.FIRST_COMPLETED and any(fut.done() for fut in fs):
+        return all_done
+    if not all_done:
         if timeout == 0:
             return False
-        still_pending = (await asyncio.wait(futures_to_wait, timeout=timeout))[1]
-        return not still_pending
+        futures_to_wait = [Signal.of(fut) for fut in fs]
+        try:
+            return not (
+                await asyncio.wait(
+                    futures_to_wait,
+                    timeout=timeout,
+                    return_when=return_when,
+                )
+            )[1]
+        finally:
+            for fut in futures_to_wait:
+                if isinstance(fut, Signal):
+                    fut.close()
     return True
 
 

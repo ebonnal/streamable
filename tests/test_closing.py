@@ -89,7 +89,7 @@ def chain(
         .flatten(concurrency=2)
         .group(1, within=timedelta(hours=1))
         .map(stream)
-        .flatten(concurrency=2)
+        .flatten(concurrency=2, as_completed=True)
         .group(1, by=identity, within=timedelta(hours=1))
         .map(star(get_group))
         .flatten()
@@ -565,12 +565,14 @@ def test_puller_based_operation_termination(
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 @pytest.mark.parametrize("concurrency", [1, 2])
+@pytest.mark.parametrize("as_completed", [False, True])
 def test_flatten_with_non_closable_owned_inner_iters(
     itype: IterableType,
     concurrency: int,
+    as_completed: bool,
 ) -> None:
     src = [aiterable_or_iterable([0, 1], itype)]
-    s = stream(src).flatten(concurrency=concurrency)
+    s = stream(src).flatten(concurrency=concurrency, as_completed=as_completed)
     it = aiter_or_iter(s, itype)
     assert anext_or_next(it, itype) == 0
     aclose_or_close(it, itype)
@@ -578,14 +580,16 @@ def test_flatten_with_non_closable_owned_inner_iters(
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 @pytest.mark.parametrize("shutdown_before_close", [False, True])
+@pytest.mark.parametrize("as_completed", [False, True])
 def test_flatten_async_concurrent_with_sync_closable_owned_inner_iters(
     itype: IterableType,
     shutdown_before_close: bool,
+    as_completed: bool,
 ) -> None:
     executor = ThreadPoolExecutor(2)
     inner = create_monitored_int_iterable("sync")
     src = [inner]
-    s = stream(src).flatten(concurrency=executor)
+    s = stream(src).flatten(concurrency=executor, as_completed=as_completed)
     it = aiter_or_iter(s, itype)
     assert anext_or_next(it, itype) == 0
     if shutdown_before_close:
@@ -611,16 +615,18 @@ def test_flatten_async_concurrent_with_sync_closable_owned_inner_iters(
         (NEXT_UNTIL_TIMEOUT_THEN_CLOSE, [0], [1], []),
     ],
 )
+@pytest.mark.parametrize("as_completed", [False, True])
 def test_flatten_provided_inner_iter_termination(
     termination: TerminationCase,
     completed: List[int],
     cancelled: List[int],
     third_inner_started: List[int],
+    as_completed: bool,
 ) -> None:
     a, b, c = [
         create_monitored_int_iterator(termination.itype, n_yields=4) for _ in range(3)
     ]
-    s = stream([a, b, c]).flatten(concurrency=2)
+    s = stream([a, b, c]).flatten(concurrency=2, as_completed=as_completed)
     termination.terminate_without_leaks(s, n_pulls=2)
     # the in-flight pulls are cancelled (async) or awaited (sync), the inner iterators are not closed
     for src in (a, b):
@@ -643,17 +649,19 @@ def test_flatten_provided_inner_iter_termination(
         (NEXT_UNTIL_TIMEOUT_THEN_CLOSE, [0], [1], [], True),
     ],
 )
+@pytest.mark.parametrize("as_completed", [False, True])
 def test_flatten_owned_inner_iter_termination(
     termination: TerminationCase,
     completed: List[int],
     cancelled: List[int],
     third_inner_started: List[int],
     should_close: bool,
+    as_completed: bool,
 ) -> None:
     a, b, c = [
         create_monitored_int_iterable(termination.itype, n_yields=4) for _ in range(3)
     ]
-    s = stream([a, b, c]).flatten(concurrency=2)
+    s = stream([a, b, c]).flatten(concurrency=2, as_completed=as_completed)
     termination.terminate_without_leaks(s, n_pulls=2)
     for src in (a, b):
         assert len(src.iterators) == 1
@@ -670,11 +678,12 @@ def test_flatten_owned_inner_iter_termination(
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 @pytest.mark.parametrize("concurrency", [1, 2])
+@pytest.mark.parametrize("as_completed", [False, True])
 def test_flatten_owned_inner_iter_failed_close_retries(
-    itype: IterableType, concurrency: int
+    itype: IterableType, concurrency: int, as_completed: bool
 ) -> None:
     iterable = create_close_failing_monitored_int_iterable(itype, n_close_failures=2)
-    s = stream([iterable]).flatten(concurrency=concurrency)
+    s = stream([iterable]).flatten(concurrency=concurrency, as_completed=as_completed)
     it = aiter_or_iter(s, itype)
     assert anext_or_next(it, itype) == 0
     with pytest.raises(TestError):
@@ -685,8 +694,9 @@ def test_flatten_owned_inner_iter_failed_close_retries(
     assert iterable.iterators[-1].n_close_attempts == 3
 
 
+@pytest.mark.parametrize("as_completed", [False, True])
 @pytest.mark.asyncio
-async def test_flatten_cancel_as_owned_inner_pull_completes() -> None:
+async def test_flatten_cancel_as_owned_inner_pull_completes(as_completed: bool) -> None:
     consumer: asyncio.Task
     src = create_monitored_int_iterable("async")
     self_cancelling = (
@@ -694,7 +704,9 @@ async def test_flatten_cancel_as_owned_inner_pull_completes() -> None:
         # Triggers a cancellation of `await s` landing just after the pull completed
         .do(lambda _: asyncio.get_running_loop().call_soon(consumer.cancel))
     )
-    consumer = asyncio.ensure_future(stream([self_cancelling]).flatten(concurrency=2))
+    consumer = asyncio.ensure_future(
+        stream([self_cancelling]).flatten(concurrency=2, as_completed=as_completed)
+    )
     # the cancellation is surfaced
     with pytest.raises(asyncio.CancelledError):
         await consumer
@@ -878,13 +890,15 @@ async def test_close_executor_backed_map_cancels_queued_calls(
         ),
     ],
 )
+@pytest.mark.parametrize("as_completed", [False, True])
 def test_flatten_both_owned_and_provided_inner_iters(
     termination: TerminationCase,
     concurrency: int,
     src_getters: List[Callable[[IterableType], Iterable[int]]],
+    as_completed: bool,
 ) -> None:
     src = [get_src(termination.itype) for get_src in src_getters]
-    s = stream(src).flatten(concurrency=concurrency)
+    s = stream(src).flatten(concurrency=concurrency, as_completed=as_completed)
     termination.terminate_without_leaks(s, n_pulls=2)
     # the in-flight owned iterators are closed
     assert all(

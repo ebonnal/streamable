@@ -1,6 +1,7 @@
+import asyncio
 import sys
 from contextlib import contextmanager
-from typing import Generator, List
+from typing import Any, Dict, Generator, List
 
 
 class TestError(Exception):
@@ -19,3 +20,15 @@ def collecting_unraisables() -> Generator[List["sys.UnraisableHookArgs"], None, 
         yield collected
     finally:
         sys.unraisablehook = hook
+
+
+@contextmanager
+def collecting_unretrievables() -> Generator[List[Dict[str, Any]], None, None]:
+    loop = asyncio.get_running_loop()
+    unhandled: List[Dict[str, Any]] = []
+    default_handler = loop.get_exception_handler()
+    loop.set_exception_handler(lambda _, context: unhandled.append(context))
+    try:
+        yield unhandled
+    finally:
+        loop.set_exception_handler(default_handler)

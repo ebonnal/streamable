@@ -67,8 +67,8 @@ def test_repr_filter() -> None:
 
 
 def test_repr_flatten() -> None:
-    s = stream(["foo"]).flatten(concurrency=4)
-    assert repr(s) == "stream(['foo']).flatten(concurrency=4)"
+    s = stream(["foo"]).flatten(concurrency=4, as_completed=True)
+    assert repr(s) == "stream(['foo']).flatten(concurrency=4, as_completed=True)"
 
 
 def test_repr_group() -> None:

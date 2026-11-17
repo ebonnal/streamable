@@ -1,3 +1,5 @@
+import asyncio
+import time
 from collections import Counter, OrderedDict, defaultdict, deque
 from concurrent.futures import ThreadPoolExecutor
 from typing import (
@@ -14,7 +16,9 @@ from typing import (
     MutableMapping,
     MutableSequence,
     MutableSet,
+    Sequence,
     Tuple,
+    Union,
     ValuesView,
     cast,
 )
@@ -22,6 +26,7 @@ from typing import (
 import pytest
 
 from streamable import stream
+from tests.tools.error import collecting_unretrievables
 from tests.tools.func import (
     async_identity,
     identity,
@@ -93,17 +98,17 @@ def test_flatten_without_concurrency(
     [("sync", identity), ("async", identity), ("async", to_aiter)],
 )
 def test_flatten_with_concurrency(
-    itype: IterableType, to_iter: Callable[[Any], Any]
+    itype: IterableType,
+    to_iter: Callable[[Iterable[int]], Union[Iterator[int], AsyncIterator[int]]],
 ) -> None:
-    """Flatten with concurrency=1 should yield elements in order of nested for loop."""
     s = (
         stream(
-            (
+            [
                 range(4),  # 1st
                 range(4, 5),  # 2nd
                 range(5, 8),  # 3rd
                 range(8, 10),  # 4th
-            )
+            ]
         )
         .map(to_iter)
         .flatten(concurrency=2)
@@ -126,15 +131,45 @@ def test_flatten_with_concurrency(
     ]
 
 
+@pytest.mark.parametrize(
+    "itype, to_iter",
+    [
+        ("sync", stream.__iter__),
+        ("async", stream.__iter__),
+        ("async", stream.__aiter__),
+    ],
+)
+def test_flatten_with_concurrency_as_completed(
+    itype: IterableType,
+    to_iter: Callable[[Iterable[float]], Union[Iterator[float], AsyncIterator[float]]],
+) -> None:
+    s = (
+        stream(
+            [
+                [0, 0.1, 1.1],
+                [1, 0.5],
+            ]
+        )
+        .map(stream)
+        .map(lambda s: s.do(asyncio.sleep if itype == "async" else time.sleep))
+        .map(to_iter)
+        .flatten(concurrency=2, as_completed=True)
+    )
+
+    assert alist_or_list(s, itype) == [0, 0.1, 1, 1.1, 0.5]
+
+
 @pytest.mark.parametrize("concurrency", (1, 2))
 @pytest.mark.parametrize(
     "itype, to_iter",
     [("sync", identity), ("async", identity), ("async", to_aiter)],
 )
+@pytest.mark.parametrize("as_completed", [False, True])
 def test_flatten_with_exceptions(
     concurrency: int,
     itype: IterableType,
     to_iter: Callable[[Any], Any],
+    as_completed: bool,
 ) -> None:
     """Flatten should be resilient to exceptions raised upstream or by `next(elem)`."""
     value_errors: List[Exception] = []
@@ -146,7 +181,7 @@ def test_flatten_with_exceptions(
         stream(elements)
         .map(lambda chars: map(int, chars))
         .map(to_iter)
-        .flatten(concurrency=concurrency)
+        .flatten(concurrency=concurrency, as_completed=as_completed)
         .catch(ValueError, do=value_errors.append)
         .catch(TypeError, do=type_errors.append)
     )
@@ -156,11 +191,13 @@ def test_flatten_with_exceptions(
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
+@pytest.mark.parametrize("as_completed", [False, True])
 def test_flatten_concurrent_aclose_with_upstream_errors_in_flight(
     itype: IterableType,
+    as_completed: bool,
 ) -> None:
     src = cast(List[List[int]], [[0, 2], [1, 3], 0, 0])
-    s = stream(src).map(iter).flatten(concurrency=3)
+    s = stream(src).map(iter).flatten(concurrency=3, as_completed=as_completed)
     it = aiter_or_iter(s, itype)
     assert anext_or_next(it, itype) == 0
     aclose_or_close(it, itype)
@@ -168,8 +205,11 @@ def test_flatten_concurrent_aclose_with_upstream_errors_in_flight(
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 @pytest.mark.parametrize("concurrency", (1, 2))
-def test_flatten_on_non_iterable(itype: IterableType, concurrency: int) -> None:
-    s = stream([1, [1]]).flatten(concurrency=concurrency)  # type: ignore
+@pytest.mark.parametrize("as_completed", [False, True])
+def test_flatten_on_non_iterable(
+    itype: IterableType, concurrency: int, as_completed: bool
+) -> None:
+    s = stream([1, [1]]).flatten(concurrency=concurrency, as_completed=as_completed)  # type: ignore
     it = aiter_or_iter(s, itype)
     with pytest.raises(TypeError, match="flatten expects iterables but got: 1"):
         anext_or_next(it, itype)
@@ -183,21 +223,29 @@ def test_flatten_on_non_iterable(itype: IterableType, concurrency: int) -> None:
 @pytest.mark.parametrize(
     "to_inner", [to_aiter, lambda elems: stream(elems).map(async_identity)]
 )
+@pytest.mark.parametrize("as_completed, collect", [(False, list), (True, Counter)])
 def test_flatten_async_inner_iterables(
     itype: IterableType,
     concurrency: int,
     expected: List[int],
     to_inner: Callable[[List[int]], Any],
+    as_completed: bool,
+    collect: Callable[[Iterable[int]], Sequence[int]],
 ) -> None:
-    s = stream([to_inner([0, 1]), to_inner([0, 1])]).flatten(concurrency=concurrency)
-    assert alist_or_list(s, itype) == expected
+    s = stream([to_inner([0, 1]), to_inner([0, 1])]).flatten(
+        concurrency=concurrency, as_completed=as_completed
+    )
+    assert collect(alist_or_list(s, itype)) == collect(expected)
 
 
 @pytest.mark.parametrize(
     "operate", [identity, lambda s: s + [], lambda s: stream([s]).flatten()]
 )
+@pytest.mark.parametrize("as_completed, collect", [(False, list), (True, Counter)])
 def test_flatten_concurrently_many_inner_streams_involving_async(
     operate: Callable[[stream], stream],
+    as_completed: bool,
+    collect: Callable[[Iterable[int]], Sequence[int]],
 ) -> None:
     ints = range(10)
     inner = operate(stream(ints).map(async_identity))
@@ -206,12 +254,14 @@ def test_flatten_concurrently_many_inner_streams_involving_async(
     # enough concurrency for errors to be raised if the same loop was run from multiple threads
     concurrency = 4
     for _ in range(10):
-        assert list(stream(src).flatten(concurrency=concurrency)) == [
+        assert collect(
+            stream(src).flatten(concurrency=concurrency, as_completed=as_completed)
+        ) == collect(
             i
             for _ in range(num_inner_iters // concurrency)
             for i in ints
             for _ in range(concurrency)
-        ]
+        )
 
 
 @pytest.mark.asyncio
@@ -223,10 +273,36 @@ async def test_flatten_async_inner_iter_during_sync_iteration_in_running_loop() 
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-def test_flatten_provided_executor(itype: IterableType) -> None:
+@pytest.mark.parametrize("as_completed, collect", [(False, list), (True, Counter)])
+def test_flatten_provided_executor(
+    itype: IterableType,
+    as_completed: bool,
+    collect: Callable[[Iterable[int]], Sequence[int]],
+) -> None:
     with ThreadPoolExecutor(2) as executor:
-        s = stream([[0, 2, 4], [1, 3, 5], [6, 7, 8]]).flatten(concurrency=executor)
+        s = stream([[0, 2, 4], [1, 3, 5], [6, 7, 8]]).flatten(
+            concurrency=executor, as_completed=as_completed
+        )
         it = aiter_or_iter(s, itype)
-        assert alist_or_list(it, itype) == list(range(9))
+        assert collect(alist_or_list(it, itype)) == collect(range(9))
         aclose_or_close(it, itype)
         assert not executor._shutdown
+
+
+@pytest.mark.parametrize("as_completed", [False, True])
+@pytest.mark.asyncio
+async def test_flatten_close_leaves_no_unretrieved_errors(
+    as_completed: bool,
+) -> None:
+    with collecting_unretrievables() as unretrieved_errors:
+        it = (
+            stream([range(4), stream("-").map(int), map(int, "-")])
+            .flatten(concurrency=3, as_completed=as_completed)
+            .__aiter__()
+        )
+        assert await it.__anext__() == 0
+        await asyncio.sleep(0)
+        await it.aclose()
+        del it
+        # there will be no "exception was never retrieved" warning
+        assert not unretrieved_errors

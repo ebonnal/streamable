@@ -54,7 +54,7 @@ class ReprVisitor(Visitor[str], ABC):
 
     def visit_flatten_stream(self, s: "FlattenStream") -> str:
         self.operation_reprs.append(
-            f"flatten(concurrency={self.to_string(s._concurrency)})"
+            f"flatten(concurrency={self.to_string(s._concurrency)}, as_completed={self.to_string(s._as_completed)})"
         )
         return s.upstream.accept(self)
 
