@@ -11,20 +11,20 @@
 [![readthedocs](https://app.readthedocs.org/projects/streamable/badge/?version=latest&style=social)](https://streamable.readthedocs.io/en/latest/api.html)
 
 
-# 1. install
+## 1. install
 
 ```
 pip install streamable
 ```
 (no dependencies)
 
-# 2. import
+## 2. import
 
 ```python
 from streamable import stream
 ```
 
-# 3. init
+## 3. init
 
 Create a `stream[T]` from an `Iterable[T]` or `AsyncIterable[T]`:
 
@@ -32,7 +32,7 @@ Create a `stream[T]` from an `Iterable[T]` or `AsyncIterable[T]`:
 ints: stream[int] = stream(range(10))
 ```
 
-# 4. operate
+## 4. operate
 
 Chain lazy operations (accepting sync and async functions):
 
@@ -56,7 +56,7 @@ pokemons: stream[str] = (
 
 Source elements will be processed on-the-fly during iteration.
 
-# 5. iterate
+## 5. iterate
 
 A `stream[T]` is `Iterable[T]` and `AsyncIterable[T]`:
 
