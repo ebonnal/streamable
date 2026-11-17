@@ -1,9 +1,10 @@
 import asyncio
+import gc
 import json
 import os
 from enum import Enum
 from http import HTTPStatus
-from typing import Any, Dict, Generator, List
+from typing import Any, Dict, Generator, Iterator, List
 
 import httpx
 import pytest
@@ -41,3 +42,12 @@ def mock_pokeapi() -> Generator:
             f"https://pokeapi.co/api/v2/pokemon-species/{len(POKEMONS) + 1}"
         ).mock(return_value=httpx.Response(HTTPStatus.NOT_FOUND, text=""))
         yield
+
+
+@pytest.fixture(autouse=True)
+def gc_disabled() -> Iterator[None]:
+    # cleanup must come from refcounting alone, a GC collection cannot hide a ref cycle
+    gc.disable()
+    yield
+    gc.enable()
+    gc.collect()
