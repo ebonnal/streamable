@@ -33,7 +33,11 @@ from streamable._tools._afuture import (
     ensure_done,
     safe_wrap_future,
 )
-from streamable._tools._async import AsyncFunction, anext, semaphored
+from streamable._tools._async import (
+    AsyncFunction,
+    anext,
+    semaphored,
+)
 from streamable._tools._error import ExceptionContainer
 from streamable._tools._iter import (
     ClosableAsyncIterator,
@@ -133,18 +137,23 @@ class _Puller(Generic[T]):
             await ensure_done(self._pulling_task, cancel=True)
 
     async def _pulling(self) -> None:
-        await self._ask_to_pull()
-        while not self._stopped:
-            try:
-                self.elems.put_nowait(await self._upstream.__anext__())
-            except StopAsyncIteration:
-                self.stop()
-                self.elems.put_nowait(STOP_ITERATION)
-                continue
-            except BaseException as e:
-                if not self._stopped:
-                    self.elems.put_nowait(ExceptionContainer(e))
+        try:
             await self._ask_to_pull()
+            while not self._stopped:
+                try:
+                    self.elems.put_nowait(await self._upstream.__anext__())
+                except StopAsyncIteration:
+                    self.stop()
+                    self.elems.put_nowait(STOP_ITERATION)
+                    continue
+                except BaseException as e:
+                    if not self._stopped:
+                        self.elems.put_nowait(ExceptionContainer(e))
+                await self._ask_to_pull()
+        except asyncio.CancelledError:
+            # gentle exit to avoid ref cycle, safe to not propagate
+            # the cancellation because this task is never awaited
+            pass
 
     def stop(self) -> None:
         if not self._stopped:
