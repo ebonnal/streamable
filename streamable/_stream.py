@@ -750,6 +750,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         self: "stream[Union[Iterable[U], AsyncIterable[U]]]",
         *,
         concurrency: Union[int, ThreadPoolExecutor] = 1,
+        as_completed: bool = False,
     ) -> "stream[U]":
         """
         Explode upstream elements, assumed to be ``Iterable`` or ``AsyncIterable``.
@@ -758,8 +759,13 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             concurrency (``int | ThreadPoolExecutor``, optional): Concurrency control:
 
               ‣ ``1`` (default): Flatten each upstream iterable before moving on to the next one.
-              ‣ ``int > 1``: Flatten ``concurrency`` upstream iterables at a time in a round-robin fashion (via threads or async tasks).
+              ‣ ``int > 1``: Flatten ``concurrency`` upstream iterables via threads or async tasks.
               ‣ ``ThreadPoolExecutor``: Uses the provided executor, the concurrency is the number of workers.
+
+            as_completed (``bool``, optional): Order of elements:
+
+              ‣ ``False`` (default): Round-robin order, yielding elements from each upstream iterable in turn.
+              ‣ ``True``: Yield the inner iterables' elements as they become available.
 
         Returns:
             ``stream[U]``: Stream of all elements from upstream iterables.
@@ -774,7 +780,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         """
         if isinstance(concurrency, int):
             validate_int(concurrency, gte=1, name="concurrency")
-        return FlattenStream(self, concurrency)
+        return FlattenStream(self, concurrency, as_completed=as_completed)
 
     @overload
     def group(
@@ -1251,15 +1257,17 @@ class FilterStream(DownStream[U, U]):
 
 
 class FlattenStream(DownStream[Union[Iterable[U], AsyncIterable[U]], U]):
-    __slots__ = ("_concurrency",)
+    __slots__ = ("_concurrency", "_as_completed")
 
     def __init__(
         self,
         upstream: stream[Union[Iterable[U], AsyncIterable[U]]],
         concurrency: Union[int, ThreadPoolExecutor],
+        as_completed: bool,
     ) -> None:
         super().__init__(upstream)
         self._concurrency = concurrency
+        self._as_completed = as_completed
 
     def accept(self, visitor: "Visitor[V]") -> V:
         return visitor.visit_flatten_stream(self)

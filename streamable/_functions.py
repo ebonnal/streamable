@@ -61,12 +61,14 @@ def flatten(
     upstream: ClosableIterator[Union[Iterable[T], AsyncIterable[T]]],
     *,
     concurrency: Union[int, ThreadPoolExecutor] = 1,
+    as_completed: bool = False,
 ) -> ClosableIterator[T]:
     if concurrency == 1:
         return _iterators.FlattenIterator(upstream)
     return _iterators.ConcurrentFlattenIterator(
         upstream,
         concurrency=concurrency,
+        as_completed=as_completed,
     )
 
 

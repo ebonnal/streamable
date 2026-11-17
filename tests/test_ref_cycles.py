@@ -44,7 +44,13 @@ operate_cases: List[Callable[[Iterator[int], Type[BaseException]], Any]] = [
     lambda raising_src, _: stream(raising_src).filter(),
     lambda raising_src, _: stream(raising_src).group(2).flatten(),
     lambda raising_src, _: stream(raising_src).group(2).flatten(concurrency=2),
+    lambda raising_src, _: stream(raising_src)
+    .group(2)
+    .flatten(concurrency=2, as_completed=True),
     lambda raising_src, _: stream(raising_src).group(2).flatten(concurrency=10),
+    lambda raising_src, _: stream(raising_src)
+    .group(2)
+    .flatten(concurrency=10, as_completed=True),
     lambda raising_src, _: stream(raising_src).group(1, by=identity).flatten(),
     lambda raising_src, _: stream(raising_src).group(
         1, by=identity, within=timedelta(seconds=1)
@@ -82,12 +88,20 @@ operate_cases: List[Callable[[Iterator[int], Type[BaseException]], Any]] = [
     .flatten(concurrency=2),
     lambda _, error_type: stream([1, 2, 3, 0])
     .group(2)
+    .map(lambda g: map(throw_if_falsy_func(error_type), g))
+    .flatten(concurrency=2, as_completed=True),
+    lambda _, error_type: stream([1, 2, 3, 0])
+    .group(2)
     .map(lambda g: stream(g).map(throw_if_falsy_func(error_type)))
     .flatten(),
     lambda _, error_type: stream([1, 2, 3, 0])
     .group(2)
     .map(lambda g: stream(g).map(throw_if_falsy_func(error_type)))
     .flatten(concurrency=2),
+    lambda _, error_type: stream([1, 2, 3, 0])
+    .group(2)
+    .map(lambda g: stream(g).map(throw_if_falsy_func(error_type)))
+    .flatten(concurrency=2, as_completed=True),
 ]
 
 
@@ -127,12 +141,15 @@ async def test_ref_cycles(
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
+@pytest.mark.parametrize("as_completed", [False, True])
 def test_ref_cycles_with_exhausted_flattened_iterators(
-    itype: IterableType,
+    itype: IterableType, as_completed: bool
 ) -> None:
     iterators = [(n for n in [0]), (n for n in [1])]
     refs = [weakref.ref(iterator) for iterator in iterators]
-    assert alist_or_list(stream(iterators).flatten(concurrency=2), itype) == [0, 1]
+    assert alist_or_list(
+        stream(iterators).flatten(concurrency=2, as_completed=as_completed), itype
+    ) == [0, 1]
     del iterators
     # the exhausted iterators have been garbage collected (ref count)
     assert not any(ref() for ref in refs)

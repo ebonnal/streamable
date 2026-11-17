@@ -63,10 +63,11 @@ def test_filter_eq() -> None:
 def test_flatten_eq() -> None:
     nested = stream([[1, 2], [3, 4]])
 
-    s = nested.flatten(concurrency=2)
+    s = nested.flatten(concurrency=2, as_completed=False)
     assert s != ints
     assert s == nested.flatten(concurrency=2)
     assert s != nested.flatten(concurrency=3)
+    assert s != nested.flatten(concurrency=2, as_completed=True)
 
 
 def test_do_eq() -> None:

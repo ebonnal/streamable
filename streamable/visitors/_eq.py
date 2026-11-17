@@ -65,6 +65,7 @@ class EqualityVisitor(Visitor[bool]):
             isinstance(self.other, FlattenStream)
             and s.upstream.accept(EqualityVisitor(self.other.upstream))
             and s._concurrency == self.other._concurrency
+            and s._as_completed == self.other._as_completed
         )
 
     def visit_group_stream(self, s: "GroupStream") -> bool:

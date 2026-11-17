@@ -31,7 +31,6 @@ from streamable._tools._afuture import (
     FutureResults,
     cancel_threadsafe,
     ensure_done,
-    safe_wrap_future,
 )
 from streamable._tools._async import (
     AsyncFunction,
@@ -1050,13 +1049,18 @@ class ExecutorConcurrentMapAsyncIterator(_ConcurrentMapAsyncIterator[T, U]):
 class ConcurrentFlattenAsyncIterator(
     _ConcurrentAsyncIterator[Union[Iterable[T], AsyncIterable[T]], T]
 ):
-    __slots__ = ("_iterators_and_futures",)
+    __slots__ = (
+        "as_completed",
+        "_iterators_and_futures",
+    )
 
     def __init__(
         self,
         upstream: ClosableAsyncIterator[Union[Iterable[T], AsyncIterable[T]]],
         concurrency: Union[int, ThreadPoolExecutor],
+        as_completed: bool = False,
     ) -> None:
+        self.as_completed = as_completed
         self._iterators_and_futures: Deque[
             Tuple[
                 Union[GuardedAsyncIterator[T], GuardedIterator[T], None],
@@ -1104,12 +1108,23 @@ class ConcurrentFlattenAsyncIterator(
                     # no more tasks to queue
                     break
                 self._iterators_and_futures.append(iterator_and_future)
+                del iterator_and_future
             if not self._iterators_and_futures:
                 await self._terminate()
                 continue
-            iterator, future = self._iterators_and_futures[0]
-            await ensure_done(future)
-            self._iterators_and_futures.popleft()
+            if self.as_completed:
+                await ensure_done(
+                    (fut for _, fut in self._iterators_and_futures),
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+                iterator, future = next(
+                    (it, fut) for it, fut in self._iterators_and_futures if fut.done()
+                )
+                self._iterators_and_futures.remove((iterator, future))
+            else:
+                iterator, future = self._iterators_and_futures[0]
+                await ensure_done(future)
+                self._iterators_and_futures.popleft()
             try:
                 elem = future.result()
                 if elem is STOP_ITERATION:
@@ -1133,7 +1148,9 @@ class ConcurrentFlattenAsyncIterator(
                 if self._executor is None or getattr(self._executor, "_shutdown", True):
                     iterator.close()
                 else:
-                    await safe_wrap_future(self._lazy_executor.submit(iterator.close))
+                    await asyncio.wrap_future(
+                        self._lazy_executor.submit(iterator.close)
+                    )
         self._iterators_and_futures.clear()
         self._safe_shutdown_executor()
 

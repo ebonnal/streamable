@@ -38,6 +38,8 @@
 
 - `.flatten`: accepts client-provided executor as `concurrency: int | ThreadPoolExecutor`.
 
+- `.flatten`: new `as_completed: bool` param, similar to `.map`/`.do`.
+
 - a sync iteration over a `stream` involving async functions or an `AsyncIterable` source no longer sets the current event loop.
 
 ## [2.0.0]

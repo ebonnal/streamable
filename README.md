@@ -262,7 +262,7 @@ assert list(chars) == ["h", "e", "l", "l", "o", "!"]
 
 ### `concurrency`
 
-Explode `concurrency` iterables at a time:
+Explode `concurrency` iterables at a time, yielding elements in a round-robin manner, or as they become available if `as_completed=True`.
 
 ```python
 chars: stream[str] = stream(["hel", "lo", "!"]).flatten(concurrency=2)

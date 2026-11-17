@@ -17,18 +17,19 @@ T = TypeVar("T")
 def ensure_done(
     fs: Union[Future, Iterable[Future]],
     cancel: bool = False,
+    return_when: str = futures.ALL_COMPLETED,
 ) -> None:
     if isinstance(fs, Future):
         fs = (fs,)
     else:
         fs = tuple(fs)
     if cancel:
-        for future in fs:
-            if not future.done():
-                future.cancel()
-    futures_to_wait = [future for future in fs if not future.done()]
-    if futures_to_wait:
-        futures.wait(futures_to_wait)
+        for fut in fs:
+            fut.cancel()
+    if return_when == futures.FIRST_COMPLETED and any(fut.done() for fut in fs):
+        return
+    if not all(fut.done() for fut in fs):
+        futures.wait(fs, return_when=return_when)
 
 
 class FailedFuture(Future):
