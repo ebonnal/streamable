@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from concurrent.futures import Future
 from functools import partial
 from inspect import iscoroutinefunction
 from typing import (
@@ -18,8 +19,9 @@ from typing import (
 import pytest
 
 from streamable import star, stream
+from streamable._tools import _afuture, _future
 from streamable._tools._async import safe_get_event_loop
-from streamable._tools._func import sidify
+from streamable._tools._func import sidify, suppressing
 from streamable._tools._iter import AsyncToSyncIterator, GuardedAsyncIterator
 from streamable._tools._logging import logfmt_str_escape, setup_logger
 from tests.tools.error import TestError, collecting_unraisables
@@ -127,6 +129,34 @@ def test_starmap() -> None:
 
     s = stream(range(4)).group(2, by=type).map(star(afn))
     assert list(s) == [[0, 1], [2, 3]]
+
+
+##################
+# future results #
+##################
+
+
+def test_map_fdfo_late_arriving_done_future_is_dropped() -> None:
+    future_results: _future.FDFOFutureResults[int] = _future.FDFOFutureResults()
+    future: "Future[int]" = Future()
+    future_results.add(future)
+    future_results.clear()
+    # a future gets done post-clear
+    future.set_result(0)
+    # that newly done future is dropped and not stored
+    assert future_results._done_futures.empty()
+
+
+@pytest.mark.asyncio
+async def test_map_fdfo_late_arriving_done_future_is_dropped_async() -> None:
+    future_results: _afuture.FDFOFutureResults[int] = _afuture.FDFOFutureResults()
+    future: "asyncio.Future[int]" = asyncio.Future()
+    future_results.add(future)
+    future_results.clear()
+    # a future gets done post-clear
+    future.set_result(0)
+    # that newly done future is dropped and not stored
+    assert future_results._done_futures.empty()
 
 
 ###########
@@ -489,3 +519,8 @@ def test_async_to_sync_iterator_twice_interrupted_next() -> None:
         assert next(it) == 1
 
     run_in_thread(interrupt_twice_and_next)
+
+
+def test_suppressing() -> None:
+    assert suppressing(ValueError, int, "1") == 1
+    assert suppressing(ValueError, int, "-") is None

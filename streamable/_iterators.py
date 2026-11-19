@@ -88,8 +88,9 @@ class _BaseOperationIterator(ClosableIterator[U], Generic[T, U]):
 
 class _Puller(Generic[T]):
     __slots__ = (
-        "_upstream",
+        "upstream",
         "elems",
+        "event",
         "_semaphore",
         "_pulling_thread",
         "_stopped",
@@ -100,8 +101,9 @@ class _Puller(Generic[T]):
         upstream: Iterator[T],
         ahead_pulls: Optional[int],
     ) -> None:
-        self._upstream = upstream
+        self.upstream = upstream
         self.elems: "queue.Queue[Union[T, ExceptionContainer]]" = queue.Queue()
+        self.event = Event()
         self._semaphore = None if ahead_pulls is None else Semaphore(ahead_pulls)
         self._stopped: bool = False
         self._pulling_thread = Thread(target=self._pulling, daemon=True)
@@ -125,12 +127,15 @@ class _Puller(Generic[T]):
         self._ask_to_pull()
         while not self._stopped:
             try:
-                self.elems.put_nowait(self._upstream.__next__())
+                self.elems.put_nowait(self.upstream.__next__())
+                self.event.set()
             except StopIteration:
                 self.elems.put_nowait(STOP_ITERATION)
+                self.event.set()
                 break
             except BaseException as e:
                 self.elems.put_nowait(ExceptionContainer(e))
+                self.event.set()
             self._ask_to_pull()
 
     def stop(self) -> None:
@@ -160,7 +165,7 @@ class _PullerBasedIterator(_BaseOperationIterator[T, U]):
         self._stopped = False
 
     @property
-    def _lazy_puller(self) -> _Puller[T]:
+    def lazy_puller(self) -> _Puller[T]:
         if self._puller is None:
             self._puller = _Puller(self.upstream, self._ahead_pulls)
         if not self._puller.started:
@@ -202,10 +207,13 @@ class BufferIterator(_PullerBasedIterator[T, T]):
     ) -> None:
         super().__init__(upstream, up_to)
 
+    def next_is_ready(self) -> bool:
+        return self._stopped or self.lazy_puller.elems.qsize() > 0
+
     def __next__(self) -> T:
         if self._stopped:
             raise StopIteration
-        puller = self._lazy_puller
+        puller = self.lazy_puller
         try:
             elem = puller.elems.get()
         finally:
@@ -435,7 +443,7 @@ class GroupByWithinIterator(_PullerBasedIterator[T, Tuple[U, List[T]]]):
                 self._to_raise = None
         if self._stopped:
             raise StopIteration
-        puller = self._lazy_puller
+        puller = self.lazy_puller
         while True:
             try:
                 if self._should_allow_to_pull:
@@ -922,10 +930,20 @@ class ConcurrentMapIterator(_ConcurrentIterator[T, U]):
     ) -> None:
         self.into = into
         self.as_completed = as_completed
-        self._future_results: FutureResults[U] = (
-            FDFOFutureResults() if self.as_completed else FIFOFutureResults()
-        )
+        self._future_results: Optional[FutureResults[U]] = None
         super().__init__(upstream, concurrency)
+
+    @property
+    def _lazy_future_results(self) -> FutureResults[U]:
+        if self._future_results is None:
+            self._future_results = (
+                FDFOFutureResults if self.as_completed else FIFOFutureResults
+            )(
+                self.upstream.lazy_puller.event
+                if isinstance(self.upstream, BufferIterator)
+                else None
+            )
+        return self._future_results
 
     def _next_future(self) -> Optional["Future[U]"]:
         try:
@@ -936,31 +954,50 @@ class ConcurrentMapIterator(_ConcurrentIterator[T, U]):
             return FailedFuture(e)
         return self._lazy_executor.submit(self.into, elem)
 
+    def _upstream_buffer_or_result_ready(self) -> bool:
+        return (
+            self._upstream_buffer_ready() or self._lazy_future_results.next_is_ready()
+        )
+
+    def _upstream_buffer_ready(self) -> bool:
+        return cast(BufferIterator, self.upstream).next_is_ready()
+
     def __next__(self) -> U:
         if self._stopped:
             raise StopIteration
-        while len(self._future_results) < self.concurrency + 1:
+        future_results = self._lazy_future_results
+        while len(future_results) < self.concurrency + 1:
+            if future_results.event is not None:
+                while True:
+                    future_results.event.clear()
+                    if self._upstream_buffer_or_result_ready():
+                        break
+                    future_results.event.wait()
+                if not self._upstream_buffer_ready():
+                    break
             future = self._next_future()
             if future is None:
                 # no more tasks to queue
                 break
-            self._future_results.add(future)
+            future_results.add(future)
             del future
-        if not self._future_results:
+        if not future_results:
             self._terminate()
             return self.__next__()
-        return self._future_results.__next__()
+        return future_results.__next__()
 
     def _terminate(self) -> None:
         self._stopped = True
-        self._future_results.cancel()
-        self._future_results.gather()
-        self._future_results.clear()
+        if self._future_results:
+            self._future_results.cancel()
+            self._future_results.gather()
+            self._future_results.clear()
         self._safe_shutdown_executor()
 
     def _cancel(self) -> None:
-        self._future_results.cancel()
-        self._future_results.clear()
+        if self._future_results:
+            self._future_results.cancel()
+            self._future_results.clear()
 
 
 class ConcurrentFlattenIterator(

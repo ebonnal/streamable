@@ -1,4 +1,6 @@
 import asyncio
+import queue
+import sys
 import time
 from typing import (
     AsyncIterable,
@@ -56,6 +58,17 @@ async def acount(iterator: AsyncIterable) -> int:
     async for _ in iterator:
         count += 1
     return count
+
+
+def aqueue_or_queue(
+    itype: IterableType,
+) -> Union["asyncio.Queue[T]", "queue.Queue[T]"]:
+    assert itype in ITERABLE_TYPES
+    if itype == "async":
+        if sys.version_info < (3, 10):
+            return asyncio.Queue(loop=TEST_LOOP)
+        return asyncio.Queue()
+    return queue.Queue()
 
 
 def aiter_or_iter(

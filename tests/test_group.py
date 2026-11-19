@@ -376,7 +376,7 @@ def test_group_within_resumes_after_interrupted_get() -> None:
     it = iter(stream(src).group(2, by=type, within=timedelta(hours=1)))
     assert isinstance(it, _PullerBasedIterator)
     assert next(it) == (int, [0, 1])
-    pulled_elems = it._lazy_puller.elems
+    pulled_elems = it.lazy_puller.elems
 
     def interrupted_first_get(*args, **kwargs):
         pulled_elems.get = partial(queue.Queue.get, pulled_elems)

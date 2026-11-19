@@ -120,11 +120,9 @@ assert list(int_chars) == ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
 
 ### `concurrency`
 
-Set the `concurrency` param to apply the transformation concurrently.
+Set the `concurrency` param to apply the transformation concurrently, preserving upstream order unless you set `as_completed=True`.
 
-Only `concurrency` upstream elements are in-flight for processing.
-
-Preserve upstream order unless you set `as_completed=True`.
+Only `concurrency` upstream elements are in-flight for processing: an upstream element is only pulled before yielding the next result. If the upstream is slow, that can delay the yielding of already available results, unless you place a [`.buffer`](#-buffer) directly before this `.map` to decouple upstream and downstream rates.
 
 
 #### via threads
@@ -207,7 +205,7 @@ assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 ### `concurrency`
 
-Same as `.map`.
+Same as [`.map`](#concurrency).
 
 ## ▼ `.group`
 
