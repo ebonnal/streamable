@@ -1,9 +1,12 @@
+from contextlib import suppress
 from functools import partial
 from inspect import iscoroutinefunction
 from typing import (
+    TYPE_CHECKING,
     Callable,
     Coroutine,
     Optional,
+    Type,
     TypeVar,
     Union,
     cast,
@@ -14,6 +17,11 @@ from streamable._tools._async import AsyncFunction
 
 T = TypeVar("T")
 U = TypeVar("U")
+
+if TYPE_CHECKING:
+    from typing_extensions import ParamSpec
+
+    P = ParamSpec("P")
 
 
 def _sidified(func: Callable[[T], object], arg: T) -> T:
@@ -76,3 +84,14 @@ def noop() -> None:
 
 async def anoop() -> None:
     pass
+
+
+def suppressing(
+    error_type: Type[BaseException],
+    func: "Callable[P, T]",
+    *args: "P.args",
+    **kwargs: "P.kwargs",
+) -> Optional[T]:
+    with suppress(error_type):
+        return func(*args, **kwargs)
+    return None

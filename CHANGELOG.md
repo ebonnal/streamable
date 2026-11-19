@@ -42,6 +42,8 @@
 
 - a sync iteration over a `stream` involving async functions or an `AsyncIterable` source no longer sets the current event loop.
 
+- concurrent `.map`/`.do`: now leverage a `.buffer` directly before them to yield already available results instead of blocking on upstream if the buffer is empty.
+
 ## [2.0.0]
 
 `stream` lowercase is now preferred over `Stream`.

@@ -94,8 +94,9 @@ class _BaseOperationAsyncIterator(ClosableAsyncIterator[U], Generic[T, U]):
 
 class _Puller(Generic[T]):
     __slots__ = (
-        "_upstream",
+        "upstream",
         "elems",
+        "event",
         "_semaphore",
         "_pulling_task",
         "_stopper_task",
@@ -107,8 +108,9 @@ class _Puller(Generic[T]):
         upstream: AsyncIterator[T],
         ahead_pulls: Optional[int],
     ) -> None:
-        self._upstream = upstream
+        self.upstream = upstream
         self.elems: "asyncio.Queue[Union[T, ExceptionContainer]]" = asyncio.Queue()
+        self.event = asyncio.Event()
         self._semaphore = (
             None if ahead_pulls is None else asyncio.Semaphore(ahead_pulls)
         )
@@ -140,14 +142,17 @@ class _Puller(Generic[T]):
             await self._ask_to_pull()
             while not self._stopped:
                 try:
-                    self.elems.put_nowait(await self._upstream.__anext__())
+                    self.elems.put_nowait(await self.upstream.__anext__())
+                    self.event.set()
                 except StopAsyncIteration:
                     self.stop()
                     self.elems.put_nowait(STOP_ITERATION)
+                    self.event.set()
                     continue
                 except BaseException as e:
                     if not self._stopped:
                         self.elems.put_nowait(ExceptionContainer(e))
+                        self.event.set()
                 await self._ask_to_pull()
         except asyncio.CancelledError:
             # gentle exit to avoid ref cycle, safe to not propagate
@@ -192,7 +197,7 @@ class _PullerBasedAsyncIterator(_BaseOperationAsyncIterator[T, U]):
         self._stopped = False
 
     @property
-    def _lazy_puller(self) -> _Puller[T]:
+    def lazy_puller(self) -> _Puller[T]:
         if self._puller is None:
             self._puller = _Puller(
                 self.upstream,
@@ -235,12 +240,15 @@ class BufferAsyncIterator(_PullerBasedAsyncIterator[T, T]):
     ) -> None:
         super().__init__(upstream, up_to)
 
+    def next_is_ready(self) -> bool:
+        return self._stopped or self.lazy_puller.elems.qsize() > 0
+
     async def __anext__(self) -> T:
         if self._stopped:
             raise StopAsyncIteration
         # a cancelled `.get` takes no element: release only once one is taken
-        elem = await self._lazy_puller.elems.get()
-        self._lazy_puller.allow_to_pull()
+        elem = await self.lazy_puller.elems.get()
+        self.lazy_puller.allow_to_pull()
         if elem is STOP_ITERATION:
             await self._terminate()
             raise StopAsyncIteration
@@ -469,9 +477,9 @@ class GroupByWithinAsyncIterator(_PullerBasedAsyncIterator[T, Tuple[U, List[T]]]
         while True:
             try:
                 if self._pending_pull is None:
-                    self._lazy_puller.allow_to_pull()
+                    self.lazy_puller.allow_to_pull()
                     self._pending_pull = asyncio.create_task(
-                        self._lazy_puller.elems.get()
+                        self.lazy_puller.elems.get()
                     )
                 timeout = self._timeout(self._groups)
                 if not await ensure_done(self._pending_pull, timeout=timeout):
@@ -955,7 +963,11 @@ class _ConcurrentMapAsyncIterator(_ConcurrentAsyncIterator[T, U]):
     def _lazy_future_results(self) -> FutureResults[U]:
         if self._future_results is None:
             self._future_results = (
-                FDFOFutureResults() if self.as_completed else FIFOFutureResults()
+                FDFOFutureResults if self.as_completed else FIFOFutureResults
+            )(
+                self.upstream.lazy_puller.event
+                if isinstance(self.upstream, BufferAsyncIterator)
+                else None
             )
         return self._future_results
 
@@ -975,11 +987,27 @@ class _ConcurrentMapAsyncIterator(_ConcurrentAsyncIterator[T, U]):
             return FailedFuture(e)
         return self._launch_task(elem)
 
+    def _upstream_buffer_or_result_ready(self) -> bool:
+        return (
+            self._upstream_buffer_ready() or self._lazy_future_results.next_is_ready()
+        )
+
+    def _upstream_buffer_ready(self) -> bool:
+        return cast(BufferAsyncIterator, self.upstream).next_is_ready()
+
     async def __anext__(self) -> U:
         if self._stopped:
             raise StopAsyncIteration
         future_results = self._lazy_future_results
         while len(future_results) < self.concurrency + 1:
+            if future_results.event is not None:
+                while True:
+                    future_results.event.clear()
+                    if self._upstream_buffer_or_result_ready():
+                        break
+                    await future_results.event.wait()
+                if not self._upstream_buffer_ready():
+                    break
             future = await self._next_future()
             if future is None:
                 # no more tasks to queue

@@ -690,11 +690,12 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         Concurrency:
 
-          - Set the ``concurrency`` param to apply the effect concurrently.
+        - Set the ``concurrency`` param to apply the effect concurrently.
 
-          - Only ``concurrency`` upstream elements are in-flight for processing.
+        - Preserve upstream order unless you set ``as_completed=True``.
 
-          - Preserve upstream order unless you set ``as_completed=True``.
+        - Only ``concurrency`` upstream elements are in-flight for processing: an upstream element is only pulled right before yielding the next done element. If the upstream is slow, that can delay the yielding of already done elements, unless you place a ``.buffer`` directly before this ``.do`` to decouple upstream and downstream rates.
+
 
         Args:
             effect (``Callable[[T], object] | AsyncFunction[T, object]``): The side effect to perform.
@@ -901,11 +902,12 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         Concurrency:
 
-          - Set the ``concurrency`` param to apply the transformation concurrently.
+        - Set the ``concurrency`` param to apply the transformation concurrently.
 
-          - Only ``concurrency`` upstream elements are in-flight for processing.
+        - Preserve upstream order unless you set ``as_completed=True``.
 
-          - Preserve upstream order unless you set ``as_completed=True``.
+        - Only ``concurrency`` upstream elements are in-flight for processing: an upstream element is only pulled right before yielding the next result. If the upstream is slow, that can delay the yielding of already available results, unless you place a ``.buffer`` directly before this ``.map`` to decouple upstream and downstream rates.
+
 
         Args:
             into (``Callable[[T], U] | AsyncFunction[T, U]``): The transformation.

@@ -1,8 +1,10 @@
 import asyncio
+from abc import abstractmethod
 from concurrent import futures
 from contextlib import suppress
 from typing import (
     AsyncIterator,
+    Callable,
     Dict,
     Iterable,
     List,
@@ -11,6 +13,8 @@ from typing import (
     TypeVar,
     Union,
 )
+
+from streamable._tools._func import suppressing
 
 T = TypeVar("T")
 
@@ -120,13 +124,35 @@ class FutureResults(AsyncIterator[T], Sized):
     Iterator over added futures' results. Supports adding new futures after iteration started.
     """
 
-    __slots__ = ("_futures",)
+    __slots__ = ("event", "_futures")
 
-    def __init__(self) -> None:
+    def __init__(self, event: Optional[asyncio.Event] = None) -> None:
+        self.event: Optional[asyncio.Event] = event
         self._futures: Dict["Union[asyncio.Future[T], futures.Future[T]]", object] = {}
+
+    @abstractmethod
+    def next_is_ready(self) -> bool: ...
+
+    def _add_done_callback(
+        self,
+        future: "Union[asyncio.Future[T], futures.Future[T]]",
+        done_callback: Callable[["Union[asyncio.Future[T], futures.Future[T]]"], None],
+    ) -> None:
+        if isinstance(future, futures.Future):
+            loop = asyncio.get_running_loop()
+            future.add_done_callback(
+                lambda fut: suppressing(
+                    RuntimeError, loop.call_soon_threadsafe, done_callback, fut
+                )
+            )
+        else:
+            future.add_done_callback(done_callback)
 
     def add(self, future: "Union[asyncio.Future[T], futures.Future[T]]") -> None:
         self._futures[future] = None
+        if self.event is not None:
+            event = self.event
+            self._add_done_callback(future, lambda _: event.set())
 
     def __len__(self) -> int:
         return len(self._futures)
@@ -152,8 +178,14 @@ class FIFOFutureResults(FutureResults[T]):
 
     __slots__ = ()
 
+    def _oldest(self) -> "Union[asyncio.Future[T], futures.Future[T]]":
+        return next(iter(self._futures))
+
+    def next_is_ready(self) -> bool:
+        return len(self._futures) > 0 and self._oldest().done()
+
     async def __anext__(self) -> T:
-        future = next(iter(self._futures))
+        future = self._oldest()
         await ensure_done(future)
         try:
             return future.result()
@@ -169,11 +201,14 @@ class FDFOFutureResults(FutureResults[T]):
 
     __slots__ = ("_done_futures", "_cleared")
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, event: Optional[asyncio.Event] = None) -> None:
+        super().__init__(event)
         self._done_futures: "asyncio.Queue[Union[asyncio.Future[T], futures.Future[T]]]" = asyncio.Queue()
         # flag to ensure that done callbacks do not enqueue futures post-clear
         self._cleared = False
+
+    def next_is_ready(self) -> bool:
+        return any(fut.done() for fut in self._futures)
 
     def clear(self) -> None:
         super().clear()
@@ -189,13 +224,7 @@ class FDFOFutureResults(FutureResults[T]):
 
     def add(self, future: "Union[asyncio.Future[T], futures.Future[T]]") -> None:
         super().add(future)
-        if isinstance(future, futures.Future):
-            loop = asyncio.get_running_loop()
-            future.add_done_callback(
-                lambda future: loop.call_soon_threadsafe(self._done_callback, future)
-            )
-        else:
-            future.add_done_callback(self._done_callback)
+        self._add_done_callback(future, self._done_callback)
 
     async def __anext__(self) -> T:
         done_future = await self._done_futures.get()
