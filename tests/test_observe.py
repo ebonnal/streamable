@@ -41,6 +41,7 @@ from tests.tools.iter import (
     stopiteration_type,
 )
 from tests.tools.monitor import MonitoredIntIterable
+from tests.tools.skip import mark_refcounting_dependent, mark_timing_sensitive
 from tests.tools.source import ints
 
 
@@ -205,12 +206,12 @@ def test_observe_every_timedelta_adds_last_observation(itype: IterableType) -> N
     logs: List[Counts] = []
     s = to_inverses("12---3456-----7", logs, every=datetime.timedelta(days=1))
     alist_or_list(s, itype)
-    assert logs == [
-        Counts(errors=0, elements=0),
-        Counts(errors=8, elements=7),
-    ]
+    # the observer thread's initial observation may happen after the first element
+    assert logs[0] in (Counts(errors=0, elements=0), Counts(errors=0, elements=1))
+    assert logs[1:] == [Counts(errors=8, elements=7)]
 
 
+@mark_timing_sensitive
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_observe_every_timedelta_frequent(itype: IterableType) -> None:
     logs: List[Counts] = []
@@ -260,6 +261,8 @@ def test_observe_do_raise(
     assert alist_or_list(s, itype) == elements
 
 
+@mark_timing_sensitive
+@mark_refcounting_dependent
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 @pytest.mark.asyncio
 async def test_observe_every_timedelta_observation_stops_on_gc(
@@ -330,6 +333,7 @@ def test_observe_iterate_after_stop_does_not_retrigger_an_observation(
     assert post_stop_observations == observations
 
 
+@mark_refcounting_dependent
 @pytest.mark.asyncio
 async def test_observe_task_cancelled_on_del() -> None:
     s = stream([1, 2, 3]).observe("ints", every=datetime.timedelta(hours=1))
@@ -345,6 +349,7 @@ async def test_observe_task_cancelled_on_del() -> None:
     assert audit.leftover_tasks == 0
 
 
+@mark_refcounting_dependent
 @pytest.mark.asyncio
 async def test_observe_task_ends_on_its_own_if_not_cancelled_on_del(
     monkeypatch: pytest.MonkeyPatch,
