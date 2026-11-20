@@ -158,29 +158,19 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
     Chain lazy operations, source elements are processed on-the-fly during iteration.
 
-    A `stream` can be iterated several times if its source allows it.
+    Operations return a new ``stream``.
 
-    Operations return a new `stream`.
+    A ``stream`` can be iterated several times if its source allows it.
 
-    Operations allow iteration to resume after an exception.
+    A ``stream``'s iteration can resume after an exception has traveled through it.
 
     Operations accept both sync and async functions.
 
-    ``stream`` supports both types of iteration: sync and async (e.g. ``for`` and ``async for``).
-
-    Operations adapt their behavior to the type of iteration:
-
-    - ``.throttle`` sleeps via ``time.sleep`` during sync iteration and via ``asyncio.sleep`` during async iteration
-
-    - ``.buffer``'s background task is a ``threading.Thread`` during sync iteration and an ``asyncio.Task`` during async iteration
-
-    - concurrent ``.map`` of a sync function uses ``asyncio.wrap_future`` during async iteration to avoid blocking the event loop
-
-    - ...
+    A ``stream`` supports both sync and async iteration (e.g. ``for`` and ``async for``), operations adapt their behavior.
 
     A sync iteration over a ``stream`` involving async functions or an ``AsyncIterable`` source runs as an async iteration under the hood, using the current event loop if one is set.
 
-    The iterators returned by ``stream.__iter__``/``stream.__aiter__`` expose a ``.close``/``.aclose`` method to eagerly terminate the tasks/threads they may spawn during iteration (structured concurrency).
+    Structured Concurrency: The iterators returned by ``stream.__iter__``/``stream.__aiter__`` expose a ``.close``/``.aclose`` method to eagerly terminate the tasks/threads they may spawn during iteration.
 
     Args:
         source (``Iterable[T] | AsyncIterable[T] | Callable[[], T] | Callable[[], Coroutine[object, object, T]]``):
