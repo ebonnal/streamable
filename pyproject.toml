@@ -73,3 +73,6 @@ packages = [
 
 [tool.setuptools.package-data]
 streamable = ["py.typed"]
+
+[tool.uv]
+exclude-newer = "7 days"
