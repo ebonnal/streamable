@@ -652,7 +652,7 @@ def pokemons(http_client: httpx.Client, concurrency: int, per_second: int) -> st
         stream(count(1))
         .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
         .throttle(per_second, per=timedelta(seconds=1))
-        .map(http_client.get, concurrency=concurrency, as_completed=True)
+        .map(http_client.get, concurrency=concurrency)
         .do(Response.raise_for_status)
         .catch(HTTPStatusError, where=not_found, stop=True)
         .map(Response.json)
