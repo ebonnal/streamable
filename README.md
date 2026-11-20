@@ -10,13 +10,14 @@
 [![branch coverage](https://img.shields.io/codecov/c/github/ebonnal/streamable?label=branch%20coverage)](https://codecov.io/gh/ebonnal/streamable)
 [![readthedocs](https://app.readthedocs.org/projects/streamable/badge/?version=latest&style=social)](https://streamable.readthedocs.io/en/latest/api.html)
 
-
 ## 1. install
 
 ```
-pip install streamable
+pip install streamable==2.1.0
 ```
-(no dependencies)
+No dependencies. Also available on conda. Pin/lock a specific version to avoid supply-chain attacks.
+
+Tested on Linux/Windows/macOS, [CPython 3.8 to 3.15rc](https://github.com/python/cpython), [PyPy](https://github.com/pypy/pypy), [uvloop](https://github.com/magicstack/uvloop).
 
 ## 2. import
 
