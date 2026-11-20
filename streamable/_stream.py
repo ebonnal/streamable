@@ -60,6 +60,8 @@ Exc = TypeVar("Exc", bound=Exception)
 
 @runtime_checkable
 class stream_aiterator(ClosableAsyncIterator[T], Protocol[T]):
+    """``AsyncIterator`` over a stream, with an ``.aclose`` method. It must be used by one thread/task at a time."""
+
     __slots__ = ()
 
     def aclose(self) -> Awaitable[None]:
@@ -107,6 +109,8 @@ class stream_aiterator(ClosableAsyncIterator[T], Protocol[T]):
 
 @runtime_checkable
 class stream_iterator(ClosableIterator[T], Protocol[T]):
+    """``Iterator`` over a stream, with a ``.close`` method. It must be used by one thread/task at a time."""
+
     __slots__ = ()
 
     def close(self) -> None:
@@ -251,7 +255,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
     def __iter__(self) -> stream_iterator[T]:
         """
-        Return a ``streamable.stream_iterator`` (``Iterator`` with a ``.close`` method) over this stream.
+        Return a ``streamable.stream_iterator`` (``Iterator`` with a ``.close`` method) over this stream, which must be used by one thread/task at a time.
 
         Note that if the ``stream`` involves async functions or an ``AsyncIterable`` source, the returned iterator will run an async iteration under the hood (via ``stream.__aiter__``), using the current event loop if one is set.
 
@@ -303,7 +307,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
     def __aiter__(self) -> stream_aiterator[T]:
         """
-        Return a ``streamable.stream_aiterator`` (``AsyncIterator`` with an ``.aclose`` method) over this stream.
+        Return a ``streamable.stream_aiterator`` (``AsyncIterator`` with an ``.aclose`` method) over this stream, which must be used by one thread/task at a time.
 
         During an async iteration, these operations spawn child tasks:
 
