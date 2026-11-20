@@ -28,7 +28,7 @@ Exc = TypeVar("Exc", bound=Exception)
 
 def buffer(
     upstream: ClosableAsyncIterator[T],
-    up_to: Optional[int] = None,
+    up_to: int,
 ) -> ClosableAsyncIterator[T]:
     return _aiterators.BufferAsyncIterator(upstream, up_to)
 

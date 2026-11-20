@@ -1,5 +1,4 @@
 import asyncio
-import sys
 from typing import Any, Callable, List
 
 import pytest
@@ -29,7 +28,7 @@ def test_buffer_preserves_elements(itype: IterableType) -> None:
     assert alist_or_list(ints.buffer(5), itype) == list(INTEGERS)
 
 
-@pytest.mark.parametrize("buffer_size", [1, 10, None])
+@pytest.mark.parametrize("buffer_size", [1, 10])
 @pytest.mark.parametrize(
     "itype, slow_identity",
     [("sync", slow_identity), ("async", async_slow_identity)],
@@ -42,13 +41,9 @@ def test_buffer_size_is_respected(
     buffering_ints_iter = aiter_or_iter(buffering_ints, itype)
     assert buffered == []
     assert anext_or_next(buffering_ints_iter, itype) == 0
-    assert (
-        buffered == list(INTEGERS)[: (buffer_size + 1) if buffer_size else sys.maxsize]
-    )
+    assert buffered == list(INTEGERS)[: (buffer_size + 1)]
     assert anext_or_next(buffering_ints_iter, itype) == 1
-    assert (
-        buffered == list(INTEGERS)[: (buffer_size + 2) if buffer_size else sys.maxsize]
-    )
+    assert buffered == list(INTEGERS)[: (buffer_size + 2)]
 
 
 @pytest.mark.parametrize(
