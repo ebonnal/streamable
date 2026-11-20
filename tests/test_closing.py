@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import (
+    Any,
     AsyncIterable,
     Awaitable,
     Callable,
@@ -66,6 +67,7 @@ from tests.tools.monitor import (
     create_monitored_int_iterable,
     create_monitored_int_iterator,
 )
+from tests.tools.skip import mark_refcounting_dependent, mark_timing_sensitive
 
 T = TypeVar("T")
 
@@ -239,9 +241,9 @@ ACLOSE = AsyncTerminationCase(_aclose)
 
 NEXT_UNTIL_TIMEOUT_THEN_CLOSE = AsyncTerminationCase(_anext_until_timeout_then_close)
 
-TERMINATIONS: List[TerminationCase] = [
-    DEL_THEN_SLEEP,
-    ADEL_THEN_SLEEP,
+TERMINATIONS: List[Any] = [
+    pytest.param(DEL_THEN_SLEEP, marks=mark_refcounting_dependent),
+    pytest.param(ADEL_THEN_SLEEP, marks=mark_refcounting_dependent),
     EXHAUST,
     AEXHAUST,
     CLOSE,
@@ -369,9 +371,9 @@ async def test_timeouts_do_not_end_the_iteration(
         (EXHAUST, [0, 1], []),
         (AEXHAUST, [0, 1], []),
         (CLOSE, [0], []),
-        (DEL_THEN_SLEEP, [0], []),
+        pytest.param(DEL_THEN_SLEEP, [0], [], marks=mark_refcounting_dependent),
         (ACLOSE, [0], []),
-        (ADEL_THEN_SLEEP, [0], []),
+        pytest.param(ADEL_THEN_SLEEP, [0], [], marks=mark_refcounting_dependent),
         (NEXT_UNTIL_TIMEOUT_THEN_CLOSE, [0], [1]),
     ],
 )
@@ -393,9 +395,9 @@ def test_map_termination(
         (EXHAUST, [0, 1, 2, 3], []),
         (AEXHAUST, [0, 1, 2, 3], []),
         (CLOSE, [0, 1, 2], []),
-        (DEL_THEN_SLEEP, [0, 1, 2], []),
+        pytest.param(DEL_THEN_SLEEP, [0, 1, 2], [], marks=mark_refcounting_dependent),
         (ACLOSE, [0], [1, 2]),
-        (ADEL_THEN_SLEEP, [0], [1, 2]),
+        pytest.param(ADEL_THEN_SLEEP, [0], [1, 2], marks=mark_refcounting_dependent),
         (NEXT_UNTIL_TIMEOUT_THEN_CLOSE, [0], [1, 2]),
     ],
 )
@@ -427,9 +429,9 @@ def test_map_termination_with_concurrency(
         (EXHAUST, False),
         (AEXHAUST, False),
         (CLOSE, True),
-        (DEL_THEN_SLEEP, False),
+        pytest.param(DEL_THEN_SLEEP, False, marks=mark_refcounting_dependent),
         (ACLOSE, True),
-        (ADEL_THEN_SLEEP, False),
+        pytest.param(ADEL_THEN_SLEEP, False, marks=mark_refcounting_dependent),
         (NEXT_UNTIL_TIMEOUT_THEN_CLOSE, True),
     ],
 )
@@ -517,6 +519,7 @@ def test_await_or_call_closes_owned_source_on_error(
     assert [iterator.n_close_attempts for iterator in iterable.iterators] == [1]
 
 
+@mark_refcounting_dependent
 @pytest.mark.asyncio
 async def test_break_cancels_pending_child_tasks() -> None:
     concurrency = 4
@@ -538,9 +541,9 @@ async def test_break_cancels_pending_child_tasks() -> None:
         (EXHAUST, [0, 1, 2, 3], []),
         (AEXHAUST, [0, 1, 2, 3], []),
         (CLOSE, [0, 1], []),
-        (DEL_THEN_SLEEP, [0, 1], []),
+        pytest.param(DEL_THEN_SLEEP, [0, 1], [], marks=mark_refcounting_dependent),
         (ACLOSE, [0], [1]),
-        (ADEL_THEN_SLEEP, [0], [1]),
+        pytest.param(ADEL_THEN_SLEEP, [0], [1], marks=mark_refcounting_dependent),
         (NEXT_UNTIL_TIMEOUT_THEN_CLOSE, [0], [1]),
     ],
 )
@@ -611,9 +614,9 @@ def test_flatten_async_concurrent_with_sync_closable_owned_inner_iters(
         (EXHAUST, [0, 1, 2, 3], [], [0, 1, 2, 3]),
         (AEXHAUST, [0, 1, 2, 3], [], [0, 1, 2, 3]),
         (CLOSE, [0, 1], [], []),
-        (DEL_THEN_SLEEP, [0, 1], [], []),
+        pytest.param(DEL_THEN_SLEEP, [0, 1], [], [], marks=mark_refcounting_dependent),
         (ACLOSE, [0], [1], []),
-        (ADEL_THEN_SLEEP, [0], [1], []),
+        pytest.param(ADEL_THEN_SLEEP, [0], [1], [], marks=mark_refcounting_dependent),
         (NEXT_UNTIL_TIMEOUT_THEN_CLOSE, [0], [1], []),
     ],
 )
@@ -645,9 +648,13 @@ def test_flatten_provided_inner_iter_termination(
         (EXHAUST, [0, 1, 2, 3], [], [0, 1, 2, 3], False),
         (AEXHAUST, [0, 1, 2, 3], [], [0, 1, 2, 3], False),
         (CLOSE, [0, 1], [], [], True),
-        (DEL_THEN_SLEEP, [0, 1], [], [], False),
+        pytest.param(
+            DEL_THEN_SLEEP, [0, 1], [], [], False, marks=mark_refcounting_dependent
+        ),
         (ACLOSE, [0], [1], [], True),
-        (ADEL_THEN_SLEEP, [0], [1], [], False),
+        pytest.param(
+            ADEL_THEN_SLEEP, [0], [1], [], False, marks=mark_refcounting_dependent
+        ),
         (NEXT_UNTIL_TIMEOUT_THEN_CLOSE, [0], [1], [], True),
     ],
 )
@@ -754,9 +761,9 @@ def test_chain_termination(termination: TerminationCase) -> None:
         (EXHAUST, False),
         (AEXHAUST, False),
         (CLOSE, True),
-        (DEL_THEN_SLEEP, False),
+        pytest.param(DEL_THEN_SLEEP, False, marks=mark_refcounting_dependent),
         (ACLOSE, True),
-        (ADEL_THEN_SLEEP, False),
+        pytest.param(ADEL_THEN_SLEEP, False, marks=mark_refcounting_dependent),
         (NEXT_UNTIL_TIMEOUT_THEN_CLOSE, True),
     ],
 )
@@ -811,6 +818,7 @@ THREAD_BACKED_STREAM_GETTERS: List[Callable[[MonitoredIdentity], "stream[int]"]]
 ]
 
 
+@mark_timing_sensitive
 @pytest.mark.parametrize("get_stream", THREAD_BACKED_STREAM_GETTERS)
 @pytest.mark.parametrize("termination", TERMINATIONS)
 def test_close_executor_backed(

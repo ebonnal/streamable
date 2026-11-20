@@ -15,6 +15,7 @@ import respx
 from httpx import HTTPStatusError, Response
 
 from streamable import stream, stream_aiterator, stream_iterator
+from tests.tools.skip import mark_timing_sensitive
 
 pokemons: stream[str] = (
     stream(range(10))
@@ -140,6 +141,7 @@ def test_filter_example() -> None:
     assert list(even_ints) == [0, 2, 4, 6, 8]
 
 
+@mark_timing_sensitive
 def test_throttle_example() -> None:
     from datetime import timedelta
 
@@ -162,6 +164,7 @@ def test_throttle_example() -> None:
     assert 0.89 < time.perf_counter() - start < 0.95
 
 
+@mark_timing_sensitive
 def test_group_example() -> None:
     int_batches: stream[List[int]] = stream(range(10)).group(5)
 
@@ -363,7 +366,7 @@ async def test_await_example() -> None:
 
 
 def test_pipe_example(tmp_path: Path) -> None:
-    import polars as pl
+    pl = pytest.importorskip("polars")
 
     pokemons.pipe(pl.DataFrame, schema=["name"]).write_csv(tmp_path / "pokemons.csv")
 

@@ -13,6 +13,7 @@ from tests.tools.iter import (
     aiter_or_iter,
     anext_or_next,
 )
+from tests.tools.skip import mark_timing_sensitive
 
 
 @pytest.mark.parametrize(
@@ -38,6 +39,7 @@ def test_throttle_raises_when_up_to_not_positive(up_to: int) -> None:
         stream([1]).throttle(up_to, per=datetime.timedelta(seconds=1))
 
 
+@mark_timing_sensitive
 @pytest.mark.parametrize(
     "effect,result", [(str, str), (throw_func(TestError), lambda _: None)]
 )

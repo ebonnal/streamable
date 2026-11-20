@@ -33,6 +33,7 @@ from tests.tools.iter import (
     anext_or_next,
 )
 from tests.tools.loop import TEST_LOOP
+from tests.tools.skip import mark_refcounting_dependent, mark_timing_sensitive
 
 T = TypeVar("T")
 
@@ -105,6 +106,7 @@ operate_cases: List[Callable[[Iterator[int], Type[BaseException]], Any]] = [
 ]
 
 
+@mark_refcounting_dependent
 @pytest.mark.parametrize("operate", operate_cases)
 @pytest.mark.parametrize("error_type", (TestError, TestBaseError))
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
@@ -140,6 +142,7 @@ async def test_ref_cycles(
     assert error is None
 
 
+@mark_refcounting_dependent
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 @pytest.mark.parametrize("as_completed", [False, True])
 def test_ref_cycles_with_exhausted_flattened_iterators(
@@ -155,6 +158,7 @@ def test_ref_cycles_with_exhausted_flattened_iterators(
     assert not any(ref() for ref in refs)
 
 
+@mark_refcounting_dependent
 @pytest.mark.parametrize("as_completed", [False, True])
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_ref_cycles_with_in_flight_errors(
@@ -179,6 +183,8 @@ def test_ref_cycles_with_in_flight_errors(
     assert not caplog.records
 
 
+@mark_refcounting_dependent
+@mark_timing_sensitive
 @pytest.mark.parametrize(
     "operate",
     [

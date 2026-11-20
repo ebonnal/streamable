@@ -45,6 +45,7 @@ from tests.tools.iter import (
     stopiteration_type,
 )
 from tests.tools.loop import TEST_LOOP
+from tests.tools.skip import mark_timing_sensitive
 from tests.tools.source import INTEGERS, N, ints
 
 
@@ -103,6 +104,7 @@ def test_map_concurrency_ordering(
     assert alist_or_list(s, itype) == list(order(sleeps))
 
 
+@mark_timing_sensitive
 @pytest.mark.parametrize("as_completed", [False, True])
 @pytest.mark.parametrize("concurrency", [1, 2, 3])
 @pytest.mark.parametrize(

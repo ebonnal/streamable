@@ -31,6 +31,7 @@ from tests.tools.monitor import (
     CloseFailingMonitoredIntAsyncIterable,
     MonitoredIntAsyncIterable,
 )
+from tests.tools.skip import mark_refcounting_dependent
 from tests.tools.source import INTEGERS
 
 T = TypeVar("T")
@@ -217,6 +218,7 @@ def test_async_to_sync_iterator_already_closed(n_pulls: int) -> None:
         next(it)
 
 
+@mark_refcounting_dependent
 @pytest.mark.parametrize("loop_already_set", [True, False])
 def test_async_to_sync_iterator_closes_its_loop_when_abandoned(
     loop_already_set: bool,
@@ -399,6 +401,7 @@ def next_and_del_with_not_owned_loop_while_another_runs(
     return loop
 
 
+@mark_refcounting_dependent
 @pytest.mark.parametrize(
     "src_type, scenario, owned_src_is_closed, loop_is_closed, unraisables_exc_types",
     [

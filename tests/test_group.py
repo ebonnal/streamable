@@ -26,6 +26,7 @@ from tests.tools.iter import (
     alist_or_list,
 )
 from tests.tools.loop import advance_cycles
+from tests.tools.skip import mark_timing_sensitive
 from tests.tools.source import INTEGERS, ints
 
 
@@ -123,16 +124,17 @@ def test_group_raises_on_non_positive_up_to(up_to: int) -> None:
             ValueError,
         ),
         # within
-        (
+        pytest.param(
             stream(range(10)),
             None,
             None,
             timedelta(seconds=3.9 * SLOW_IDENTITY_DURATION),
             [[0, 1, 2, 3], [4, 5, 6, 7], [8, 9]],
             None,
+            marks=mark_timing_sensitive,
         ),
         # within + by + up_to: within triggering before up_to triggers
-        (
+        pytest.param(
             stream(range(10)),
             3,
             lambda n: n % 2,
@@ -146,9 +148,10 @@ def test_group_raises_on_non_positive_up_to(up_to: int) -> None:
                 (1, [9]),
             ],
             None,
+            marks=mark_timing_sensitive,
         ),
         # within + by + up_to: up_to sometimes triggering before within
-        (
+        pytest.param(
             stream(range(10)),
             2,
             lambda n: n == 0,
@@ -162,20 +165,22 @@ def test_group_raises_on_non_positive_up_to(up_to: int) -> None:
                 (False, [9]),  # up_to triggers
             ],
             None,
+            marks=mark_timing_sensitive,
         ),
         # within + by with upstream exception, yield all pending groups FIFO
         # when within triggers it only yields the oldest group
-        (
+        pytest.param(
             stream("01-23456789").map(int),
             None,
             lambda n: n % 2,
             timedelta(seconds=3.9 * SLOW_IDENTITY_DURATION),
             [(0, [0]), (1, [1]), (0, [2, 4]), (1, [3, 5]), (0, [6, 8]), (1, [7, 9])],
             ValueError,
+            marks=mark_timing_sensitive,
         ),
         # within + by with upstream queue.Empty exception, yield all pending groups FIFO
         # when within triggers it only yields the oldest group
-        (
+        pytest.param(
             stream([None, 0, 1, None, 2, 3, 4, 5, 6, 7, 8, 9]).map(
                 throw_if_none_func(queue.Empty)
             ),
@@ -184,10 +189,11 @@ def test_group_raises_on_non_positive_up_to(up_to: int) -> None:
             timedelta(seconds=3.9 * SLOW_IDENTITY_DURATION),
             [(0, [0]), (1, [1]), (0, [2, 4]), (1, [3, 5]), (0, [6, 8]), (1, [7, 9])],
             queue.Empty,
+            marks=mark_timing_sensitive,
         ),
         # within + by with upstream asyncio.TimeoutError exception, yield all pending groups FIFO
         # when within triggers it only yields the oldest group
-        (
+        pytest.param(
             stream([None, 0, 1, None, 2, 3, 4, 5, 6, 7, 8, 9]).map(
                 throw_if_none_func(asyncio.TimeoutError)
             ),
@@ -196,10 +202,11 @@ def test_group_raises_on_non_positive_up_to(up_to: int) -> None:
             timedelta(seconds=3.9 * SLOW_IDENTITY_DURATION),
             [(0, [0]), (1, [1]), (0, [2, 4]), (1, [3, 5]), (0, [6, 8]), (1, [7, 9])],
             asyncio.TimeoutError,
+            marks=mark_timing_sensitive,
         ),
         # within + by with by exception, yield all pending groups FIFO
         # when within triggers it only yields the oldest group
-        (
+        pytest.param(
             stream("01-23456789"),
             None,
             lambda n: int(n) % 2,
@@ -213,15 +220,17 @@ def test_group_raises_on_non_positive_up_to(up_to: int) -> None:
                 (1, ["7", "9"]),
             ],
             ValueError,
+            marks=mark_timing_sensitive,
         ),
         # within faster than upstream
-        (
+        pytest.param(
             stream(range(10)),
             None,
             None,
             timedelta(seconds=0.9 * SLOW_IDENTITY_DURATION),
             [[elem] for elem in range(10)],
             None,
+            marks=mark_timing_sensitive,
         ),
     ],
 )
@@ -250,6 +259,7 @@ def test_group_cases(
     assert alist_or_list(s, itype) == expected
 
 
+@mark_timing_sensitive
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 @pytest.mark.asyncio
 async def test_group_within_does_not_pull_ahead_of_consumption(
@@ -276,6 +286,7 @@ async def test_group_within_does_not_pull_ahead_of_consumption(
     assert pulled == list(INTEGERS)[:6]
 
 
+@mark_timing_sensitive
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 @pytest.mark.asyncio
 async def test_group_within_does_not_pull_ahead_of_consumption_on_timeout(
