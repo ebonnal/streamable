@@ -78,7 +78,7 @@ def chain(
 
     return (
         stream(src)
-        .buffer()
+        .buffer(2)
         .catch(TestError)
         .do(nothing)
         .filter(lambda _: True)
@@ -93,7 +93,7 @@ def chain(
         .group(1, by=identity, within=timedelta(hours=1))
         .map(star(get_group))
         .flatten()
-        .buffer()
+        .buffer(2)
         .map(aidentity_or_identity(itype), concurrency=2)
         .cast(int)
         .map(aidentity_or_identity(itype), concurrency=2, as_completed=True)

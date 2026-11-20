@@ -32,8 +32,6 @@
 
 - `.take`: the predicate form of `until` must now be passed as a keyword arg to pass type checks (aligning with `.skip`).
 
-- `.buffer`: `up_to` now defaults to `None` for unbounded buffer: `stream(...).buffer()`
-
 - `.flatten`: handle inner `AsyncIterable`s during sync iterations too.
 
 - `.flatten`: accepts client-provided executor as `concurrency: int | ThreadPoolExecutor`.

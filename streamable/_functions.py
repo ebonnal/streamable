@@ -26,7 +26,7 @@ Exc = TypeVar("Exc", bound=Exception)
 
 def buffer(
     upstream: ClosableIterator[T],
-    up_to: Optional[int] = None,
+    up_to: int,
 ) -> ClosableIterator[T]:
     return _iterators.BufferIterator(upstream, up_to)
 

@@ -106,28 +106,21 @@ class _Puller(Generic[T]):
     def __init__(
         self,
         upstream: AsyncIterator[T],
-        ahead_pulls: Optional[int],
+        ahead_pulls: int,
     ) -> None:
         self.upstream = upstream
         self.elems: "asyncio.Queue[Union[T, ExceptionContainer]]" = asyncio.Queue()
         self.event = asyncio.Event()
-        self._semaphore = (
-            None if ahead_pulls is None else asyncio.Semaphore(ahead_pulls)
-        )
+        self._semaphore = asyncio.Semaphore(ahead_pulls)
         self._stopped = False
         self._stopper_task = asyncio.create_task(self._stopper())
         self._pulling_task = asyncio.create_task(self._pulling())
 
     def allow_to_pull(self) -> None:
-        if self._semaphore:
-            self._semaphore.release()
+        self._semaphore.release()
 
     async def _ask_to_pull(self) -> None:
-        if self._semaphore is None:
-            # unbounded buffer over a never suspending source would starve the loop
-            await asyncio.sleep(0)
-        else:
-            await self._semaphore.acquire()
+        await self._semaphore.acquire()
 
     async def _stopper(self) -> None:
         try:
@@ -189,7 +182,7 @@ class _PullerBasedAsyncIterator(_BaseOperationAsyncIterator[T, U]):
     def __init__(
         self,
         upstream: ClosableAsyncIterator[T],
-        ahead_pulls: Optional[int],
+        ahead_pulls: int,
     ) -> None:
         super().__init__(upstream)
         self._ahead_pulls = ahead_pulls
@@ -236,7 +229,7 @@ class BufferAsyncIterator(_PullerBasedAsyncIterator[T, T]):
     def __init__(
         self,
         upstream: ClosableAsyncIterator[T],
-        up_to: Optional[int],
+        up_to: int,
     ) -> None:
         super().__init__(upstream, up_to)
 

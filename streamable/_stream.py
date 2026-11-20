@@ -494,18 +494,15 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
     def buffer(
         self,
-        up_to: Optional[int] = None,
+        up_to: int,
     ) -> "stream[T]":
         """
-        Buffer upstream elements into a queue, via a background task, decoupling upstream production rate from downstream consumption rate.
+        Buffer upstream elements into a bounded queue, via a background task, decoupling upstream production rate from downstream consumption rate.
 
         The background task is a thread during a sync iteration, and an async task during an async iteration.
 
         Args:
-            up_to (``int | None``, optional): Buffer size:
-
-              ‣ ``None`` (default): Unbounded buffer size.
-              ‣ ``int >= 1``: When reached, upstream pulling pauses until an element is yielded out of the buffer.
+            up_to (``int``): The buffer size. Must be >= 1. When reached, upstream pulling pauses until an element is yielded out of the buffer.
 
         Returns:
             ``stream[T]``: Upstream with buffering.
@@ -522,8 +519,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             time.sleep(1e-3)
             assert pulled == [0, 1, 2, 3, 4, 5]
         """
-        if up_to is not None:
-            validate_int(up_to, gte=1, name="up_to")
+        validate_int(up_to, gte=1, name="up_to")
         return BufferStream(self, up_to)
 
     @overload
@@ -1175,7 +1171,7 @@ class BufferStream(DownStream[U, U]):
     def __init__(
         self,
         upstream: stream[U],
-        up_to: Optional[int],
+        up_to: int,
     ) -> None:
         super().__init__(upstream)
         self._up_to = up_to

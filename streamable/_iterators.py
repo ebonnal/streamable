@@ -99,12 +99,12 @@ class _Puller(Generic[T]):
     def __init__(
         self,
         upstream: Iterator[T],
-        ahead_pulls: Optional[int],
+        ahead_pulls: int,
     ) -> None:
         self.upstream = upstream
         self.elems: "queue.Queue[Union[T, ExceptionContainer]]" = queue.Queue()
         self.event = Event()
-        self._semaphore = None if ahead_pulls is None else Semaphore(ahead_pulls)
+        self._semaphore = Semaphore(ahead_pulls)
         self._stopped: bool = False
         self._pulling_thread = Thread(target=self._pulling, daemon=True)
 
@@ -116,12 +116,10 @@ class _Puller(Generic[T]):
         self._pulling_thread.start()
 
     def allow_to_pull(self) -> None:
-        if self._semaphore:
-            self._semaphore.release()
+        self._semaphore.release()
 
     def _ask_to_pull(self) -> None:
-        if self._semaphore:
-            self._semaphore.acquire()
+        self._semaphore.acquire()
 
     def _pulling(self) -> None:
         self._ask_to_pull()
@@ -157,7 +155,7 @@ class _PullerBasedIterator(_BaseOperationIterator[T, U]):
     def __init__(
         self,
         upstream: ClosableIterator[T],
-        ahead_pulls: Optional[int],
+        ahead_pulls: int,
     ) -> None:
         super().__init__(upstream)
         self._ahead_pulls = ahead_pulls
@@ -203,7 +201,7 @@ class BufferIterator(_PullerBasedIterator[T, T]):
     def __init__(
         self,
         upstream: ClosableIterator[T],
-        up_to: Optional[int],
+        up_to: int,
     ) -> None:
         super().__init__(upstream, up_to)
 

@@ -61,7 +61,9 @@ def test_map_async_func_with_executor():
     "randomly_slowed_square",
     [randomly_slowed(square), async_randomly_slowed(async_square)],
 )
-@pytest.mark.parametrize("apply_opt_buffer", [identity, stream.buffer])
+@pytest.mark.parametrize(
+    "apply_opt_buffer", [identity, lambda s: s.buffer(sys.maxsize)]
+)
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_map_preserves_order(
     concurrency: int,
@@ -82,7 +84,9 @@ def test_map_preserves_order(
         (async_identity_sleep, 2),
     ],
 )
-@pytest.mark.parametrize("apply_opt_buffer", [identity, stream.buffer])
+@pytest.mark.parametrize(
+    "apply_opt_buffer", [identity, lambda s: s.buffer(sys.maxsize)]
+)
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_map_concurrency_ordering(
     as_completed: bool,
@@ -101,7 +105,9 @@ def test_map_concurrency_ordering(
 
 @pytest.mark.parametrize("as_completed", [False, True])
 @pytest.mark.parametrize("concurrency", [1, 2, 3])
-@pytest.mark.parametrize("apply_opt_buffer", [identity, stream.buffer])
+@pytest.mark.parametrize(
+    "apply_opt_buffer", [identity, lambda s: s.buffer(sys.maxsize)]
+)
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_map_process_concurrency_partial_iteration(
     as_completed: bool,
@@ -131,7 +137,9 @@ def test_map_process_concurrency_partial_iteration(
 
 
 @pytest.mark.skipif(sys.version_info < (3, 9), reason="Requires Python 3.9+")
-@pytest.mark.parametrize("apply_opt_buffer", [identity, stream.buffer])
+@pytest.mark.parametrize(
+    "apply_opt_buffer", [identity, lambda s: s.buffer(sys.maxsize)]
+)
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_process_concurrency_raises_on_unserializable_functions(
     itype: IterableType,
@@ -158,7 +166,9 @@ def test_process_concurrency_raises_on_unserializable_functions(
 )
 @pytest.mark.parametrize("identity_sleep", [identity_sleep, async_identity_sleep])
 @pytest.mark.parametrize("inverse_sleep", [inverse_sleep, async_inverse_sleep])
-@pytest.mark.parametrize("apply_opt_buffer", [identity, stream.buffer])
+@pytest.mark.parametrize(
+    "apply_opt_buffer", [identity, lambda s: s.buffer(sys.maxsize)]
+)
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_map_with_errors(
     itype: IterableType,
@@ -224,7 +234,7 @@ def test_map_concurrent_with_upstream_buffer_when_upstream_starves(
     src = qu.get if isinstance(qu, asyncio.Queue) else iter(qu.get, None)
     s = (
         stream(src)
-        .buffer()
+        .buffer(2)
         .map(aidentity_or_identity(itype), concurrency=2, as_completed=as_completed)
     )
     it = aiter_or_iter(s, itype)
@@ -255,7 +265,7 @@ def test_map_concurrent_with_upstream_buffer_exhaustion(
     src = range(10)
     s = (
         stream(src)
-        .buffer()
+        .buffer(2)
         .map(aidentity_or_identity(itype), concurrency=2, as_completed=as_completed)
     )
     it = aiter_or_iter(s, itype)
@@ -268,7 +278,7 @@ def test_map_concurrent_with_upstream_buffer_after_interrupted_exhaustion(
 ) -> None:
     puller_type = _aiterators._Puller if itype == "async" else _iterators._Puller
     # interrupt the `._terminate` on exhaustion, before the STOP_ITERATION is queued
-    s = stream(range(4)).buffer().map(aidentity_or_identity(itype), concurrency=2)
+    s = stream(range(4)).buffer(2).map(aidentity_or_identity(itype), concurrency=2)
     it = aiter_or_iter(s, itype)
     monkeypatch.setattr(puller_type, "wait", throw_func(TestBaseError))
     assert anext_or_next(it, itype) == 0
