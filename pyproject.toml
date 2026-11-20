@@ -9,7 +9,6 @@ description = "sync/async iterable streams for Python"
 readme = { file = "README.md", content-type = "text/markdown" }
 license = { text = "Apache-2.0" }
 authors = [{ name = "ebonnal", email = "bonnal.enzo.dev@gmail.com" }]
-urls = { Homepage = "https://github.com/ebonnal/streamable" }
 requires-python = ">=3.8"
 classifiers = [
     "Development Status :: 5 - Production/Stable",
@@ -29,6 +28,12 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/ebonnal/streamable"
+Documentation = "https://streamable.readthedocs.io"
+Changelog = "https://github.com/ebonnal/streamable/blob/main/CHANGELOG.md"
+Issues = "https://github.com/ebonnal/streamable/issues"
 
 [project.optional-dependencies]
 dev = [
