@@ -4,11 +4,13 @@ import json
 import os
 from enum import Enum
 from http import HTTPStatus
-from typing import Any, Dict, Generator, Iterator, List
+from typing import Any, Dict, Generator, List
 
 import httpx
 import pytest
 import respx
+
+from streamable._tools._async import safe_get_event_loop
 
 
 class TestEventLoop(Enum):
@@ -45,9 +47,19 @@ def mock_pokeapi() -> Generator:
 
 
 @pytest.fixture(autouse=True)
-def gc_disabled() -> Iterator[None]:
+def gc_disabled() -> Generator[None, None, None]:
     # cleanup must come from refcounting alone, a GC collection cannot hide a ref cycle
     gc.disable()
     yield
     gc.enable()
     gc.collect()
+
+
+@pytest.fixture(autouse=True)
+def loop_reset(request: pytest.FixtureRequest) -> Generator[None, None, None]:
+    if "event_loop" not in request.fixturenames:
+        loop = safe_get_event_loop()
+        if loop is not None:
+            loop.close()
+        asyncio.set_event_loop(None)
+    yield

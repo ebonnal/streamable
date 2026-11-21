@@ -16,7 +16,7 @@ from typing import (
 )
 
 from streamable._tools._afuture import ensure_done
-from streamable._tools._async import safe_get_event_loop
+from streamable._tools._async import complete_agen_finalizers, safe_get_event_loop
 from streamable._tools._func import anoop, noop
 
 T = TypeVar("T")
@@ -80,8 +80,14 @@ class AsyncToSyncIterator(Iterator[T], Closable):
             await self.upstream.aclose()
 
     def _safe_close_loop(self) -> None:
-        if self._loop is not None and not self._loop.is_closed() and self._loop_owned:
-            self._loop.close()
+        loop = self._loop
+        if loop is not None and not loop.is_closed():
+            try:
+                if not loop.is_running() and not asyncio._get_running_loop():
+                    loop.run_until_complete(complete_agen_finalizers(loop))
+            finally:
+                if self._loop_owned:
+                    loop.close()
 
     def close(self) -> None:
         if not self._closed:
@@ -91,6 +97,8 @@ class AsyncToSyncIterator(Iterator[T], Closable):
                 try:
                     self._loop.run_until_complete(self._safe_aclose_upstream())
                 finally:
+                    # release, so the finalizations of dropped async gens get scheduled before the loop is closed
+                    self.upstream = empty_aiter
                     self._safe_close_loop()
             self._closed = True
 

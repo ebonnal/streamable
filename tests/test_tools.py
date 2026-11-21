@@ -5,6 +5,7 @@ from functools import partial
 from inspect import iscoroutinefunction
 from typing import (
     Any,
+    AsyncGenerator,
     AsyncIterable,
     Callable,
     Coroutine,
@@ -30,6 +31,7 @@ from tests.tools.iter import to_aiter
 from tests.tools.monitor import (
     CloseFailingMonitoredIntAsyncIterable,
     MonitoredIntAsyncIterable,
+    MonitoredIntAsyncIterator,
 )
 from tests.tools.skip import mark_refcounting_dependent
 from tests.tools.source import INTEGERS
@@ -527,3 +529,44 @@ def test_async_to_sync_iterator_twice_interrupted_next() -> None:
 def test_suppressing() -> None:
     assert suppressing(ValueError, int, "1") == 1
     assert suppressing(ValueError, int, "-") is None
+
+
+@mark_refcounting_dependent
+@pytest.mark.parametrize("concurrency", [1, 4])
+@pytest.mark.parametrize("should_close", [False, True])
+@pytest.mark.parametrize("get_loop", [lambda: None, asyncio.new_event_loop])
+def test_async_to_sync_iterator_finalizes_dropped_agens(
+    concurrency: int,
+    should_close: bool,
+    get_loop: Callable[[], Optional[asyncio.AbstractEventLoop]],
+) -> None:
+    asyncio.set_event_loop(get_loop())
+    finalised: List[bool] = []
+
+    async def agen(_: int) -> AsyncGenerator[int, None]:
+        try:
+            yield 0
+            yield 1
+        finally:
+            # finalization taking a few loop cycles
+            await asyncio.sleep(0)
+            await asyncio.sleep(0)
+            await asyncio.sleep(0)
+            finalised.append(True)
+
+    src = MonitoredIntAsyncIterator(n_yields=10)
+    it = iter(stream(src).map(agen).flatten(concurrency=concurrency))
+    assert next(it) == 0
+
+    # only agen finalizers should be awaited, not other tasks, so should not hang on:
+    private_loop = cast(AsyncToSyncIterator, it)._lazy_loop
+    long_running_task = asyncio.ensure_future(asyncio.sleep(3600), loop=private_loop)
+
+    if should_close:
+        it.close()
+    del it
+    assert len(finalised) == concurrency
+    assert not long_running_task.done()
+
+    # client provided async closable source is left unclosed
+    assert not src.close_attempted
