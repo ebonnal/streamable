@@ -423,7 +423,7 @@ def next_and_del_with_not_owned_loop_while_another_runs(
             True,
             [],
         ),
-        (CloseFailingMonitoredIntAsyncIterable, next_and_del, True, True, [TestError]),
+        (CloseFailingMonitoredIntAsyncIterable, next_and_del, True, False, [TestError]),
         (
             MonitoredIntAsyncIterable,
             partial(next_and_del_while_its_not_owned_loop_runs, within_thread=True),
@@ -540,7 +540,8 @@ def test_async_to_sync_iterator_finalizes_dropped_agens(
     should_close: bool,
     get_loop: Callable[[], Optional[asyncio.AbstractEventLoop]],
 ) -> None:
-    asyncio.set_event_loop(get_loop())
+    provided_loop = get_loop()
+    asyncio.set_event_loop(provided_loop)
     finalised: List[bool] = []
 
     async def agen(_: int) -> AsyncGenerator[int, None]:
@@ -565,8 +566,13 @@ def test_async_to_sync_iterator_finalizes_dropped_agens(
     if should_close:
         it.close()
     del it
-    assert len(finalised) == concurrency
-    assert not long_running_task.done()
 
-    # client provided async closable source is left unclosed
+    assert not long_running_task.done()
     assert not src.close_attempted
+
+    if provided_loop is not None:
+        assert len(finalised) == 0
+        private_loop.run_until_complete(asyncio.sleep(0.1))
+        provided_loop.close()
+
+    assert len(finalised) == concurrency
