@@ -5,7 +5,9 @@ from functools import partial
 from inspect import iscoroutinefunction
 from typing import (
     Any,
+    AsyncGenerator,
     AsyncIterable,
+    AsyncIterator,
     Callable,
     Coroutine,
     List,
@@ -27,9 +29,11 @@ from streamable._tools._logging import logfmt_str_escape, setup_logger
 from tests.tools.error import TestError, collecting_unraisables
 from tests.tools.func import async_identity, identity, run_in_thread, throw
 from tests.tools.iter import to_aiter
+from tests.tools.loop import advance_cycles
 from tests.tools.monitor import (
     CloseFailingMonitoredIntAsyncIterable,
     MonitoredIntAsyncIterable,
+    MonitoredIntAsyncIterator,
 )
 from tests.tools.skip import mark_refcounting_dependent
 from tests.tools.source import INTEGERS
@@ -376,7 +380,7 @@ def next_and_del_while_its_not_owned_loop_runs(
             run_in_thread(drop)
         else:
             drop()
-        await asyncio.sleep(0)
+        await advance_cycles(3)
 
     loop.run_until_complete(drop())
     return loop
@@ -394,7 +398,6 @@ def next_and_del_with_not_owned_loop_while_another_runs(
     async def drop() -> None:
         nonlocal it
         del it
-        await asyncio.sleep(0)
 
     another_loop.run_until_complete(drop())
     another_loop.close()
@@ -527,3 +530,108 @@ def test_async_to_sync_iterator_twice_interrupted_next() -> None:
 def test_suppressing() -> None:
     assert suppressing(ValueError, int, "1") == 1
     assert suppressing(ValueError, int, "-") is None
+
+
+@mark_refcounting_dependent
+@pytest.mark.parametrize("concurrency", [1, 4])
+@pytest.mark.parametrize("get_loop", [lambda: None, asyncio.new_event_loop])
+def test_async_to_sync_iterator_finalizes_dropped_agens(
+    concurrency: int,
+    get_loop: Callable[[], Optional[asyncio.AbstractEventLoop]],
+) -> None:
+    provided_loop = get_loop()
+    asyncio.set_event_loop(provided_loop)
+    finalised: List[bool] = []
+
+    async def agen(_: int) -> AsyncGenerator[int, None]:
+        try:
+            yield 0
+            yield 1
+        finally:
+            # finalization taking a few loop cycles
+            await asyncio.sleep(0)
+            await asyncio.sleep(0)
+            await asyncio.sleep(0)
+            finalised.append(True)
+            raise TestError
+
+    src = MonitoredIntAsyncIterator(n_yields=10)
+    it = iter(stream(src).map(agen).flatten(concurrency=concurrency))
+    assert next(it) == 0
+
+    # only agen finalizers should be awaited, not other tasks, so should not hang on:
+    private_loop = cast(AsyncToSyncIterator, it)._lazy_loop
+    long_running_task = asyncio.ensure_future(asyncio.sleep(3600), loop=private_loop)
+
+    del it
+
+    assert not long_running_task.done()
+    assert not src.close_attempted
+
+    if provided_loop is not None:
+        assert len(finalised) == 0
+        private_loop.run_until_complete(asyncio.sleep(0.1))
+        provided_loop.close()
+
+    assert len(finalised) == concurrency
+
+
+def test_async_to_sync_iterator_interrupted_close() -> None:
+    cancelled = False
+
+    class InterruptingAcloseAsyncSource(AsyncIterable[int]):
+        def __aiter__(self) -> AsyncIterator[int]:
+            async def agen() -> AsyncGenerator[int, None]:
+                nonlocal cancelled
+                try:
+                    while True:
+                        yield 0
+                finally:
+                    # interrupts `close` while this finalization is in progress
+                    asyncio.get_running_loop().call_soon(
+                        lambda: throw(KeyboardInterrupt)
+                    )
+                    try:
+                        await asyncio.sleep(8)
+                    except asyncio.CancelledError:
+                        cancelled = True
+                        raise
+
+            return agen()
+
+    it = iter(stream(InterruptingAcloseAsyncSource()).map(async_identity))
+    assert next(it) == 0
+    with pytest.raises(KeyboardInterrupt):
+        it.close()
+    # first interrupted close has been cancelled
+    assert cancelled
+    # retry
+    it.close()
+    assert cast(AsyncToSyncIterator, it)._lazy_loop.is_closed()
+
+
+@mark_refcounting_dependent
+def test_async_to_sync_iterator_finalizes_dropped_agens_on_exhaustion() -> None:
+    finalised: List[bool] = []
+
+    async def agen(_: int) -> AsyncGenerator[int, None]:
+        try:
+            yield 0
+            yield 1
+        finally:
+            await asyncio.sleep(0)
+            finalised.append(True)
+
+    async def pull_one(agen: AsyncGenerator[int, None]) -> AsyncGenerator[int, None]:
+        await agen.__anext__()
+        return agen
+
+    s = stream(to_aiter(range(3))).map(agen).map(pull_one)
+    it = iter(s)
+    next(it)
+    next(it)
+    next(it)
+    assert len(finalised) < 3
+    with pytest.raises(StopIteration):
+        next(it)
+    assert len(finalised) == 3

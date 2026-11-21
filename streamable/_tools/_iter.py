@@ -12,11 +12,16 @@ from typing import (
     Optional,
     Protocol,
     TypeVar,
+    Union,
     runtime_checkable,
 )
 
-from streamable._tools._afuture import ensure_done
-from streamable._tools._async import safe_get_event_loop
+from streamable._tools._afuture import cancelling_on_error, ensure_done
+from streamable._tools._async import (
+    complete_agen_finalizers,
+    safe_get_event_loop,
+)
+from streamable._tools._error import ExceptionContainer
 from streamable._tools._func import anoop, noop
 
 T = TypeVar("T")
@@ -59,7 +64,9 @@ class AsyncToSyncIterator(Iterator[T], Closable):
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._closed = False
         self._stopped = False
-        self._pending_pull: Optional["asyncio.Task[T]"] = None
+        self._pending_pull: Optional["asyncio.Task[Union[T, ExceptionContainer]]"] = (
+            None
+        )
 
     @property
     def _lazy_loop(self) -> asyncio.AbstractEventLoop:
@@ -80,18 +87,28 @@ class AsyncToSyncIterator(Iterator[T], Closable):
             await self.upstream.aclose()
 
     def _safe_close_loop(self) -> None:
-        if self._loop is not None and not self._loop.is_closed() and self._loop_owned:
-            self._loop.close()
+        loop = self._loop
+        if loop is not None and not loop.is_closed() and self._loop_owned:
+            try:
+                if not asyncio._get_running_loop():
+                    # release, so the finalizations of dropped async gens get scheduled before the loop is closed
+                    self.upstream = empty_aiter
+                    cancelling_on_error(loop, complete_agen_finalizers(loop))
+            finally:
+                loop.close()
 
     def close(self) -> None:
         if not self._closed:
             if self._loop is not None and not self._loop.is_closed():
                 if self._loop.is_running():
                     raise RuntimeError("event loop already running: cannot close")
-                try:
-                    self._loop.run_until_complete(self._safe_aclose_upstream())
-                finally:
-                    self._safe_close_loop()
+                ExceptionContainer.raise_if_instance(
+                    cancelling_on_error(
+                        self._loop,
+                        ExceptionContainer.acontaining(self._safe_aclose_upstream()),
+                    )
+                )
+                self._safe_close_loop()
             self._closed = True
 
     def __del__(self) -> None:
@@ -105,20 +122,14 @@ class AsyncToSyncIterator(Iterator[T], Closable):
             )
         elif not asyncio._get_running_loop():
             # no running loop in this thread, and `self._loop` not running: can use `self._loop.run_until_complete`
-            self.close()
+            try:
+                self.close()
+            except BaseException:
+                self._safe_close_loop()
+                raise
         elif self._loop_owned:
             # `self._loop` is owned and another loop is running in this thread
             self._safe_close_loop()
-
-    def _next_pull(self) -> "asyncio.Task[T]":
-        return asyncio.ensure_future(self.upstream.__anext__(), loop=self._lazy_loop)
-
-    def _cancel_and_wait_pending_pull(self) -> None:
-        if self._pending_pull is not None and not self._pending_pull.done():
-            self._pending_pull.cancel()
-            self._lazy_loop.run_until_complete(
-                asyncio.gather(self._pending_pull, return_exceptions=True)
-            )
 
     def __next__(self) -> T:
         if self._stopped or self._closed:
@@ -128,21 +139,24 @@ class AsyncToSyncIterator(Iterator[T], Closable):
                 "event loop already running: do an async iteration instead"
             )
         if self._pending_pull is None:
-            self._pending_pull = self._next_pull()
+            self._pending_pull = self._lazy_loop.create_task(
+                ExceptionContainer.acontaining(self.upstream.__anext__())
+            )
         try:
-            return self._lazy_loop.run_until_complete(self._pending_pull)
-        except StopAsyncIteration:
-            self._stopped = True
-            self._safe_close_loop()
-            raise StopIteration
-        except Exception:
-            raise
+            result = cancelling_on_error(self._lazy_loop, self._pending_pull)
         except BaseException:
-            self._cancel_and_wait_pending_pull()
-            raise
-        finally:
             if self._pending_pull.done():
                 self._pending_pull = None
+            raise
+        self._pending_pull = None
+        try:
+            return ExceptionContainer.raise_if_instance(result)
+        except StopAsyncIteration:
+            self._stopped = True
+        # outside the `except` to prevent the above `StopAsyncIteration`'s traceback
+        # to keep agens referenced, and hence not finalizable by below `_safe_close_loop`
+        self._safe_close_loop()
+        raise StopIteration
 
 
 class _FnIterator(Iterator[T]):

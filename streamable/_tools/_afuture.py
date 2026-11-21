@@ -4,6 +4,7 @@ from concurrent import futures
 from contextlib import suppress
 from typing import (
     AsyncIterator,
+    Awaitable,
     Callable,
     Dict,
     Iterable,
@@ -109,6 +110,19 @@ async def ensure_done(
                 if isinstance(fut, Signal):
                     fut.close()
     return True
+
+
+def cancelling_on_error(
+    loop: asyncio.AbstractEventLoop, awaitable: "Awaitable[T]"
+) -> T:
+    task = asyncio.ensure_future(awaitable, loop=loop)
+    try:
+        return loop.run_until_complete(task)
+    except BaseException:
+        loop.run_until_complete(ensure_done(task, cancel=True))
+        raise
+    finally:
+        del task
 
 
 class FailedFuture(asyncio.Future):
