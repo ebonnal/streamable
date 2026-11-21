@@ -2,6 +2,8 @@ name: testing
 
 on:
   push:
+    branches-ignore:
+      - main
     paths:
       - 'streamable/**'
       - 'tests/**'
