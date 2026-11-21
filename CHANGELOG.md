@@ -4,31 +4,11 @@
 
 ## [2.1.0]
 
-- `.__iter__` now returns a `streamable.stream_iterator` exposing a `.close()` method
-  ```python
-  from contextlib import closing
+- `.__iter__` now returns a `streamable.stream_iterator` exposing a `.close()` method.
 
-  s = stream(range(10)).do(time.sleep, concurrency=4)
-  with closing(iter(s)) as it:
-      assert next(it) == 0
-      assert next(it) == 1
-      # 4 worker threads processing elements 2, 3, 4, 5
-  # work done/cancelled and worker threads terminated
-  ```
+- `.__aiter__` now returns a `streamable.stream_aiterator` exposing an `.aclose()` method.
 
-- `.__aiter__` now returns a `streamable.stream_aiterator` exposing an `.aclose()` method
-  ```python
-  from contextlib import aclosing
-
-  s = stream(range(10)).do(asyncio.sleep, concurrency=4)
-  async with aclosing(aiter(s)) as it:
-      assert await anext(it) == 0
-      assert await anext(it) == 1
-      # 4 pending tasks, for elements 2, 3, 4, 5
-  # these 4 tasks are done/cancelled
-  ```
-
-- all operations can resume after an upstream `BaseException` (generator-based operations used to only resist to `Exception`s)
+- all operations can resume after an upstream `BaseException` (generator-based operations used to only survive `Exception`s).
 
 - `.take`: the predicate form of `until` must now be passed as a keyword arg to pass type checks (aligning with `.skip`).
 
