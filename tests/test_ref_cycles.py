@@ -5,20 +5,24 @@ import weakref
 from datetime import timedelta
 from typing import (
     Any,
+    AsyncIterable,
     Callable,
     Iterator,
     List,
     Type,
     TypeVar,
+    Union,
     cast,
 )
 
 import pytest
 
 from streamable import stream, stream_aiterator
+from streamable._tools._iter import AsyncToSyncIterator
 from tests.tools.error import TestBaseError, TestError
 from tests.tools.func import (
     SLOW_IDENTITY_DURATION,
+    async_identity,
     async_slow_identity,
     identity,
     slow_identity,
@@ -33,6 +37,7 @@ from tests.tools.iter import (
     anext_or_next,
 )
 from tests.tools.loop import TEST_LOOP
+from tests.tools.monitor import CloseFailingMonitoredIntAsyncIterable
 from tests.tools.skip import mark_refcounting_dependent, mark_timing_sensitive
 
 T = TypeVar("T")
@@ -132,7 +137,7 @@ async def test_ref_cycles(
     # let the event loop run the callbacks still referencing the futures
     await asyncio.sleep(0.01)
 
-    # At this point the error should have been garbage collected (ref count)
+    # At this point the error should have been deallocated (ref count)
 
     # Get the object if it still exists
     error = find_object(error_id, error_type)
@@ -154,7 +159,7 @@ def test_ref_cycles_with_exhausted_flattened_iterators(
         stream(iterators).flatten(concurrency=2, as_completed=as_completed), itype
     ) == [0, 1]
     del iterators
-    # the exhausted iterators have been garbage collected (ref count)
+    # the exhausted iterators have been deallocated (ref count)
     assert not any(ref() for ref in refs)
 
 
@@ -177,7 +182,7 @@ def test_ref_cycles_with_in_flight_errors(
     if itype == "async":
         TEST_LOOP.run_until_complete(cast(stream_aiterator[int], it).aclose())
     del it
-    # the in-flight errors have been garbage collected (ref count)
+    # the in-flight errors have been deallocated (ref count)
     assert not any(isinstance(obj, ValueError) for obj in gc.get_objects())
     # no "Future exception was never retrieved"
     assert not caplog.records
@@ -213,5 +218,42 @@ def test_ref_cycles_with_errors_left_queued_by_pullers(
     else:
         time.sleep(0.1)
     del it
-    # the queued error has been garbage collected (ref count)
+    # the queued error has been deallocated (ref count)
     assert not any(isinstance(obj, ValueError) for obj in gc.get_objects())
+
+
+@mark_refcounting_dependent
+def test_ref_cycles_sync_iteration_over_async_operation_exhaustion() -> None:
+    gc.collect()
+    assert list(stream([0, 1]).map(async_identity)) == [0, 1]
+    # nothing left for the GC: all released by ref count
+    assert gc.collect() == 0
+
+
+@mark_refcounting_dependent
+@pytest.mark.parametrize(
+    "src, trigger_error",
+    (
+        # iteration error
+        (map(throw_if_falsy_func(TestError), [1, 0]), AsyncToSyncIterator.__next__),
+        # closure error
+        (
+            CloseFailingMonitoredIntAsyncIterable(n_close_failures=1),
+            AsyncToSyncIterator.close,
+        ),
+    ),
+)
+def test_ref_cycles_sync_iteration_over_async_on_error(
+    src: Union[Iterator[int], AsyncIterable[int]],
+    trigger_error: Callable[[AsyncToSyncIterator[int]], Any],
+) -> None:
+    it = cast(AsyncToSyncIterator[int], iter(stream(src).map(async_identity)))
+    next(it)
+    with pytest.raises(TestError) as caught:
+        trigger_error(it)
+    error_id = id(caught.value)
+    del caught
+    # the error has been deallocated (ref count)
+    assert find_object(error_id, TestError) is None
+    # close successfully
+    it.close()
