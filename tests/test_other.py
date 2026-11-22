@@ -39,6 +39,7 @@ from tests.tools.iter import (
     stopiteration_type,
     to_aiter,
 )
+from tests.tools.skip import mark_timing_sensitive
 from tests.tools.source import INTEGERS, N, ints
 
 
@@ -202,6 +203,7 @@ def test_slots() -> None:
         ints.__dict__
 
 
+@mark_timing_sensitive
 @pytest.mark.parametrize(
     "stream_factory",
     (
