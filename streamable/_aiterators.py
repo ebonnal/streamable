@@ -484,8 +484,9 @@ class GroupByWithinAsyncIterator(_PullerBasedAsyncIterator[T, Tuple[U, List[T]]]
                 finally:
                     self._pending_pull = None
                 if elem is STOP_ITERATION:
+                    self._to_raise = StopAsyncIteration()
                     await self._terminate()
-                    raise StopAsyncIteration
+                    return await self.__anext__()
                 key = await self.by(elem)
                 _, group = self._groups[key]
                 group.append(elem)

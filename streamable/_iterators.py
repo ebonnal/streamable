@@ -458,8 +458,9 @@ class GroupByWithinIterator(_PullerBasedIterator[T, Tuple[U, List[T]]]):
                     del elem
                     raise
                 if elem is STOP_ITERATION:
+                    self._to_raise = StopIteration()
                     self._terminate()
-                    raise StopIteration
+                    return self.__next__()
                 key = self.by(elem)
                 _, group = self._groups[key]
                 group.append(elem)

@@ -10,8 +10,10 @@ from typing import Any, Callable, Iterable, List, Optional, Type
 import pytest
 
 from streamable import stream
+from streamable._aiterators import _PullerBasedAsyncIterator
 from streamable._iterators import _PullerBasedIterator
 from streamable._tools._func import asyncify
+from tests.tools.error import TestBaseError
 from tests.tools.func import (
     SLOW_IDENTITY_DURATION,
     async_slow_identity,
@@ -24,6 +26,9 @@ from tests.tools.iter import (
     IterableType,
     aiter_or_iter,
     alist_or_list,
+    anext_or_next,
+    aslow_or_slow_identity,
+    stopiteration_type,
 )
 from tests.tools.loop import advance_cycles
 from tests.tools.skip import mark_timing_sensitive
@@ -401,3 +406,41 @@ def test_group_within_resumes_after_interrupted_get() -> None:
     pulled_ahead = next(src) > 4
     assert not pulled_ahead
     it.close()
+
+
+@mark_timing_sensitive
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_group_within_termination_interruption(
+    itype: IterableType, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    src = [0, 1, 1, 1, 1, 0, 1]
+    s = (
+        stream(src)
+        .map(aslow_or_slow_identity(itype))
+        .group(by=identity, within=timedelta(seconds=1.95 * SLOW_IDENTITY_DURATION))
+    )
+    it = aiter_or_iter(s, itype)
+
+    async def afailing_terminate(self: _PullerBasedAsyncIterator) -> None:
+        self._stopped = True
+        raise TestBaseError()
+
+    def failing_terminate(self: _PullerBasedIterator) -> None:
+        self._stopped = True
+        raise TestBaseError()
+
+    monkeypatch.setattr(
+        _PullerBasedAsyncIterator if itype == "async" else _PullerBasedIterator,
+        "_terminate",
+        afailing_terminate if itype == "async" else failing_terminate,
+    )
+    assert anext_or_next(it, itype) == (0, [0])
+    assert anext_or_next(it, itype) == (1, [1, 1])
+    assert anext_or_next(it, itype) == (1, [1, 1])
+    with pytest.raises(TestBaseError):
+        anext_or_next(it, itype)
+    # 2 in flight groups not lost
+    assert anext_or_next(it, itype) == (0, [0])
+    assert anext_or_next(it, itype) == (1, [1])
+    with pytest.raises(stopiteration_type(itype)):
+        anext_or_next(it, itype)
