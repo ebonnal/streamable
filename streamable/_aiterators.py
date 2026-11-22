@@ -423,7 +423,7 @@ class GroupByWithinAsyncIterator(_PullerBasedAsyncIterator[T, Tuple[U, List[T]]]
         "within_seconds",
         "_groups",
         "_to_raise",
-        "_pending_pull",
+        "_in_flight_pull",
     )
 
     def __init__(
@@ -441,7 +441,7 @@ class GroupByWithinAsyncIterator(_PullerBasedAsyncIterator[T, Tuple[U, List[T]]]
             lambda: (time.perf_counter(), [])
         )
         self._to_raise: Optional[Exception] = None
-        self._pending_pull: "Optional[asyncio.Task[Union[T, ExceptionContainer]]]" = (
+        self._in_flight_pull: "Optional[asyncio.Task[Union[T, ExceptionContainer]]]" = (
             None
         )
 
@@ -469,20 +469,20 @@ class GroupByWithinAsyncIterator(_PullerBasedAsyncIterator[T, Tuple[U, List[T]]]
             raise StopAsyncIteration
         while True:
             try:
-                if self._pending_pull is None:
+                if self._in_flight_pull is None:
                     self.lazy_puller.allow_to_pull()
-                    self._pending_pull = asyncio.create_task(
+                    self._in_flight_pull = asyncio.create_task(
                         self.lazy_puller.elems.get()
                     )
                 timeout = self._timeout(self._groups)
-                if not await ensure_done(self._pending_pull, timeout=timeout):
+                if not await ensure_done(self._in_flight_pull, timeout=timeout):
                     return self._oldest_group(self._groups)
                 try:
                     elem = ExceptionContainer.raise_if_instance(
-                        self._pending_pull.result()
+                        self._in_flight_pull.result()
                     )
                 finally:
-                    self._pending_pull = None
+                    self._in_flight_pull = None
                 if elem is STOP_ITERATION:
                     self._to_raise = StopAsyncIteration()
                     await self._terminate()
@@ -500,13 +500,13 @@ class GroupByWithinAsyncIterator(_PullerBasedAsyncIterator[T, Tuple[U, List[T]]]
                 raise
 
     async def _terminate(self) -> None:
-        await ensure_done(self._pending_pull, cancel=True)
-        self._pending_pull = None
+        await ensure_done(self._in_flight_pull, cancel=True)
+        self._in_flight_pull = None
         await super()._terminate()
 
     def __del__(self) -> None:
         super().__del__()
-        cancel_threadsafe(self._pending_pull)
+        cancel_threadsafe(self._in_flight_pull)
 
 
 ########
