@@ -5,6 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import (
     AbstractSet,
     Any,
+    AsyncIterable,
     AsyncIterator,
     Callable,
     ItemsView,
@@ -26,7 +27,7 @@ from typing import (
 import pytest
 
 from streamable import stream
-from tests.tools.error import collecting_unretrievables
+from tests.tools.error import TestError, collecting_unretrievables
 from tests.tools.func import (
     async_identity,
     identity,
@@ -34,10 +35,13 @@ from tests.tools.func import (
 from tests.tools.iter import (
     ITERABLE_TYPES,
     IterableType,
+    RaisingOnAiterAsyncIterable,
+    RaisingOnIterIterable,
     aclose_or_close,
     aiter_or_iter,
     alist_or_list,
     anext_or_next,
+    stopiteration_type,
     to_aiter,
 )
 
@@ -174,20 +178,69 @@ def test_flatten_with_exceptions(
     """Flatten should be resilient to exceptions raised upstream or by `next(elem)`."""
     value_errors: List[Exception] = []
     type_errors: List[Exception] = []
-    # '0' will lead to `TypeError`s when flatten calls next on upstream
+    test_errors: List[Exception] = []
+    # '0' will lead to `TypeError`s when flatten gets next inner iterable
+    # RaisingOnIterIterable/RaisingOnAiterAsyncIterable will lead to `TestError`s when flatten gets iterator from next inner iterable
     # '-' will lead to `ValueError`s when flatten calls next on element
-    elements = cast(Tuple[str, ...], ("0-1", "234", "", "", "---", "---", 0, 0, "-5-"))
+    elems = cast(
+        Tuple[str, ...],
+        (
+            "0-1",
+            "234",
+            "",
+            "",
+            "---",
+            "---",
+            RaisingOnIterIterable(),
+            0,
+            "5--",
+            RaisingOnAiterAsyncIterable(),
+        ),
+    )
     s = (
-        stream(elements)
-        .map(lambda chars: map(int, chars))
-        .map(to_iter)
+        stream(elems)
+        .map(lambda chars: to_iter(map(int, chars)) if type(chars) is str else chars)
         .flatten(concurrency=concurrency, as_completed=as_completed)
         .catch(ValueError, do=value_errors.append)
         .catch(TypeError, do=type_errors.append)
+        .catch(TestError, do=test_errors.append)
     )
-    assert set(alist_or_list(s, itype)) == set(range(6))
-    assert len(value_errors) == "".join(filter(None, elements)).count("-")
-    assert len(type_errors) == len([c for c in elements if not isinstance(c, Iterable)])
+    if concurrency == 1:
+        assert alist_or_list(s, itype) == list(range(6))
+    elif as_completed:
+        assert set(alist_or_list(s, itype)) == set(range(6))
+    else:
+        it = aiter_or_iter(s, itype)
+        for (
+            expected_next_elem,
+            expected_n_value_errors,
+            expected_n_type_errors,
+            expected_n_test_errors,
+        ) in (
+            (0, 0, 0, 0),
+            (2, 0, 0, 0),
+            (3, 1, 0, 0),
+            (1, 1, 0, 0),
+            (4, 1, 0, 0),
+            (5, 7, 1, 1),
+        ):
+            assert (
+                anext_or_next(it, itype) == expected_next_elem
+                and len(value_errors) == expected_n_value_errors
+                and len(type_errors) == expected_n_type_errors
+                and len(test_errors) == expected_n_test_errors
+            )
+        with pytest.raises(stopiteration_type(itype)):
+            anext_or_next(it, itype)
+    assert len(value_errors) == "".join(e for e in elems if type(e) is str).count("-")
+    assert len(type_errors) == len(
+        [c for c in elems if not isinstance(c, (Iterable, AsyncIterable))]
+    )
+    assert len(test_errors) == sum(
+        1
+        for c in elems
+        if isinstance(c, (RaisingOnIterIterable, RaisingOnAiterAsyncIterable))
+    )
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)

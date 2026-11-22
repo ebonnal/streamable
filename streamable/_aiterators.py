@@ -1107,16 +1107,16 @@ class ConcurrentFlattenAsyncIterator(
     ]:
         try:
             iterable = await self.upstream.__anext__()
+            validate_iterable(iterable)
+            iterator: Union[GuardedAsyncIterator[T], GuardedIterator[T]] = (
+                GuardedAsyncIterator(iterable)
+                if isinstance(iterable, AsyncIterable)
+                else GuardedIterator(iterable)
+            )
         except StopAsyncIteration:
             return None
         except Exception as e:
             return (None, FailedFuture(e))
-        validate_iterable(iterable)
-        iterator: Union[GuardedAsyncIterator[T], GuardedIterator[T]] = (
-            GuardedAsyncIterator(iterable)
-            if isinstance(iterable, AsyncIterable)
-            else GuardedIterator(iterable)
-        )
         return (iterator, self._launch_task_from_iter(iterator))
 
     async def __anext__(self) -> T:

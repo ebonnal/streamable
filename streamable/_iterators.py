@@ -1026,16 +1026,16 @@ class ConcurrentFlattenIterator(
     ) -> Optional[Tuple[Optional[ClosableIterator[T]], "Future[T]"]]:
         try:
             iterable = self.upstream.__next__()
+            validate_iterable(iterable)
+            iterator: ClosableIterator[T] = (
+                GuardedIterator(iterable)
+                if isinstance(iterable, Iterable)
+                else AsyncToSyncIterator(GuardedAsyncIterator(iterable))
+            )
         except StopIteration:
             return None
         except Exception as e:
             return (None, FailedFuture(e))
-        validate_iterable(iterable)
-        iterator: ClosableIterator[T] = (
-            GuardedIterator(iterable)
-            if isinstance(iterable, Iterable)
-            else AsyncToSyncIterator(GuardedAsyncIterator(iterable))
-        )
         return (iterator, self._launch_task_from_iter(iterator))
 
     def __next__(self) -> T:
