@@ -6,6 +6,7 @@ from typing import (
     AsyncIterable,
     AsyncIterator,
     Callable,
+    Coroutine,
     Iterable,
     Iterator,
     List,
@@ -21,7 +22,12 @@ from streamable import stream, stream_aiterator, stream_iterator
 from streamable._tools._async import AsyncFunction
 from streamable._tools._iter import AsyncClosable, Closable
 from tests.tools.error import TestError
-from tests.tools.func import async_identity, identity
+from tests.tools.func import (
+    async_identity,
+    async_slow_identity,
+    identity,
+    slow_identity,
+)
 from tests.tools.loop import TEST_LOOP
 
 IterableType = Literal["sync", "async"]
@@ -102,6 +108,16 @@ def asleep_or_sleep(seconds: float, itype: IterableType) -> None:
         TEST_LOOP.run_until_complete(asyncio.sleep(seconds))
     else:
         time.sleep(seconds)
+
+
+def aslow_or_slow_identity(
+    itype: IterableType,
+) -> Union[Callable[[T], Coroutine[object, object, T]], Callable[[T], T]]:
+    assert itype in ITERABLE_TYPES
+    if itype == "async":
+        return async_slow_identity
+    else:
+        return slow_identity
 
 
 def alist_or_list(
