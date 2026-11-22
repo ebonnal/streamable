@@ -647,7 +647,7 @@ class _BaseObserveIterator(_BaseOperationIterator[T, T]):
         self.do = do
         self._elements = 0
         self._errors = 0
-        self._emissions_observed = 0
+        self._emissions_observed: Optional[int] = None
         self._elements_observed = 0
         self._errors_observed = 0
         self._activated = False
@@ -702,11 +702,12 @@ class _BaseObserveIterator(_BaseOperationIterator[T, T]):
                 self._elements_observed = self._elements
             return elem
         except StopIteration:
-            if not self._stopped.is_set() and (
-                not self._emissions or self._emissions > self._emissions_observed
+            self._terminate()
+            if (
+                self._emissions_observed is None
+                or self._emissions > self._emissions_observed
             ):
                 self._observe()
-            self._stopped.set()
             raise
         except Exception:
             self._errors += 1
@@ -716,6 +717,9 @@ class _BaseObserveIterator(_BaseOperationIterator[T, T]):
             raise
         finally:
             self._reraise_do_base_exception()
+
+    def _terminate(self) -> None:
+        self._stopped.set()
 
 
 class PowerObserveIterator(_BaseObserveIterator[T]):
@@ -786,6 +790,10 @@ class EveryIntervalObserveIterator(_BaseObserveIterator[T]):
         thread_is_done.set()
 
     def _activate(self) -> None:
+        if self._closed:
+            self._stopped.set()
+            self._thread_is_done.set()
+            return
         Thread(
             target=self._observer,
             args=(
@@ -803,11 +811,14 @@ class EveryIntervalObserveIterator(_BaseObserveIterator[T]):
 
     def close(self) -> None:
         if not self._closed:
-            self._stopped.set()
             if self._activated:
-                self._thread_is_done.wait()
+                self._terminate()
             self._safe_close_upstream()
             self._closed = True
+
+    def _terminate(self) -> None:
+        super()._terminate()
+        self._thread_is_done.wait()
 
     def __del__(self) -> None:
         self._stopped.set()

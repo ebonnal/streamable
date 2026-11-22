@@ -657,7 +657,7 @@ class _BaseObserveAsyncIterator(_BaseOperationAsyncIterator[T, T]):
         self.do = do
         self._elements = 0
         self._errors = 0
-        self._emissions_observed = 0
+        self._emissions_observed: Optional[int] = None
         self._elements_observed = 0
         self._errors_observed = 0
         self._activated = False
@@ -714,11 +714,12 @@ class _BaseObserveAsyncIterator(_BaseOperationAsyncIterator[T, T]):
                 self._elements_observed = self._elements
             return elem
         except StopAsyncIteration:
-            if not self._stopped.is_set() and (
-                not self._emissions or self._emissions > self._emissions_observed
+            await self._terminate()
+            if (
+                self._emissions_observed is None
+                or self._emissions > self._emissions_observed
             ):
                 await self._observe()
-            await self._terminate()
             raise
         except Exception:
             self._errors += 1

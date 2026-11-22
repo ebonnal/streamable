@@ -405,3 +405,54 @@ def test_observe_closed_before_activation(itype: IterableType) -> None:
     asleep_or_sleep(10 * every.total_seconds(), itype)
     assert len(observations) == 0
     assert src.iterators[0].close_attempted
+
+
+@pytest.mark.parametrize("itype", ["sync", "async"])
+def test_observe_every_timedelta_long_do(itype: IterableType) -> None:
+    observations: List[Counts] = []
+    src = range(1, 4)
+    every = datetime.timedelta(milliseconds=10)
+
+    async def asleep_inverse(obs: Observation) -> None:
+        await asyncio.sleep(1 / (obs.elements + 1))
+        observations.append(Counts.from_observation(obs))
+
+    def sleep_inverse(obs: Observation) -> None:
+        time.sleep(1 / (obs.elements + 1))
+        observations.append(Counts.from_observation(obs))
+
+    s = stream(src).observe(
+        "ints", every=every, do=(asleep_inverse if itype == "async" else sleep_inverse)
+    )
+    it = aiter_or_iter(s, itype)
+    assert anext_or_next(it, itype) == 1
+    assert anext_or_next(it, itype) == 2
+    assert anext_or_next(it, itype) == 3
+    asleep_or_sleep(0.1, itype)
+    with pytest.raises(stopiteration_type(itype)):
+        anext_or_next(it, itype)
+    asleep_or_sleep(0.1, itype)
+    assert observations == [
+        Counts(errors=0, elements=0),
+        Counts(errors=0, elements=len(src)),
+    ]
+
+
+@pytest.mark.parametrize("every", [None, 1, datetime.timedelta(seconds=10)])
+@pytest.mark.parametrize("n_src_elems", [1, 0])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_observe_repeated_next_post_stop(
+    itype: IterableType, n_src_elems: int, every: Union[None, int, datetime.timedelta]
+) -> None:
+    observations: List[Counts] = []
+    s = stream(range(n_src_elems)).observe(
+        every=every, do=lambda obs: observations.append(Counts.from_observation(obs))
+    )
+    it = aiter_or_iter(s, itype)
+    for _ in range(n_src_elems):
+        anext_or_next(it, itype)
+    for _ in range(8):
+        with pytest.raises(stopiteration_type(itype)):
+            anext_or_next(it, itype)
+    assert len(observations) <= 2
+    assert observations[-1] == Counts(errors=0, elements=n_src_elems)
