@@ -5,8 +5,10 @@ from typing import Any, Callable
 import pytest
 
 from streamable import stream
-from tests.tools.error import TestError
-from tests.tools.func import throw_func
+from streamable._aiterators import ThrottleAsyncIterator
+from streamable._iterators import ThrottleIterator
+from tests.tools.error import TestBaseError, TestError
+from tests.tools.func import async_throw_func, throw_func
 from tests.tools.iter import (
     ITERABLE_TYPES,
     IterableType,
@@ -73,3 +75,35 @@ def test_throttle_sliding_window(
         assert time.perf_counter() - start == pytest.approx(
             expected_emission_timestamp, rel=0.15, abs=0.005
         )
+
+
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_throttle_sleep_interruption(
+    itype: IterableType, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    src = "01-2"
+    s = stream(src).map(int).throttle(1, per=datetime.timedelta(seconds=0.01))
+    it = aiter_or_iter(s, itype)
+    assert anext_or_next(it, itype) == 0
+
+    def patch_sleep() -> None:
+        monkeypatch.setattr(
+            ThrottleAsyncIterator if itype == "async" else ThrottleIterator,
+            "_sleep",
+            async_throw_func(TestBaseError)
+            if itype == "async"
+            else throw_func(TestBaseError),
+        )
+
+    patch_sleep()
+    with pytest.raises(TestBaseError):
+        anext_or_next(it, itype)
+    monkeypatch.undo()
+    assert anext_or_next(it, itype) == 1
+    patch_sleep()
+    with pytest.raises(TestBaseError):
+        anext_or_next(it, itype)
+    monkeypatch.undo()
+    with pytest.raises(ValueError):
+        anext_or_next(it, itype)
+    assert anext_or_next(it, itype) == 2
