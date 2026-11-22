@@ -20,6 +20,7 @@ from typing import (
 from streamable import stream, stream_aiterator, stream_iterator
 from streamable._tools._async import AsyncFunction
 from streamable._tools._iter import AsyncClosable, Closable
+from tests.tools.error import TestError
 from tests.tools.func import async_identity, identity
 from tests.tools.loop import TEST_LOOP
 
@@ -153,3 +154,13 @@ def to_aiter(iterable: Union[Iterable[T], AsyncIterable[T]]) -> AsyncIterator[T]
     if isinstance(iterable, AsyncIterable):
         return iterable.__aiter__()
     return SyncToAsyncIterator(iterable.__iter__())
+
+
+class RaisingOnIterIterable(Iterable[T]):
+    def __iter__(self) -> Iterator[T]:
+        raise TestError
+
+
+class RaisingOnAiterAsyncIterable(AsyncIterable[T]):
+    def __aiter__(self) -> AsyncIterator[T]:
+        raise TestError
