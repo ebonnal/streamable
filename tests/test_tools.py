@@ -512,7 +512,7 @@ def test_async_to_sync_iterator_twice_interrupted_and_closed() -> None:
         assert isinstance(it, AsyncToSyncIterator)
         with pytest.raises(KeyboardInterrupt):
             next(it)
-        assert it._pending_pull is not None and not it._pending_pull.done()
+        assert it._in_flight_pull is not None and not it._in_flight_pull.done()
         it.close()
         assert it._lazy_loop.is_closed()
 
@@ -525,7 +525,7 @@ def test_async_to_sync_iterator_twice_interrupted_next() -> None:
         assert isinstance(it, AsyncToSyncIterator)
         with pytest.raises(KeyboardInterrupt):
             next(it)
-        assert it._pending_pull is not None and not it._pending_pull.done()
+        assert it._in_flight_pull is not None and not it._in_flight_pull.done()
         with pytest.raises(asyncio.CancelledError):
             next(it)
         assert next(it) == 1

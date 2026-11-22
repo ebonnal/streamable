@@ -54,7 +54,7 @@ class AsyncToSyncIterator(Iterator[T], Closable):
         "_upstream_owned",
         "_closed",
         "_stopped",
-        "_pending_pull",
+        "_in_flight_pull",
     )
 
     def __init__(self, upstream: "AsyncIterator[T]", owned: bool = True):
@@ -64,7 +64,7 @@ class AsyncToSyncIterator(Iterator[T], Closable):
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._closed = False
         self._stopped = False
-        self._pending_pull: Optional["asyncio.Task[Union[T, ExceptionContainer]]"] = (
+        self._in_flight_pull: Optional["asyncio.Task[Union[T, ExceptionContainer]]"] = (
             None
         )
 
@@ -83,7 +83,7 @@ class AsyncToSyncIterator(Iterator[T], Closable):
             and self._upstream_owned
             and isinstance(self.upstream, AsyncClosable)
         ):
-            await ensure_done(self._pending_pull)
+            await ensure_done(self._in_flight_pull)
             await self.upstream.aclose()
 
     def _safe_close_loop(self) -> None:
@@ -138,17 +138,17 @@ class AsyncToSyncIterator(Iterator[T], Closable):
             raise RuntimeError(
                 "event loop already running: do an async iteration instead"
             )
-        if self._pending_pull is None:
-            self._pending_pull = self._lazy_loop.create_task(
+        if self._in_flight_pull is None:
+            self._in_flight_pull = self._lazy_loop.create_task(
                 ExceptionContainer.acontaining(self.upstream.__anext__())
             )
         try:
-            result = cancelling_on_error(self._lazy_loop, self._pending_pull)
+            result = cancelling_on_error(self._lazy_loop, self._in_flight_pull)
         except BaseException:
-            if self._pending_pull.done():
-                self._pending_pull = None
+            if self._in_flight_pull.done():
+                self._in_flight_pull = None
             raise
-        self._pending_pull = None
+        self._in_flight_pull = None
         try:
             return ExceptionContainer.raise_if_instance(result)
         except StopAsyncIteration:
