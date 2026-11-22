@@ -840,7 +840,13 @@ class EveryIntervalObserveIterator(_BaseObserveIterator[T]):
 
 
 class ThrottleIterator(_BaseOperationIterator[T, T]):
-    __slots__ = ("up_to", "_window_seconds", "_emission_timestamps")
+    __slots__ = (
+        "up_to",
+        "_window_seconds",
+        "_emission_timestamps",
+        "_in_flight_elem",
+        "_in_flight_error",
+    )
 
     def __init__(
         self,
@@ -852,6 +858,8 @@ class ThrottleIterator(_BaseOperationIterator[T, T]):
         self.up_to = up_to
         self._window_seconds = per.total_seconds()
         self._emission_timestamps: Deque[float] = deque()
+        self._in_flight_elem: Deque[T] = deque(maxlen=1)
+        self._in_flight_error: Deque[Exception] = deque(maxlen=1)
 
     def _sleep(self) -> None:
         # did we reach `up_to` emissions?
@@ -868,14 +876,19 @@ class ThrottleIterator(_BaseOperationIterator[T, T]):
 
     def __next__(self) -> T:
         try:
-            elem = self.upstream.__next__()
+            if self._in_flight_error:
+                raise self._in_flight_error[0]
+            if not self._in_flight_elem:
+                self._in_flight_elem.append(self.upstream.__next__())
             self._sleep()
-            return elem
+            return self._in_flight_elem.pop()
         except StopIteration:
             raise
-        except Exception:
+        except Exception as e:
+            if not self._in_flight_error:
+                self._in_flight_error.append(e)
             self._sleep()
-            raise
+            raise self._in_flight_error.pop()
 
 
 ##########################

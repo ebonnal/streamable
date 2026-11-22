@@ -853,7 +853,13 @@ class EveryIntervalObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
 
 
 class ThrottleAsyncIterator(_BaseOperationAsyncIterator[T, T]):
-    __slots__ = ("up_to", "_window_seconds", "_emission_timestamps")
+    __slots__ = (
+        "up_to",
+        "_window_seconds",
+        "_emission_timestamps",
+        "_in_flight_elem",
+        "_in_flight_error",
+    )
 
     def __init__(
         self,
@@ -865,6 +871,8 @@ class ThrottleAsyncIterator(_BaseOperationAsyncIterator[T, T]):
         self.up_to = up_to
         self._window_seconds = per.total_seconds()
         self._emission_timestamps: Deque[float] = deque()
+        self._in_flight_elem: Deque[T] = deque(maxlen=1)
+        self._in_flight_error: Deque[Exception] = deque(maxlen=1)
 
     async def _sleep(self) -> None:
         # did we reach `up_to` emissions?
@@ -881,14 +889,19 @@ class ThrottleAsyncIterator(_BaseOperationAsyncIterator[T, T]):
 
     async def __anext__(self) -> T:
         try:
-            elem = await self.upstream.__anext__()
+            if self._in_flight_error:
+                raise self._in_flight_error[0]
+            if not self._in_flight_elem:
+                self._in_flight_elem.append(await self.upstream.__anext__())
             await self._sleep()
-            return elem
+            return self._in_flight_elem.pop()
         except StopAsyncIteration:
             raise
-        except Exception:
+        except Exception as e:
+            if not self._in_flight_error:
+                self._in_flight_error.append(e)
             await self._sleep()
-            raise
+            raise self._in_flight_error.pop()
 
 
 ##########################
