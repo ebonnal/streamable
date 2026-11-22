@@ -18,7 +18,7 @@ from streamable import stream
 from streamable._aiterators import EveryIntervalObserveAsyncIterator
 from streamable._tools._func import asyncify
 from streamable._tools._observation import Observation
-from tests.tools.error import TestError
+from tests.tools.error import TestBaseError, TestError
 from tests.tools.func import (
     SLOW_IDENTITY_DURATION,
     async_inverse,
@@ -307,7 +307,6 @@ def test_observe_iterate_after_stop_does_not_retrigger_an_observation(
     observations: List[Observation] = []
 
     def observe(observation: Observation):
-        nonlocal observations
         observations.append(observation)
 
     s = (
@@ -407,7 +406,7 @@ def test_observe_closed_before_activation(itype: IterableType) -> None:
     assert src.iterators[0].close_attempted
 
 
-@pytest.mark.parametrize("itype", ["sync", "async"])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_observe_every_timedelta_long_do(itype: IterableType) -> None:
     observations: List[Counts] = []
     src = range(1, 4)
@@ -456,3 +455,48 @@ def test_observe_repeated_next_post_stop(
             anext_or_next(it, itype)
     assert len(observations) <= 2
     assert observations[-1] == Counts(errors=0, elements=n_src_elems)
+
+
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+@pytest.mark.parametrize("every", [None, 2, datetime.timedelta(seconds=10)])
+@pytest.mark.parametrize("fn", [identity, inverse])
+def test_observe_do_interruption(
+    itype: IterableType,
+    every: Union[None, int, datetime.timedelta],
+    fn: Callable[[int], int],
+) -> None:
+    def src() -> Iterator[int]:
+        time.sleep(0.1)
+        yield from range(2)
+
+    raised = False
+
+    def do_raise_once(obs: Observation) -> None:
+        nonlocal raised
+        if not raised:
+            raised = True
+            raise TestBaseError()
+
+    async def ado_raise_once(obs: Observation) -> None:
+        do_raise_once(obs)
+
+    s = (
+        stream(src())
+        .map(fn)
+        .observe(
+            "ints",
+            every=every,
+            do=(ado_raise_once if itype == "async" else do_raise_once),
+        )
+    )
+    it = aiter_or_iter(s, itype)
+    with pytest.raises(TestBaseError):
+        anext_or_next(it, itype)
+    if fn is inverse:
+        with pytest.raises(ZeroDivisionError):
+            anext_or_next(it, itype)
+    else:
+        assert anext_or_next(it, itype) == 0
+    assert anext_or_next(it, itype) == 1
+    with pytest.raises(stopiteration_type(itype)):
+        anext_or_next(it, itype)

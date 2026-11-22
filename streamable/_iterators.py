@@ -634,6 +634,8 @@ class _BaseObserveIterator(_BaseOperationIterator[T, T]):
         "_start_point",
         "_do_base_exception",
         "_stopped",
+        "_in_flight_elem",
+        "_in_flight_error",
     )
 
     def __init__(
@@ -654,6 +656,8 @@ class _BaseObserveIterator(_BaseOperationIterator[T, T]):
         self._start_point: float = 0
         self._do_base_exception: Optional[BaseException] = None
         self._stopped = Event()
+        self._in_flight_elem: Deque[T] = deque(maxlen=1)
+        self._in_flight_error: Deque[Exception] = deque(maxlen=1)
 
     @property
     def _emissions(self) -> int:
@@ -695,12 +699,16 @@ class _BaseObserveIterator(_BaseOperationIterator[T, T]):
         if not self._activated:
             self._activate()
         try:
-            elem = self.upstream.__next__()
-            self._elements += 1
-            if self._elements >= self._threshold(self._elements_observed):
-                self._observe()
-                self._elements_observed = self._elements
-            return elem
+            if self._in_flight_error:
+                raise self._in_flight_error[0]
+            if not self._in_flight_elem:
+                self._in_flight_elem.append(self.upstream.__next__())
+                self._elements += 1
+                if self._elements >= self._threshold(self._elements_observed):
+                    self._elements_observed = self._elements
+                    self._observe()
+            self._reraise_do_base_exception()
+            return self._in_flight_elem.pop()
         except StopIteration:
             self._terminate()
             if (
@@ -708,15 +716,17 @@ class _BaseObserveIterator(_BaseOperationIterator[T, T]):
                 or self._emissions > self._emissions_observed
             ):
                 self._observe()
-            raise
-        except Exception:
-            self._errors += 1
-            if self._errors >= self._threshold(self._errors_observed):
-                self._observe()
-                self._errors_observed = self._errors
-            raise
-        finally:
             self._reraise_do_base_exception()
+            raise
+        except Exception as e:
+            if not self._in_flight_error:
+                self._in_flight_error.append(e)
+                self._errors += 1
+                if self._errors >= self._threshold(self._errors_observed):
+                    self._errors_observed = self._errors
+                    self._observe()
+            self._reraise_do_base_exception()
+            raise self._in_flight_error.pop()
 
     def _terminate(self) -> None:
         self._stopped.set()
