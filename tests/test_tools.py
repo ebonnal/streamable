@@ -40,6 +40,12 @@ from tests.tools.source import INTEGERS
 
 T = TypeVar("T")
 
+
+def test_suppressing() -> None:
+    assert suppressing(ValueError, int, "1") == 1
+    assert suppressing(ValueError, int, "-") is None
+
+
 ##############
 # validation #
 ##############
@@ -525,11 +531,6 @@ def test_async_to_sync_iterator_twice_interrupted_next() -> None:
         assert next(it) == 1
 
     run_in_thread(interrupt_twice_and_next)
-
-
-def test_suppressing() -> None:
-    assert suppressing(ValueError, int, "1") == 1
-    assert suppressing(ValueError, int, "-") is None
 
 
 @mark_refcounting_dependent
