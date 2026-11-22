@@ -644,6 +644,8 @@ class _BaseObserveAsyncIterator(_BaseOperationAsyncIterator[T, T]):
         "_start_point",
         "_do_base_exception",
         "_stopped",
+        "_in_flight_elem",
+        "_in_flight_error",
     )
 
     def __init__(
@@ -664,6 +666,8 @@ class _BaseObserveAsyncIterator(_BaseOperationAsyncIterator[T, T]):
         self._start_point: float
         self._do_base_exception: Optional[BaseException] = None
         self._stopped: asyncio.Event
+        self._in_flight_elem: Deque[T] = deque(maxlen=1)
+        self._in_flight_error: Deque[Exception] = deque(maxlen=1)
 
     @property
     def _emissions(self) -> int:
@@ -707,12 +711,16 @@ class _BaseObserveAsyncIterator(_BaseOperationAsyncIterator[T, T]):
         if not self._activated:
             await self._activate()
         try:
-            elem = await self.upstream.__anext__()
-            self._elements += 1
-            if self._elements >= self._threshold(self._elements_observed):
-                await self._observe()
-                self._elements_observed = self._elements
-            return elem
+            if self._in_flight_error:
+                raise self._in_flight_error[0]
+            if not self._in_flight_elem:
+                self._in_flight_elem.append(await self.upstream.__anext__())
+                self._elements += 1
+                if self._elements >= self._threshold(self._elements_observed):
+                    self._elements_observed = self._elements
+                    await self._observe()
+            self._reraise_do_base_exception()
+            return self._in_flight_elem.pop()
         except StopAsyncIteration:
             await self._terminate()
             if (
@@ -720,15 +728,17 @@ class _BaseObserveAsyncIterator(_BaseOperationAsyncIterator[T, T]):
                 or self._emissions > self._emissions_observed
             ):
                 await self._observe()
-            raise
-        except Exception:
-            self._errors += 1
-            if self._errors >= self._threshold(self._errors_observed):
-                await self._observe()
-                self._errors_observed = self._errors
-            raise
-        finally:
             self._reraise_do_base_exception()
+            raise
+        except Exception as e:
+            if not self._in_flight_error:
+                self._in_flight_error.append(e)
+                self._errors += 1
+                if self._errors >= self._threshold(self._errors_observed):
+                    self._errors_observed = self._errors
+                    await self._observe()
+            self._reraise_do_base_exception()
+            raise self._in_flight_error.pop()
 
     async def _terminate(self) -> None:
         self._stopped.set()

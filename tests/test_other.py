@@ -529,7 +529,7 @@ def test_sync_iteration_shares_the_runner(in_thread: bool) -> None:
             ),
             [1, 2, 3],
             TestBaseError,
-            [4],
+            [0, 4],
         ),
         (
             stream([1, 2, 3, 0, 4])
@@ -542,7 +542,7 @@ def test_sync_iteration_shares_the_runner(in_thread: bool) -> None:
             ),
             [1, 2, 3],
             TestBaseError,
-            [4],
+            [0, 4],
         ),
     ],
 )
