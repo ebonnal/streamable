@@ -53,11 +53,12 @@ async def complete_agen_finalizers(loop: asyncio.AbstractEventLoop) -> None:
     """Await the async generator finalizers scheduled on this loop."""
     # let the finalizer hook's scheduled callbacks spawn their `aclose` tasks
     await asyncio.sleep(0)
-    await asyncio.gather(
+    while await asyncio.gather(
         *(
             task
             for task in asyncio.all_tasks(loop)
             if type(task.get_coro()).__name__ == "async_generator_athrow"
         ),
         return_exceptions=True,
-    )
+    ):
+        await asyncio.sleep(0)
