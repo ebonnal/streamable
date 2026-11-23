@@ -553,6 +553,9 @@ def test_async_to_sync_iterator_finalizes_dropped_agens(
             await asyncio.sleep(0)
             await asyncio.sleep(0)
             await asyncio.sleep(0)
+            if not finalised:
+                # drop an additional agen to trigger its finalization
+                await agen(0).__anext__()
             finalised.append(True)
             raise TestError
 
@@ -561,8 +564,8 @@ def test_async_to_sync_iterator_finalizes_dropped_agens(
     assert next(it) == 0
 
     # only agen finalizers should be awaited, not other tasks, so should not hang on:
-    private_loop = cast(AsyncToSyncIterator, it)._lazy_loop
-    long_running_task = asyncio.ensure_future(asyncio.sleep(3600), loop=private_loop)
+    iteration_loop = cast(AsyncToSyncIterator, it)._lazy_loop
+    long_running_task = asyncio.ensure_future(asyncio.sleep(3600), loop=iteration_loop)
 
     del it
 
@@ -570,11 +573,15 @@ def test_async_to_sync_iterator_finalizes_dropped_agens(
     assert not src.close_attempted
 
     if provided_loop is not None:
+        assert iteration_loop is provided_loop
         assert len(finalised) == 0
-        private_loop.run_until_complete(asyncio.sleep(0.1))
-        provided_loop.close()
+        iteration_loop.run_until_complete(advance_cycles(10))
+        iteration_loop.close()
+    else:
+        assert iteration_loop.is_closed()
 
-    assert len(finalised) == concurrency
+    # the concurrency agens were finalised, as well as the additional agen created and dropped during first finalisation
+    assert len(finalised) == concurrency + 1
 
 
 def test_async_to_sync_iterator_interrupted_close() -> None:
