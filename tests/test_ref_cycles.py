@@ -257,3 +257,17 @@ def test_ref_cycles_sync_iteration_over_async_on_error(
     assert find_object(error_id, TestError) is None
     # close successfully
     it.close()
+
+
+@mark_refcounting_dependent
+def test_ref_cycles_sync_iteration_over_async_with_queued_error() -> None:
+    it = iter(
+        stream(map(throw_if_falsy_func(TestError), [1, 0])).map(
+            async_identity, concurrency=2
+        )
+    )
+    # pulling `1` has also pulled `0`, whose error is now queued
+    assert next(it) == 1
+    del it
+    # the queued error has been deallocated (ref count)
+    assert not any(isinstance(obj, TestError) for obj in gc.get_objects())

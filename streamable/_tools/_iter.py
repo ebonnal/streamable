@@ -132,31 +132,34 @@ class AsyncToSyncIterator(Iterator[T], Closable):
             self._safe_close_loop()
 
     def __next__(self) -> T:
-        if self._stopped or self._closed:
+        try:
+            if self._stopped or self._closed:
+                raise StopIteration
+            if self._lazy_loop.is_running():
+                raise RuntimeError(
+                    "event loop already running: do an async iteration instead"
+                )
+            if self._in_flight_pull is None:
+                self._in_flight_pull = self._lazy_loop.create_task(
+                    ExceptionContainer.acontaining(self.upstream.__anext__())
+                )
+            try:
+                result = cancelling_on_error(self._lazy_loop, self._in_flight_pull)
+            except BaseException:
+                if self._in_flight_pull.done():
+                    self._in_flight_pull = None
+                raise
+            self._in_flight_pull = None
+            try:
+                return ExceptionContainer.raise_if_instance(result)
+            except StopAsyncIteration:
+                self._stopped = True
+            # outside the `except` to prevent the above `StopAsyncIteration`'s traceback
+            # to keep agens referenced, and hence not finalizable by below `_safe_close_loop`
+            self._safe_close_loop()
             raise StopIteration
-        if self._lazy_loop.is_running():
-            raise RuntimeError(
-                "event loop already running: do an async iteration instead"
-            )
-        if self._in_flight_pull is None:
-            self._in_flight_pull = self._lazy_loop.create_task(
-                ExceptionContainer.acontaining(self.upstream.__anext__())
-            )
-        try:
-            result = cancelling_on_error(self._lazy_loop, self._in_flight_pull)
-        except BaseException:
-            if self._in_flight_pull.done():
-                self._in_flight_pull = None
-            raise
-        self._in_flight_pull = None
-        try:
-            return ExceptionContainer.raise_if_instance(result)
-        except StopAsyncIteration:
-            self._stopped = True
-        # outside the `except` to prevent the above `StopAsyncIteration`'s traceback
-        # to keep agens referenced, and hence not finalizable by below `_safe_close_loop`
-        self._safe_close_loop()
-        raise StopIteration
+        finally:
+            del self
 
 
 class _FnIterator(Iterator[T]):
