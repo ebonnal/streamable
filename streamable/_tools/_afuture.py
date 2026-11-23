@@ -57,6 +57,7 @@ def cancel_threadsafe(
         None,
     ],
 ) -> None:
+    """Cancels the given futures in a thread-safe manner. If async, retrieves its exception if any."""
     if fs is None:
         return
     if isinstance(fs, (asyncio.Future, futures.Future)):
@@ -66,9 +67,17 @@ def cancel_threadsafe(
     for future in fs:
         if isinstance(future, futures.Future):
             future.cancel()
-        elif not future.done():
+        elif future.done():
+            if not future.cancelled():
+                future.exception()
+        else:
             with suppress(RuntimeError):
-                future.get_loop().call_soon_threadsafe(future.cancel)
+                future.get_loop().call_soon_threadsafe(_cancel_and_read_error, future)
+
+
+def _cancel_and_read_error(future: asyncio.Future) -> None:
+    future.cancel()
+    future.add_done_callback(lambda f: f.cancelled() or f.exception())
 
 
 async def ensure_done(

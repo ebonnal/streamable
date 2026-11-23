@@ -142,9 +142,22 @@ def test_starmap() -> None:
     assert list(s) == [[0, 1], [2, 3]]
 
 
-##################
-# future results #
-##################
+###########
+# futures #
+###########
+
+
+@pytest.mark.asyncio
+async def test_cancel_threadsafe_reads_done_futures_errors() -> None:
+    loop = asyncio.get_running_loop()
+    cancelled = loop.create_future()
+    cancelled.cancel()
+    failed = loop.create_future()
+    failed.set_exception(TestError())
+    _afuture.cancel_threadsafe([cancelled, failed])
+    assert cancelled.cancelled()
+    # no "exception was never retrieved" log
+    assert not failed._log_traceback
 
 
 def test_map_fdfo_late_arriving_done_future_is_dropped() -> None:
