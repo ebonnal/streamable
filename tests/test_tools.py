@@ -533,6 +533,26 @@ def test_async_to_sync_iterator_twice_interrupted_next() -> None:
     run_in_thread(interrupt_twice_and_next)
 
 
+async def create_agen_with_failing_slow_close(
+    _: int, finalised: List[None], nested_spawn: bool
+) -> AsyncGenerator[int, None]:
+    try:
+        yield 0
+        yield 1
+    finally:
+        # finalization taking a few loop cycles
+        await asyncio.sleep(0)
+        await asyncio.sleep(0)
+        await asyncio.sleep(0)
+        if nested_spawn:
+            # drop an additional agen to trigger its finalization
+            await create_agen_with_failing_slow_close(
+                0, finalised, nested_spawn=False
+            ).__anext__()
+        finalised.append(None)
+        raise TestError
+
+
 @mark_refcounting_dependent
 @pytest.mark.parametrize("concurrency", [1, 4])
 @pytest.mark.parametrize("get_loop", [lambda: None, asyncio.new_event_loop])
@@ -542,25 +562,20 @@ def test_async_to_sync_iterator_finalizes_dropped_agens(
 ) -> None:
     provided_loop = get_loop()
     asyncio.set_event_loop(provided_loop)
-    finalised: List[bool] = []
-
-    async def agen(_: int) -> AsyncGenerator[int, None]:
-        try:
-            yield 0
-            yield 1
-        finally:
-            # finalization taking a few loop cycles
-            await asyncio.sleep(0)
-            await asyncio.sleep(0)
-            await asyncio.sleep(0)
-            if not finalised:
-                # drop an additional agen to trigger its finalization
-                await agen(0).__anext__()
-            finalised.append(True)
-            raise TestError
-
+    finalised: List[None] = []
     src = MonitoredIntAsyncIterator(n_yields=10)
-    it = iter(stream(src).map(agen).flatten(concurrency=concurrency))
+    it = iter(
+        stream(src)
+        .map(
+            partial(
+                create_agen_with_failing_slow_close,
+                finalised=finalised,
+                nested_spawn=True,
+            )
+        )
+        .flatten(concurrency=concurrency)
+    )
+
     assert next(it) == 0
 
     # only agen finalizers should be awaited, not other tasks, so should not hang on:
@@ -579,9 +594,32 @@ def test_async_to_sync_iterator_finalizes_dropped_agens(
         iteration_loop.close()
     else:
         assert iteration_loop.is_closed()
+    # finalised agens + nested agens spawned during their finalisation
+    assert len(finalised) == 2 * concurrency
 
-    # the concurrency agens were finalised, as well as the additional agen created and dropped during first finalisation
-    assert len(finalised) == concurrency + 1
+
+@mark_refcounting_dependent
+@pytest.mark.parametrize("concurrency", [1, 4])
+def test_async_to_sync_iterator_finalizes_flattened_async_inners(
+    concurrency: int,
+) -> None:
+    finalised: List[None] = []
+    src = range(10)
+    it = iter(
+        stream(src)
+        .map(
+            partial(
+                create_agen_with_failing_slow_close,
+                finalised=finalised,
+                nested_spawn=True,
+            )
+        )
+        .flatten(concurrency=concurrency)
+    )
+    assert [next(it) for _ in range(concurrency)] == [0] * concurrency
+    it.close()
+    # finalised agens + nested agens spawned during their finalisation
+    assert len(finalised) == 2 * concurrency
 
 
 def test_async_to_sync_iterator_interrupted_close() -> None:
