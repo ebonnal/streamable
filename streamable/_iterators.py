@@ -132,8 +132,9 @@ class _Puller(Generic[T]):
                 self.event.set()
                 break
             except BaseException as e:
-                self.elems.put_nowait(ExceptionContainer(e))
-                self.event.set()
+                if not self._stopped:
+                    self.elems.put_nowait(ExceptionContainer(e))
+                    self.event.set()
             self._ask_to_pull()
 
     def stop(self) -> None:
