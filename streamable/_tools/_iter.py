@@ -131,6 +131,10 @@ class AsyncToSyncIterator(Iterator[T], Closable):
             # `self._loop` is owned and another loop is running in this thread
             self._safe_close_loop()
 
+    @staticmethod
+    async def _safe_pull(upstream: AsyncIterator[T]) -> Union[T, ExceptionContainer]:
+        return await ExceptionContainer.acontaining(upstream.__anext__())
+
     def __next__(self) -> T:
         try:
             if self._stopped or self._closed:
@@ -141,7 +145,7 @@ class AsyncToSyncIterator(Iterator[T], Closable):
                 )
             if self._in_flight_pull is None:
                 self._in_flight_pull = self._lazy_loop.create_task(
-                    ExceptionContainer.acontaining(self.upstream.__anext__())
+                    self._safe_pull(self.upstream)
                 )
             try:
                 result = cancelling_on_error(self._lazy_loop, self._in_flight_pull)
