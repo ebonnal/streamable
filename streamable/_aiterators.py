@@ -152,16 +152,16 @@ class _Puller(Generic[T]):
             # the cancellation because this task is never awaited
             pass
 
-    def stop(self) -> None:
+    def stop(self, threadsafe: bool = False) -> None:
         if not self._stopped:
             self._stopped = True
-            self._stopper_task.cancel()
-
-    def stop_threadsafe(self) -> None:
-        with suppress(RuntimeError):
-            self._stopper_task.get_loop().call_soon_threadsafe(
-                self._stopper_task.cancel
-            )
+            if threadsafe:
+                with suppress(RuntimeError):
+                    self._stopper_task.get_loop().call_soon_threadsafe(
+                        self._stopper_task.cancel
+                    )
+            else:
+                self._stopper_task.cancel()
 
     async def wait(self) -> None:
         await ensure_done(
@@ -214,7 +214,7 @@ class _PullerBasedAsyncIterator(_BaseOperationAsyncIterator[T, U]):
 
     def __del__(self) -> None:
         if self._puller:
-            self._puller.stop_threadsafe()
+            self._puller.stop(threadsafe=True)
             self._puller.clear()
 
 

@@ -223,6 +223,36 @@ def test_ref_cycles_with_errors_left_queued_by_pullers(
 
 
 @mark_refcounting_dependent
+@mark_timing_sensitive
+def test_ref_cycles_with_error_pulled_after_drop() -> None:
+    gc.collect()
+    it = iter(stream("1-").map(slow_identity).map(int).buffer(1))
+    assert next(it) == 1
+    time.sleep(SLOW_IDENTITY_DURATION / 2)
+    # the error's pull is in flight
+    del it
+    time.sleep(SLOW_IDENTITY_DURATION)
+    # the in-flight error pull is completed
+    # but no ref cycle to collect
+    assert gc.collect() == 0
+
+
+@mark_refcounting_dependent
+@mark_timing_sensitive
+@pytest.mark.asyncio
+async def test_ref_cycles_with_error_pulled_after_drop_async() -> None:
+    gc.collect()
+    it = (stream("1-").map(int).buffer(1)).__aiter__()
+    assert await it.__anext__() == 1
+    # the error's pull is about to run, before the stopper
+    del it
+    await asyncio.sleep(SLOW_IDENTITY_DURATION)
+    # the in-flight error pull is completed
+    # but no ref cycle to collect
+    assert gc.collect() == 0
+
+
+@mark_refcounting_dependent
 def test_ref_cycles_sync_iteration_over_async_operation_exhaustion() -> None:
     gc.collect()
     assert list(stream([0, 1]).map(async_identity)) == [0, 1]
