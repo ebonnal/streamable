@@ -1,4 +1,3 @@
-from inspect import iscoroutinefunction
 from typing import (
     TYPE_CHECKING,
     AsyncIterable,
@@ -10,6 +9,7 @@ from typing import (
 )
 
 from streamable import _afunctions
+from streamable._tools._async import is_async_callable
 from streamable._tools._func import sidify
 from streamable._tools._iter import (
     ClosableAsyncIterator,
@@ -139,7 +139,7 @@ class AsyncIteratorVisitor(Visitor[ClosableAsyncIterator[T]]):
                 )
             return GuardedAsyncIterator(SyncToClosableAsyncIterable(s.source))
         if callable(s.source):
-            if iscoroutinefunction(s.source):
+            if is_async_callable(s.source):
                 return GuardedAsyncIterator(afn_to_aiter(s.source))
             return GuardedAsyncIterator(fn_to_aiter(s.source))
         raise TypeError(

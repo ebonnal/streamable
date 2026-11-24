@@ -1,6 +1,5 @@
 from contextlib import suppress
 from functools import partial
-from inspect import iscoroutinefunction
 from typing import (
     TYPE_CHECKING,
     Callable,
@@ -13,7 +12,7 @@ from typing import (
     overload,
 )
 
-from streamable._tools._async import AsyncFunction
+from streamable._tools._async import AsyncCallable, is_async_callable
 
 T = TypeVar("T")
 U = TypeVar("U")
@@ -31,8 +30,8 @@ def _sidified(func: Callable[[T], object], arg: T) -> T:
 
 @overload
 def sidify(
-    func: AsyncFunction[T, object],
-) -> AsyncFunction[T, T]: ...
+    func: AsyncCallable[T, object],
+) -> AsyncCallable[T, T]: ...
 
 
 @overload
@@ -40,12 +39,14 @@ def sidify(func: Callable[[T], object]) -> Callable[[T], T]: ...
 
 
 def sidify(
-    func: Callable[[T], object],
+    func: Union[
+        Callable[[T], object], Callable[[T], Coroutine[object, object, object]]
+    ],
 ) -> Callable[[T], Union[T, Coroutine[object, object, T]]]:
-    if iscoroutinefunction(func):
+    if is_async_callable(func):
 
         async def wrap(arg: T) -> T:
-            await cast(AsyncFunction[T, T], func)(arg)
+            await func(arg)
             return arg
 
         return wrap
@@ -57,13 +58,13 @@ async def _async_call(func: Callable[[T], U], o: T) -> U:
 
 
 @overload
-def asyncify(func: AsyncFunction[T, U]) -> AsyncFunction[T, U]: ...
+def asyncify(func: AsyncCallable[T, U]) -> AsyncCallable[T, U]: ...
 
 
 @overload
 def asyncify(
-    func: Union[Callable[[T], U], AsyncFunction[T, U]],
-) -> AsyncFunction[T, U]: ...
+    func: Union[Callable[[T], U], AsyncCallable[T, U]],
+) -> AsyncCallable[T, U]: ...
 
 
 @overload
@@ -71,10 +72,10 @@ def asyncify(func: None) -> None: ...
 
 
 def asyncify(
-    func: Union[None, Callable[[T], U], AsyncFunction[T, U]],
-) -> Optional[AsyncFunction[T, U]]:
-    if func is None or iscoroutinefunction(func):
-        return cast(Optional[AsyncFunction[T, U]], func)
+    func: Union[None, Callable[[T], U], AsyncCallable[T, U]],
+) -> Optional[AsyncCallable[T, U]]:
+    if func is None or is_async_callable(func):
+        return func
     return partial(_async_call, cast(Callable[[T], U], func))
 
 

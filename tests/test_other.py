@@ -8,6 +8,7 @@ from typing import (
     Any,
     AsyncIterator,
     Callable,
+    Coroutine,
     List,
     Type,
     Union,
@@ -564,3 +565,31 @@ def test_propagation_of_base_exceptions(
         assert anext_or_next(it, itype) == expected_yield
     with pytest.raises(stopiteration_type(itype)):
         anext_or_next(it, itype)
+
+
+def test_async_callable_recognition() -> None:
+    async def async_str(i: int) -> str:
+        return str(i)
+
+    class ToStrAsyncCallableClass:
+        async def __call__(self, i: int) -> str:
+            return str(i)
+
+    class ToStrCallableClass:
+        def __call__(self, i: int) -> str:
+            return str(i)
+
+    assert list(stream(range(3)).map(str)) == ["0", "1", "2"]
+    assert list(stream(range(3)).map(lambda i: str(i))) == ["0", "1", "2"]
+    assert list(stream(range(3)).map(ToStrCallableClass())) == ["0", "1", "2"]
+    assert list(stream(range(3)).map(async_str)) == ["0", "1", "2"]
+    assert list(stream(range(3)).map(ToStrAsyncCallableClass())) == ["0", "1", "2"]
+
+    if sys.version_info >= (3, 12):
+        from inspect import markcoroutinefunction
+
+        def wrapped_async_str(i: int) -> Coroutine[Any, Any, str]:
+            return async_str(i)
+
+        marked_wrapped_async_str = markcoroutinefunction(wrapped_async_str)
+        assert list(stream(range(3)).map(marked_wrapped_async_str)) == ["0", "1", "2"]

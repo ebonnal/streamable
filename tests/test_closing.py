@@ -29,7 +29,7 @@ from streamable import (
     stream_aiterator,
     stream_iterator,
 )
-from streamable._tools._func import AsyncFunction
+from streamable._tools._func import AsyncCallable
 from tests.tools.error import TestError
 from tests.tools.func import (
     async_throw_func,
@@ -202,7 +202,7 @@ class SyncTerminationCase(TerminationCase):
 
 @dataclass(frozen=True)
 class AsyncTerminationCase(TerminationCase):
-    terminate: Optional[AsyncFunction[stream_aiterator, None]]
+    terminate: Optional[AsyncCallable[stream_aiterator, None]]
 
     @property
     def itype(self) -> IterableType:

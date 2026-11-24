@@ -2,7 +2,6 @@ import asyncio
 import logging
 from concurrent.futures import Future
 from functools import partial
-from inspect import iscoroutinefunction
 from typing import (
     Any,
     AsyncGenerator,
@@ -22,7 +21,7 @@ import pytest
 
 from streamable import star, stream
 from streamable._tools import _afuture, _future
-from streamable._tools._async import safe_get_event_loop
+from streamable._tools._async import is_async_callable, safe_get_event_loop
 from streamable._tools._func import sidify, suppressing
 from streamable._tools._iter import AsyncToSyncIterator, GuardedAsyncIterator
 from streamable._tools._logging import logfmt_str_escape, setup_logger
@@ -111,7 +110,7 @@ async def test_star() -> None:
     astarred: Callable[[Tuple[int, int]], Coroutine[object, object, int]] = star(
         async_add
     )
-    assert iscoroutinefunction(astarred)
+    assert is_async_callable(astarred)
 
     assert (await astarred((2, 5))) == 7
 

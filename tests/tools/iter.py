@@ -19,7 +19,7 @@ from typing import (
 )
 
 from streamable import stream, stream_aiterator, stream_iterator
-from streamable._tools._async import AsyncFunction
+from streamable._tools._async import AsyncCallable
 from streamable._tools._iter import AsyncClosable, Closable
 from tests.tools.error import TestError
 from tests.tools.func import (
@@ -38,7 +38,7 @@ T = TypeVar("T")
 
 def aidentity_or_identity(
     itype: IterableType,
-) -> Union[Callable[[T], T], AsyncFunction[T, T]]:
+) -> Union[Callable[[T], T], AsyncCallable[T, T]]:
     assert itype in ITERABLE_TYPES
     if itype == "async":
         return async_identity

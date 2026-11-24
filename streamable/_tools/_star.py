@@ -1,4 +1,3 @@
-from inspect import iscoroutinefunction
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -8,6 +7,8 @@ from typing import (
     TypeVar,
     cast,
 )
+
+from streamable._tools._async import is_async_callable
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing_extensions import TypeVarTuple, Unpack
@@ -48,10 +49,10 @@ def star(func: "Callable[[Unpack[Ts]], U]") -> "Callable[[Tuple[Unpack[Ts]]], U]
 
         assert star(lambda a, b: a + b)((2, 5)) == 7
     """
-    if iscoroutinefunction(func):
+    if is_async_callable(func):
 
         async def astarred(args: "Tuple[Unpack[Ts]]") -> Any:
-            return await func(*args)
+            return await cast("Callable[[Unpack[Ts]], Any]", func)(*args)
 
         astarred.__name__ = f"star({func_name(func)})"
         return cast("Callable[[Tuple[Unpack[Ts]]], U]", astarred)
