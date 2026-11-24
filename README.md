@@ -15,7 +15,7 @@
 ```
 pip install streamable==2.1.0
 ```
-No dependencies. Also available on conda. Pin/lock a specific version to avoid supply-chain attacks.
+No dependencies. Also available on conda. Make sure to pin/lock a version to prevent supply-chain attacks.
 
 Tested on Linux/Windows/macOS, [CPython 3.8 to 3.15rc](https://github.com/python/cpython), [PyPy](https://github.com/pypy/pypy), [uvloop](https://github.com/magicstack/uvloop).
 
@@ -80,7 +80,7 @@ A `stream[T]` is `Iterable[T]` and `AsyncIterable[T]`:
 
 ***sync/async***:
 
-- Operations accept both sync and async functions.
+- Operations accept both sync and async functions (recognised if defined via `async def` or marked via `inspect.markcoroutinefunction`).
 
 - A `stream` supports both sync and async iteration (e.g. `for` and `async for`), operations adapt their behavior.
 
