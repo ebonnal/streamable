@@ -1,17 +1,43 @@
 import asyncio
 import sys
+from inspect import iscoroutinefunction
 from typing import (
+    TYPE_CHECKING,
     AsyncIterator,
     Callable,
     Coroutine,
     Optional,
     TypeVar,
+    Union,
+    overload,
 )
+
+if TYPE_CHECKING:
+    from typing import ParamSpec, TypeGuard
+
+    P = ParamSpec("P")
 
 T = TypeVar("T")
 U = TypeVar("U")
 
-AsyncFunction = Callable[[T], Coroutine[object, object, U]]
+
+AsyncCallable = Callable[[T], Coroutine[object, object, U]]
+
+
+@overload
+def is_async_callable(
+    func: "Union[Callable[P, U], Callable[P, Coroutine[object, object, U]]]",
+) -> "TypeGuard[Callable[P, Coroutine[object, object, U]]]": ...
+
+
+@overload
+def is_async_callable(func: object) -> bool: ...
+
+
+def is_async_callable(func: object) -> bool:
+    return iscoroutinefunction(func) or iscoroutinefunction(
+        getattr(type(func), "__call__", None)
+    )
 
 
 def safe_get_event_loop() -> Optional[asyncio.AbstractEventLoop]:
@@ -43,7 +69,7 @@ async def anext(aiterator: AsyncIterator[T], default: T) -> T:
 
 
 async def semaphored(
-    into: AsyncFunction[T, U], elem: T, semaphore: asyncio.Semaphore
+    into: AsyncCallable[T, U], elem: T, semaphore: asyncio.Semaphore
 ) -> U:
     async with semaphore:
         return await into(elem)

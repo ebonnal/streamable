@@ -1,6 +1,5 @@
 import datetime
 from concurrent.futures import Executor
-from inspect import iscoroutinefunction
 from typing import (
     AsyncIterable,
     Callable,
@@ -8,13 +7,15 @@ from typing import (
     Union,
 )
 
+from streamable._tools._async import is_async_callable
+
 
 def validate_concurrency_executor(
     concurrency: Executor, fn: Callable[..., object], fn_name: str
 ) -> None:
-    if iscoroutinefunction(fn):
+    if is_async_callable(fn):
         raise TypeError(
-            f"`concurrency` must be an int if `{fn_name}` is a coroutine function but got: {repr(concurrency)}"
+            f"`concurrency` must be an int when `{fn_name}` is an async callable but got: {repr(concurrency)}"
         )
 
 

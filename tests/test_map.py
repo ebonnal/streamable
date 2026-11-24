@@ -53,7 +53,7 @@ from tests.tools.source import INTEGERS, N, ints
 def test_map_async_func_with_executor():
     with pytest.raises(
         TypeError,
-        match="`concurrency` must be an int if `into` is a coroutine function but got",
+        match="`concurrency` must be an int when `into` is an async callable but got",
     ):
         ints.map(async_identity, concurrency=ThreadPoolExecutor(2))
 

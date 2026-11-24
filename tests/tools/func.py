@@ -20,7 +20,7 @@ from typing import (
 
 import pytest
 
-from streamable._tools._async import AsyncFunction
+from streamable._tools._async import AsyncCallable
 
 if TYPE_CHECKING:
     from typing import ParamSpec
@@ -70,7 +70,7 @@ def throw_func(exc: Type[BaseException]) -> Callable[[T], T]:
     return lambda _: throw(exc)
 
 
-def async_throw_func(exc: Type[BaseException]) -> AsyncFunction[T, T]:
+def async_throw_func(exc: Type[BaseException]) -> AsyncCallable[T, T]:
     async def f(_: T) -> T:
         raise exc
 
@@ -95,7 +95,7 @@ def throw_if_none_func(exc: Type[BaseException]) -> Callable[[T], T]:
     return f
 
 
-def async_throw_if_falsy_func(exc: Type[BaseException]) -> AsyncFunction[T, T]:
+def async_throw_if_falsy_func(exc: Type[BaseException]) -> AsyncCallable[T, T]:
     async def f(_: T) -> T:
         if not _:
             raise exc
@@ -150,10 +150,10 @@ def randomly_slowed(
 
 
 def async_randomly_slowed(
-    async_func: AsyncFunction[T, U],
+    async_func: AsyncCallable[T, U],
     min_sleep: float = 0.001,
     max_sleep: float = 0.01,
-) -> AsyncFunction[T, U]:
+) -> AsyncCallable[T, U]:
     async def wrap(x: T) -> U:
         await asyncio.sleep(min_sleep + random.random() * (max_sleep - min_sleep))
         return await async_func(x)

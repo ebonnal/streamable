@@ -1,6 +1,5 @@
 import datetime
 from concurrent.futures import Executor, ThreadPoolExecutor
-from inspect import iscoroutinefunction
 from operator import itemgetter
 from typing import (
     AsyncIterable,
@@ -16,7 +15,7 @@ from typing import (
 )
 
 from streamable import _aiterators
-from streamable._tools._async import AsyncFunction
+from streamable._tools._async import AsyncCallable, is_async_callable
 from streamable._tools._func import asyncify
 from streamable._tools._iter import ClosableAsyncIterator
 from streamable._tools._observation import Observation
@@ -37,9 +36,9 @@ def catch(
     upstream: ClosableAsyncIterator[T],
     errors: Union[Type[Exc], Tuple[Type[Exc], ...]],
     *,
-    where: Optional[Union[Callable[[Exc], object], AsyncFunction[Exc, object]]] = None,
-    replace: Optional[Union[Callable[[Exc], U], AsyncFunction[Exc, U]]] = None,
-    do: Optional[Union[Callable[[Exc], object], AsyncFunction[Exc, object]]] = None,
+    where: Optional[Union[Callable[[Exc], object], AsyncCallable[Exc, object]]] = None,
+    replace: Optional[Union[Callable[[Exc], U], AsyncCallable[Exc, U]]] = None,
+    do: Optional[Union[Callable[[Exc], object], AsyncCallable[Exc, object]]] = None,
     stop: bool = False,
 ) -> ClosableAsyncIterator[Union[T, U]]:
     return _aiterators.CatchAsyncIterator(
@@ -53,7 +52,7 @@ def catch(
 
 
 def filter(
-    where: Union[Callable[[T], object], AsyncFunction[T, object]],
+    where: Union[Callable[[T], object], AsyncCallable[T, object]],
     upstream: ClosableAsyncIterator[T],
 ) -> ClosableAsyncIterator[T]:
     return _aiterators.FilterAsyncIterator(upstream, asyncify(where))
@@ -79,7 +78,7 @@ def group(
     up_to: Optional[int] = None,
     *,
     within: Optional[datetime.timedelta] = None,
-    by: Union[None, Callable[[T], U], AsyncFunction[T, U]] = None,
+    by: Union[None, Callable[[T], U], AsyncCallable[T, U]] = None,
 ) -> Union[ClosableAsyncIterator[List[T]], ClosableAsyncIterator[Tuple[U, List[T]]]]:
     if within is None:
         if by is None:
@@ -103,7 +102,7 @@ def group(
 
 
 def map(
-    into: Union[Callable[[T], U], AsyncFunction[T, U]],
+    into: Union[Callable[[T], U], AsyncCallable[T, U]],
     upstream: ClosableAsyncIterator[T],
     *,
     concurrency: Union[int, Executor] = 1,
@@ -111,7 +110,7 @@ def map(
 ) -> ClosableAsyncIterator[U]:
     if concurrency == 1:
         return _aiterators.MapAsyncIterator(upstream, asyncify(into))
-    if iscoroutinefunction(into):
+    if is_async_callable(into):
         return _aiterators.AsyncConcurrentMapAsyncIterator(
             upstream,
             into,
@@ -133,7 +132,7 @@ def observe(
     every: Union[None, int, datetime.timedelta],
     do: Union[
         Callable[[Observation], object],
-        AsyncFunction[Observation, object],
+        AsyncCallable[Observation, object],
     ],
 ) -> ClosableAsyncIterator[T]:
     if every is None:
@@ -149,7 +148,7 @@ def observe(
 
 def skip(
     upstream: ClosableAsyncIterator[T],
-    until: Union[int, Callable[[T], object], AsyncFunction[T, object]],
+    until: Union[int, Callable[[T], object], AsyncCallable[T, object]],
 ) -> ClosableAsyncIterator[T]:
     if isinstance(until, int):
         return _aiterators.CountSkipAsyncIterator(upstream, until)
@@ -158,7 +157,7 @@ def skip(
 
 def take(
     upstream: ClosableAsyncIterator[T],
-    until: Union[int, Callable[[T], object], AsyncFunction[T, object]],
+    until: Union[int, Callable[[T], object], AsyncCallable[T, object]],
 ) -> ClosableAsyncIterator[T]:
     if isinstance(until, int):
         return _aiterators.CountTakeAsyncIterator(upstream, until)

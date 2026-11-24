@@ -33,7 +33,7 @@ from streamable._tools._afuture import (
     ensure_done,
 )
 from streamable._tools._async import (
-    AsyncFunction,
+    AsyncCallable,
     anext,
     semaphored,
 )
@@ -263,9 +263,9 @@ class CatchAsyncIterator(_BaseOperationAsyncIterator[T, Union[T, U]]):
         self,
         upstream: ClosableAsyncIterator[T],
         errors: Union[Type[Exc], Tuple[Type[Exc], ...]],
-        where: Optional[AsyncFunction[Exc, object]],
-        replace: Optional[AsyncFunction[Exc, U]],
-        do: Optional[AsyncFunction[Exc, object]],
+        where: Optional[AsyncCallable[Exc, object]],
+        replace: Optional[AsyncCallable[Exc, U]],
+        do: Optional[AsyncCallable[Exc, object]],
         stop: bool,
     ) -> None:
         super().__init__(upstream)
@@ -383,7 +383,7 @@ class GroupByAsyncIterator(_BaseOperationAsyncIterator[T, Iterable[Tuple[U, List
         self,
         upstream: ClosableAsyncIterator[T],
         up_to: Optional[int],
-        by: AsyncFunction[T, U],
+        by: AsyncCallable[T, U],
     ) -> None:
         super().__init__(upstream)
         self.up_to = up_to or cast(int, float("inf"))
@@ -430,7 +430,7 @@ class GroupByWithinAsyncIterator(_PullerBasedAsyncIterator[T, Tuple[U, List[T]]]
         self,
         upstream: ClosableAsyncIterator[T],
         up_to: Optional[int],
-        by: AsyncFunction[T, U],
+        by: AsyncCallable[T, U],
         within: datetime.timedelta,
     ) -> None:
         super().__init__(upstream, 0)
@@ -533,7 +533,7 @@ class PredicateSkipAsyncIterator(_BaseOperationAsyncIterator[T, T]):
     __slots__ = ("until", "_satisfied")
 
     def __init__(
-        self, upstream: ClosableAsyncIterator[T], until: AsyncFunction[T, object]
+        self, upstream: ClosableAsyncIterator[T], until: AsyncCallable[T, object]
     ) -> None:
         super().__init__(upstream)
         self.until = until
@@ -572,7 +572,7 @@ class PredicateTakeAsyncIterator(_BaseOperationAsyncIterator[T, T]):
     __slots__ = ("until", "_satisfied")
 
     def __init__(
-        self, upstream: ClosableAsyncIterator[T], until: AsyncFunction[T, object]
+        self, upstream: ClosableAsyncIterator[T], until: AsyncCallable[T, object]
     ) -> None:
         super().__init__(upstream)
         self.until = until
@@ -597,7 +597,7 @@ class MapAsyncIterator(_BaseOperationAsyncIterator[T, U]):
     __slots__ = ("into",)
 
     def __init__(
-        self, upstream: ClosableAsyncIterator[T], into: AsyncFunction[T, U]
+        self, upstream: ClosableAsyncIterator[T], into: AsyncCallable[T, U]
     ) -> None:
         super().__init__(upstream)
         self.into = into
@@ -615,7 +615,7 @@ class FilterAsyncIterator(_BaseOperationAsyncIterator[T, T]):
     __slots__ = ("where",)
 
     def __init__(
-        self, upstream: ClosableAsyncIterator[T], where: AsyncFunction[T, object]
+        self, upstream: ClosableAsyncIterator[T], where: AsyncCallable[T, object]
     ) -> None:
         super().__init__(upstream)
         self.where = where
@@ -653,7 +653,7 @@ class _BaseObserveAsyncIterator(_BaseOperationAsyncIterator[T, T]):
         self,
         upstream: ClosableAsyncIterator[T],
         subject: str,
-        do: AsyncFunction[Observation, object],
+        do: AsyncCallable[Observation, object],
     ) -> None:
         super().__init__(upstream)
         self.subject = subject
@@ -752,7 +752,7 @@ class PowerObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
         self,
         upstream: ClosableAsyncIterator[T],
         subject: str,
-        do: AsyncFunction[Observation, object],
+        do: AsyncCallable[Observation, object],
         base: int = 2,
     ) -> None:
         super().__init__(upstream, subject, do)
@@ -770,7 +770,7 @@ class EveryIntObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
         upstream: ClosableAsyncIterator[T],
         subject: str,
         every: int,
-        do: AsyncFunction[Observation, object],
+        do: AsyncCallable[Observation, object],
     ) -> None:
         super().__init__(upstream, subject, do)
         self.every = every
@@ -791,7 +791,7 @@ class EveryIntervalObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
         upstream: ClosableAsyncIterator[T],
         subject: str,
         every: datetime.timedelta,
-        do: AsyncFunction[Observation, object],
+        do: AsyncCallable[Observation, object],
     ) -> None:
         super().__init__(upstream, subject, do)
         self.every = every
@@ -1057,7 +1057,7 @@ class AsyncConcurrentMapAsyncIterator(_ConcurrentMapAsyncIterator[T, U]):
     def __init__(
         self,
         upstream: ClosableAsyncIterator[T],
-        into: AsyncFunction[T, U],
+        into: AsyncCallable[T, U],
         concurrency: Union[int, Executor],
         as_completed: bool,
     ) -> None:
