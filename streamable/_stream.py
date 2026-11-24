@@ -75,7 +75,7 @@ class stream_aiterator(ClosableAsyncIterator[T], Protocol[T]):
 
         Errors raised by child tasks during termination are not propagated.
 
-        If a source is already provided as an ``Iterator``/``AsyncIterator``, it is considered owned by the client and ``.aclose`` will not propagate to it (the same applies to inner async iterables processed by ``.flatten``), but an in-flight pull will get cancelled.
+        If a source is already provided as an ``Iterator``/``AsyncIterator``, it is considered owned by the client and ``.aclose`` will not propagate to it (the same applies to inner sync/async iterators processed by ``.flatten``), but an in-flight pull will get cancelled.
 
         What happens without explicit use of ``.aclose``:
 
@@ -124,7 +124,7 @@ class stream_iterator(ClosableIterator[T], Protocol[T]):
 
         Errors raised by child threads during termination are not propagated.
 
-        If a source is already provided as an ``Iterator``, it is considered owned by the client and ``.close`` will not propagate to it (the same applies to inner iterables processed by ``.flatten``).
+        If a source is already provided as an ``Iterator``, it is considered owned by the client and ``.close`` will not propagate to it (the same applies to inner sync/async iterators processed by ``.flatten``).
 
         What happens without explicit use of ``.close``:
 
@@ -158,7 +158,7 @@ class stream_iterator(ClosableIterator[T], Protocol[T]):
 
 class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
     """
-    ``stream[T]`` wraps any ``Iterable[T]`` or ``AsyncIterable[T]`` with a lazy fluent interface covering concurrency, batching, buffering, rate limiting, progress logging, and error handling.
+    ``stream[T]`` wraps any ``Iterable[T]`` or ``AsyncIterable[T]`` with a lazy fluent interface covering concurrency, batching, buffering, rate limiting, progress observation, and error handling.
 
     Chain lazy operations, source elements are processed on-the-fly during iteration.
 
@@ -168,7 +168,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
     A ``stream``'s iteration can resume after an exception has traveled through it.
 
-    Operations accept both sync and async functions (recognised if defined via `async def` or marked via `inspect.markcoroutinefunction`).
+    Operations accept both sync and async functions (recognised if defined via ``async def`` or marked via ``inspect.markcoroutinefunction``).
 
     A ``stream`` supports both sync and async iteration (e.g. ``for`` and ``async for``), operations adapt their behavior.
 
@@ -179,8 +179,8 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
     Args:
         source (``Iterable[T] | AsyncIterable[T] | Callable[[], T] | Callable[[], Coroutine[object, object, T]]``):
 
-          ‣ ``Iterable[T] | AsyncIterable[T]``: A new iterator is created from this iterable for each stream iteration.
-          ‣ ``Callable[[], T] | Callable[[], Coroutine[object, object, T]]``: Function called sequentially to get the next element.
+          ‣ ``Iterable[T] | AsyncIterable[T]``: ``iter(source)``/``aiter(source)`` is called for each iteration.
+          ‣ ``Callable[[], T] | Callable[[], Coroutine[object, object, T]]``: Called sequentially to get the next element, until it raises ``StopIteration`` (or ``StopAsyncIteration`` if async). To stop on a sentinel value, use ``.take(until=lambda _: _ is sentinel)``, or for a sync function ``stream(iter(fn, sentinel))``.
 
     Returns:
         ``stream[T]``: Stream wrapping the ``source``.
@@ -274,7 +274,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         Errors raised by child threads during termination are not propagated.
 
-        If a source is already provided as an ``Iterator``, it is considered owned by the client and ``.close`` will not propagate to it (the same applies to inner iterables processed by ``.flatten``).
+        If a source is already provided as an ``Iterator``, it is considered owned by the client and ``.close`` will not propagate to it (the same applies to inner sync/async iterators processed by ``.flatten``).
 
         Returns:
             ``streamable.stream_iterator[T]``: Closable iterator over this stream's elements.
@@ -324,7 +324,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         Errors raised by child tasks during termination are not propagated.
 
-        If a source is already provided as an ``Iterator``/``AsyncIterator``, it is considered owned by the client and ``.aclose`` will not propagate to it (the same applies to inner async iterables processed by ``.flatten``), but an in-flight pull will get cancelled.
+        If a source is already provided as an ``Iterator``/``AsyncIterator``, it is considered owned by the client and ``.aclose`` will not propagate to it (the same applies to inner sync/async iterators processed by ``.flatten``), but an in-flight pull will get cancelled.
 
         Returns:
             ``streamable.stream_aiterator[T]``: Closable async iterator over this stream's elements.
@@ -694,7 +694,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
               ‣ ``1`` (default): Sequential processing.
               ‣ ``int > 1``: Concurrent via ``concurrency`` threads or async tasks if ``effect`` is async.
-              ‣ ``Executor``: Uses the provided executor (e.g., a ``ProcessPoolExecutor``), the concurrency is the number of workers.
+              ‣ ``Executor``: A sync ``effect`` will be applied using the provided executor (e.g., a ``ProcessPoolExecutor``), the concurrency is the number of workers.
 
             as_completed (``bool``, optional): Order of elements:
 
@@ -817,7 +817,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         You can combine these parameters.
 
-        If an exception is encountered during grouping, the pending batch is yielded (all the pending batches if `by` is set), and then the exception is raised.
+        If an exception is encountered during grouping, the pending batch is yielded (all the pending batches if ``by`` is set), and then the exception is raised.
 
         Args:
             up_to (``int | None``, optional): Batch size:
@@ -906,7 +906,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
               ‣ ``1`` (default): Sequential processing.
               ‣ ``int > 1``: Concurrent via ``concurrency`` threads or async tasks if ``into`` is async.
-              ‣ ``Executor``: Uses the provided executor (e.g., a ``ProcessPoolExecutor``), the concurrency is the number of workers.
+              ‣ ``Executor``: A sync ``into`` will be applied using the provided executor (e.g., a ``ProcessPoolExecutor``), the concurrency is the number of workers.
 
             as_completed (``bool``, optional): Order of results:
 
@@ -970,7 +970,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
                 stream(enumerate(pokemons))
                 .map(star(lambda index, poke: f"#{index + 1} {poke}"))
             )
-            assert list(enumerated_pokes) == ['#1 bulbasaur', '#2 ivysaur', '#3 venusaur', '#4 charmander', '#5 charmeleon', '#6 charizard', '#7 squirtle', '#8 wartortle', '#9 blastoise']
+            assert list(enumerated_pokes) == ['#1 bulbasaur', '#2 ivysaur', '#3 venusaur']
         """
         if isinstance(concurrency, int):
             validate_int(concurrency, gte=1, name="concurrency")
@@ -1006,7 +1006,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         Args:
             subject (``str``, optional): Description of elements being observed.
 
-            every (``int | timedelta | None``, optional): When to emit observations:
+            every (``int | timedelta | None``, optional): When to emit observations. A final observation is emitted on exhaustion.
 
               ‣ ``None`` (default): When the elements/errors counts reach powers of 2.
               ‣ ``int``: Periodically when ``every`` elements or errors have been emitted.
@@ -1027,8 +1027,8 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
             # observe every 5 seconds
             observed_ints = stream(range(10)).observe("ints", every=timedelta(seconds=5))
 
-            observed_ints = stream(range(10)).observe("ints", do=other_logger.info)
-            observed_ints = stream(range(10)).observe("ints", do=logs.append)
+            observed_ints = stream(range(10)).observe("ints", do=custom_logger.info)
+            observed_ints = stream(range(10)).observe("ints", do=observations.append)
             observed_ints = stream(range(10)).observe("ints", do=print)
         """
         if isinstance(every, int):

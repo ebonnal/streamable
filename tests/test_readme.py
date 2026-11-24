@@ -409,7 +409,7 @@ async def test_aclosing_example() -> None:
         assert await it.__anext__() == 0
         assert await it.__anext__() == 1
         # 4 pending tasks, for elements 2, 3, 4, 5
-    # these 4 tasks are cancelled/done
+    # these 4 tasks are done/cancelled
 
 
 @pytest.mark.asyncio
@@ -422,4 +422,4 @@ async def test_aclose_example() -> None:
         # 4 pending tasks, for elements 2, 3, 4, 5
     finally:
         await it.aclose()
-        # these 4 tasks are cancelled/done
+        # these 4 tasks are done/cancelled

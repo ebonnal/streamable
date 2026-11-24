@@ -123,7 +123,7 @@ assert list(int_chars) == ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
 
 Set the `concurrency` param to apply the transformation concurrently, preserving upstream order unless you set `as_completed=True`.
 
-Only `concurrency` upstream elements are in-flight for processing: an upstream element is only pulled before yielding the next result. If the upstream is slow, that can delay the yielding of already available results, unless you place a [`.buffer`](#-buffer) directly before this `.map` to decouple upstream and downstream rates.
+Only `concurrency` upstream elements are in-flight for processing: an upstream element is only pulled right before yielding the next result. If the upstream is slow, that can delay the yielding of already available results, unless you place a [`.buffer`](#-buffer) directly before this `.map` to decouple upstream and downstream rates.
 
 
 #### via threads
@@ -516,7 +516,7 @@ pokemons.pipe(pl.DataFrame, schema=["name"]).write_csv("pokemons.csv")
 
 ## function as source
 
-A `stream` can also be instantiated from a function (sync or async) that will be called sequentially to get the next source element during iteration.
+A `stream` can also be instantiated from a function (sync or async) that will be called sequentially to get the next element, until it raises `StopIteration` (or `StopAsyncIteration` if async).
 
 e.g. stream from a `Queue`:
 
@@ -525,6 +525,8 @@ queued_ints: queue.Queue[int] = ...
 # or asyncio.Queue[int]
 ints: stream[int] = stream(queued_ints.get)
 ```
+
+To stop on a sentinel value, use `.take(until=lambda _: _ is sentinel)`, or for a sync function `stream(iter(fn, sentinel))`.
 
 ## starmap
 
@@ -612,7 +614,7 @@ async with aclosing(aiter(s)) as it:
     assert await anext(it) == 0
     assert await anext(it) == 1
     # 4 pending tasks, for elements 2, 3, 4, 5
-# these 4 tasks are cancelled/done
+# these 4 tasks are done/cancelled
 ```
 
 equivalent to:
@@ -626,7 +628,7 @@ try:
     # 4 pending tasks, for elements 2, 3, 4, 5
 finally:
     await it.aclose()
-    # these 4 tasks are cancelled/done
+    # these 4 tasks are done/cancelled
 ```
 
 ## e.g. ETL via [`dlt`](https://github.com/dlt-hub/dlt)
