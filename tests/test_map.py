@@ -42,6 +42,7 @@ from tests.tools.iter import (
     alist_or_list,
     anext_or_next,
     aqueue_or_queue,
+    asleep_or_sleep,
     stopiteration_type,
 )
 from tests.tools.loop import TEST_LOOP
@@ -274,6 +275,7 @@ def test_map_concurrent_with_upstream_buffer_exhaustion(
     assert collect(alist_or_list(it, itype)) == collect(src)
 
 
+@mark_timing_sensitive
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_map_concurrent_with_upstream_buffer_after_interrupted_exhaustion(
     itype: IterableType, monkeypatch: pytest.MonkeyPatch
@@ -285,6 +287,7 @@ def test_map_concurrent_with_upstream_buffer_after_interrupted_exhaustion(
     monkeypatch.setattr(puller_type, "wait", throw_func(TestBaseError))
     assert anext_or_next(it, itype) == 0
     assert anext_or_next(it, itype) == 1
+    asleep_or_sleep(0.01, itype)
     with pytest.raises(TestBaseError):
         anext_or_next(it, itype)
     assert anext_or_next(it, itype) == 2
