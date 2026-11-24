@@ -168,7 +168,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
     A ``stream``'s iteration can resume after an exception has traveled through it.
 
-    Operations accept both sync and async functions.
+    Operations accept both sync and async functions (recognised if defined via `async def` or marked via `inspect.markcoroutinefunction`).
 
     A ``stream`` supports both sync and async iteration (e.g. ``for`` and ``async for``), operations adapt their behavior.
 
