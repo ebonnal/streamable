@@ -2,13 +2,31 @@ name: PyPI
 
 on:
   push:
-    branches:
-      - main
     paths:
       - 'streamable/__init__.py'
 
 jobs:
+  validate-version:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.13.9"
+      - name: Validate version
+        run: >
+          uv run --no-project --with packaging==25.0
+          python .github/scripts/validate_version.py
+          "$(git describe --tags --abbrev=0)"
+          "$(python -c 'from streamable import __version__; print(__version__)')"
   pypi:
+    needs: validate-version
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-22.04
     environment: pypi
     permissions:
@@ -33,5 +51,5 @@ jobs:
           TAG=$(python -c 'from streamable import __version__; print(__version__)' | sed 's/^/v/')
           git config --global user.name 'github-actions'
           git config --global user.email 'github-actions@github.com'
-          git tag -a $TAG -m"Release $TAG"
+          git tag -a $TAG -m"Release $TAG" || echo "$TAG already exists"
           git push origin $TAG || echo "$TAG not pushed"
