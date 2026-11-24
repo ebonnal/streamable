@@ -390,7 +390,7 @@ async def test_observe_cancellation_landing_during_do(
     await it.aclose()
 
 
-@pytest.mark.parametrize("itype", ["sync", "async"])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_observe_closed_before_activation(itype: IterableType) -> None:
     observations: List[Observation] = []
     src = MonitoredIntIterable()
@@ -500,3 +500,26 @@ def test_observe_do_interruption(
     assert anext_or_next(it, itype) == 1
     with pytest.raises(stopiteration_type(itype)):
         anext_or_next(it, itype)
+
+
+@pytest.mark.parametrize("every", [None, 2, datetime.timedelta(seconds=10)])
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_observe_final_observation_on_close(
+    itype: IterableType, every: Union[None, int, datetime.timedelta]
+) -> None:
+    observations: List[Counts] = []
+    s = stream(range(4)).observe(
+        "ints",
+        every=every,
+        do=lambda obs: observations.append(Counts.from_observation(obs)),
+    )
+    it = aiter_or_iter(s, itype)
+    assert anext_or_next(it, itype) == 0
+    assert anext_or_next(it, itype) == 1
+    assert anext_or_next(it, itype) == 2
+    aclose_or_close(it, itype)
+    post_close_n_observations = len(observations)
+    aclose_or_close(it, itype)
+    aclose_or_close(it, itype)
+    assert len(observations) == post_close_n_observations
+    assert observations[-1] == Counts(errors=0, elements=3)

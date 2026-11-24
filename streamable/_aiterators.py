@@ -724,12 +724,6 @@ class _BaseObserveAsyncIterator(_BaseOperationAsyncIterator[T, T]):
             return self._in_flight_elem.pop()
         except StopAsyncIteration:
             await self._terminate()
-            if (
-                self._emissions_observed is None
-                or self._emissions > self._emissions_observed
-            ):
-                await self._observe()
-            self._reraise_do_base_exception()
             raise
         except Exception as e:
             if not self._in_flight_error:
@@ -743,6 +737,19 @@ class _BaseObserveAsyncIterator(_BaseOperationAsyncIterator[T, T]):
 
     async def _terminate(self) -> None:
         self._stopped.set()
+        if (
+            self._emissions_observed is None
+            or self._emissions > self._emissions_observed
+        ):
+            await self._observe()
+        self._reraise_do_base_exception()
+
+    async def aclose(self) -> None:
+        if not self._closed:
+            if self._activated:
+                await self._terminate()
+            await self._safe_aclose_upstream()
+            self._closed = True
 
 
 class PowerObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
@@ -831,16 +838,10 @@ class EveryIntervalObserveAsyncIterator(_BaseObserveAsyncIterator[T]):
     def _threshold(self, observed: int) -> int:
         return cast(int, float("inf"))
 
-    async def aclose(self) -> None:
-        if not self._closed:
-            if self._activated:
-                await self._terminate()
-            await self._safe_aclose_upstream()
-            self._closed = True
-
     async def _terminate(self) -> None:
-        await super()._terminate()
+        self._stopped.set()
         await ensure_done(self._task)
+        await super()._terminate()
 
     def __del__(self) -> None:
         if self._task is not None:

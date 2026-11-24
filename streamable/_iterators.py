@@ -713,12 +713,6 @@ class _BaseObserveIterator(_BaseOperationIterator[T, T]):
             return self._in_flight_elem.pop()
         except StopIteration:
             self._terminate()
-            if (
-                self._emissions_observed is None
-                or self._emissions > self._emissions_observed
-            ):
-                self._observe()
-            self._reraise_do_base_exception()
             raise
         except Exception as e:
             if not self._in_flight_error:
@@ -732,6 +726,19 @@ class _BaseObserveIterator(_BaseOperationIterator[T, T]):
 
     def _terminate(self) -> None:
         self._stopped.set()
+        if (
+            self._emissions_observed is None
+            or self._emissions > self._emissions_observed
+        ):
+            self._observe()
+        self._reraise_do_base_exception()
+
+    def close(self) -> None:
+        if not self._closed:
+            if self._activated:
+                self._terminate()
+            self._safe_close_upstream()
+            self._closed = True
 
 
 class PowerObserveIterator(_BaseObserveIterator[T]):
@@ -821,16 +828,10 @@ class EveryIntervalObserveIterator(_BaseObserveIterator[T]):
     def _threshold(self, observed: int) -> int:
         return cast(int, float("inf"))
 
-    def close(self) -> None:
-        if not self._closed:
-            if self._activated:
-                self._terminate()
-            self._safe_close_upstream()
-            self._closed = True
-
     def _terminate(self) -> None:
-        super()._terminate()
+        self._stopped.set()
         self._thread_is_done.wait()
+        super()._terminate()
 
     def __del__(self) -> None:
         self._stopped.set()
