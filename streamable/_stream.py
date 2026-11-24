@@ -1006,7 +1006,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
         Args:
             subject (``str``, optional): Description of elements being observed.
 
-            every (``int | timedelta | None``, optional): When to emit observations. A final observation is emitted on exhaustion or close.
+            every (``int | timedelta | None``, optional): When to observe. Always observed on exhaustion or close.
 
               ‣ ``None`` (default): When the elements/errors counts reach powers of 2.
               ‣ ``int``: Periodically when ``every`` elements or errors have been emitted.
