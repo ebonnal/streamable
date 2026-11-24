@@ -28,23 +28,30 @@ jobs:
           - os: ubuntu-22.04
             python-version: '3.13.1'
             loop: uvloop
+          - os: ubuntu-22.04
+            python-version: '3.14.10t'
+            skipped_tests: 'refcounting-dependent'
 
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python ${{ matrix.python-version }}
         id: py
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install uv
         uses: astral-sh/setup-uv@v5
         with:
           version: "0.13.9"
+      - name: Install
+        run: |
+          uv venv --python "${{ steps.py.outputs.python-path }}"
+          uv pip install -e ".[test]"
+      - name: Check the GIL is disabled
+        if: endsWith(matrix.python-version, 't')
+        run: uv run python -c "import sys, streamable, pytest, pytest_asyncio, httpx, respx; assert not sys._is_gil_enabled()"
       - name: Test
         env:
           STREAMABLE_TEST_LOOP: ${{ matrix.loop || 'asyncio' }}
           STREAMABLE_SKIPPED_TESTS: ${{ matrix.skipped_tests || '' }}
-        run: |
-          uv venv --python "${{ steps.py.outputs.python-path }}"
-          uv pip install -e ".[test]"
-          uv run pytest -s
+        run: uv run pytest -s

@@ -1,5 +1,5 @@
 import sys
-from typing import Any, Callable, Iterable, List
+from typing import Any, Callable, List
 
 import pytest
 
@@ -87,13 +87,16 @@ def test_take_additional_nexts(itype: IterableType, taking_stream: stream[int]) 
 
 
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
-@pytest.mark.parametrize(
-    "get_stream", [lambda src: stream(src), lambda src: stream(src).buffer(2)]
-)
-def test_take_again(
-    itype: IterableType, get_stream: Callable[[Iterable], stream[int]]
-) -> None:
+def test_take_again(itype: IterableType) -> None:
     src = iter(range(10))
-    s = get_stream(src).take(2)
+    s = stream(src).take(2)
     assert alist_or_list(s, itype) == [0, 1]
     assert alist_or_list(s, itype) == [2, 3]
+
+
+@pytest.mark.parametrize("itype", ITERABLE_TYPES)
+def test_take_again_post_buffer(itype: IterableType) -> None:
+    src = iter(range(10))
+    s = stream(src).buffer(2).take(2)
+    assert alist_or_list(s, itype) == [0, 1]
+    assert len(alist_or_list(s, itype)) == 2

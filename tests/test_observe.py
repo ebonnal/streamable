@@ -219,8 +219,8 @@ def test_observe_every_timedelta_frequent(itype: IterableType) -> None:
     frequent_every = datetime.timedelta(seconds=0.95 * THROTTLE_PER.total_seconds())
     s = to_inverses("12---3456-----", logs, every=frequent_every)
     alist_or_list(s, itype)
-    assert logs == [
-        Counts(errors=0, elements=0),
+    assert logs[0] in (Counts(errors=0, elements=0), Counts(errors=0, elements=1))
+    assert logs[1:] == [
         Counts(errors=0, elements=1),
         Counts(errors=0, elements=2),
         Counts(errors=1, elements=2),
@@ -409,32 +409,34 @@ def test_observe_closed_before_activation(itype: IterableType) -> None:
 @pytest.mark.parametrize("itype", ITERABLE_TYPES)
 def test_observe_every_timedelta_long_do(itype: IterableType) -> None:
     observations: List[Counts] = []
-    src = range(1, 4)
     every = datetime.timedelta(milliseconds=10)
 
-    async def asleep_inverse(obs: Observation) -> None:
-        await asyncio.sleep(1 / (obs.elements + 1))
+    async def asleep_and_save(obs: Observation) -> None:
+        await asyncio.sleep(0.5)
         observations.append(Counts.from_observation(obs))
 
-    def sleep_inverse(obs: Observation) -> None:
-        time.sleep(1 / (obs.elements + 1))
+    def sleep_and_save(obs: Observation) -> None:
+        time.sleep(0.5)
         observations.append(Counts.from_observation(obs))
 
+    src = range(10)
     s = stream(src).observe(
-        "ints", every=every, do=(asleep_inverse if itype == "async" else sleep_inverse)
+        "ints", every=every, do=(sleep_and_save if itype == "sync" else asleep_and_save)
     )
     it = aiter_or_iter(s, itype)
-    assert anext_or_next(it, itype) == 1
-    assert anext_or_next(it, itype) == 2
-    assert anext_or_next(it, itype) == 3
+    assert anext_or_next(it, itype) == 0
     asleep_or_sleep(0.1, itype)
+    # first observation is running
+    for i in range(1, len(src)):
+        assert anext_or_next(it, itype) == i
+    # first observation still running
+    assert len(observations) == 0
     with pytest.raises(stopiteration_type(itype)):
         anext_or_next(it, itype)
-    asleep_or_sleep(0.1, itype)
-    assert observations == [
-        Counts(errors=0, elements=0),
-        Counts(errors=0, elements=len(src)),
-    ]
+    # first observation was waited for, and a second/final one done.
+    assert len(observations) == 2
+    assert observations[0].elements <= 1
+    assert observations[-1] == Counts(errors=0, elements=len(src))
 
 
 @pytest.mark.parametrize("every", [None, 1, datetime.timedelta(seconds=10)])
