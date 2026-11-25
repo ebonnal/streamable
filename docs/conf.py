@@ -42,6 +42,7 @@ exclude_patterns = [
 
 templates_path = ["_templates"]
 html_static_path = ["_static"]
+html_extra_path = ["../llms.txt", "_extra"]
 
 html_theme = "furo"
 html_favicon = "_static/favicon.png"

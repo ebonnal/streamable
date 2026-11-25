@@ -1,0 +1,13 @@
+# streamable
+
+> `stream[T]` wraps any `Iterable[T]` or `AsyncIterable[T]` with a lazy, typed, fluent interface covering concurrency, batching, buffering, rate limiting, progress observation and error handling.
+
+- The API changed with 2.0.0 (February 2026): the 1.x API (`.foreach`, `.amap`, `.truncate`, ...) no longer exists, and lowercase `stream` is now preferred over `Stream`. Check the CHANGELOG for the 1.x → 2.0.0 migration.
+- The README covers all the capabilities of the library, with runnable examples.
+
+## Docs
+
+- [API reference](https://streamable.readthedocs.io/)
+- [README](https://raw.githubusercontent.com/ebonnal/streamable/main/README.md)
+- [CHANGELOG](https://raw.githubusercontent.com/ebonnal/streamable/main/CHANGELOG.md)
+
