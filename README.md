@@ -72,7 +72,7 @@ A `stream[T]` is `Iterable[T]` and `AsyncIterable[T]`:
 
 # core principles
 
-***minimal***: A `stream` exposes operations to manipulate its elements, but its source and consumption are not its responsibility. It's meant to be combined with dedicated libraries like `pyarrow`, `psycopg2`, `dlt` ([ETL example](#eg-etl-via-dlt)), etc.
+***minimal***: A `stream` exposes operations to manipulate its elements, but its source/consumption and the retries are not its responsibility. It's meant to be combined with dedicated builtins and libraries: e.g. collect via `list`/`set`, reduce via `functools.reduce`, retry via `tenacity`, read/write via `pyarrow`, `psycopg2`, `boto3`, `dlt`: check the [ETL snippet](#eg-etl-via-dlt).
 
 ***resilient***: A `stream`'s iteration can resume after an exception has traveled through it.
 
@@ -635,26 +635,34 @@ finally:
 A `stream` is an expressive way to declare a `dlt.resource`:
 
 ```python
-# from datetime import timedelta
-# from http import HTTPStatus
-# from itertools import count
-# import dlt
-# import httpx
-# from httpx import Response, HTTPStatusError
-# from dlt.destinations import filesystem
-# from streamable import stream
+from datetime import timedelta
+from http import HTTPStatus
+from itertools import count
+import dlt
+import httpx
+from httpx import Response, HTTPStatusError, TransportError
+from dlt.destinations import filesystem
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_random_exponential
+from streamable import stream
 
 def not_found(e: HTTPStatusError) -> bool:
     return e.response.status_code == HTTPStatus.NOT_FOUND
 
+retrying = retry(
+    retry=retry_if_exception_type(TransportError),
+    wait=wait_random_exponential(max=8),
+    stop=stop_after_attempt(5),
+    reraise=True,
+)
+
 @dlt.resource
 def pokemons(http_client: httpx.Client, concurrency: int, per_second: int) -> stream[dict]:
-    """Ingest Pokémons from the PokéAPI, stop on first 404."""
+    """Ingest Pokémons from the PokéAPI, retry network errors, stop on first 404."""
     return (
         stream(count(1))
         .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
         .throttle(per_second, per=timedelta(seconds=1))
-        .map(http_client.get, concurrency=concurrency)
+        .map(retrying(http_client.get), concurrency=concurrency)
         .do(Response.raise_for_status)
         .catch(HTTPStatusError, where=not_found, stop=True)
         .map(Response.json)
