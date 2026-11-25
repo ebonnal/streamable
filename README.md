@@ -40,15 +40,13 @@ Chain lazy operations (accepting sync and async functions):
 ```python
 import logging
 from datetime import timedelta
-import httpx
-from httpx import Response, HTTPStatusError
-from streamable import stream
+from httpx import HTTPStatusError, Response, get
 
 pokemons: stream[str] = (
     stream(range(10))
     .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
     .throttle(5, per=timedelta(seconds=1))
-    .map(httpx.get, concurrency=2)
+    .map(get, concurrency=2)
     .do(Response.raise_for_status)
     .catch(HTTPStatusError, do=logging.warning)
     .map(lambda poke: poke.json()["name"])
@@ -72,7 +70,7 @@ A `stream[T]` is `Iterable[T]` and `AsyncIterable[T]`:
 
 # core principles
 
-***minimal***: A `stream` exposes operations to manipulate its elements, but its source/consumption and the retries are not its responsibility. It's meant to be combined with dedicated builtins and libraries: e.g. collect via `list`/`set`, reduce via `functools.reduce`, retry via `tenacity`, read/write via `pyarrow`, `psycopg2`, `boto3`, `dlt`: check the [ETL snippet](#eg-etl-via-dlt).
+***minimal***: A `stream` exposes operations to manipulate its elements, but its source/consumption and retries are not its responsibility. It's meant to be combined with dedicated builtins and libraries: e.g. collect via `list`/`set`, reduce via `functools.reduce`, retry via `tenacity`, read/write via `pyarrow`, `psycopg2`, `boto3`, `dlt`: check the [ETL snippet](#eg-etl-via-dlt).
 
 ***resilient***: A `stream`'s iteration can resume after an exception has traveled through it.
 
@@ -118,12 +116,11 @@ int_chars: stream[str] = stream(range(10)).map(str)
 assert list(int_chars) == ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
 ```
 
-
 ### `concurrency`
 
 Set the `concurrency` param to apply the transformation concurrently, preserving upstream order unless you set `as_completed=True`.
 
-Only `concurrency` upstream elements are in-flight for processing: an upstream element is only pulled right before yielding the next result. If the upstream is slow, that can delay the yielding of already available results, unless you place a [`.buffer`](#-buffer) directly before this `.map` to decouple upstream and downstream rates.
+Only about `concurrency` upstream elements are in-flight for processing: an upstream element is only pulled right before yielding the next result. If the upstream is slow, that can delay the yielding of already available results, unless you place a [`.buffer`](#-buffer) directly before this `.map` to decouple upstream and downstream rates.
 
 Check [`.close`/`.aclose`](#structured-concurrency) for *structured concurrency*.
 
@@ -132,10 +129,12 @@ Check [`.close`/`.aclose`](#structured-concurrency) for *structured concurrency*
 If `concurrency > 1`, the transformation will be applied via `concurrency` threads:
 
 ```python
+from httpx import get
+
 pokemons: stream[str] = (
     stream(range(1, 4))
     .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
-    .map(httpx.get, concurrency=2)
+    .map(get, concurrency=2)
     .map(lambda poke: poke.json()["name"])
 )
 assert list(pokemons) == ['bulbasaur', 'ivysaur', 'venusaur']
@@ -146,38 +145,44 @@ assert list(pokemons) == ['bulbasaur', 'ivysaur', 'venusaur']
 If `concurrency > 1` and the transformation is async, it will be applied via `concurrency` async tasks:
 
 ```python
+from httpx import AsyncClient
+
 # async context
-async with httpx.AsyncClient() as http_client:
+async with AsyncClient() as async_http:
     pokemons: stream[str] = (
         stream(range(1, 4))
         .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
-        .map(http_client.get, concurrency=2)
+        .map(async_http.get, concurrency=2)
         .map(lambda poke: poke.json()["name"])
     )
     assert [name async for name in pokemons] == ['bulbasaur', 'ivysaur', 'venusaur']
 ```
 
 ```python
+import asyncio
+from httpx import AsyncClient
+
 # sync context
 with asyncio.Runner() as runner:
-    http_client = httpx.AsyncClient()
+    async_http = AsyncClient()
     pokemons: stream[str] = (
         stream(range(1, 4))
         .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
-        .map(http_client.get, concurrency=2)
+        .map(async_http.get, concurrency=2)
         .map(lambda poke: poke.json()["name"])
     )
     # uses runner's loop
     assert list(pokemons) == ['bulbasaur', 'ivysaur', 'venusaur']
-    runner.run(http_client.aclose())
+    runner.run(async_http.aclose())
 ```
 
 #### via processes
 
 `concurrency` can also be a `concurrent.futures.Executor`, pass a `ProcessPoolExecutor` to apply the transformations via processes:
 
-
 ```python
+from concurrent.futures import ProcessPoolExecutor
+
 if __name__ == "__main__":
     with ProcessPoolExecutor(max_workers=10) as processes:
         state: list[int] = []
@@ -193,7 +198,6 @@ if __name__ == "__main__":
 ## ▼ `.do`
 
 Perform side effects:
-
 
 ```python
 state: list[int] = []
@@ -221,7 +225,6 @@ assert list(int_batches) == [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]]
 
 ... `within` a given time interval:
 
-
 ```python
 from datetime import timedelta
 
@@ -235,7 +238,6 @@ assert list(int_1s_batches) == [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]]
 ```
 
 ... `by` a given key, yielding `(key, elements)` pairs:
-
 
 ```python
 ints_by_parity: stream[tuple[str, list[int]]] = (
@@ -290,7 +292,6 @@ assert list(first_5_ints) == [0, 1, 2, 3, 4]
 
 ... or take `until` a predicate is satisfied:
 
-
 ```python
 first_5_ints: stream[int] = stream(range(10)).take(until=lambda n: n == 5)
 
@@ -308,7 +309,6 @@ assert list(ints_after_5) == [5, 6, 7, 8, 9]
 ```
 
 ... or skip `until` a predicate is satisfied:
-
 
 ```python
 ints_after_5: stream[int] = stream(range(10)).skip(until=lambda n: n >= 5)
@@ -334,18 +334,19 @@ assert list(inverses) == [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
 
 ```python
 from http import HTTPStatus
+from httpx import HTTPStatusError, Response, get
 
 urls = [
     "https://github.com/ebonnal",
     "https://github.com/ebonnal/streamable",
     "https://github.com/ebonnal/foo",
 ]
-responses: stream[httpx.Response] = (
+responses: stream[Response] = (
     stream(urls)
-    .map(httpx.get)
-    .do(httpx.Response.raise_for_status)
+    .map(get)
+    .do(Response.raise_for_status)
     .catch(
-        httpx.HTTPStatusError,
+        HTTPStatusError,
         where=lambda e: e.response.status_code == HTTPStatus.NOT_FOUND,
     )
 )
@@ -406,9 +407,11 @@ assert list(throttled_ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 ## ▼ `.buffer`
 
-Buffer upstream elements into a bounded queue via a background task (decoupling upstream production rate from downstream consumption rate):
+Buffer upstream elements into a bounded queue via a background task/thread (decoupling upstream production rate from downstream consumption rate):
 
 ```python
+from time import sleep
+
 pulled: list[int] = []
 buffered_ints = iter(
     stream(range(10))
@@ -416,7 +419,7 @@ buffered_ints = iter(
     .buffer(5)
 )
 assert next(buffered_ints) == 0
-time.sleep(1e-3)
+sleep(1e-3)
 assert pulled == [0, 1, 2, 3, 4, 5]
 ```
 
@@ -430,6 +433,7 @@ assert list(observed_ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 
 logs:
+
 ```
 2025-12-23T16:43:07Z INFO observed=ints elapsed=0:00:00.000019 errors=0 elements=1
 2025-12-23T16:43:07Z INFO observed=ints elapsed=0:00:00.001117 errors=0 elements=2
@@ -438,11 +442,16 @@ logs:
 2025-12-23T16:43:07Z INFO observed=ints elapsed=0:00:00.001179 errors=0 elements=10
 ```
 
-Logs are produced when the counts reach powers of 2. Set `every` to produce them periodically:
+Logs are produced when the counts reach powers of 2 (and at exhaustion/close). Set `every` to produce them periodically:
+
 ```python
 # observe every 1k elements (or errors)
 observed_ints = stream(range(10)).observe("ints", every=1000)
+```
+
+```python
 # observe every 5 seconds
+from datetime import timedelta
 observed_ints = stream(range(10)).observe("ints", every=timedelta(seconds=5))
 ```
 
@@ -454,27 +463,34 @@ observed_ints = stream(range(10)).observe("ints", do=observations.append)
 observed_ints = stream(range(10)).observe("ints", do=print)
 ```
 
+# ••• other notes
 
-## ▼ `+`
+## `+` concatenation
 
 Concatenate a stream with another iterable:
+
 ```python
 concatenated_ints: stream[int] = stream(range(5)) + range(5, 10)
 assert list(concatenated_ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 
-## ▼ `.cast`
+## `.cast` elements
 
 Provide a type hint for elements:
 
 ```python
-docs: stream[Any] = stream(['{"foo": "bar"}', '{"foo": "baz"}']).map(json.loads)
-dicts: stream[dict[str, str]] = docs.cast(dict[str, str])
-# the stream remains the same, it's for type checkers only
-assert dicts is docs
+import json
+
+dicts: stream[dict[str, str]] = (
+    stream(['{"foo": "bar"}', '{"foo": "baz"}'])
+    .map(json.loads)  # stream[Any]
+    .cast(dict[str, str])
+)
 ```
 
-## ▼ `.__call__`
+## consumption helpers
+
+### `.__call__` a stream
 
 Iterate as an `Iterable` until exhaustion, without collecting its elements:
 
@@ -487,7 +503,7 @@ pipeline()
 assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 
-## ▼ `await`
+### `await` a stream
 
 Iterate as an `AsyncIterable` until exhaustion, without collecting its elements:
 
@@ -500,7 +516,7 @@ await pipeline
 assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
 
-## ▼ `.pipe`
+### `.pipe`
 
 Apply a callable, passing the stream as first argument, followed by the provided `*args` and `**kwargs`:
 
@@ -511,8 +527,6 @@ pokemons: stream[str] = ...
 pokemons.pipe(pl.DataFrame, schema=["name"]).write_csv("pokemons.csv")
 ```
 
-# ••• other notes
-
 ## function as source
 
 A `stream` can also be instantiated from a function (sync or async) that will be called sequentially to get the next element, until it raises `StopIteration` (or `StopAsyncIteration` if async).
@@ -520,12 +534,16 @@ A `stream` can also be instantiated from a function (sync or async) that will be
 e.g. stream from a `Queue`:
 
 ```python
-queued_ints: queue.Queue[int] = ...
-# or asyncio.Queue[int]
-ints: stream[int] = stream(queued_ints.get)
+from queue import Queue
+# or from asyncio import Queue
+
+ints_queue: Queue[int] = ...
+ints: stream[int] = stream(ints_queue.get)
 ```
 
-To stop on a sentinel value, use `.take(until=lambda _: _ is sentinel)`, or for a sync function `stream(iter(fn, sentinel))`.
+To stop on a sentinel value, either:
+- add `.take(until=lambda _: _ is sentinel)`
+- or use `stream(iter(ints_queue.get, sentinel))` (sync only)
 
 ## starmap
 
@@ -534,7 +552,7 @@ The `star` function decorator transforms a function (sync or async) that takes s
 ```python
 from streamable import star
 
-pokemons: stream[str] = ...
+pokemons: stream[str] = ...  # see top of the README
 enumerated_pokes: stream[str] = (
     stream(enumerate(pokemons))
     .map(star(lambda index, poke: f"#{index + 1} {poke}"))
@@ -563,22 +581,23 @@ assert list(unique_ints) == [0, 1]
 
 ## structured concurrency
 
-During an iteration, these operations spawn child tasks (async or threads):
+During an iteration, these operations spawn child tasks/threads:
 
 - `.map`/`.do`/`.flatten` with `concurrency > 1`
 - `.buffer`
 - `.group(..., within=timedelta(...))`
 - `.observe(..., every=timedelta(...))`
 
-When the iteration is complete, all the child tasks are done.
+When the iteration is complete, all the child tasks/threads are done.
 
-When the iterator is destroyed before it is exhausted, the pending child tasks are terminated (queued work is cancelled if possible).
+When the iterator is destroyed before exhaustion, the pending work is cancelled if possible.
 
-`stream.__iter__`/`stream.__aiter__` returns an `Iterator`/`AsyncIterator` with a retriable `.close`/`.aclose` method to eagerly terminate any pending child tasks.
+`stream.__iter__`/`stream.__aiter__` returns an `Iterator`/`AsyncIterator` with a retriable `.close`/`.aclose` method to eagerly terminate any pending child tasks/threads.
 
 ### `.close`
 
 ```python
+import time
 from contextlib import closing
 
 s = stream(range(10)).do(time.sleep, concurrency=4)
@@ -592,6 +611,9 @@ with closing(iter(s)) as it:
 equivalent to:
 
 ```python
+import time
+from streamable import stream_iterator
+
 s = stream(range(10)).do(time.sleep, concurrency=4)
 it: stream_iterator[int] = iter(s)
 try:
@@ -606,6 +628,7 @@ finally:
 ### `.aclose`
 
 ```python
+import asyncio
 from contextlib import aclosing
 
 s = stream(range(10)).do(asyncio.sleep, concurrency=4)
@@ -619,6 +642,9 @@ async with aclosing(aiter(s)) as it:
 equivalent to:
 
 ```python
+import asyncio
+from streamable import stream_aiterator
+
 s = stream(range(10)).do(asyncio.sleep, concurrency=4)
 it: stream_aiterator[int] = aiter(s)
 try:

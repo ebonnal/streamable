@@ -7,21 +7,20 @@ from concurrent.futures import ProcessPoolExecutor
 from datetime import timedelta
 from http import HTTPStatus
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Dict, List, Tuple
 
-import httpx
 import pytest
 import respx
-from httpx import HTTPStatusError, Response
+from httpx import AsyncClient, HTTPStatusError, Response, get
 
-from streamable import stream, stream_aiterator, stream_iterator
+from streamable import Observation, stream, stream_aiterator, stream_iterator
 from tests.tools.skip import mark_timing_sensitive
 
 pokemons: stream[str] = (
     stream(range(10))
     .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
     .throttle(5, per=timedelta(seconds=1))
-    .map(httpx.get, concurrency=2)
+    .map(get, concurrency=2)
     .do(Response.raise_for_status)
     .catch(HTTPStatusError, do=logging.warning)
     .map(lambda poke: poke.json()["name"])
@@ -59,7 +58,7 @@ def test_map_example_thread_concurrency() -> None:
     pokemons: stream[str] = (
         stream(range(1, 4))
         .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
-        .map(httpx.get, concurrency=2)
+        .map(get, concurrency=2)
         .map(lambda poke: poke.json()["name"])
     )
     assert list(pokemons) == ["bulbasaur", "ivysaur", "venusaur"]
@@ -73,7 +72,7 @@ def test_map_example_process_concurrency() -> None:
             list(stream(range(10)).map(state.append, concurrency=processes))
             == [None] * 10
         )
-        # but the `state` of the main process is not mutated
+        # the `state` of the main process is not mutated
         assert state == []
 
 
@@ -83,26 +82,26 @@ def test_map_example_process_concurrency() -> None:
 def test_map_example_async_concurrency_aiter_sync() -> None:
     # sync context
     with asyncio.Runner() as runner:
-        http_client = httpx.AsyncClient()
+        async_http = AsyncClient()
         pokemons: stream[str] = (
             stream(range(1, 4))
             .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
-            .map(http_client.get, concurrency=2)
+            .map(async_http.get, concurrency=2)
             .map(lambda poke: poke.json()["name"])
         )
         # uses runner's loop
         assert list(pokemons) == ["bulbasaur", "ivysaur", "venusaur"]
-        runner.run(http_client.aclose())
+        runner.run(async_http.aclose())
 
 
 @pytest.mark.asyncio
 async def test_map_example_async_concurrency_aiter_async() -> None:
     # async context
-    async with httpx.AsyncClient() as http_client:
+    async with AsyncClient() as async_http:
         pokemons: stream[str] = (
             stream(range(1, 4))
             .map(lambda i: f"https://pokeapi.co/api/v2/pokemon-species/{i}")
-            .map(http_client.get, concurrency=2)
+            .map(async_http.get, concurrency=2)
             .map(lambda poke: poke.json()["name"])
         )
         assert [name async for name in pokemons] == ["bulbasaur", "ivysaur", "venusaur"]
@@ -150,18 +149,9 @@ def test_throttle_example() -> None:
     )
 
     start = time.perf_counter()
-    # takes 3s: ceil(10 ints / 3 per_second) - 1
+    # takes 3 seconds
     assert list(throttled_ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     assert 2.99 < time.perf_counter() - start < 3.25
-
-    ints_every_100_millis = stream(range(10)).throttle(
-        1, per=timedelta(milliseconds=100)
-    )
-
-    start = time.perf_counter()
-    # takes 900 millis: (10 ints - 1) * 100 millis
-    assert list(ints_every_100_millis) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-    assert 0.89 < time.perf_counter() - start < 0.95
 
 
 @mark_timing_sensitive
@@ -186,14 +176,6 @@ def test_group_example() -> None:
 
     assert list(ints_by_parity) == [("even", [0, 2, 4, 6, 8]), ("odd", [1, 3, 5, 7, 9])]
 
-    from streamable import star
-
-    counts_by_parity: stream[Tuple[str, int]] = ints_by_parity.map(
-        star(lambda parity, ints: (parity, len(ints)))
-    )
-
-    assert list(counts_by_parity) == [("even", 5), ("odd", 5)]
-
 
 def test_flatten_example() -> None:
     chars: stream[str] = stream(["hel", "lo!"]).flatten()
@@ -213,25 +195,23 @@ def test_catch_example() -> None:
     assert list(inverses) == [1.0, 0.5, 0.33, 0.25, 0.2, 0.17, 0.14, 0.12, 0.11]
 
     with respx.mock:
-        respx.get("https://github.com/ebonnal").mock(return_value=httpx.Response(200))
+        respx.get("https://github.com/ebonnal").mock(return_value=Response(200))
         respx.get("https://github.com/ebonnal/streamable").mock(
-            return_value=httpx.Response(200)
+            return_value=Response(200)
         )
-        respx.get("https://github.com/ebonnal/foo").mock(
-            return_value=httpx.Response(404)
-        )
+        respx.get("https://github.com/ebonnal/foo").mock(return_value=Response(404))
 
         urls = [
             "https://github.com/ebonnal",
             "https://github.com/ebonnal/streamable",
             "https://github.com/ebonnal/foo",
         ]
-        responses: stream[httpx.Response] = (
+        responses: stream[Response] = (
             stream(urls)
-            .map(httpx.get)
-            .do(httpx.Response.raise_for_status)
+            .map(get)
+            .do(Response.raise_for_status)
             .catch(
-                httpx.HTTPStatusError,
+                HTTPStatusError,
                 where=lambda e: e.response.status_code == HTTPStatus.NOT_FOUND,
             )
         )
@@ -305,15 +285,37 @@ def test_distinct_example() -> None:
 
 
 def test_buffer_example() -> None:
+    from time import sleep
+
     pulled: List[int] = []
     buffered_ints = iter(stream(range(10)).do(pulled.append).buffer(5))
     assert next(buffered_ints) == 0
-    time.sleep(1e-3)
+    sleep(1e-3)
     assert pulled == [0, 1, 2, 3, 4, 5]
 
 
 def test_observe_example() -> None:
     observed_ints: stream[int] = stream(range(10)).observe("ints")
+    assert list(observed_ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+
+def test_observe_every_example() -> None:
+    # observe every 1k elements (or errors)
+    observed_ints = stream(range(10)).observe("ints", every=1000)
+    assert list(observed_ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+    # observe every 5 seconds
+    observed_ints = stream(range(10)).observe("ints", every=timedelta(seconds=5))
+    assert list(observed_ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+
+def test_observe_do_example() -> None:
+    observations: List[Observation] = []
+    observed_ints = stream(range(10)).observe("ints", do=observations.append)
+    assert list(observed_ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    assert observations[-1].elements == 10
+
+    observed_ints = stream(range(10)).observe("ints", do=print)
     assert list(observed_ints) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 
@@ -353,7 +355,9 @@ async def test_afunc_source() -> None:
 def test_call_example() -> None:
     state: List[int] = []
     pipeline: stream[int] = stream(range(10)).do(state.append)
-    assert pipeline() is pipeline
+
+    pipeline()
+
     assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 
@@ -361,7 +365,9 @@ def test_call_example() -> None:
 async def test_await_example() -> None:
     state: List[int] = []
     pipeline: stream[int] = stream(range(10)).do(state.append)
-    assert pipeline is await pipeline
+
+    await pipeline
+
     assert state == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 
@@ -372,9 +378,12 @@ def test_pipe_example(tmp_path: Path) -> None:
 
 
 def test_cast_example() -> None:
-    docs: stream[Any] = stream(['{"foo": "bar"}', '{"foo": "baz"}']).map(json.loads)
-    dicts: stream[Dict[str, str]] = docs.cast(Dict[str, str])
-    assert dicts is docs
+    dicts: stream[Dict[str, str]] = (
+        stream(['{"foo": "bar"}', '{"foo": "baz"}'])
+        .map(json.loads)  # stream[Any]
+        .cast(Dict[str, str])
+    )
+    assert list(dicts) == [{"foo": "bar"}, {"foo": "baz"}]
 
 
 def test_closing_example() -> None:

@@ -80,7 +80,7 @@ class stream_aiterator(ClosableAsyncIterator[T], Protocol[T]):
         What happens without explicit use of ``.aclose``:
 
         - When the iteration is complete: all the child tasks are done.
-        - When the iterator is destroyed mid-iteration: the pending child tasks are cancelled and terminated at a subsequent cycle of the event loop.
+        - When the iterator is destroyed before exhaustion: the pending child tasks are cancelled.
 
         Example::
 
@@ -129,7 +129,7 @@ class stream_iterator(ClosableIterator[T], Protocol[T]):
         What happens without explicit use of ``.close``:
 
         - When the iteration is complete: all the child threads are done.
-        - When the iterator is destroyed mid-iteration: the pending child threads are terminated (queued work is cancelled if possible).
+        - When the iterator is destroyed before exhaustion: the pending child threads' work is cancelled if not started.
 
         Example::
 
@@ -268,7 +268,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         When the iteration is complete, all the child threads are done.
 
-        When the iterator is destroyed before it is exhausted, the pending child threads are terminated (queued work is cancelled if possible).
+        When the iterator is destroyed before exhaustion, the pending child threads' work is cancelled if not started.
 
         Use the retriable ``.close`` method to eagerly terminate any pending child threads.
 
@@ -318,7 +318,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         When the iteration is complete, all the child tasks are done.
 
-        When the iterator is destroyed before it is exhausted, the pending child tasks are cancelled and terminated at a subsequent cycle of the event loop.
+        When the iterator is destroyed before exhaustion, the pending child tasks are cancelled.
 
         Use the retriable ``.aclose`` method to eagerly terminate any pending child tasks.
 
@@ -684,7 +684,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         - Preserve upstream order unless you set ``as_completed=True``.
 
-        - Only ``concurrency`` upstream elements are in-flight for processing: an upstream element is only pulled right before yielding the next done element. If the upstream is slow, that can delay the yielding of already done elements, unless you place a ``.buffer`` directly before this ``.do`` to decouple upstream and downstream rates.
+        - Only about ``concurrency`` upstream elements are in-flight for processing: an upstream element is only pulled right before yielding the next done element. If the upstream is slow, that can delay the yielding of already done elements, unless you place a ``.buffer`` directly before this ``.do`` to decouple upstream and downstream rates.
 
 
         Args:
@@ -896,7 +896,7 @@ class stream(Iterable[T], AsyncIterable[T], Awaitable["stream[T]"]):
 
         - Preserve upstream order unless you set ``as_completed=True``.
 
-        - Only ``concurrency`` upstream elements are in-flight for processing: an upstream element is only pulled right before yielding the next result. If the upstream is slow, that can delay the yielding of already available results, unless you place a ``.buffer`` directly before this ``.map`` to decouple upstream and downstream rates.
+        - Only about ``concurrency`` upstream elements are in-flight for processing: an upstream element is only pulled right before yielding the next result. If the upstream is slow, that can delay the yielding of already available results, unless you place a ``.buffer`` directly before this ``.map`` to decouple upstream and downstream rates.
 
 
         Args:
