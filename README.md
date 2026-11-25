@@ -125,6 +125,7 @@ Set the `concurrency` param to apply the transformation concurrently, preserving
 
 Only `concurrency` upstream elements are in-flight for processing: an upstream element is only pulled right before yielding the next result. If the upstream is slow, that can delay the yielding of already available results, unless you place a [`.buffer`](#-buffer) directly before this `.map` to decouple upstream and downstream rates.
 
+Check [`.close`/`.aclose`](#structured-concurrency) for *structured concurrency*.
 
 #### via threads
 
@@ -170,8 +171,6 @@ with asyncio.Runner() as runner:
     assert list(pokemons) == ['bulbasaur', 'ivysaur', 'venusaur']
     runner.run(http_client.aclose())
 ```
-
-Check [`.close`/`.aclose`](#structured-concurrency) for *structured concurrency*.
 
 #### via processes
 
