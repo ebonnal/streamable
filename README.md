@@ -17,7 +17,7 @@ pip install streamable==2.1.0
 ```
 No dependencies. Also available on conda. Make sure to pin/lock a version to prevent supply-chain attacks.
 
-Tested on Linux/Windows/macOS, [CPython](https://github.com/python/cpython) 3.8 to 3.15rc and 3.14t ([free-threaded](https://docs.python.org/3/howto/free-threading-python.html)), [PyPy](https://github.com/pypy/pypy), [uvloop](https://github.com/magicstack/uvloop).
+Tested on Linux/Windows/macOS, [CPython](https://github.com/python/cpython) 3.8 to 3.15 and 3.14t ([free-threaded](https://docs.python.org/3/howto/free-threading-python.html)), [PyPy](https://github.com/pypy/pypy), [uvloop](https://github.com/magicstack/uvloop).
 
 ## 2. import
 
