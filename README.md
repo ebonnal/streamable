@@ -53,7 +53,7 @@ pokemons: stream[str] = (
 )
 ```
 
-Source elements will be processed on-the-fly during iteration.
+Each operation returns a new `stream`, and source elements are processed on-the-fly during iteration.
 
 ## 5. iterate
 
@@ -70,21 +70,21 @@ A `stream[T]` is `Iterable[T]` and `AsyncIterable[T]`:
 
 # core principles
 
-***minimal***: A `stream` exposes operations to manipulate its elements, but its source/consumption and retries are not its responsibility. It's meant to be combined with dedicated builtins and libraries: e.g. collect via `list`/`set`, reduce via `functools.reduce`, retry via `tenacity`, read/write via `pyarrow`, `psycopg2`, `boto3`, `dlt`: check the [ETL snippet](#eg-etl-via-dlt).
-
-***resilient***: A `stream`'s iteration can resume after an exception has traveled through it.
-
-***match builtins***: Iteration over `stream(source).filter(pred).map(into)` introduces zero overhead vs `builtins`-based `map(into, filter(pred, source))`.
+***focused***: A `stream` exposes operations to manipulate its elements, but its source/consumption and retries are not its responsibility. It's meant to be combined with dedicated builtins and libraries: e.g. collect via `list`/`set`, reduce via `functools.reduce`, retry via `tenacity`, read/write via `pyarrow`, `psycopg`, `boto3`, `dlt`: check the [ETL example](#eg-etl-via-dlt).
 
 ***sync/async***:
 
 - Operations accept both sync and async functions (recognised if defined via `async def` or marked via `inspect.markcoroutinefunction`).
 
-- A `stream` supports both sync and async iteration (e.g. `for` and `async for`), operations adapt their behavior.
+- A `stream` supports both sync and async iteration (e.g. `for` and `async for`), and operations adapt their behavior.
 
 - A sync iteration over a `stream` involving async functions or an `AsyncIterable` source runs as an async iteration under the hood, using the current event loop if one is set.
 
+***resilient***: An exception raised during a `stream`'s iteration doesn't break it: you can keep iterating (until it is exhausted or [closed](#structured-concurrency)).
+
 ***structured concurrency***: The iterators returned by `stream.__iter__`/`stream.__aiter__` expose a [`.close`/`.aclose`](#structured-concurrency) method to eagerly terminate the tasks/threads they may spawn during iteration.
+
+***match builtins***: Iteration over `stream(source).filter(pred).map(into)` introduces zero overhead vs `builtins`-based `map(into, filter(pred, source))`.
 
 ---
 
